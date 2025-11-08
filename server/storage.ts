@@ -3,6 +3,9 @@ import {
   trainingPlans,
   exercises,
   planAssignments,
+  exerciseLibrary,
+  userProfiles,
+  clientProgress,
   type User,
   type UpsertUser,
   type TrainingPlan,
@@ -11,6 +14,12 @@ import {
   type InsertExercise,
   type PlanAssignment,
   type InsertPlanAssignment,
+  type ExerciseLibrary,
+  type InsertExerciseLibrary,
+  type UserProfile,
+  type InsertUserProfile,
+  type ClientProgress,
+  type InsertClientProgress,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
@@ -49,6 +58,25 @@ export interface IStorage {
     totalClients: number;
     totalAssignments: number;
   }>;
+  
+  // Exercise library operations
+  createExerciseLibrary(exercise: InsertExerciseLibrary, trainerId: string): Promise<ExerciseLibrary>;
+  getTrainerExerciseLibrary(trainerId: string): Promise<ExerciseLibrary[]>;
+  getExerciseFromLibrary(exerciseId: string): Promise<ExerciseLibrary | undefined>;
+  updateExerciseLibrary(exerciseId: string, data: Partial<InsertExerciseLibrary>): Promise<ExerciseLibrary>;
+  deleteExerciseLibrary(exerciseId: string): Promise<void>;
+  
+  // User profile operations
+  getUserProfile(userId: string): Promise<UserProfile | undefined>;
+  createUserProfile(profile: InsertUserProfile): Promise<UserProfile>;
+  updateUserProfile(userId: string, data: Partial<InsertUserProfile>): Promise<UserProfile>;
+  
+  // Client progress operations
+  getClientProgress(clientId: string): Promise<ClientProgress | undefined>;
+  upsertClientProgress(clientId: string, data: Partial<InsertClientProgress>): Promise<ClientProgress>;
+  
+  // Client search (privacy - search by email only)
+  searchClientByEmail(email: string): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -237,6 +265,102 @@ export class DatabaseStorage implements IStorage {
       totalClients: clients.length,
       totalAssignments,
     };
+  }
+
+  // Exercise library operations
+  async createExerciseLibrary(exercise: InsertExerciseLibrary, trainerId: string): Promise<ExerciseLibrary> {
+    const [created] = await db
+      .insert(exerciseLibrary)
+      .values({ ...exercise, trainerId })
+      .returning();
+    return created;
+  }
+
+  async getTrainerExerciseLibrary(trainerId: string): Promise<ExerciseLibrary[]> {
+    return await db
+      .select()
+      .from(exerciseLibrary)
+      .where(eq(exerciseLibrary.trainerId, trainerId));
+  }
+
+  async getExerciseFromLibrary(exerciseId: string): Promise<ExerciseLibrary | undefined> {
+    const [exercise] = await db
+      .select()
+      .from(exerciseLibrary)
+      .where(eq(exerciseLibrary.id, exerciseId));
+    return exercise;
+  }
+
+  async updateExerciseLibrary(exerciseId: string, data: Partial<InsertExerciseLibrary>): Promise<ExerciseLibrary> {
+    const [updated] = await db
+      .update(exerciseLibrary)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(exerciseLibrary.id, exerciseId))
+      .returning();
+    return updated;
+  }
+
+  async deleteExerciseLibrary(exerciseId: string): Promise<void> {
+    await db.delete(exerciseLibrary).where(eq(exerciseLibrary.id, exerciseId));
+  }
+
+  // User profile operations
+  async getUserProfile(userId: string): Promise<UserProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, userId));
+    return profile;
+  }
+
+  async createUserProfile(profile: InsertUserProfile): Promise<UserProfile> {
+    const [created] = await db
+      .insert(userProfiles)
+      .values(profile)
+      .returning();
+    return created;
+  }
+
+  async updateUserProfile(userId: string, data: Partial<InsertUserProfile>): Promise<UserProfile> {
+    const [updated] = await db
+      .update(userProfiles)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(userProfiles.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  // Client progress operations
+  async getClientProgress(clientId: string): Promise<ClientProgress | undefined> {
+    const [progress] = await db
+      .select()
+      .from(clientProgress)
+      .where(eq(clientProgress.clientId, clientId));
+    return progress;
+  }
+
+  async upsertClientProgress(clientId: string, data: Partial<InsertClientProgress>): Promise<ClientProgress> {
+    const [progress] = await db
+      .insert(clientProgress)
+      .values({ ...data, clientId })
+      .onConflictDoUpdate({
+        target: clientProgress.clientId,
+        set: {
+          ...data,
+          lastUpdated: new Date(),
+        },
+      })
+      .returning();
+    return progress;
+  }
+
+  // Client search (privacy - search by email only)
+  async searchClientByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(and(eq(users.email, email), eq(users.role, "client")));
+    return user;
   }
 }
 

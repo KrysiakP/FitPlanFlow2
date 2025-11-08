@@ -6,6 +6,11 @@ import {
   insertTrainingPlanSchema,
   insertExerciseSchema,
   insertPlanAssignmentSchema,
+  insertExerciseLibrarySchema,
+  insertUserProfileSchema,
+  updateUserProfileSchema,
+  insertClientProgressSchema,
+  updateClientProgressSchema,
   updateUserRoleSchema,
   registerSchema,
   loginSchema,
@@ -211,7 +216,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { exercises: exercisesList, ...planData } = planSchema.parse(req.body);
       
-      const plan = await storage.createTrainingPlan(planData, userId);
+      const plan = await storage.createTrainingPlan({ ...planData, trainerId: userId }, userId);
       await storage.createExercises(plan.id, exercisesList);
       
       const createdExercises = await storage.getExercisesByPlan(plan.id);
@@ -276,6 +281,263 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Exercise library routes
+  app.get("/api/exercises/library", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can access exercise library" });
+      }
+
+      const exercises = await storage.getTrainerExerciseLibrary(userId);
+      res.json(exercises);
+    } catch (error) {
+      console.error("Error fetching exercise library:", error);
+      res.status(500).json({ message: "Failed to fetch exercise library" });
+    }
+  });
+
+  app.post("/api/exercises/library", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can create exercises" });
+      }
+
+      const validationResult = insertExerciseLibrarySchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const exercise = await storage.createExerciseLibrary({ ...validationResult.data, trainerId: userId }, userId);
+      res.json(exercise);
+    } catch (error) {
+      console.error("Error creating exercise:", error);
+      res.status(500).json({ message: "Failed to create exercise" });
+    }
+  });
+
+  app.get("/api/exercises/library/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      
+      const exercise = await storage.getExerciseFromLibrary(id);
+      if (!exercise) {
+        return res.status(404).json({ message: "Exercise not found" });
+      }
+      
+      if (exercise.trainerId !== userId) {
+        return res.status(403).json({ message: "You can only access your own exercises" });
+      }
+
+      res.json(exercise);
+    } catch (error) {
+      console.error("Error fetching exercise:", error);
+      res.status(500).json({ message: "Failed to fetch exercise" });
+    }
+  });
+
+  app.put("/api/exercises/library/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can update exercises" });
+      }
+      
+      const existingExercise = await storage.getExerciseFromLibrary(id);
+      if (!existingExercise) {
+        return res.status(404).json({ message: "Exercise not found" });
+      }
+      
+      if (existingExercise.trainerId !== userId) {
+        return res.status(403).json({ message: "You can only update your own exercises" });
+      }
+
+      const validationResult = insertExerciseLibrarySchema.partial().safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const updatedExercise = await storage.updateExerciseLibrary(id, validationResult.data);
+      res.json(updatedExercise);
+    } catch (error) {
+      console.error("Error updating exercise:", error);
+      res.status(500).json({ message: "Failed to update exercise" });
+    }
+  });
+
+  app.delete("/api/exercises/library/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can delete exercises" });
+      }
+      
+      const exercise = await storage.getExerciseFromLibrary(id);
+      if (!exercise) {
+        return res.status(404).json({ message: "Exercise not found" });
+      }
+      
+      if (exercise.trainerId !== userId) {
+        return res.status(403).json({ message: "You can only delete your own exercises" });
+      }
+
+      await storage.deleteExerciseLibrary(id);
+      res.json({ message: "Exercise deleted" });
+    } catch (error) {
+      console.error("Error deleting exercise:", error);
+      res.status(500).json({ message: "Failed to delete exercise" });
+    }
+  });
+
+  // User profile routes
+  app.get("/api/profile", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const profile = await storage.getUserProfile(userId);
+      res.json(profile || null);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  app.post("/api/profile", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      
+      const existingProfile = await storage.getUserProfile(userId);
+      if (existingProfile) {
+        return res.status(400).json({ message: "Profile already exists" });
+      }
+
+      const validationResult = insertUserProfileSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const profile = await storage.createUserProfile({ ...validationResult.data, userId });
+      res.json(profile);
+    } catch (error) {
+      console.error("Error creating profile:", error);
+      res.status(500).json({ message: "Failed to create profile" });
+    }
+  });
+
+  app.put("/api/profile", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+
+      const validationResult = updateUserProfileSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const updatedProfile = await storage.updateUserProfile(userId, validationResult.data);
+      res.json(updatedProfile);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // Client progress routes
+  app.get("/api/client/progress", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Only clients can access their progress" });
+      }
+
+      const progress = await storage.getClientProgress(userId);
+      res.json(progress || null);
+    } catch (error) {
+      console.error("Error fetching client progress:", error);
+      res.status(500).json({ message: "Failed to fetch progress" });
+    }
+  });
+
+  app.put("/api/client/progress", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Only clients can update their progress" });
+      }
+
+      const validationResult = updateClientProgressSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const progress = await storage.upsertClientProgress(userId, validationResult.data);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error updating client progress:", error);
+      res.status(500).json({ message: "Failed to update progress" });
+    }
+  });
+
+  // Trainer viewing client progress
+  app.get("/api/trainer/clients/:clientId/progress", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can view client progress" });
+      }
+
+      const { clientId } = req.params;
+      
+      const trainerClients = await storage.getTrainerClients(userId);
+      const isTrainerClient = trainerClients.some(client => client.id === clientId);
+      
+      if (!isTrainerClient) {
+        return res.status(403).json({ message: "You can only view progress of your own clients" });
+      }
+
+      const progress = await storage.getClientProgress(clientId);
+      if (!progress) {
+        return res.status(404).json({ message: "Client progress not found" });
+      }
+
+      res.json(progress);
+    } catch (error) {
+      console.error("Error fetching client progress:", error);
+      res.status(500).json({ message: "Failed to fetch client progress" });
+    }
+  });
+
   // Assignment routes
   app.post("/api/assignments/bulk", isAuthenticated, async (req, res) => {
     try {
@@ -323,6 +585,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching clients:", error);
       res.status(500).json({ message: "Failed to fetch clients" });
+    }
+  });
+
+  app.post("/api/clients/search", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can search for clients" });
+      }
+
+      const searchSchema = z.object({
+        email: z.string().email("Nieprawidłowy adres email"),
+      });
+
+      const validationResult = searchSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const { email } = validationResult.data;
+      const client = await storage.searchClientByEmail(email);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+
+      const { password: _, ...clientWithoutPassword } = client;
+      res.json(clientWithoutPassword);
+    } catch (error) {
+      console.error("Error searching for client:", error);
+      res.status(500).json({ message: "Failed to search for client" });
     }
   });
 
