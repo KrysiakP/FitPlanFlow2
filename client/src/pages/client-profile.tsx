@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Upload, User, TrendingUp } from "lucide-react";
+import { AlertCircle, Upload } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { UserProfile, ClientProgress } from "@shared/schema";
+import type { UserProfile } from "@shared/schema";
 import {
   Form,
   FormControl,
@@ -20,13 +20,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,17 +34,7 @@ const profileSchema = z.object({
   imageFile: z.any().optional(),
 });
 
-const progressSchema = z.object({
-  weight: z.string().optional(),
-  height: z.string().optional(),
-  goal: z.string().optional(),
-  mood: z.string().optional(),
-  completedWorkouts: z.coerce.number().int().min(0).optional(),
-  notes: z.string().optional(),
-});
-
 type ProfileFormValues = z.infer<typeof profileSchema>;
-type ProgressFormValues = z.infer<typeof progressSchema>;
 
 export default function ClientProfile() {
   const { user } = useAuth();
@@ -69,33 +52,12 @@ export default function ClientProfile() {
     queryKey: ["/api/profile"],
   });
 
-  const {
-    data: progress,
-    isLoading: isLoadingProgress,
-    error: progressError,
-    refetch: refetchProgress,
-  } = useQuery<ClientProgress | null>({
-    queryKey: ["/api/client/progress"],
-  });
-
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       bio: "",
       profileImageUrl: "",
       phone: "",
-    },
-  });
-
-  const progressForm = useForm<ProgressFormValues>({
-    resolver: zodResolver(progressSchema),
-    defaultValues: {
-      weight: "",
-      height: "",
-      goal: "",
-      mood: "",
-      completedWorkouts: 0,
-      notes: "",
     },
   });
 
@@ -108,19 +70,6 @@ export default function ClientProfile() {
       });
     }
   }, [profile, profileForm]);
-
-  useEffect(() => {
-    if (progress) {
-      progressForm.reset({
-        weight: progress.weight || "",
-        height: progress.height || "",
-        goal: progress.goal || "",
-        mood: progress.mood || "",
-        completedWorkouts: progress.completedWorkouts || 0,
-        notes: progress.notes || "",
-      });
-    }
-  }, [progress, progressForm]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: ProfileFormValues) => {
@@ -174,51 +123,13 @@ export default function ClientProfile() {
     },
   });
 
-  const updateProgressMutation = useMutation({
-    mutationFn: async (data: ProgressFormValues) => {
-      const progressData = {
-        weight: data.weight || null,
-        height: data.height || null,
-        goal: data.goal || null,
-        mood: data.mood || null,
-        completedWorkouts: data.completedWorkouts,
-        notes: data.notes || null,
-      };
-
-      await apiRequest("PUT", "/api/client/progress", progressData);
-      return progressData;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/client/progress"] });
-      toast({
-        title: "Postępy zaktualizowane",
-        description: "Twoje postępy zostały pomyślnie zapisane",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Błąd",
-        description: error.message || "Nie udało się zaktualizować postępów",
-        variant: "destructive",
-      });
-    },
-  });
-
   const onSubmitProfile = (data: ProfileFormValues) => {
     updateProfileMutation.mutate(data);
-  };
-
-  const onSubmitProgress = (data: ProgressFormValues) => {
-    updateProgressMutation.mutate(data);
   };
 
   const handleCancelProfile = () => {
     profileForm.reset();
     setPreviewImage(null);
-  };
-
-  const handleCancelProgress = () => {
-    progressForm.reset();
   };
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -254,7 +165,7 @@ export default function ClientProfile() {
     return profile?.profileImageUrl || user?.profileImageUrl || null;
   };
 
-  if (isLoadingProfile || isLoadingProgress) {
+  if (isLoadingProfile) {
     return (
       <div className="space-y-8">
         <div>
@@ -291,39 +202,25 @@ export default function ClientProfile() {
     );
   }
 
-  if (profileError || progressError) {
+  if (profileError) {
     return (
       <div className="space-y-8">
         <div>
           <h1 className="font-heading font-bold text-4xl mb-2">Mój profil</h1>
           <p className="text-muted-foreground">
-            Zarządzaj swoim profilem i śledź swoje postępy
+            Zarządzaj swoim profilem osobistym
           </p>
         </div>
-        {profileError && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Błąd</AlertTitle>
-            <AlertDescription className="flex items-center justify-between">
-              <span>Nie udało się załadować profilu</span>
-              <Button variant="outline" size="sm" onClick={() => refetchProfile()}>
-                Spróbuj ponownie
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-        {progressError && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Błąd</AlertTitle>
-            <AlertDescription className="flex items-center justify-between">
-              <span>Nie udało się załadować postępów</span>
-              <Button variant="outline" size="sm" onClick={() => refetchProgress()}>
-                Spróbuj ponownie
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Błąd</AlertTitle>
+          <AlertDescription className="flex items-center justify-between">
+            <span>Nie udało się załadować profilu</span>
+            <Button variant="outline" size="sm" onClick={() => refetchProfile()}>
+              Spróbuj ponownie
+            </Button>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -335,7 +232,7 @@ export default function ClientProfile() {
           Mój profil
         </h1>
         <p className="text-muted-foreground">
-          Zarządzaj swoim profilem i śledź swoje postępy
+          Zarządzaj swoim profilem osobistym
         </p>
       </div>
 
@@ -483,184 +380,6 @@ export default function ClientProfile() {
                   onClick={handleCancelProfile}
                   disabled={updateProfileMutation.isPending || uploadProgress}
                   data-testid="button-cancel"
-                >
-                  Anuluj
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-
-      {/* Progress Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            <CardTitle>Moje postępy</CardTitle>
-          </div>
-          <CardDescription>
-            Śledź swoje postępy treningowe i cele
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...progressForm}>
-            <form onSubmit={progressForm.handleSubmit(onSubmitProgress)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={progressForm.control}
-                  name="weight"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Waga</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="np. 75kg"
-                          {...field}
-                          data-testid="input-weight"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Twoja aktualna waga
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={progressForm.control}
-                  name="height"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Wzrost</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="np. 180cm"
-                          {...field}
-                          data-testid="input-height"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Twój wzrost
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={progressForm.control}
-                name="goal"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cel treningowy</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Opisz swój cel treningowy, np. schudnąć 5kg, zbudować masę mięśniową..."
-                        rows={4}
-                        {...field}
-                        data-testid="input-goal"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Twój główny cel treningowy
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={progressForm.control}
-                  name="mood"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Samopoczucie</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="input-mood">
-                            <SelectValue placeholder="Wybierz samopoczucie" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Świetne">Świetne</SelectItem>
-                          <SelectItem value="Dobre">Dobre</SelectItem>
-                          <SelectItem value="Średnie">Średnie</SelectItem>
-                          <SelectItem value="Słabe">Słabe</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Jak się dzisiaj czujesz?
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={progressForm.control}
-                  name="completedWorkouts"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Liczba ukończonych treningów</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min={0}
-                          {...field}
-                          data-testid="input-completed-workouts"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Ile treningów już ukończyłeś?
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={progressForm.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notatki motywacyjne</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Zapisz swoje myśli, sukcesy, wyzwania..."
-                        rows={4}
-                        {...field}
-                        data-testid="input-notes"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Twoje osobiste notatki i refleksje
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="flex gap-4 pt-4">
-                <Button
-                  type="submit"
-                  disabled={updateProgressMutation.isPending}
-                  data-testid="button-save-progress"
-                >
-                  {updateProgressMutation.isPending
-                    ? "Zapisywanie..."
-                    : "Zapisz postępy"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCancelProgress}
-                  disabled={updateProgressMutation.isPending}
-                  data-testid="button-cancel-progress"
                 >
                   Anuluj
                 </Button>
