@@ -15,6 +15,7 @@ import {
   updateUserRoleSchema,
   registerSchema,
   loginSchema,
+  insertPlanWithWorkoutsSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
@@ -243,10 +244,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const plansWithDetails = await Promise.all(
         plans.map(async (plan) => {
           const workouts = await storage.getWorkoutsByPlanId(plan.id);
+          const workoutsWithExercises = await Promise.all(
+            workouts.map(async (workout) => {
+              const exercises = await storage.getExercisesByWorkoutId(workout.id);
+              return { ...workout, exercises };
+            })
+          );
           const assignments = await storage.getAssignmentsByPlan(plan.id);
           return {
             ...plan,
-            workouts: workouts,
+            workouts: workoutsWithExercises,
             assignmentCount: assignments.length,
           };
         })
@@ -283,7 +290,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const workouts = await storage.getWorkoutsByPlanId(id);
-      res.json({ ...plan, workouts });
+      const workoutsWithExercises = await Promise.all(
+        workouts.map(async (workout) => {
+          const exercises = await storage.getExercisesByWorkoutId(workout.id);
+          return { ...workout, exercises };
+        })
+      );
+      
+      res.json({ ...plan, workouts: workoutsWithExercises });
     } catch (error) {
       console.error("Error fetching plan:", error);
       res.status(500).json({ message: "Failed to fetch plan" });
@@ -391,6 +405,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error copying plan:", error);
       res.status(500).json({ message: "Failed to copy plan" });
+    }
+  });
+
+  app.post("/api/plans/bulk", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can create plans" });
+      }
+
+      const validationResult = insertPlanWithWorkoutsSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+      
+      const newPlan = await storage.createTrainingPlanWithWorkouts(userId, validationResult.data);
+      res.status(201).json(newPlan);
+    } catch (error) {
+      console.error("Error creating plan with workouts:", error);
+      res.status(500).json({ message: "Failed to create plan with workouts" });
+    }
+  });
+
+  app.put("/api/plans/:id/bulk", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can update plans" });
+      }
+
+      const plan = await storage.getTrainingPlan(id);
+      if (!plan) {
+        return res.status(404).json({ message: "Plan not found" });
+      }
+
+      if (plan.trainerId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const validationResult = insertPlanWithWorkoutsSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+      
+      const updatedPlan = await storage.updateTrainingPlanWithWorkouts(id, userId, validationResult.data);
+      res.json(updatedPlan);
+    } catch (error) {
+      console.error("Error updating plan with workouts:", error);
+      res.status(500).json({ message: "Failed to update plan with workouts" });
     }
   });
 

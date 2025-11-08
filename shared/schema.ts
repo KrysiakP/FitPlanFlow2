@@ -227,6 +227,12 @@ export const insertExerciseSchema = createInsertSchema(exercises).omit({
   workoutId: true,
 });
 
+export const insertPlanWithWorkoutsSchema = insertTrainingPlanSchema.extend({
+  workouts: z.array(insertWorkoutSchema.omit({ planId: true }).extend({
+    exercises: z.array(insertExerciseSchema)
+  }))
+});
+
 export const insertPlanAssignmentSchema = createInsertSchema(planAssignments).omit({
   id: true,
   assignedAt: true,
@@ -283,6 +289,7 @@ export const loginSchema = z.object({
 export type InsertTrainingPlanInput = z.infer<typeof insertTrainingPlanSchema>;
 export type InsertWorkoutInput = z.infer<typeof insertWorkoutSchema>;
 export type InsertExerciseInput = z.infer<typeof insertExerciseSchema>;
+export type InsertPlanWithWorkouts = z.infer<typeof insertPlanWithWorkoutsSchema>;
 export type InsertPlanAssignmentInput = z.infer<typeof insertPlanAssignmentSchema>;
 export type InsertExerciseLibraryInput = z.infer<typeof insertExerciseLibrarySchema>;
 export type InsertUserProfileInput = z.infer<typeof insertUserProfileSchema>;

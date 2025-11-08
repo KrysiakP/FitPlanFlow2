@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLocation, useParams, Link } from "wouter";
-import type { TrainingPlan, Exercise, ExerciseLibrary } from "@shared/schema";
+import type { TrainingPlan, Workout, Exercise, ExerciseLibrary } from "@shared/schema";
 
 const exerciseSchema = z.object({
   name: z.string().min(1, "Nazwa ćwiczenia jest wymagana"),
@@ -25,15 +25,24 @@ const exerciseSchema = z.object({
   orderIndex: z.number(),
 });
 
+const workoutSchema = z.object({
+  name: z.string().min(1, "Nazwa treningu jest wymagana"),
+  description: z.string().optional(),
+  exercises: z.array(exerciseSchema).min(1, "Dodaj przynajmniej jedno ćwiczenie"),
+  orderIndex: z.number(),
+});
+
 const planSchema = z.object({
   name: z.string().min(1, "Nazwa planu jest wymagana"),
   description: z.string().optional(),
-  exercises: z.array(exerciseSchema).min(1, "Dodaj przynajmniej jedno ćwiczenie"),
+  workouts: z.array(workoutSchema).min(1, "Dodaj przynajmniej jeden trening"),
 });
 
 type PlanFormData = z.infer<typeof planSchema>;
 
-type PlanWithExercises = TrainingPlan & { exercises: Exercise[] };
+type PlanWithWorkouts = TrainingPlan & { 
+  workouts: (Workout & { exercises: Exercise[] })[] 
+};
 
 export default function PlanForm() {
   const { id } = useParams();
@@ -41,9 +50,10 @@ export default function PlanForm() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [libraryDialogOpen, setLibraryDialogOpen] = useState(false);
+  const [selectedWorkoutIndex, setSelectedWorkoutIndex] = useState<number | null>(null);
   const [selectedExerciseIndex, setSelectedExerciseIndex] = useState<number | null>(null);
 
-  const { data: existingPlan, isLoading } = useQuery<PlanWithExercises>({
+  const { data: existingPlan, isLoading } = useQuery<PlanWithWorkouts>({
     queryKey: ["/api/plans", id],
     enabled: isEdit,
   });
@@ -57,19 +67,29 @@ export default function PlanForm() {
     defaultValues: {
       name: "",
       description: "",
-      exercises: [{ name: "", sets: 3, reps: 10, description: "", restTime: 60, load: "", orderIndex: 0 }],
+      workouts: [{
+        name: "Trening 1",
+        description: "",
+        exercises: [{ name: "", sets: 3, reps: 10, description: "", restTime: 60, load: "", orderIndex: 0 }],
+        orderIndex: 0
+      }],
     },
     values: existingPlan ? {
       name: existingPlan.name,
       description: existingPlan.description || "",
-      exercises: existingPlan.exercises.map((ex) => ({
-        name: ex.name,
-        sets: ex.sets,
-        reps: ex.reps,
-        description: ex.description || "",
-        restTime: ex.restTime || 60,
-        load: ex.load || "",
-        orderIndex: ex.orderIndex,
+      workouts: existingPlan.workouts.map((workout) => ({
+        name: workout.name,
+        description: workout.description || "",
+        exercises: workout.exercises.map((ex) => ({
+          name: ex.name,
+          sets: ex.sets,
+          reps: ex.reps,
+          description: ex.description || "",
+          restTime: ex.restTime ?? 60,
+          load: ex.load ?? "",
+          orderIndex: ex.orderIndex,
+        })),
+        orderIndex: workout.orderIndex,
       })),
     } : undefined,
   });
@@ -77,13 +97,14 @@ export default function PlanForm() {
   const createPlanMutation = useMutation({
     mutationFn: async (data: PlanFormData) => {
       if (isEdit) {
-        await apiRequest("PUT", `/api/plans/${id}`, data);
+        await apiRequest("PUT", `/api/plans/${id}/bulk`, data);
       } else {
-        await apiRequest("POST", "/api/plans", data);
+        await apiRequest("POST", "/api/plans/bulk", data);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/plans"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/plans", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/trainer/stats"] });
       toast({
         title: isEdit ? "Plan zaktualizowany" : "Plan utworzony",
@@ -100,39 +121,62 @@ export default function PlanForm() {
     },
   });
 
-  const addExercise = () => {
-    const currentExercises = form.getValues("exercises");
-    form.setValue("exercises", [
+  const addWorkout = () => {
+    const currentWorkouts = form.getValues("workouts");
+    form.setValue("workouts", [
+      ...currentWorkouts,
+      { 
+        name: `Trening ${currentWorkouts.length + 1}`,
+        description: "",
+        exercises: [{ name: "", sets: 3, reps: 10, description: "", restTime: 60, load: "", orderIndex: 0 }],
+        orderIndex: currentWorkouts.length
+      },
+    ]);
+  };
+
+  const removeWorkout = (workoutIndex: number) => {
+    const currentWorkouts = form.getValues("workouts");
+    form.setValue(
+      "workouts",
+      currentWorkouts.filter((_, i) => i !== workoutIndex).map((w, i) => ({ ...w, orderIndex: i }))
+    );
+  };
+
+  const addExercise = (workoutIndex: number) => {
+    const currentExercises = form.getValues(`workouts.${workoutIndex}.exercises`);
+    form.setValue(`workouts.${workoutIndex}.exercises`, [
       ...currentExercises,
       { name: "", sets: 3, reps: 10, description: "", restTime: 60, load: "", orderIndex: currentExercises.length },
     ]);
   };
 
-  const handleSelectFromLibrary = (index: number) => {
-    setSelectedExerciseIndex(index);
+  const removeExercise = (workoutIndex: number, exerciseIndex: number) => {
+    const currentExercises = form.getValues(`workouts.${workoutIndex}.exercises`);
+    form.setValue(
+      `workouts.${workoutIndex}.exercises`,
+      currentExercises.filter((_, i) => i !== exerciseIndex).map((ex, i) => ({ ...ex, orderIndex: i }))
+    );
+  };
+
+  const handleSelectFromLibrary = (workoutIndex: number, exerciseIndex: number) => {
+    setSelectedWorkoutIndex(workoutIndex);
+    setSelectedExerciseIndex(exerciseIndex);
     setLibraryDialogOpen(true);
   };
 
   const handleExerciseSelect = (exercise: ExerciseLibrary) => {
-    if (selectedExerciseIndex === null) return;
+    if (selectedWorkoutIndex === null || selectedExerciseIndex === null) return;
     
-    form.setValue(`exercises.${selectedExerciseIndex}.name`, exercise.name);
-    form.setValue(`exercises.${selectedExerciseIndex}.description`, exercise.description || "");
-    form.setValue(`exercises.${selectedExerciseIndex}.sets`, exercise.defaultSets ?? 3);
-    form.setValue(`exercises.${selectedExerciseIndex}.reps`, exercise.defaultReps ?? 10);
-    form.setValue(`exercises.${selectedExerciseIndex}.load`, exercise.defaultLoad || "");
-    form.setValue(`exercises.${selectedExerciseIndex}.restTime`, exercise.defaultRestTime ?? 60);
+    form.setValue(`workouts.${selectedWorkoutIndex}.exercises.${selectedExerciseIndex}.name`, exercise.name);
+    form.setValue(`workouts.${selectedWorkoutIndex}.exercises.${selectedExerciseIndex}.description`, exercise.description || "");
+    form.setValue(`workouts.${selectedWorkoutIndex}.exercises.${selectedExerciseIndex}.sets`, exercise.defaultSets ?? 3);
+    form.setValue(`workouts.${selectedWorkoutIndex}.exercises.${selectedExerciseIndex}.reps`, exercise.defaultReps ?? 10);
+    form.setValue(`workouts.${selectedWorkoutIndex}.exercises.${selectedExerciseIndex}.load`, exercise.defaultLoad || "");
+    form.setValue(`workouts.${selectedWorkoutIndex}.exercises.${selectedExerciseIndex}.restTime`, exercise.defaultRestTime ?? 60);
     
     setLibraryDialogOpen(false);
+    setSelectedWorkoutIndex(null);
     setSelectedExerciseIndex(null);
-  };
-
-  const removeExercise = (index: number) => {
-    const currentExercises = form.getValues("exercises");
-    form.setValue(
-      "exercises",
-      currentExercises.filter((_, i) => i !== index).map((ex, i) => ({ ...ex, orderIndex: i }))
-    );
   };
 
   if (isEdit && isLoading) {
@@ -199,142 +243,235 @@ export default function PlanForm() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <div>
-                <CardTitle className="font-heading">Ćwiczenia</CardTitle>
-                <CardDescription>Dodaj ćwiczenia do planu treningowego</CardDescription>
+                <CardTitle className="font-heading">Treningi</CardTitle>
+                <CardDescription>Dodaj treningi do planu</CardDescription>
               </div>
               <Button
                 type="button"
                 variant="outline"
-                onClick={addExercise}
-                data-testid="button-add-exercise"
+                onClick={addWorkout}
+                data-testid="button-add-workout"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Dodaj ćwiczenie
+                Dodaj trening
               </Button>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {form.watch("exercises").map((_, index) => (
-                <Card key={index} data-testid={`card-exercise-${index}`}>
-                  <CardContent className="p-6 space-y-4">
-                    <div className="flex items-start gap-4">
-                      <div className="pt-2">
-                        <GripVertical className="w-5 h-5 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 space-y-4">
-                        <div className="flex items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleSelectFromLibrary(index)}
-                            data-testid={`button-select-from-library-${index}`}
-                          >
-                            <Library className="w-4 h-4 mr-2" />
-                            Wybierz z biblioteki
-                          </Button>
-                        </div>
+            <CardContent className="space-y-6">
+              {form.watch("workouts").map((_, workoutIndex) => (
+                <Card key={workoutIndex} data-testid={`card-workout-${workoutIndex}`}>
+                  <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-4">
+                    <div className="flex-1 space-y-4">
+                      <FormField
+                        control={form.control}
+                        name={`workouts.${workoutIndex}.name`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nazwa treningu</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="np. Trening górnej partii" 
+                                {...field} 
+                                data-testid={`input-workout-name-${workoutIndex}`} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                        <FormField
-                          control={form.control}
-                          name={`exercises.${index}.name`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Nazwa ćwiczenia</FormLabel>
-                              <FormControl>
-                                <Input placeholder="np. Wyciskanie sztangi" {...field} data-testid={`input-exercise-name-${index}`} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                      <FormField
+                        control={form.control}
+                        name={`workouts.${workoutIndex}.description`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Opis treningu (opcjonalnie)</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Opisz cel i zakres tego treningu"
+                                {...field}
+                                data-testid={`input-workout-description-${workoutIndex}`}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => removeWorkout(workoutIndex)}
+                      disabled={form.watch("workouts").length === 1}
+                      data-testid={`button-remove-workout-${workoutIndex}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </CardHeader>
 
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormField
-                            control={form.control}
-                            name={`exercises.${index}.sets`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Serie</FormLabel>
-                                <FormControl>
-                                  <Input type="number" min="1" {...field} data-testid={`input-exercise-sets-${index}`} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={form.control}
-                            name={`exercises.${index}.reps`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Powtórzenia</FormLabel>
-                                <FormControl>
-                                  <Input type="number" min="1" {...field} data-testid={`input-exercise-reps-${index}`} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={form.control}
-                            name={`exercises.${index}.load`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Obciążenie (opcjonalnie)</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="np. 20kg, bodyweight" {...field} data-testid={`input-exercise-load-${index}`} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={form.control}
-                            name={`exercises.${index}.restTime`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Odpoczynek (s)</FormLabel>
-                                <FormControl>
-                                  <Input type="number" min="0" {...field} data-testid={`input-exercise-rest-${index}`} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        <FormField
-                          control={form.control}
-                          name={`exercises.${index}.description`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Opis (opcjonalnie)</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  placeholder="Dodatkowe wskazówki dotyczące techniki wykonania"
-                                  {...field}
-                                  data-testid={`input-exercise-description-${index}`}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium">Ćwiczenia</h4>
                       <Button
                         type="button"
                         variant="outline"
-                        size="icon"
-                        onClick={() => removeExercise(index)}
-                        disabled={form.watch("exercises").length === 1}
-                        data-testid={`button-remove-exercise-${index}`}
+                        size="sm"
+                        onClick={() => addExercise(workoutIndex)}
+                        data-testid={`button-add-exercise-${workoutIndex}`}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Plus className="w-4 h-4 mr-2" />
+                        Dodaj ćwiczenie
                       </Button>
                     </div>
+
+                    {form.watch(`workouts.${workoutIndex}.exercises`).map((_, exerciseIndex) => (
+                      <Card key={exerciseIndex} data-testid={`card-exercise-${workoutIndex}-${exerciseIndex}`}>
+                        <CardContent className="p-6 space-y-4">
+                          <div className="flex items-start gap-4">
+                            <div className="pt-2">
+                              <GripVertical className="w-5 h-5 text-muted-foreground" />
+                            </div>
+                            <div className="flex-1 space-y-4">
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleSelectFromLibrary(workoutIndex, exerciseIndex)}
+                                  data-testid={`button-select-from-library-${workoutIndex}-${exerciseIndex}`}
+                                >
+                                  <Library className="w-4 h-4 mr-2" />
+                                  Wybierz z biblioteki
+                                </Button>
+                              </div>
+
+                              <FormField
+                                control={form.control}
+                                name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.name`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Nazwa ćwiczenia</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        placeholder="np. Wyciskanie sztangi" 
+                                        {...field} 
+                                        data-testid={`input-exercise-name-${workoutIndex}-${exerciseIndex}`} 
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+
+                              <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                  control={form.control}
+                                  name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.sets`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Serie</FormLabel>
+                                      <FormControl>
+                                        <Input 
+                                          type="number" 
+                                          min="1" 
+                                          {...field} 
+                                          data-testid={`input-exercise-sets-${workoutIndex}-${exerciseIndex}`} 
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+
+                                <FormField
+                                  control={form.control}
+                                  name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.reps`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Powtórzenia</FormLabel>
+                                      <FormControl>
+                                        <Input 
+                                          type="number" 
+                                          min="1" 
+                                          {...field} 
+                                          data-testid={`input-exercise-reps-${workoutIndex}-${exerciseIndex}`} 
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+
+                                <FormField
+                                  control={form.control}
+                                  name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.load`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Obciążenie (opcjonalnie)</FormLabel>
+                                      <FormControl>
+                                        <Input 
+                                          placeholder="np. 20kg, bodyweight" 
+                                          {...field} 
+                                          data-testid={`input-exercise-load-${workoutIndex}-${exerciseIndex}`} 
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+
+                                <FormField
+                                  control={form.control}
+                                  name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.restTime`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Odpoczynek (s)</FormLabel>
+                                      <FormControl>
+                                        <Input 
+                                          type="number" 
+                                          min="0" 
+                                          {...field} 
+                                          data-testid={`input-exercise-rest-${workoutIndex}-${exerciseIndex}`} 
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+
+                              <FormField
+                                control={form.control}
+                                name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.description`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Opis (opcjonalnie)</FormLabel>
+                                    <FormControl>
+                                      <Textarea
+                                        placeholder="Dodatkowe wskazówki dotyczące techniki wykonania"
+                                        {...field}
+                                        data-testid={`input-exercise-description-${workoutIndex}-${exerciseIndex}`}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => removeExercise(workoutIndex, exerciseIndex)}
+                              disabled={form.watch(`workouts.${workoutIndex}.exercises`).length === 1}
+                              data-testid={`button-remove-exercise-${workoutIndex}-${exerciseIndex}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </CardContent>
                 </Card>
               ))}

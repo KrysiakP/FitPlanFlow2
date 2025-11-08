@@ -23,6 +23,7 @@ import {
   type InsertUserProfile,
   type ClientProgress,
   type InsertClientProgress,
+  type InsertPlanWithWorkouts,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
@@ -43,6 +44,8 @@ export interface IStorage {
   updateTrainingPlan(planId: string, plan: Partial<Omit<InsertTrainingPlan, 'trainerId' | 'id' | 'createdAt' | 'updatedAt'>>): Promise<TrainingPlan>;
   deleteTrainingPlan(planId: string): Promise<void>;
   copyTrainingPlan(originalPlanId: string, trainerId: string): Promise<TrainingPlan>;
+  createTrainingPlanWithWorkouts(trainerId: string, data: InsertPlanWithWorkouts): Promise<TrainingPlan>;
+  updateTrainingPlanWithWorkouts(planId: string, trainerId: string, data: InsertPlanWithWorkouts): Promise<TrainingPlan>;
   
   // Workout operations
   getWorkoutsByPlanId(planId: string): Promise<Workout[]>;
@@ -231,6 +234,81 @@ export class DatabaseStorage implements IStorage {
       }
 
       return newPlan;
+    });
+  }
+
+  async createTrainingPlanWithWorkouts(trainerId: string, data: InsertPlanWithWorkouts): Promise<TrainingPlan> {
+    return await db.transaction(async (tx) => {
+      const { workouts: workoutsData, ...planData } = data;
+      
+      const [newPlan] = await tx.insert(trainingPlans).values({
+        id: randomUUID(),
+        ...planData,
+        trainerId,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }).returning();
+      
+      for (const workout of workoutsData) {
+        const { exercises: exercisesData, ...workoutData } = workout;
+        
+        const [newWorkout] = await tx.insert(workouts).values({
+          id: randomUUID(),
+          ...workoutData,
+          planId: newPlan.id,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }).returning();
+        
+        if (exercisesData.length > 0) {
+          await tx.insert(exercises).values(
+            exercisesData.map(ex => ({
+              id: randomUUID(),
+              ...ex,
+              workoutId: newWorkout.id
+            }))
+          );
+        }
+      }
+      
+      return newPlan;
+    });
+  }
+
+  async updateTrainingPlanWithWorkouts(planId: string, trainerId: string, data: InsertPlanWithWorkouts): Promise<TrainingPlan> {
+    return await db.transaction(async (tx) => {
+      const { workouts: workoutsData, ...planData } = data;
+      
+      const [updatedPlan] = await tx.update(trainingPlans)
+        .set({ ...planData, updatedAt: new Date() })
+        .where(eq(trainingPlans.id, planId))
+        .returning();
+      
+      await tx.delete(workouts).where(eq(workouts.planId, planId));
+      
+      for (const workout of workoutsData) {
+        const { exercises: exercisesData, ...workoutData } = workout;
+        
+        const [newWorkout] = await tx.insert(workouts).values({
+          id: randomUUID(),
+          ...workoutData,
+          planId: updatedPlan.id,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }).returning();
+        
+        if (exercisesData.length > 0) {
+          await tx.insert(exercises).values(
+            exercisesData.map(ex => ({
+              id: randomUUID(),
+              ...ex,
+              workoutId: newWorkout.id
+            }))
+          );
+        }
+      }
+      
+      return updatedPlan;
     });
   }
 

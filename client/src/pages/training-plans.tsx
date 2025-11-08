@@ -5,7 +5,7 @@ import { Plus, Pencil, Trash2, Users } from "lucide-react";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { TrainingPlan, Exercise } from "@shared/schema";
+import type { TrainingPlan, Exercise, Workout } from "@shared/schema";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 type PlanWithDetails = TrainingPlan & {
-  exercises: Exercise[];
+  workouts: (Workout & { exercises: Exercise[] })[];
   assignmentCount: number;
 };
 
@@ -111,19 +111,28 @@ export default function TrainingPlans() {
               <CardContent className="flex-1">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="font-medium" data-testid={`text-workout-count-${plan.id}`}>
+                      {plan.workouts.length} {plan.workouts.length === 1 ? 'trening' : 'treningów'}
+                    </span>
+                    <span>•</span>
                     <span className="font-medium" data-testid={`text-exercise-count-${plan.id}`}>
-                      {plan.exercises.length} ćwiczeń
+                      {plan.workouts.reduce((sum, w) => sum + w.exercises.length, 0)} ćwiczeń
                     </span>
                   </div>
-                  {plan.exercises.length > 0 && (
+                  {plan.workouts.length > 0 && (
                     <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Pierwsze ćwiczenia:</p>
+                      <p className="text-xs text-muted-foreground">Treningi:</p>
                       <ul className="text-sm space-y-1">
-                        {plan.exercises.slice(0, 3).map((exercise) => (
-                          <li key={exercise.id} className="truncate">
-                            • {exercise.name}
+                        {plan.workouts.slice(0, 3).map((workout) => (
+                          <li key={workout.id} className="truncate">
+                            • {workout.name} ({workout.exercises.length} {workout.exercises.length === 1 ? 'ćwiczenie' : 'ćwiczeń'})
                           </li>
                         ))}
+                        {plan.workouts.length > 3 && (
+                          <li className="text-xs text-muted-foreground">
+                            +{plan.workouts.length - 3} więcej
+                          </li>
+                        )}
                       </ul>
                     </div>
                   )}
