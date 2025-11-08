@@ -691,7 +691,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { password: _, ...clientWithoutPassword } = client;
-      res.json(clientWithoutPassword);
+      
+      const assignment = await storage.getClientAssignment(client.id);
+      let assignmentWithPlan = undefined;
+      
+      if (assignment) {
+        const plan = await storage.getTrainingPlan(assignment.planId);
+        if (plan) {
+          assignmentWithPlan = { ...assignment, plan };
+        }
+      }
+      
+      res.json({ 
+        ...clientWithoutPassword,
+        assignment: assignmentWithPlan 
+      });
     } catch (error) {
       console.error("Error searching for client:", error);
       res.status(500).json({ message: "Failed to search for client" });
