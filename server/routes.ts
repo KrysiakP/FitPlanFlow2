@@ -13,6 +13,7 @@ import {
   insertClientProgressSchema,
   updateClientProgressSchema,
   insertExerciseLogSchema,
+  insertWeeklyReportSchema,
   updateUserRoleSchema,
   registerSchema,
   loginSchema,
@@ -1280,6 +1281,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching latest exercise log:", error);
       res.status(500).json({ message: "Nie udało się pobrać najnowszego loga ćwiczenia" });
+    }
+  });
+
+  // Weekly reports endpoints
+  app.post("/api/reports", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko podopieczni mogą tworzyć raporty" });
+      }
+
+      const validationResult = insertWeeklyReportSchema.safeParse(req.body);
+
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const report = await storage.createWeeklyReport(userId, validationResult.data);
+      res.json(report);
+    } catch (error) {
+      console.error("Error creating weekly report:", error);
+      res.status(500).json({ message: "Nie udało się utworzyć raportu" });
+    }
+  });
+
+  app.get("/api/reports", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko podopieczni mogą pobierać swoje raporty" });
+      }
+
+      const reports = await storage.getClientWeeklyReports(userId);
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching weekly reports:", error);
+      res.status(500).json({ message: "Nie udało się pobrać raportów" });
+    }
+  });
+
+  app.get("/api/clients/:clientId/reports", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą pobierać raporty podopiecznych" });
+      }
+
+      const { clientId } = req.params;
+      const reports = await storage.getClientWeeklyReportsForTrainer(clientId, userId);
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching client weekly reports:", error);
+      res.status(500).json({ message: "Nie udało się pobrać raportów podopiecznego" });
     }
   });
 
