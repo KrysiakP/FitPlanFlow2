@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu } from "lucide-react";
+import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -135,6 +135,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <Link href="/profile">
+                <DropdownMenuItem className="cursor-pointer" data-testid="link-profile">
+                  <User className="w-4 h-4 mr-2" />
+                  Profil
+                </DropdownMenuItem>
+              </Link>
               <DropdownMenuItem
                 onClick={() => logoutMutation.mutate()}
                 className="cursor-pointer"
