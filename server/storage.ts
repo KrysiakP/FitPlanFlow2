@@ -8,6 +8,7 @@ import {
   userProfiles,
   clientProgress,
   exerciseLogs,
+  weeklyReports,
   type User,
   type UpsertUser,
   type TrainingPlan,
@@ -26,6 +27,8 @@ import {
   type InsertClientProgress,
   type ExerciseLog,
   type InsertExerciseLog,
+  type WeeklyReport,
+  type InsertWeeklyReport,
   type InsertPlanWithWorkouts,
 } from "@shared/schema";
 import { db } from "./db";
@@ -100,6 +103,12 @@ export interface IStorage {
   logExercise(clientId: string, exerciseId: string, data: { reps: number, load?: string, notes?: string }): Promise<ExerciseLog>;
   getExerciseLogs(clientId: string, exerciseId: string): Promise<ExerciseLog[]>;
   getLatestExerciseLog(clientId: string, exerciseId: string): Promise<ExerciseLog | undefined>;
+  
+  // Weekly reports operations
+  createWeeklyReport(clientId: string, data: Omit<InsertWeeklyReport, 'clientId'>): Promise<WeeklyReport>;
+  getClientWeeklyReports(clientId: string): Promise<WeeklyReport[]>;
+  getLatestWeeklyReport(clientId: string): Promise<WeeklyReport | undefined>;
+  getClientWeeklyReportsForTrainer(clientId: string, trainerId: string): Promise<WeeklyReport[]>;
   
   // Client search (privacy - search by email only, limited to trainer's clients)
   searchClientByEmail(email: string, trainerId: string): Promise<User | undefined>;
@@ -611,6 +620,56 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(exerciseLogs.loggedAt))
       .limit(1);
     return log;
+  }
+
+  // Weekly reports operations
+  async createWeeklyReport(clientId: string, data: Omit<InsertWeeklyReport, 'clientId'>): Promise<WeeklyReport> {
+    const [report] = await db
+      .insert(weeklyReports)
+      .values({
+        ...data,
+        clientId,
+      })
+      .returning();
+    return report;
+  }
+
+  async getClientWeeklyReports(clientId: string): Promise<WeeklyReport[]> {
+    return await db
+      .select()
+      .from(weeklyReports)
+      .where(eq(weeklyReports.clientId, clientId))
+      .orderBy(desc(weeklyReports.reportDate));
+  }
+
+  async getLatestWeeklyReport(clientId: string): Promise<WeeklyReport | undefined> {
+    const [report] = await db
+      .select()
+      .from(weeklyReports)
+      .where(eq(weeklyReports.clientId, clientId))
+      .orderBy(desc(weeklyReports.reportDate))
+      .limit(1);
+    return report;
+  }
+
+  async getClientWeeklyReportsForTrainer(clientId: string, trainerId: string): Promise<WeeklyReport[]> {
+    const result = await db
+      .select({
+        report: weeklyReports,
+      })
+      .from(weeklyReports)
+      .innerJoin(users, eq(weeklyReports.clientId, users.id))
+      .innerJoin(planAssignments, eq(planAssignments.clientId, users.id))
+      .innerJoin(trainingPlans, eq(planAssignments.planId, trainingPlans.id))
+      .where(
+        and(
+          eq(weeklyReports.clientId, clientId),
+          eq(trainingPlans.trainerId, trainerId)
+        )
+      )
+      .orderBy(desc(weeklyReports.reportDate));
+    
+    return result.map(r => r.report);
   }
 
   // Client search (privacy - search by email only, limited to trainer's clients)
