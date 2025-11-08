@@ -93,8 +93,8 @@ export interface IStorage {
   getClientProgress(clientId: string): Promise<ClientProgress | undefined>;
   upsertClientProgress(clientId: string, data: Partial<InsertClientProgress>): Promise<ClientProgress>;
   
-  // Client search (privacy - search by email only)
-  searchClientByEmail(email: string): Promise<User | undefined>;
+  // Client search (privacy - search by email only, limited to trainer's clients)
+  searchClientByEmail(email: string, trainerId: string): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -562,13 +562,25 @@ export class DatabaseStorage implements IStorage {
     return progress;
   }
 
-  // Client search (privacy - search by email only)
-  async searchClientByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db
-      .select()
+  // Client search (privacy - search by email only, limited to trainer's clients)
+  async searchClientByEmail(email: string, trainerId: string): Promise<User | undefined> {
+    const result = await db
+      .select({
+        user: users,
+      })
       .from(users)
-      .where(and(eq(users.email, email), eq(users.role, "client")));
-    return user;
+      .innerJoin(planAssignments, eq(planAssignments.clientId, users.id))
+      .innerJoin(trainingPlans, eq(planAssignments.planId, trainingPlans.id))
+      .where(
+        and(
+          eq(users.email, email),
+          eq(users.role, "client"),
+          eq(trainingPlans.trainerId, trainerId)
+        )
+      )
+      .limit(1);
+    
+    return result.length > 0 ? result[0].user : undefined;
   }
 }
 
