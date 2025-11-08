@@ -12,6 +12,7 @@ import {
   updateUserProfileSchema,
   insertClientProgressSchema,
   updateClientProgressSchema,
+  insertExerciseLogSchema,
   updateUserRoleSchema,
   registerSchema,
   loginSchema,
@@ -1207,6 +1208,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching client assignment:", error);
       res.status(500).json({ message: "Failed to fetch assignment" });
+    }
+  });
+
+  // Exercise logs endpoints
+  app.post("/api/exercises/:exerciseId/log", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko klienci mogą logować wykonania ćwiczeń" });
+      }
+
+      const { exerciseId } = req.params;
+      const validationResult = insertExerciseLogSchema.safeParse({
+        ...req.body,
+        exerciseId,
+      });
+
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const { reps, load, notes } = validationResult.data;
+      const log = await storage.logExercise(userId, exerciseId, { 
+        reps, 
+        load: load ?? undefined, 
+        notes: notes ?? undefined 
+      });
+      res.json(log);
+    } catch (error) {
+      console.error("Error logging exercise:", error);
+      res.status(500).json({ message: "Nie udało się zapisać wykonania ćwiczenia" });
+    }
+  });
+
+  app.get("/api/exercises/:exerciseId/logs", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko klienci mogą pobierać logi ćwiczeń" });
+      }
+
+      const { exerciseId } = req.params;
+      const logs = await storage.getExerciseLogs(userId, exerciseId);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching exercise logs:", error);
+      res.status(500).json({ message: "Nie udało się pobrać logów ćwiczeń" });
+    }
+  });
+
+  app.get("/api/exercises/:exerciseId/latest-log", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko klienci mogą pobierać logi ćwiczeń" });
+      }
+
+      const { exerciseId } = req.params;
+      const latestLog = await storage.getLatestExerciseLog(userId, exerciseId);
+      res.json(latestLog || null);
+    } catch (error) {
+      console.error("Error fetching latest exercise log:", error);
+      res.status(500).json({ message: "Nie udało się pobrać najnowszego loga ćwiczenia" });
     }
   });
 

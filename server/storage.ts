@@ -7,6 +7,7 @@ import {
   exerciseLibrary,
   userProfiles,
   clientProgress,
+  exerciseLogs,
   type User,
   type UpsertUser,
   type TrainingPlan,
@@ -23,10 +24,12 @@ import {
   type InsertUserProfile,
   type ClientProgress,
   type InsertClientProgress,
+  type ExerciseLog,
+  type InsertExerciseLog,
   type InsertPlanWithWorkouts,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -92,6 +95,11 @@ export interface IStorage {
   // Client progress operations
   getClientProgress(clientId: string): Promise<ClientProgress | undefined>;
   upsertClientProgress(clientId: string, data: Partial<InsertClientProgress>): Promise<ClientProgress>;
+  
+  // Exercise logs operations
+  logExercise(clientId: string, exerciseId: string, data: { reps: number, load?: string, notes?: string }): Promise<ExerciseLog>;
+  getExerciseLogs(clientId: string, exerciseId: string): Promise<ExerciseLog[]>;
+  getLatestExerciseLog(clientId: string, exerciseId: string): Promise<ExerciseLog | undefined>;
   
   // Client search (privacy - search by email only, limited to trainer's clients)
   searchClientByEmail(email: string, trainerId: string): Promise<User | undefined>;
@@ -560,6 +568,49 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return progress;
+  }
+
+  // Exercise logs operations
+  async logExercise(clientId: string, exerciseId: string, data: { reps: number, load?: string, notes?: string }): Promise<ExerciseLog> {
+    const [log] = await db
+      .insert(exerciseLogs)
+      .values({
+        clientId,
+        exerciseId,
+        reps: data.reps,
+        load: data.load || null,
+        notes: data.notes || null,
+      })
+      .returning();
+    return log;
+  }
+
+  async getExerciseLogs(clientId: string, exerciseId: string): Promise<ExerciseLog[]> {
+    return await db
+      .select()
+      .from(exerciseLogs)
+      .where(
+        and(
+          eq(exerciseLogs.clientId, clientId),
+          eq(exerciseLogs.exerciseId, exerciseId)
+        )
+      )
+      .orderBy(exerciseLogs.loggedAt);
+  }
+
+  async getLatestExerciseLog(clientId: string, exerciseId: string): Promise<ExerciseLog | undefined> {
+    const [log] = await db
+      .select()
+      .from(exerciseLogs)
+      .where(
+        and(
+          eq(exerciseLogs.clientId, clientId),
+          eq(exerciseLogs.exerciseId, exerciseId)
+        )
+      )
+      .orderBy(desc(exerciseLogs.loggedAt))
+      .limit(1);
+    return log;
   }
 
   // Client search (privacy - search by email only, limited to trainer's clients)

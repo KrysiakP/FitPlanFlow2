@@ -1,9 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Dumbbell, Video } from "lucide-react";
-import type { PlanAssignment, TrainingPlan, Workout, Exercise } from "@shared/schema";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Clock, Dumbbell, Video, Save } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useState, useEffect, useRef } from "react";
+import type { PlanAssignment, TrainingPlan, Workout, Exercise, ExerciseLog } from "@shared/schema";
 
 type AssignmentWithPlan = PlanAssignment & {
   plan: TrainingPlan & { workouts: (Workout & { exercises: Exercise[] })[] };
@@ -25,6 +30,152 @@ function getVideoEmbedUrl(url: string): string | null {
   }
 
   return null;
+}
+
+function ExerciseLogForm({ exercise }: { exercise: Exercise }) {
+  const { toast } = useToast();
+  const [reps, setReps] = useState<string>("");
+  const [load, setLoad] = useState<string>("");
+  const isMutatingRef = useRef(false);
+
+  const { data: latestLog } = useQuery<ExerciseLog | null>({
+    queryKey: ["/api/exercises", exercise.id, "latest-log"],
+  });
+
+  const logMutation = useMutation({
+    mutationFn: async (data: { reps: number; load?: string }) => {
+      isMutatingRef.current = true;
+      return await apiRequest("POST", `/api/exercises/${exercise.id}/log`, {
+        exerciseId: exercise.id,
+        reps: data.reps,
+        load: data.load || undefined,
+      });
+    },
+    onSuccess: () => {
+      isMutatingRef.current = false;
+      queryClient.invalidateQueries({ queryKey: ["/api/exercises", exercise.id, "latest-log"] });
+      toast({
+        title: "Wykonanie zapisane!",
+        description: "Twoje wykonanie ćwiczenia zostało zapisane pomyślnie.",
+      });
+    },
+    onError: () => {
+      isMutatingRef.current = false;
+      toast({
+        title: "Błąd",
+        description: "Nie udało się zapisać wykonania ćwiczenia.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (isMutatingRef.current) {
+      return;
+    }
+    
+    if (latestLog) {
+      setReps(latestLog.reps.toString());
+      setLoad(latestLog.load || "");
+    } else {
+      setReps("");
+      setLoad("");
+    }
+  }, [latestLog]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsedReps = parseInt(reps, 10);
+    if (isNaN(parsedReps) || parsedReps <= 0) {
+      toast({
+        title: "Błąd",
+        description: "Podaj prawidłową liczbę powtórzeń.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const submittedLoad = load.trim() || undefined;
+    logMutation.mutate({
+      reps: parsedReps,
+      load: submittedLoad,
+    });
+    
+    setReps(parsedReps.toString());
+    setLoad(submittedLoad || "");
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 pt-4 border-t">
+      <div className="space-y-4">
+        <div>
+          <h4 className="font-heading font-medium mb-3">Cel od trenera:</h4>
+          <div className="flex flex-wrap gap-4 mb-4">
+            <div className="flex items-center gap-2">
+              <Dumbbell className="w-4 h-4 text-muted-foreground" />
+              <span className="text-muted-foreground" data-testid={`text-target-sets-${exercise.id}`}>
+                {exercise.sets} serie
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground" data-testid={`text-target-reps-${exercise.id}`}>
+                {exercise.reps} powtórzeń
+              </span>
+            </div>
+            {exercise.load && (
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground" data-testid={`text-target-load-${exercise.id}`}>
+                  Obciążenie: {exercise.load}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <h4 className="font-heading font-medium mb-3">Twoje wykonanie:</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor={`reps-${exercise.id}`}>
+                Powtórzenia <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id={`reps-${exercise.id}`}
+                type="number"
+                min="1"
+                value={reps}
+                onChange={(e) => setReps(e.target.value)}
+                placeholder="np. 12"
+                required
+                data-testid={`input-reps-${exercise.id}`}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={`load-${exercise.id}`}>Obciążenie (opcjonalne)</Label>
+              <Input
+                id={`load-${exercise.id}`}
+                type="text"
+                value={load}
+                onChange={(e) => setLoad(e.target.value)}
+                placeholder="np. 25kg, bodyweight"
+                data-testid={`input-load-${exercise.id}`}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Button
+        type="submit"
+        disabled={logMutation.isPending}
+        className="w-full md:w-auto"
+        data-testid={`button-save-log-${exercise.id}`}
+      >
+        <Save className="w-4 h-4" />
+        <span>{logMutation.isPending ? "Zapisywanie..." : "Zapisz wykonanie"}</span>
+      </Button>
+    </form>
+  );
 }
 
 export default function ClientPlan() {
@@ -138,27 +289,16 @@ export default function ClientPlan() {
                         }
                       })()}
                       
-                      <div className="flex flex-wrap gap-4">
-                        <div className="flex items-center gap-2">
-                          <Dumbbell className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-lg font-medium" data-testid={`text-exercise-sets-${exercise.id}`}>
-                            {exercise.sets} serie
+                      {exercise.restTime && (
+                        <div className="flex items-center gap-2 mb-4">
+                          <Clock className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground" data-testid={`text-exercise-rest-${exercise.id}`}>
+                            Odpoczynek: {exercise.restTime}s
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg font-medium" data-testid={`text-exercise-reps-${exercise.id}`}>
-                            {exercise.reps} powtórzeń
-                          </span>
-                        </div>
-                        {exercise.restTime && (
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground" data-testid={`text-exercise-rest-${exercise.id}`}>
-                              Odpoczynek: {exercise.restTime}s
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                      )}
+
+                      <ExerciseLogForm exercise={exercise} />
                     </CardContent>
                   </Card>
                 ))}

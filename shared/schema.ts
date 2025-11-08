@@ -111,6 +111,17 @@ export const clientProgress = pgTable("client_progress", {
   lastUpdated: timestamp("last_updated").defaultNow().notNull(),
 });
 
+// Exercise logs - client's logged workout performances
+export const exerciseLogs = pgTable("exercise_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  exerciseId: varchar("exercise_id").notNull().references(() => exercises.id, { onDelete: "cascade" }),
+  reps: integer("reps").notNull(), // ilość powtórzeń wykonanych przez podopiecznego
+  load: varchar("load"), // obciążenie użyte przez podopiecznego (np. "25kg")
+  notes: text("notes"), // notatki podopiecznego
+  loggedAt: timestamp("logged_at").defaultNow().notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   createdPlans: many(trainingPlans),
@@ -118,6 +129,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   exerciseLibrary: many(exerciseLibrary),
   profile: one(userProfiles),
   progress: many(clientProgress),
+  exerciseLogs: many(exerciseLogs),
 }));
 
 export const trainingPlansRelations = relations(trainingPlans, ({ one, many }) => ({
@@ -137,11 +149,12 @@ export const workoutsRelations = relations(workouts, ({ one, many }) => ({
   exercises: many(exercises),
 }));
 
-export const exercisesRelations = relations(exercises, ({ one }) => ({
+export const exercisesRelations = relations(exercises, ({ one, many }) => ({
   workout: one(workouts, {
     fields: [exercises.workoutId],
     references: [workouts.id],
   }),
+  logs: many(exerciseLogs),
 }));
 
 export const planAssignmentsRelations = relations(planAssignments, ({ one }) => ({
@@ -176,6 +189,17 @@ export const clientProgressRelations = relations(clientProgress, ({ one }) => ({
   }),
 }));
 
+export const exerciseLogsRelations = relations(exerciseLogs, ({ one }) => ({
+  client: one(users, {
+    fields: [exerciseLogs.clientId],
+    references: [users.id],
+  }),
+  exercise: one(exercises, {
+    fields: [exerciseLogs.exerciseId],
+    references: [exercises.id],
+  }),
+}));
+
 // Types for Replit Auth
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -207,6 +231,10 @@ export type InsertUserProfile = typeof userProfiles.$inferInsert;
 // Types for client progress
 export type ClientProgress = typeof clientProgress.$inferSelect;
 export type InsertClientProgress = typeof clientProgress.$inferInsert;
+
+// Types for exercise logs
+export type ExerciseLog = typeof exerciseLogs.$inferSelect;
+export type InsertExerciseLog = typeof exerciseLogs.$inferInsert;
 
 // Zod schemas
 export const insertTrainingPlanSchema = createInsertSchema(trainingPlans).omit({
@@ -269,6 +297,12 @@ export const updateClientProgressSchema = createInsertSchema(clientProgress).omi
   lastUpdated: true,
 }).partial();
 
+export const insertExerciseLogSchema = createInsertSchema(exerciseLogs).omit({
+  id: true,
+  clientId: true,
+  loggedAt: true,
+});
+
 export const updateUserRoleSchema = z.object({
   role: z.enum(["trainer", "client"]),
 });
@@ -296,5 +330,6 @@ export type InsertUserProfileInput = z.infer<typeof insertUserProfileSchema>;
 export type UpdateUserProfileInput = z.infer<typeof updateUserProfileSchema>;
 export type InsertClientProgressInput = z.infer<typeof insertClientProgressSchema>;
 export type UpdateClientProgressInput = z.infer<typeof updateClientProgressSchema>;
+export type InsertExerciseLogInput = z.infer<typeof insertExerciseLogSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
