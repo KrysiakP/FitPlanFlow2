@@ -42,6 +42,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const trainerNavItems = [
     { href: "/", icon: LayoutDashboard, label: "Panel" },
     { href: "/plans", icon: ClipboardList, label: "Plany treningowe" },
+    { href: "/exercise-library", icon: Dumbbell, label: "Moje ćwiczenia" },
     { href: "/clients", icon: Users, label: "Podopieczni" },
   ];
 

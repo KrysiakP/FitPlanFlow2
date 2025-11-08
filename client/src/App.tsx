@@ -16,6 +16,7 @@ import PlanForm from "@/pages/plan-form";
 import AssignPlan from "@/pages/assign-plan";
 import Clients from "@/pages/clients";
 import ClientPlan from "@/pages/client-plan";
+import ExerciseLibrary from "@/pages/exercise-library";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -54,6 +55,7 @@ function Router() {
             <Route path="/plans/new" component={PlanForm} />
             <Route path="/plans/:id/edit" component={PlanForm} />
             <Route path="/plans/:id/assign" component={AssignPlan} />
+            <Route path="/exercise-library" component={ExerciseLibrary} />
             <Route path="/clients" component={Clients} />
           </>
         ) : (
