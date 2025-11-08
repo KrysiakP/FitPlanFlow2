@@ -1,9 +1,12 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ClipboardList, Calendar } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { ClipboardList, Calendar, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
-import type { PlanAssignment, TrainingPlan, Workout, Exercise } from "@shared/schema";
+import { startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
+import type { PlanAssignment, TrainingPlan, Workout, Exercise, WeeklyReport } from "@shared/schema";
 
 type AssignmentWithPlan = PlanAssignment & {
   plan: TrainingPlan & { 
@@ -18,12 +21,36 @@ export default function ClientDashboard() {
     queryKey: ["/api/client/assignment"],
   });
 
+  const { data: reports } = useQuery<WeeklyReport[]>({
+    queryKey: ["/api/reports"],
+  });
+
   const getTotalExercises = () => {
     if (!assignment?.plan.workouts) return 0;
     return assignment.plan.workouts.reduce((total, workout) => {
       return total + (workout.exercises?.length || 0);
     }, 0);
   };
+
+  const hasReportThisWeek = () => {
+    if (!reports || reports.length === 0) return false;
+
+    const sortedReports = [...reports].sort(
+      (a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime()
+    );
+
+    const latestReport = sortedReports[0];
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+
+    return isWithinInterval(new Date(latestReport.reportDate), {
+      start: weekStart,
+      end: weekEnd,
+    });
+  };
+
+  const showWeeklyReportReminder = !hasReportThisWeek();
 
   return (
     <div className="space-y-8">
@@ -35,6 +62,22 @@ export default function ClientDashboard() {
           Sprawdź swój plan treningowy i zacznij trenować
         </p>
       </div>
+
+      {showWeeklyReportReminder && (
+        <Alert data-testid="alert-weekly-report-reminder">
+          <AlertCircle className="w-4 h-4" />
+          <AlertDescription className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <span>
+              Nie wypełniłeś jeszcze raportu w tym tygodniu. Wypełnij raport tygodniowy, aby śledzić swoje postępy.
+            </span>
+            <Link href="/weekly-report">
+              <Button variant="default" size="sm" data-testid="button-fill-report">
+                Wypełnij raport
+              </Button>
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card data-testid="card-stat-plan">
