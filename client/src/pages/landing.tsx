@@ -1,0 +1,99 @@
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dumbbell, Users, ClipboardList, TrendingUp } from "lucide-react";
+
+export default function Landing() {
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Dumbbell className="w-8 h-8 text-primary" />
+            <h1 className="font-heading font-bold text-2xl">Platforma Treningowa</h1>
+          </div>
+          <Button asChild data-testid="button-login">
+            <a href="/api/login">Zaloguj się</a>
+          </Button>
+        </div>
+      </header>
+
+      <main>
+        <section className="py-20 px-4">
+          <div className="container mx-auto max-w-5xl text-center space-y-8">
+            <h1 className="font-heading font-bold text-4xl md:text-5xl lg:text-6xl">
+              Profesjonalne zarządzanie<br />planami treningowymi
+            </h1>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Stwórz, przypisuj i zarządzaj planami treningowymi dla swoich podopiecznych w jednym miejscu
+            </p>
+            <div className="flex gap-4 justify-center">
+              <Button size="lg" asChild data-testid="button-start">
+                <a href="/api/login">Rozpocznij za darmo</a>
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-16 px-4 bg-card">
+          <div className="container mx-auto max-w-6xl">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Card data-testid="card-feature-plans">
+                <CardHeader>
+                  <ClipboardList className="w-10 h-10 text-primary mb-4" />
+                  <CardTitle className="font-heading">Plany treningowe</CardTitle>
+                  <CardDescription>
+                    Twórz szczegółowe plany treningowe z listą ćwiczeń, seriami i powtórzeniami
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+
+              <Card data-testid="card-feature-clients">
+                <CardHeader>
+                  <Users className="w-10 h-10 text-primary mb-4" />
+                  <CardTitle className="font-heading">Zarządzaj podopiecznymi</CardTitle>
+                  <CardDescription>
+                    Przypisuj plany do swoich podopiecznych i monitoruj ich postępy
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+
+              <Card data-testid="card-feature-progress">
+                <CardHeader>
+                  <TrendingUp className="w-10 h-10 text-primary mb-4" />
+                  <CardTitle className="font-heading">Śledź postępy</CardTitle>
+                  <CardDescription>
+                    Podopieczni mają dostęp do przypisanych planów i mogą śledzić swoje treningi
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-16 px-4">
+          <div className="container mx-auto max-w-4xl">
+            <Card>
+              <CardContent className="p-12 text-center space-y-6">
+                <h2 className="font-heading font-semibold text-3xl">
+                  Gotowy na start?
+                </h2>
+                <p className="text-lg text-muted-foreground">
+                  Dołącz do platformy jako trener lub podopieczny i zacznij trenować bardziej efektywnie
+                </p>
+                <Button size="lg" asChild data-testid="button-cta">
+                  <a href="/api/login">Zaloguj się teraz</a>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t py-8 px-4">
+        <div className="container mx-auto text-center text-sm text-muted-foreground">
+          <p>© 2024 Platforma Treningowa. Wszystkie prawa zastrzeżone.</p>
+        </div>
+      </footer>
+    </div>
+  );
+}
