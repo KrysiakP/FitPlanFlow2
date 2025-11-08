@@ -7,9 +7,11 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
-import type { User, TrainingPlan, Exercise } from "@shared/schema";
+import type { User, TrainingPlan, Exercise, Workout } from "@shared/schema";
 
-type PlanWithExercises = TrainingPlan & { exercises: Exercise[] };
+type PlanWithDetails = TrainingPlan & {
+  workouts: (Workout & { exercises: Exercise[] })[];
+};
 
 export default function AssignPlan() {
   const { id } = useParams();
@@ -17,7 +19,7 @@ export default function AssignPlan() {
   const { toast } = useToast();
   const [selectedClients, setSelectedClients] = useState<string[]>([]);
 
-  const { data: plan, isLoading: planLoading } = useQuery<PlanWithExercises>({
+  const { data: plan, isLoading: planLoading } = useQuery<PlanWithDetails>({
     queryKey: ["/api/plans", id],
   });
 
@@ -104,18 +106,32 @@ export default function AssignPlan() {
               )}
             </div>
             <div className="space-y-2">
-              <p className="text-sm font-medium">Ćwiczenia ({plan.exercises.length}):</p>
-              <ul className="text-sm space-y-1">
-                {plan.exercises.slice(0, 5).map((exercise) => (
-                  <li key={exercise.id} className="flex items-center gap-2">
-                    <span className="w-1 h-1 rounded-full bg-primary" />
-                    {exercise.name} - {exercise.sets}x{exercise.reps}
-                  </li>
-                ))}
-                {plan.exercises.length > 5 && (
-                  <li className="text-muted-foreground">+ {plan.exercises.length - 5} więcej</li>
-                )}
-              </ul>
+              <p className="text-sm font-medium">
+                {plan.workouts.length} {plan.workouts.length === 1 ? 'trening' : 'treningów'} • {plan.workouts.reduce((sum, w) => sum + w.exercises.length, 0)} ćwiczeń
+              </p>
+              {plan.workouts.length > 0 && (
+                <div className="space-y-2">
+                  {plan.workouts.slice(0, 2).map((workout) => (
+                    <div key={workout.id}>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">{workout.name}:</p>
+                      <ul className="text-sm space-y-1 ml-4">
+                        {workout.exercises.slice(0, 3).map((exercise) => (
+                          <li key={exercise.id} className="flex items-center gap-2">
+                            <span className="w-1 h-1 rounded-full bg-primary" />
+                            {exercise.name} - {exercise.sets}x{exercise.reps}
+                          </li>
+                        ))}
+                        {workout.exercises.length > 3 && (
+                          <li className="text-xs text-muted-foreground">+ {workout.exercises.length - 3} więcej</li>
+                        )}
+                      </ul>
+                    </div>
+                  ))}
+                  {plan.workouts.length > 2 && (
+                    <p className="text-xs text-muted-foreground">+ {plan.workouts.length - 2} więcej treningów</p>
+                  )}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
