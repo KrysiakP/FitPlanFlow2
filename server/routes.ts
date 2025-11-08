@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated, hashPassword, comparePassword } from "./auth";
 import {
   insertTrainingPlanSchema,
+  insertWorkoutSchema,
   insertExerciseSchema,
   insertPlanAssignmentSchema,
   insertExerciseLibrarySchema,
@@ -241,11 +242,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const plansWithDetails = await Promise.all(
         plans.map(async (plan) => {
-          const exercisesList = await storage.getExercisesByPlan(plan.id);
+          const workouts = await storage.getWorkoutsByPlanId(plan.id);
           const assignments = await storage.getAssignmentsByPlan(plan.id);
           return {
             ...plan,
-            exercises: exercisesList,
+            workouts: workouts,
             assignmentCount: assignments.length,
           };
         })
@@ -261,14 +262,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/plans/:id", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
       const plan = await storage.getTrainingPlan(id);
       
       if (!plan) {
         return res.status(404).json({ message: "Plan not found" });
       }
 
-      const exercisesList = await storage.getExercisesByPlan(id);
-      res.json({ ...plan, exercises: exercisesList });
+      if (plan.trainerId !== userId) {
+        if (user?.role === 'client') {
+          const assignment = await storage.getClientAssignment(userId);
+          if (!assignment || assignment.planId !== id) {
+            return res.status(403).json({ message: "Access denied" });
+          }
+        } else {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+
+      const workouts = await storage.getWorkoutsByPlanId(id);
+      res.json({ ...plan, workouts });
     } catch (error) {
       console.error("Error fetching plan:", error);
       res.status(500).json({ message: "Failed to fetch plan" });
@@ -284,17 +299,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only trainers can create plans" });
       }
 
-      const planSchema = insertTrainingPlanSchema.extend({
-        exercises: z.array(insertExerciseSchema),
-      });
+      const validationResult = insertTrainingPlanSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
       
-      const { exercises: exercisesList, ...planData } = planSchema.parse(req.body);
-      
-      const plan = await storage.createTrainingPlan({ ...planData, trainerId: userId }, userId);
-      await storage.createExercises(plan.id, exercisesList);
-      
-      const createdExercises = await storage.getExercisesByPlan(plan.id);
-      res.json({ ...plan, exercises: createdExercises });
+      const plan = await storage.createTrainingPlan(validationResult.data, userId);
+      res.status(201).json(plan);
     } catch (error) {
       console.error("Error creating plan:", error);
       res.status(500).json({ message: "Failed to create plan" });
@@ -315,18 +329,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only edit your own plans" });
       }
 
-      const planSchema = insertTrainingPlanSchema.extend({
-        exercises: z.array(insertExerciseSchema),
-      });
+      const validationResult = insertTrainingPlanSchema.partial().safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
       
-      const { exercises: exercisesList, ...planData } = planSchema.parse(req.body);
-      
-      const updatedPlan = await storage.updateTrainingPlan(id, planData);
-      await storage.deleteExercisesByPlan(id);
-      await storage.createExercises(id, exercisesList);
-      
-      const updatedExercises = await storage.getExercisesByPlan(id);
-      res.json({ ...updatedPlan, exercises: updatedExercises });
+      const updatedPlan = await storage.updateTrainingPlan(id, validationResult.data);
+      res.json(updatedPlan);
     } catch (error) {
       console.error("Error updating plan:", error);
       res.status(500).json({ message: "Failed to update plan" });
@@ -352,6 +364,301 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting plan:", error);
       res.status(500).json({ message: "Failed to delete plan" });
+    }
+  });
+
+  // Workout routes
+  app.get("/api/plans/:planId/workouts", isAuthenticated, async (req, res) => {
+    try {
+      const { planId } = req.params;
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can access workouts" });
+      }
+
+      const plan = await storage.getTrainingPlan(planId);
+      if (!plan) {
+        return res.status(404).json({ message: "Plan not found" });
+      }
+
+      if (plan.trainerId !== userId) {
+        return res.status(403).json({ message: "You can only access workouts from your own plans" });
+      }
+
+      const workouts = await storage.getWorkoutsByPlanId(planId);
+      res.json(workouts);
+    } catch (error) {
+      console.error("Error fetching workouts:", error);
+      res.status(500).json({ message: "Failed to fetch workouts" });
+    }
+  });
+
+  app.post("/api/plans/:planId/workouts", isAuthenticated, async (req, res) => {
+    try {
+      const { planId } = req.params;
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can create workouts" });
+      }
+
+      const plan = await storage.getTrainingPlan(planId);
+      if (!plan) {
+        return res.status(404).json({ message: "Plan not found" });
+      }
+
+      if (plan.trainerId !== userId) {
+        return res.status(403).json({ message: "You can only add workouts to your own plans" });
+      }
+
+      const validationResult = insertWorkoutSchema.omit({ planId: true }).safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const workout = await storage.createWorkout(planId, validationResult.data);
+      res.status(201).json(workout);
+    } catch (error) {
+      console.error("Error creating workout:", error);
+      res.status(500).json({ message: "Failed to create workout" });
+    }
+  });
+
+  app.get("/api/workouts/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can access workouts" });
+      }
+
+      const workout = await storage.getWorkoutById(id);
+      if (!workout) {
+        return res.status(404).json({ message: "Workout not found" });
+      }
+
+      const plan = await storage.getTrainingPlan(workout.planId);
+      if (!plan || plan.trainerId !== userId) {
+        return res.status(403).json({ message: "You can only access your own workouts" });
+      }
+
+      const exercises = await storage.getExercisesByWorkoutId(id);
+      res.json({ ...workout, exercises });
+    } catch (error) {
+      console.error("Error fetching workout:", error);
+      res.status(500).json({ message: "Failed to fetch workout" });
+    }
+  });
+
+  app.put("/api/workouts/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can update workouts" });
+      }
+
+      const workout = await storage.getWorkoutById(id);
+      if (!workout) {
+        return res.status(404).json({ message: "Workout not found" });
+      }
+
+      const plan = await storage.getTrainingPlan(workout.planId);
+      if (!plan || plan.trainerId !== userId) {
+        return res.status(403).json({ message: "You can only update your own workouts" });
+      }
+
+      const validationResult = insertWorkoutSchema.omit({ planId: true }).partial().safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const updatedWorkout = await storage.updateWorkout(id, validationResult.data);
+      res.json(updatedWorkout);
+    } catch (error) {
+      console.error("Error updating workout:", error);
+      res.status(500).json({ message: "Failed to update workout" });
+    }
+  });
+
+  app.delete("/api/workouts/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can delete workouts" });
+      }
+
+      const workout = await storage.getWorkoutById(id);
+      if (!workout) {
+        return res.status(404).json({ message: "Workout not found" });
+      }
+
+      const plan = await storage.getTrainingPlan(workout.planId);
+      if (!plan || plan.trainerId !== userId) {
+        return res.status(403).json({ message: "You can only delete your own workouts" });
+      }
+
+      await storage.deleteWorkout(id);
+      res.json({ message: "Workout deleted" });
+    } catch (error) {
+      console.error("Error deleting workout:", error);
+      res.status(500).json({ message: "Failed to delete workout" });
+    }
+  });
+
+  // Exercise routes
+  app.get("/api/workouts/:workoutId/exercises", isAuthenticated, async (req, res) => {
+    try {
+      const { workoutId } = req.params;
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can access exercises" });
+      }
+
+      const workout = await storage.getWorkoutById(workoutId);
+      if (!workout) {
+        return res.status(404).json({ message: "Workout not found" });
+      }
+
+      const plan = await storage.getTrainingPlan(workout.planId);
+      if (!plan || plan.trainerId !== userId) {
+        return res.status(403).json({ message: "You can only access exercises from your own workouts" });
+      }
+
+      const exercises = await storage.getExercisesByWorkoutId(workoutId);
+      res.json(exercises);
+    } catch (error) {
+      console.error("Error fetching exercises:", error);
+      res.status(500).json({ message: "Failed to fetch exercises" });
+    }
+  });
+
+  app.post("/api/workouts/:workoutId/exercises", isAuthenticated, async (req, res) => {
+    try {
+      const { workoutId } = req.params;
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can create exercises" });
+      }
+
+      const workout = await storage.getWorkoutById(workoutId);
+      if (!workout) {
+        return res.status(404).json({ message: "Workout not found" });
+      }
+
+      const plan = await storage.getTrainingPlan(workout.planId);
+      if (!plan || plan.trainerId !== userId) {
+        return res.status(403).json({ message: "You can only add exercises to your own workouts" });
+      }
+
+      const exerciseSchema = z.array(insertExerciseSchema);
+      const validationResult = exerciseSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const exercises = await storage.createExercises(workoutId, validationResult.data);
+      res.status(201).json(exercises);
+    } catch (error) {
+      console.error("Error creating exercises:", error);
+      res.status(500).json({ message: "Failed to create exercises" });
+    }
+  });
+
+  app.put("/api/exercises/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can update exercises" });
+      }
+
+      const exercise = await storage.getExerciseById(id);
+      if (!exercise) {
+        return res.status(404).json({ message: "Exercise not found" });
+      }
+
+      const workout = await storage.getWorkoutById(exercise.workoutId);
+      if (!workout) {
+        return res.status(404).json({ message: "Workout not found" });
+      }
+
+      const plan = await storage.getTrainingPlan(workout.planId);
+      if (!plan || plan.trainerId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const validationResult = insertExerciseSchema.partial().safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const updatedExercise = await storage.updateExercise(id, validationResult.data);
+      res.json(updatedExercise);
+    } catch (error) {
+      console.error("Error updating exercise:", error);
+      res.status(500).json({ message: "Failed to update exercise" });
+    }
+  });
+
+  app.delete("/api/exercises/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can delete exercises" });
+      }
+
+      const exercise = await storage.getExerciseById(id);
+      if (!exercise) {
+        return res.status(404).json({ message: "Exercise not found" });
+      }
+
+      const workout = await storage.getWorkoutById(exercise.workoutId);
+      if (!workout) {
+        return res.status(404).json({ message: "Workout not found" });
+      }
+
+      const plan = await storage.getTrainingPlan(workout.planId);
+      if (!plan || plan.trainerId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      await storage.deleteExercise(id);
+      res.json({ message: "Exercise deleted" });
+    } catch (error) {
+      console.error("Error deleting exercise:", error);
+      res.status(500).json({ message: "Failed to delete exercise" });
     }
   });
 
@@ -781,12 +1088,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(null);
       }
 
-      const exercisesList = await storage.getExercisesByPlan(plan.id);
+      const workouts = await storage.getWorkoutsByPlanId(plan.id);
+      const workoutsWithExercises = await Promise.all(
+        workouts.map(async (workout) => {
+          const exercises = await storage.getExercisesByWorkoutId(workout.id);
+          return { ...workout, exercises };
+        })
+      );
+      
       res.json({
         ...assignment,
         plan: {
           ...plan,
-          exercises: exercisesList,
+          workouts: workoutsWithExercises,
         },
       });
     } catch (error) {

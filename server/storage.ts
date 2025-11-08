@@ -1,6 +1,7 @@
 import {
   users,
   trainingPlans,
+  workouts,
   exercises,
   planAssignments,
   exerciseLibrary,
@@ -10,6 +11,8 @@ import {
   type UpsertUser,
   type TrainingPlan,
   type InsertTrainingPlan,
+  type Workout,
+  type InsertWorkout,
   type Exercise,
   type InsertExercise,
   type PlanAssignment,
@@ -33,16 +36,26 @@ export interface IStorage {
   updateUserRole(userId: string, role: "trainer" | "client"): Promise<User>;
   
   // Training plan operations
-  createTrainingPlan(plan: InsertTrainingPlan, trainerId: string): Promise<TrainingPlan>;
+  createTrainingPlan(plan: Omit<InsertTrainingPlan, 'trainerId' | 'id' | 'createdAt' | 'updatedAt'>, trainerId: string): Promise<TrainingPlan>;
   getTrainingPlan(planId: string): Promise<TrainingPlan | undefined>;
   getTrainerPlans(trainerId: string): Promise<TrainingPlan[]>;
-  updateTrainingPlan(planId: string, plan: { name?: string; description?: string | null }): Promise<TrainingPlan>;
+  updateTrainingPlan(planId: string, plan: Partial<Omit<InsertTrainingPlan, 'trainerId' | 'id' | 'createdAt' | 'updatedAt'>>): Promise<TrainingPlan>;
   deleteTrainingPlan(planId: string): Promise<void>;
   
+  // Workout operations
+  getWorkoutsByPlanId(planId: string): Promise<Workout[]>;
+  getWorkoutById(id: string): Promise<Workout | undefined>;
+  createWorkout(planId: string, input: Omit<InsertWorkout, 'planId'>): Promise<Workout>;
+  updateWorkout(id: string, input: Partial<Omit<InsertWorkout, 'planId'>>): Promise<Workout>;
+  deleteWorkout(id: string): Promise<void>;
+  
   // Exercise operations
-  createExercises(planId: string, exercisesList: Omit<InsertExercise, 'planId'>[]): Promise<Exercise[]>;
-  getExercisesByPlan(planId: string): Promise<Exercise[]>;
-  deleteExercisesByPlan(planId: string): Promise<void>;
+  createExercises(workoutId: string, exercisesList: Omit<InsertExercise, 'workoutId'>[]): Promise<Exercise[]>;
+  getExercisesByWorkoutId(workoutId: string): Promise<Exercise[]>;
+  getExerciseById(id: string): Promise<Exercise | undefined>;
+  updateExercise(id: string, data: Partial<Omit<InsertExercise, 'workoutId'>>): Promise<Exercise>;
+  deleteExercise(id: string): Promise<void>;
+  deleteExercisesByWorkout(workoutId: string): Promise<void>;
   
   // Assignment operations
   createAssignment(assignment: InsertPlanAssignment): Promise<PlanAssignment>;
@@ -127,7 +140,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Training plan operations
-  async createTrainingPlan(plan: InsertTrainingPlan, trainerId: string): Promise<TrainingPlan> {
+  async createTrainingPlan(plan: Omit<InsertTrainingPlan, 'trainerId' | 'id' | 'createdAt' | 'updatedAt'>, trainerId: string): Promise<TrainingPlan> {
     const [createdPlan] = await db
       .insert(trainingPlans)
       .values({ ...plan, trainerId })
@@ -150,7 +163,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(trainingPlans.trainerId, trainerId));
   }
 
-  async updateTrainingPlan(planId: string, plan: { name?: string; description?: string | null }): Promise<TrainingPlan> {
+  async updateTrainingPlan(planId: string, plan: Partial<Omit<InsertTrainingPlan, 'trainerId' | 'id' | 'createdAt' | 'updatedAt'>>): Promise<TrainingPlan> {
     const [updated] = await db
       .update(trainingPlans)
       .set({ ...plan, updatedAt: new Date() })
@@ -163,28 +176,87 @@ export class DatabaseStorage implements IStorage {
     await db.delete(trainingPlans).where(eq(trainingPlans.id, planId));
   }
 
-  // Exercise operations
-  async createExercises(planId: string, exercisesList: Omit<InsertExercise, 'planId'>[]): Promise<Exercise[]> {
-    if (exercisesList.length === 0) return [];
-    
-    const exercisesWithPlanId = exercisesList.map((ex) => ({
-      ...ex,
-      planId,
-    }));
-    
-    return await db.insert(exercises).values(exercisesWithPlanId).returning();
+  // Workout operations
+  async getWorkoutsByPlanId(planId: string): Promise<Workout[]> {
+    return await db
+      .select()
+      .from(workouts)
+      .where(eq(workouts.planId, planId))
+      .orderBy(workouts.orderIndex);
   }
 
-  async getExercisesByPlan(planId: string): Promise<Exercise[]> {
+  async getWorkoutById(id: string): Promise<Workout | undefined> {
+    const [workout] = await db
+      .select()
+      .from(workouts)
+      .where(eq(workouts.id, id));
+    return workout;
+  }
+
+  async createWorkout(planId: string, input: Omit<InsertWorkout, 'planId'>): Promise<Workout> {
+    const [created] = await db
+      .insert(workouts)
+      .values({ ...input, planId })
+      .returning();
+    return created;
+  }
+
+  async updateWorkout(id: string, input: Partial<Omit<InsertWorkout, 'planId'>>): Promise<Workout> {
+    const [updated] = await db
+      .update(workouts)
+      .set({ ...input, updatedAt: new Date() })
+      .where(eq(workouts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteWorkout(id: string): Promise<void> {
+    await db.delete(workouts).where(eq(workouts.id, id));
+  }
+
+  // Exercise operations
+  async createExercises(workoutId: string, exercisesList: Omit<InsertExercise, 'workoutId'>[]): Promise<Exercise[]> {
+    if (exercisesList.length === 0) return [];
+    
+    const exercisesWithWorkoutId = exercisesList.map((ex) => ({
+      ...ex,
+      workoutId,
+    }));
+    
+    return await db.insert(exercises).values(exercisesWithWorkoutId).returning();
+  }
+
+  async getExercisesByWorkoutId(workoutId: string): Promise<Exercise[]> {
     return await db
       .select()
       .from(exercises)
-      .where(eq(exercises.planId, planId))
+      .where(eq(exercises.workoutId, workoutId))
       .orderBy(exercises.orderIndex);
   }
 
-  async deleteExercisesByPlan(planId: string): Promise<void> {
-    await db.delete(exercises).where(eq(exercises.planId, planId));
+  async getExerciseById(id: string): Promise<Exercise | undefined> {
+    const [exercise] = await db
+      .select()
+      .from(exercises)
+      .where(eq(exercises.id, id));
+    return exercise;
+  }
+
+  async updateExercise(id: string, data: Partial<Omit<InsertExercise, 'workoutId'>>): Promise<Exercise> {
+    const [updated] = await db
+      .update(exercises)
+      .set(data)
+      .where(eq(exercises.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteExercise(id: string): Promise<void> {
+    await db.delete(exercises).where(eq(exercises.id, id));
+  }
+
+  async deleteExercisesByWorkout(workoutId: string): Promise<void> {
+    await db.delete(exercises).where(eq(exercises.workoutId, workoutId));
   }
 
   // Assignment operations
