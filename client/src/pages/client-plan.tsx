@@ -1,12 +1,31 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Dumbbell } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Clock, Dumbbell, Video } from "lucide-react";
 import type { PlanAssignment, TrainingPlan, Workout, Exercise } from "@shared/schema";
 
 type AssignmentWithPlan = PlanAssignment & {
   plan: TrainingPlan & { workouts: (Workout & { exercises: Exercise[] })[] };
 };
+
+function getVideoEmbedUrl(url: string): string | null {
+  if (!url) return null;
+
+  const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/;
+  const youtubeMatch = url.match(youtubeRegex);
+  if (youtubeMatch) {
+    return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
+  }
+
+  const vimeoRegex = /vimeo\.com\/(\d+)/;
+  const vimeoMatch = url.match(vimeoRegex);
+  if (vimeoMatch) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  }
+
+  return null;
+}
 
 export default function ClientPlan() {
   const { data: assignment, isLoading } = useQuery<AssignmentWithPlan>({
@@ -84,6 +103,41 @@ export default function ClientPlan() {
                       </div>
                     </CardHeader>
                     <CardContent>
+                      {exercise.videoUrl && (() => {
+                        const embedUrl = getVideoEmbedUrl(exercise.videoUrl);
+                        
+                        if (embedUrl) {
+                          return (
+                            <div className="mb-6">
+                              <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                                <iframe
+                                  data-testid={`video-iframe-${exercise.id}`}
+                                  src={embedUrl}
+                                  className="absolute top-0 left-0 w-full h-full rounded-md"
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                  allowFullScreen
+                                />
+                              </div>
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <div className="mb-6">
+                              <Button
+                                variant="outline"
+                                asChild
+                                data-testid={`link-video-${exercise.id}`}
+                              >
+                                <a href={exercise.videoUrl} target="_blank" rel="noopener noreferrer">
+                                  <Video className="w-4 h-4" />
+                                  <span>Zobacz film</span>
+                                </a>
+                              </Button>
+                            </div>
+                          );
+                        }
+                      })()}
+                      
                       <div className="flex flex-wrap gap-4">
                         <div className="flex items-center gap-2">
                           <Dumbbell className="w-4 h-4 text-muted-foreground" />

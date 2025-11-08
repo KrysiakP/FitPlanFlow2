@@ -20,6 +20,7 @@ const exerciseSchema = z.object({
   sets: z.coerce.number().min(1, "Minimum 1 seria"),
   reps: z.coerce.number().min(1, "Minimum 1 powtórzenie"),
   description: z.string().optional(),
+  videoUrl: z.string().optional(),
   restTime: z.coerce.number().optional(),
   load: z.string().optional(),
   orderIndex: z.number(),
@@ -70,7 +71,7 @@ export default function PlanForm() {
       workouts: [{
         name: "Trening 1",
         description: "",
-        exercises: [{ name: "", sets: 3, reps: 10, description: "", restTime: 60, load: "", orderIndex: 0 }],
+        exercises: [{ name: "", sets: 3, reps: 10, description: "", videoUrl: "", restTime: 60, load: "", orderIndex: 0 }],
         orderIndex: 0
       }],
     },
@@ -85,6 +86,7 @@ export default function PlanForm() {
           sets: ex.sets,
           reps: ex.reps,
           description: ex.description || "",
+          videoUrl: ex.videoUrl || "",
           restTime: ex.restTime ?? 60,
           load: ex.load ?? "",
           orderIndex: ex.orderIndex,
@@ -128,7 +130,7 @@ export default function PlanForm() {
       { 
         name: `Trening ${currentWorkouts.length + 1}`,
         description: "",
-        exercises: [{ name: "", sets: 3, reps: 10, description: "", restTime: 60, load: "", orderIndex: 0 }],
+        exercises: [{ name: "", sets: 3, reps: 10, description: "", videoUrl: "", restTime: 60, load: "", orderIndex: 0 }],
         orderIndex: currentWorkouts.length
       },
     ]);
@@ -146,7 +148,7 @@ export default function PlanForm() {
     const currentExercises = form.getValues(`workouts.${workoutIndex}.exercises`);
     form.setValue(`workouts.${workoutIndex}.exercises`, [
       ...currentExercises,
-      { name: "", sets: 3, reps: 10, description: "", restTime: 60, load: "", orderIndex: currentExercises.length },
+      { name: "", sets: 3, reps: 10, description: "", videoUrl: "", restTime: 60, load: "", orderIndex: currentExercises.length },
     ]);
   };
 
@@ -169,6 +171,7 @@ export default function PlanForm() {
     
     form.setValue(`workouts.${selectedWorkoutIndex}.exercises.${selectedExerciseIndex}.name`, exercise.name);
     form.setValue(`workouts.${selectedWorkoutIndex}.exercises.${selectedExerciseIndex}.description`, exercise.description || "");
+    form.setValue(`workouts.${selectedWorkoutIndex}.exercises.${selectedExerciseIndex}.videoUrl`, exercise.videoUrl || "");
     form.setValue(`workouts.${selectedWorkoutIndex}.exercises.${selectedExerciseIndex}.sets`, exercise.defaultSets ?? 3);
     form.setValue(`workouts.${selectedWorkoutIndex}.exercises.${selectedExerciseIndex}.reps`, exercise.defaultReps ?? 10);
     form.setValue(`workouts.${selectedWorkoutIndex}.exercises.${selectedExerciseIndex}.load`, exercise.defaultLoad || "");
@@ -363,6 +366,43 @@ export default function PlanForm() {
                                 )}
                               />
 
+                              <FormField
+                                control={form.control}
+                                name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.description`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Opis (opcjonalnie)</FormLabel>
+                                    <FormControl>
+                                      <Textarea
+                                        placeholder="Dodatkowe wskazówki dotyczące techniki wykonania"
+                                        {...field}
+                                        data-testid={`input-exercise-description-${workoutIndex}-${exerciseIndex}`}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+
+                              <FormField
+                                control={form.control}
+                                name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.videoUrl`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Link do filmu (opcjonalnie)</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        type="url"
+                                        placeholder="https://youtube.com/watch?v=..." 
+                                        {...field} 
+                                        data-testid={`input-exercise-video-${workoutIndex}-${exerciseIndex}`} 
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+
                               <div className="grid grid-cols-2 gap-4">
                                 <FormField
                                   control={form.control}
@@ -439,24 +479,6 @@ export default function PlanForm() {
                                   )}
                                 />
                               </div>
-
-                              <FormField
-                                control={form.control}
-                                name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.description`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Opis (opcjonalnie)</FormLabel>
-                                    <FormControl>
-                                      <Textarea
-                                        placeholder="Dodatkowe wskazówki dotyczące techniki wykonania"
-                                        {...field}
-                                        data-testid={`input-exercise-description-${workoutIndex}-${exerciseIndex}`}
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
                             </div>
                             <Button
                               type="button"
