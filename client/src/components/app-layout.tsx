@@ -13,6 +13,8 @@ import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu } from "l
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -20,6 +22,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isTrainer = user?.role === "trainer";
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/logout");
+    },
+    onSuccess: () => {
+      queryClient.clear();
+      window.location.href = "/";
+    },
+  });
 
   const getInitials = (firstName?: string | null, lastName?: string | null) => {
     const first = firstName?.charAt(0) || "";
@@ -122,11 +134,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <a href="/api/logout" className="cursor-pointer" data-testid="button-logout">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Wyloguj się
-                </a>
+              <DropdownMenuItem
+                onClick={() => logoutMutation.mutate()}
+                className="cursor-pointer"
+                data-testid="button-logout"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Wyloguj się
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

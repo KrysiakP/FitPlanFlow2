@@ -18,9 +18,10 @@ export const sessions = pgTable(
 // User storage table - extended for trainer/client roles
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
+  email: varchar("email").unique().notNull(),
+  password: varchar("password").notNull(),
+  firstName: varchar("first_name").notNull(),
+  lastName: varchar("last_name").notNull(),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role", { length: 20 }), // 'trainer' or 'client' - null until user selects
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -128,6 +129,21 @@ export const updateUserRoleSchema = z.object({
   role: z.enum(["trainer", "client"]),
 });
 
+export const registerSchema = z.object({
+  email: z.string().email("Nieprawidłowy adres email"),
+  password: z.string().min(6, "Hasło musi mieć co najmniej 6 znaków"),
+  firstName: z.string().min(1, "Imię jest wymagane"),
+  lastName: z.string().min(1, "Nazwisko jest wymagane"),
+  role: z.enum(["trainer", "client"]),
+});
+
+export const loginSchema = z.object({
+  email: z.string().email("Nieprawidłowy adres email"),
+  password: z.string().min(1, "Hasło jest wymagane"),
+});
+
 export type InsertTrainingPlanInput = z.infer<typeof insertTrainingPlanSchema>;
 export type InsertExerciseInput = z.infer<typeof insertExerciseSchema>;
 export type InsertPlanAssignmentInput = z.infer<typeof insertPlanAssignmentSchema>;
+export type RegisterInput = z.infer<typeof registerSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;

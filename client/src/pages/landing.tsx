@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dumbbell, Users, ClipboardList, TrendingUp } from "lucide-react";
+import { Link } from "wouter";
 
 export default function Landing() {
   return (
@@ -12,7 +13,7 @@ export default function Landing() {
             <h1 className="font-heading font-bold text-2xl">Platforma Treningowa</h1>
           </div>
           <Button asChild data-testid="button-login">
-            <a href="/api/login">Zaloguj się</a>
+            <Link href="/login">Zaloguj się</Link>
           </Button>
         </div>
       </header>
@@ -28,7 +29,7 @@ export default function Landing() {
             </p>
             <div className="flex gap-4 justify-center">
               <Button size="lg" asChild data-testid="button-start">
-                <a href="/api/login">Rozpocznij za darmo</a>
+                <Link href="/register">Rozpocznij za darmo</Link>
               </Button>
             </div>
           </div>
@@ -81,7 +82,7 @@ export default function Landing() {
                   Dołącz do platformy jako trener lub podopieczny i zacznij trenować bardziej efektywnie
                 </p>
                 <Button size="lg" asChild data-testid="button-cta">
-                  <a href="/api/login">Zaloguj się teraz</a>
+                  <Link href="/login">Zaloguj się teraz</Link>
                 </Button>
               </CardContent>
             </Card>

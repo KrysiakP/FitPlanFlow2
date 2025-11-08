@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/app-layout";
 import Landing from "@/pages/landing";
+import Login from "@/pages/login";
+import Register from "@/pages/register";
 import RoleSelection from "@/pages/role-selection";
 import TrainerDashboard from "@/pages/trainer-dashboard";
 import ClientDashboard from "@/pages/client-dashboard";
@@ -31,6 +33,8 @@ function Router() {
     return (
       <Switch>
         <Route path="/" component={Landing} />
+        <Route path="/login" component={Login} />
+        <Route path="/register" component={Register} />
         <Route component={Landing} />
       </Switch>
     );
