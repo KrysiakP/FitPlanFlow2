@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Copy } from "lucide-react";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -46,6 +46,27 @@ export default function TrainingPlans() {
       toast({
         title: "Błąd",
         description: "Nie udało się usunąć planu",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const copyPlanMutation = useMutation({
+    mutationFn: async (planId: string) => {
+      await apiRequest("POST", `/api/plans/${planId}/copy`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/plans"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/stats"] });
+      toast({
+        title: "Plan skopiowany",
+        description: "Nowy plan został utworzony",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Błąd",
+        description: "Nie udało się skopiować planu",
         variant: "destructive",
       });
     },
@@ -166,6 +187,15 @@ export default function TrainingPlans() {
                     <Users className="w-4 h-4 mr-2" />
                     Przypisz
                   </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copyPlanMutation.mutate(plan.id)}
+                  data-testid={`button-copy-${plan.id}`}
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Kopiuj
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
