@@ -44,6 +44,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/plans", icon: ClipboardList, label: "Plany treningowe" },
     { href: "/exercise-library", icon: Dumbbell, label: "Moje ćwiczenia" },
     { href: "/clients", icon: Users, label: "Podopieczni" },
+    { href: "/trainer/reports", icon: FileText, label: "Raporty tygodniowe" },
   ];
 
   const clientNavItems = [

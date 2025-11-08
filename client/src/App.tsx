@@ -20,6 +20,7 @@ import ExerciseLibrary from "@/pages/exercise-library";
 import TrainerProfile from "@/pages/trainer-profile";
 import ClientProfile from "@/pages/client-profile";
 import WeeklyReport from "@/pages/weekly-report";
+import TrainerReports from "@/pages/trainer-reports";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -60,6 +61,7 @@ function Router() {
             <Route path="/plans/:id/assign" component={AssignPlan} />
             <Route path="/exercise-library" component={ExerciseLibrary} />
             <Route path="/clients" component={Clients} />
+            <Route path="/trainer/reports" component={TrainerReports} />
             <Route path="/profile" component={TrainerProfile} />
           </>
         ) : (
