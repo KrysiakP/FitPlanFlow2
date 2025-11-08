@@ -339,6 +339,8 @@ export const insertWeeklyReportSchema = createInsertSchema(weeklyReports).omit({
   id: true,
   clientId: true,
   createdAt: true,
+}).extend({
+  reportDate: z.coerce.date(),
 });
 
 export const updateUserRoleSchema = z.object({
