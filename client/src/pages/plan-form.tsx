@@ -7,12 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Plus, Trash2, GripVertical } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Plus, Trash2, GripVertical, Library } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useLocation, useParams } from "wouter";
-import type { TrainingPlan, Exercise } from "@shared/schema";
+import { useLocation, useParams, Link } from "wouter";
+import type { TrainingPlan, Exercise, ExerciseLibrary } from "@shared/schema";
 
 const exerciseSchema = z.object({
   name: z.string().min(1, "Nazwa ćwiczenia jest wymagana"),
@@ -20,6 +21,7 @@ const exerciseSchema = z.object({
   reps: z.coerce.number().min(1, "Minimum 1 powtórzenie"),
   description: z.string().optional(),
   restTime: z.coerce.number().optional(),
+  load: z.string().optional(),
   orderIndex: z.number(),
 });
 
@@ -38,10 +40,16 @@ export default function PlanForm() {
   const isEdit = !!id;
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [libraryDialogOpen, setLibraryDialogOpen] = useState(false);
+  const [selectedExerciseIndex, setSelectedExerciseIndex] = useState<number | null>(null);
 
   const { data: existingPlan, isLoading } = useQuery<PlanWithExercises>({
     queryKey: ["/api/plans", id],
     enabled: isEdit,
+  });
+
+  const { data: exerciseLibrary, isLoading: isLoadingLibrary } = useQuery<ExerciseLibrary[]>({
+    queryKey: ["/api/exercises/library"],
   });
 
   const form = useForm<PlanFormData>({
@@ -49,7 +57,7 @@ export default function PlanForm() {
     defaultValues: {
       name: "",
       description: "",
-      exercises: [{ name: "", sets: 3, reps: 10, description: "", restTime: 60, orderIndex: 0 }],
+      exercises: [{ name: "", sets: 3, reps: 10, description: "", restTime: 60, load: "", orderIndex: 0 }],
     },
     values: existingPlan ? {
       name: existingPlan.name,
@@ -60,6 +68,7 @@ export default function PlanForm() {
         reps: ex.reps,
         description: ex.description || "",
         restTime: ex.restTime || 60,
+        load: ex.load || "",
         orderIndex: ex.orderIndex,
       })),
     } : undefined,
@@ -95,8 +104,27 @@ export default function PlanForm() {
     const currentExercises = form.getValues("exercises");
     form.setValue("exercises", [
       ...currentExercises,
-      { name: "", sets: 3, reps: 10, description: "", restTime: 60, orderIndex: currentExercises.length },
+      { name: "", sets: 3, reps: 10, description: "", restTime: 60, load: "", orderIndex: currentExercises.length },
     ]);
+  };
+
+  const handleSelectFromLibrary = (index: number) => {
+    setSelectedExerciseIndex(index);
+    setLibraryDialogOpen(true);
+  };
+
+  const handleExerciseSelect = (exercise: ExerciseLibrary) => {
+    if (selectedExerciseIndex === null) return;
+    
+    form.setValue(`exercises.${selectedExerciseIndex}.name`, exercise.name);
+    form.setValue(`exercises.${selectedExerciseIndex}.description`, exercise.description || "");
+    form.setValue(`exercises.${selectedExerciseIndex}.sets`, exercise.defaultSets ?? 3);
+    form.setValue(`exercises.${selectedExerciseIndex}.reps`, exercise.defaultReps ?? 10);
+    form.setValue(`exercises.${selectedExerciseIndex}.load`, exercise.defaultLoad || "");
+    form.setValue(`exercises.${selectedExerciseIndex}.restTime`, exercise.defaultRestTime ?? 60);
+    
+    setLibraryDialogOpen(false);
+    setSelectedExerciseIndex(null);
   };
 
   const removeExercise = (index: number) => {
@@ -193,6 +221,19 @@ export default function PlanForm() {
                         <GripVertical className="w-5 h-5 text-muted-foreground" />
                       </div>
                       <div className="flex-1 space-y-4">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleSelectFromLibrary(index)}
+                            data-testid={`button-select-from-library-${index}`}
+                          >
+                            <Library className="w-4 h-4 mr-2" />
+                            Wybierz z biblioteki
+                          </Button>
+                        </div>
+
                         <FormField
                           control={form.control}
                           name={`exercises.${index}.name`}
@@ -207,7 +248,7 @@ export default function PlanForm() {
                           )}
                         />
 
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-2 gap-4">
                           <FormField
                             control={form.control}
                             name={`exercises.${index}.sets`}
@@ -230,6 +271,20 @@ export default function PlanForm() {
                                 <FormLabel>Powtórzenia</FormLabel>
                                 <FormControl>
                                   <Input type="number" min="1" {...field} data-testid={`input-exercise-reps-${index}`} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name={`exercises.${index}.load`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Obciążenie (opcjonalnie)</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="np. 20kg, bodyweight" {...field} data-testid={`input-exercise-load-${index}`} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -305,6 +360,70 @@ export default function PlanForm() {
           </div>
         </form>
       </Form>
+
+      <Dialog open={libraryDialogOpen} onOpenChange={setLibraryDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto" data-testid="dialog-exercise-library">
+          <DialogHeader>
+            <DialogTitle className="font-heading">Wybierz ćwiczenie z biblioteki</DialogTitle>
+            <DialogDescription>
+              Kliknij na ćwiczenie, aby automatycznie wypełnić formularz
+            </DialogDescription>
+          </DialogHeader>
+
+          {isLoadingLibrary ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+            </div>
+          ) : !exerciseLibrary || exerciseLibrary.length === 0 ? (
+            <div className="text-center py-8 space-y-4" data-testid="empty-library-message">
+              <p className="text-muted-foreground">
+                Brak ćwiczeń w bibliotece. Dodaj ćwiczenia w zakładce "Moje ćwiczenia"
+              </p>
+              <Link href="/exercise-library">
+                <Button variant="outline" data-testid="link-to-exercise-library">
+                  Przejdź do biblioteki ćwiczeń
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {exerciseLibrary.map((exercise) => (
+                <Card
+                  key={exercise.id}
+                  className="hover-elevate cursor-pointer"
+                  onClick={() => handleExerciseSelect(exercise)}
+                  data-testid={`library-exercise-${exercise.id}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-lg">{exercise.name}</h4>
+                      {exercise.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {exercise.description}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                        {exercise.defaultSets && (
+                          <span>Serie: {exercise.defaultSets}</span>
+                        )}
+                        {exercise.defaultReps && (
+                          <span>Powtórzenia: {exercise.defaultReps}</span>
+                        )}
+                        {exercise.defaultLoad && (
+                          <span>Obciążenie: {exercise.defaultLoad}</span>
+                        )}
+                        {exercise.defaultRestTime && (
+                          <span>Odpoczynek: {exercise.defaultRestTime}s</span>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
