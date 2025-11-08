@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User } from "lucide-react";
+import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -49,6 +49,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const clientNavItems = [
     { href: "/", icon: LayoutDashboard, label: "Panel" },
     { href: "/my-plan", icon: ClipboardList, label: "Mój plan" },
+    { href: "/weekly-report", icon: FileText, label: "Raport tygodniowy" },
   ];
 
   const navItems = isTrainer ? trainerNavItems : clientNavItems;
