@@ -367,6 +367,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/plans/:id/copy", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can copy plans" });
+      }
+
+      const originalPlan = await storage.getTrainingPlan(id);
+      if (!originalPlan) {
+        return res.status(404).json({ message: "Plan not found" });
+      }
+
+      if (originalPlan.trainerId !== userId) {
+        return res.status(403).json({ message: "You can only copy your own plans" });
+      }
+
+      const copiedPlan = await storage.copyTrainingPlan(id, userId);
+      res.status(201).json(copiedPlan);
+    } catch (error) {
+      console.error("Error copying plan:", error);
+      res.status(500).json({ message: "Failed to copy plan" });
+    }
+  });
+
   // Workout routes
   app.get("/api/plans/:planId/workouts", isAuthenticated, async (req, res) => {
     try {

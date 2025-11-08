@@ -26,6 +26,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 export interface IStorage {
   // User operations
@@ -41,6 +42,7 @@ export interface IStorage {
   getTrainerPlans(trainerId: string): Promise<TrainingPlan[]>;
   updateTrainingPlan(planId: string, plan: Partial<Omit<InsertTrainingPlan, 'trainerId' | 'id' | 'createdAt' | 'updatedAt'>>): Promise<TrainingPlan>;
   deleteTrainingPlan(planId: string): Promise<void>;
+  copyTrainingPlan(originalPlanId: string, trainerId: string): Promise<TrainingPlan>;
   
   // Workout operations
   getWorkoutsByPlanId(planId: string): Promise<Workout[]>;
@@ -174,6 +176,62 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTrainingPlan(planId: string): Promise<void> {
     await db.delete(trainingPlans).where(eq(trainingPlans.id, planId));
+  }
+
+  async copyTrainingPlan(originalPlanId: string, trainerId: string): Promise<TrainingPlan> {
+    return await db.transaction(async (tx) => {
+      const [originalPlan] = await tx.select().from(trainingPlans)
+        .where(eq(trainingPlans.id, originalPlanId));
+      
+      if (!originalPlan) {
+        throw new Error("Plan not found");
+      }
+
+      const newPlanId = randomUUID();
+      const [newPlan] = await tx.insert(trainingPlans).values({
+        id: newPlanId,
+        name: `[KOPIA] ${originalPlan.name}`,
+        description: originalPlan.description,
+        trainerId: trainerId,
+      }).returning();
+
+      const originalWorkouts = await tx.select().from(workouts)
+        .where(eq(workouts.planId, originalPlanId))
+        .orderBy(workouts.orderIndex);
+
+      for (const workout of originalWorkouts) {
+        const newWorkoutId = randomUUID();
+
+        await tx.insert(workouts).values({
+          id: newWorkoutId,
+          planId: newPlanId,
+          name: workout.name,
+          description: workout.description,
+          orderIndex: workout.orderIndex,
+        });
+
+        const originalExercises = await tx.select().from(exercises)
+          .where(eq(exercises.workoutId, workout.id))
+          .orderBy(exercises.orderIndex);
+
+        for (const exercise of originalExercises) {
+          await tx.insert(exercises).values({
+            id: randomUUID(),
+            workoutId: newWorkoutId,
+            name: exercise.name,
+            sets: exercise.sets,
+            reps: exercise.reps,
+            description: exercise.description,
+            restTime: exercise.restTime,
+            orderIndex: exercise.orderIndex,
+            load: exercise.load,
+            videoUrl: exercise.videoUrl,
+          });
+        }
+      }
+
+      return newPlan;
+    });
   }
 
   // Workout operations
