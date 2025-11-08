@@ -3,10 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClipboardList, Calendar } from "lucide-react";
 import { Link } from "wouter";
-import type { PlanAssignment, TrainingPlan, Exercise } from "@shared/schema";
+import type { PlanAssignment, TrainingPlan, Workout, Exercise } from "@shared/schema";
 
 type AssignmentWithPlan = PlanAssignment & {
-  plan: TrainingPlan & { exercises: Exercise[] };
+  plan: TrainingPlan & { 
+    workouts: (Workout & { exercises: Exercise[] })[];
+  };
 };
 
 export default function ClientDashboard() {
@@ -15,6 +17,13 @@ export default function ClientDashboard() {
   const { data: assignment } = useQuery<AssignmentWithPlan>({
     queryKey: ["/api/client/assignment"],
   });
+
+  const getTotalExercises = () => {
+    if (!assignment?.plan.workouts) return 0;
+    return assignment.plan.workouts.reduce((total, workout) => {
+      return total + (workout.exercises?.length || 0);
+    }, 0);
+  };
 
   return (
     <div className="space-y-8">
@@ -51,7 +60,7 @@ export default function ClientDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold" data-testid="text-exercise-count">
-                {assignment.plan.exercises.length}
+                {getTotalExercises()}
               </div>
               <p className="text-xs text-muted-foreground">Łączna liczba ćwiczeń</p>
             </CardContent>
@@ -77,7 +86,7 @@ export default function ClientDashboard() {
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <ClipboardList className="w-4 h-4" />
-                  <span>{assignment.plan.exercises.length} ćwiczeń</span>
+                  <span>{getTotalExercises()} ćwiczeń</span>
                 </div>
               </div>
             </CardContent>
