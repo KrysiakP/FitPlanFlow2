@@ -153,34 +153,38 @@ export default function Register() {
                     <FormControl>
                       <RadioGroup
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value}
                         className="grid grid-cols-2 gap-4"
                       >
-                        <label
-                          htmlFor="client"
-                          className="flex flex-col items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover-elevate active-elevate-2"
+                        <div
+                          onClick={() => field.onChange("client")}
+                          className={`flex flex-col items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover-elevate active-elevate-2 ${
+                            field.value === "client" ? "border-primary bg-primary/5" : ""
+                          }`}
                           data-testid="role-client"
                         >
-                          <RadioGroupItem value="client" id="client" className="sr-only" />
                           <User className="w-8 h-8 text-primary" />
                           <div className="text-center">
                             <div className="font-medium">Podopieczny</div>
                             <div className="text-xs text-muted-foreground">Darmowe</div>
                           </div>
-                        </label>
+                          <RadioGroupItem value="client" className="hidden" />
+                        </div>
 
-                        <label
-                          htmlFor="trainer"
-                          className="flex flex-col items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover-elevate active-elevate-2"
+                        <div
+                          onClick={() => field.onChange("trainer")}
+                          className={`flex flex-col items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover-elevate active-elevate-2 ${
+                            field.value === "trainer" ? "border-primary bg-primary/5" : ""
+                          }`}
                           data-testid="role-trainer"
                         >
-                          <RadioGroupItem value="trainer" id="trainer" className="sr-only" />
                           <UserCheck className="w-8 h-8 text-primary" />
                           <div className="text-center">
                             <div className="font-medium">Trener</div>
                             <div className="text-xs text-muted-foreground">Profesjonalny</div>
                           </div>
-                        </label>
+                          <RadioGroupItem value="trainer" className="hidden" />
+                        </div>
                       </RadioGroup>
                     </FormControl>
                     <FormMessage />
