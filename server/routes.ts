@@ -19,7 +19,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.post("/api/register", async (req, res) => {
     try {
-      const { email, password, firstName, lastName, role } = registerSchema.parse(req.body);
+      const validationResult = registerSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const { email, password, firstName, lastName, role } = validationResult.data;
       
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
@@ -35,9 +43,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role,
       });
 
-      req.session.userId = user.id;
-      const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+      req.session.regenerate((err) => {
+        if (err) {
+          console.error("Session regeneration error:", err);
+          return res.status(500).json({ message: "Nie udało się utworzyć sesji" });
+        }
+        
+        req.session.userId = user.id;
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("Session save error:", saveErr);
+            return res.status(500).json({ message: "Nie udało się zapisać sesji" });
+          }
+          
+          const { password: _, ...userWithoutPassword } = user;
+          res.json(userWithoutPassword);
+        });
+      });
     } catch (error) {
       console.error("Error registering user:", error);
       res.status(500).json({ message: "Nie udało się zarejestrować użytkownika" });
@@ -46,7 +68,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/login", async (req, res) => {
     try {
-      const { email, password } = loginSchema.parse(req.body);
+      const validationResult = loginSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const { email, password } = validationResult.data;
       
       const user = await storage.getUserByEmail(email);
       if (!user) {
@@ -58,9 +88,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Nieprawidłowy email lub hasło" });
       }
 
-      req.session.userId = user.id;
-      const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+      req.session.regenerate((err) => {
+        if (err) {
+          console.error("Session regeneration error:", err);
+          return res.status(500).json({ message: "Nie udało się utworzyć sesji" });
+        }
+        
+        req.session.userId = user.id;
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("Session save error:", saveErr);
+            return res.status(500).json({ message: "Nie udało się zapisać sesji" });
+          }
+          
+          const { password: _, ...userWithoutPassword } = user;
+          res.json(userWithoutPassword);
+        });
+      });
     } catch (error) {
       console.error("Error logging in:", error);
       res.status(500).json({ message: "Nie udało się zalogować" });
