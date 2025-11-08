@@ -18,6 +18,7 @@ import Clients from "@/pages/clients";
 import ClientPlan from "@/pages/client-plan";
 import ExerciseLibrary from "@/pages/exercise-library";
 import TrainerProfile from "@/pages/trainer-profile";
+import ClientProfile from "@/pages/client-profile";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -64,7 +65,7 @@ function Router() {
           <>
             <Route path="/" component={ClientDashboard} />
             <Route path="/my-plan" component={ClientPlan} />
-            <Route path="/profile" component={TrainerProfile} />
+            <Route path="/profile" component={ClientProfile} />
           </>
         )}
         <Route component={NotFound} />
