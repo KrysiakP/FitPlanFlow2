@@ -16,10 +16,84 @@ import {
   loginSchema,
 } from "@shared/schema";
 import { z } from "zod";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { randomUUID } from "crypto";
+
+const uploadsDir = path.join(process.cwd(), "attached_assets", "uploads");
+
+const multerStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const filename = `${Date.now()}-${randomUUID()}${ext}`;
+    cb(null, filename);
+  },
+});
+
+const fileFilter = (req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/x-msvideo", "video/webm"];
+  const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+  const allowedTypes = [...allowedVideoTypes, ...allowedImageTypes];
+
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Nieprawidłowy typ pliku. Dozwolone są tylko wideo (mp4, mov, avi, webm) i obrazy (jpg, jpeg, png, webp)"));
+  }
+};
+
+const upload = multer({
+  storage: multerStorage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 50 * 1024 * 1024,
+  },
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+
+  // File upload endpoint
+  app.post("/api/upload", isAuthenticated, (req, res) => {
+    upload.single("file")(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === "LIMIT_FILE_SIZE") {
+          return res.status(400).json({ 
+            message: "Plik jest za duży. Maksymalny rozmiar to 50MB dla wideo i 5MB dla obrazów" 
+          });
+        }
+        return res.status(400).json({ message: `Błąd uploadu: ${err.message}` });
+      } else if (err) {
+        return res.status(400).json({ message: err.message });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "Nie przesłano pliku" });
+      }
+
+      const isVideo = req.file.mimetype.startsWith("video/");
+      const isImage = req.file.mimetype.startsWith("image/");
+      const maxImageSize = 5 * 1024 * 1024;
+
+      if (isImage && req.file.size > maxImageSize) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ 
+          message: "Obraz jest za duży. Maksymalny rozmiar to 5MB" 
+        });
+      }
+
+      const fileUrl = `/attached_assets/uploads/${req.file.filename}`;
+      res.json({ url: fileUrl });
+    });
+  });
 
   // Auth routes
   app.post("/api/register", async (req, res) => {
