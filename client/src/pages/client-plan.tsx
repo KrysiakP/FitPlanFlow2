@@ -2,10 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Dumbbell } from "lucide-react";
-import type { PlanAssignment, TrainingPlan, Exercise } from "@shared/schema";
+import type { PlanAssignment, TrainingPlan, Workout, Exercise } from "@shared/schema";
 
 type AssignmentWithPlan = PlanAssignment & {
-  plan: TrainingPlan & { exercises: Exercise[] };
+  plan: TrainingPlan & { workouts: (Workout & { exercises: Exercise[] })[] };
 };
 
 export default function ClientPlan() {
@@ -50,61 +50,73 @@ export default function ClientPlan() {
         </p>
       </div>
 
-      <div className="space-y-4">
-        <h2 className="font-heading font-semibold text-2xl">Ćwiczenia</h2>
-        <div className="space-y-4">
-          {plan.exercises.map((exercise, index) => (
-            <Card key={exercise.id} data-testid={`card-exercise-${exercise.id}`}>
-              <CardHeader>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Badge variant="outline" className="font-mono">
-                        #{index + 1}
-                      </Badge>
-                      <CardTitle className="font-heading" data-testid={`text-exercise-name-${exercise.id}`}>
-                        {exercise.name}
-                      </CardTitle>
-                    </div>
-                    {exercise.description && (
-                      <CardDescription>{exercise.description}</CardDescription>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-4">
-                  <div className="flex items-center gap-2">
-                    <Dumbbell className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-lg font-medium" data-testid={`text-exercise-sets-${exercise.id}`}>
-                      {exercise.sets} serie
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg font-medium" data-testid={`text-exercise-reps-${exercise.id}`}>
-                      {exercise.reps} powtórzeń
-                    </span>
-                  </div>
-                  {exercise.restTime && (
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground" data-testid={`text-exercise-rest-${exercise.id}`}>
-                        Odpoczynek: {exercise.restTime}s
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+      {plan.workouts && plan.workouts.length > 0 ? (
+        <div className="space-y-8">
+          {plan.workouts.map((workout) => (
+            <div key={workout.id} className="space-y-4">
+              <div>
+                <h2 className="font-heading font-semibold text-2xl" data-testid={`text-workout-name-${workout.id}`}>
+                  {workout.name}
+                </h2>
+                {workout.description && (
+                  <p className="text-muted-foreground mt-1">{workout.description}</p>
+                )}
+              </div>
+              
+              <div className="space-y-4">
+                {workout.exercises.map((exercise, index) => (
+                  <Card key={exercise.id} data-testid={`card-exercise-${exercise.id}`}>
+                    <CardHeader>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <Badge variant="outline" className="font-mono">
+                              #{index + 1}
+                            </Badge>
+                            <CardTitle className="font-heading" data-testid={`text-exercise-name-${exercise.id}`}>
+                              {exercise.name}
+                            </CardTitle>
+                          </div>
+                          {exercise.description && (
+                            <CardDescription>{exercise.description}</CardDescription>
+                          )}
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-4">
+                        <div className="flex items-center gap-2">
+                          <Dumbbell className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-lg font-medium" data-testid={`text-exercise-sets-${exercise.id}`}>
+                            {exercise.sets} serie
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg font-medium" data-testid={`text-exercise-reps-${exercise.id}`}>
+                            {exercise.reps} powtórzeń
+                          </span>
+                        </div>
+                        {exercise.restTime && (
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground" data-testid={`text-exercise-rest-${exercise.id}`}>
+                              Odpoczynek: {exercise.restTime}s
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
-      </div>
-
-      {plan.exercises.length === 0 && (
+      ) : (
         <Card>
           <CardContent className="p-12 text-center">
             <p className="text-muted-foreground">
-              Ten plan nie zawiera jeszcze żadnych ćwiczeń
+              Ten plan nie zawiera jeszcze żadnych treningów
             </p>
           </CardContent>
         </Card>
