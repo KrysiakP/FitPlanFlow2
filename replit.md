@@ -12,6 +12,8 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 - ✅ Przypisywanie planów do podopiecznych
 - ✅ Panel podopiecznego z dostępem do przypisanego planu
 - ✅ Lista podopiecznych dla trenera
+- ✅ **Logowanie wykonań ćwiczeń** - podopieczni mogą zapisywać swoje wyniki (powtórzenia, obciążenie)
+- ✅ **Automatyczne prefill** - formularz ładuje ostatnie zalogowane wartości
 - ✅ Całkowicie polski interfejs użytkownika
 - ✅ Baza danych PostgreSQL z persystencją danych
 
@@ -35,6 +37,7 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 - `trainingPlans` - plany treningowe utworzone przez trenerów
 - `exercises` - ćwiczenia w planach (relacja 1:N)
 - `planAssignments` - przypisania planów do podopiecznych
+- `exerciseLogs` - historia wykonań ćwiczeń (powtórzenia, obciążenie, notatki, timestamp)
 
 ## API Endpoints
 
@@ -57,6 +60,9 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 
 ### Podopieczny
 - `GET /api/client/assignment` - przypisany plan podopiecznego
+- `POST /api/exercises/:exerciseId/log` - loguje wykonanie ćwiczenia
+- `GET /api/exercises/:exerciseId/logs` - historia wykonań ćwiczenia
+- `GET /api/exercises/:exerciseId/latest-log` - ostatnie wykonanie ćwiczenia (optymalizowane)
 
 ## User Journeys
 
@@ -73,6 +79,8 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 2. Wybór roli "Podopieczny" (przy pierwszym logowaniu)
 3. Dashboard z informacją o przypisanym planie
 4. Przeglądanie szczegółów planu treningowego z wszystkimi ćwiczeniami
+5. **Logowanie wykonań** - dla każdego ćwiczenia formularz z automatycznym prefill ostatnich wartości
+6. Zapisywanie powtórzeń, obciążenia i opcjonalnych notatek
 
 ## Technologie
 - **Frontend**: React, TypeScript, Tailwind CSS, shadcn/ui, TanStack Query, Wouter

@@ -122,6 +122,26 @@ export const exerciseLogs = pgTable("exercise_logs", {
   loggedAt: timestamp("logged_at").defaultNow().notNull(),
 });
 
+// Weekly reports - client's weekly progress reports
+export const weeklyReports = pgTable("weekly_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  reportDate: timestamp("report_date").notNull(), // data raportu
+  weight: varchar("weight"), // waga (np. "75.5")
+  saturation: varchar("saturation"), // poziom nasycenia
+  chest: varchar("chest"), // klatka w cm
+  waist: varchar("waist"), // talia w cm
+  hips: varchar("hips"), // biodro w cm
+  arm: varchar("arm"), // ramię w cm
+  leg: varchar("leg"), // udo/łydka w cm
+  cardio: text("cardio"), // opis cardio
+  supplements: text("supplements"), // suplementacja
+  mood: text("mood"), // samopoczucie
+  thoughts: text("thoughts"), // ogólne przemyślenia
+  photoUrl: text("photo_url"), // zdjęcie raportowe sylwetki
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   createdPlans: many(trainingPlans),
@@ -130,6 +150,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   profile: one(userProfiles),
   progress: many(clientProgress),
   exerciseLogs: many(exerciseLogs),
+  weeklyReports: many(weeklyReports),
 }));
 
 export const trainingPlansRelations = relations(trainingPlans, ({ one, many }) => ({
@@ -200,6 +221,13 @@ export const exerciseLogsRelations = relations(exerciseLogs, ({ one }) => ({
   }),
 }));
 
+export const weeklyReportsRelations = relations(weeklyReports, ({ one }) => ({
+  client: one(users, {
+    fields: [weeklyReports.clientId],
+    references: [users.id],
+  }),
+}));
+
 // Types for Replit Auth
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -235,6 +263,10 @@ export type InsertClientProgress = typeof clientProgress.$inferInsert;
 // Types for exercise logs
 export type ExerciseLog = typeof exerciseLogs.$inferSelect;
 export type InsertExerciseLog = typeof exerciseLogs.$inferInsert;
+
+// Types for weekly reports
+export type WeeklyReport = typeof weeklyReports.$inferSelect;
+export type InsertWeeklyReport = typeof weeklyReports.$inferInsert;
 
 // Zod schemas
 export const insertTrainingPlanSchema = createInsertSchema(trainingPlans).omit({
@@ -303,6 +335,12 @@ export const insertExerciseLogSchema = createInsertSchema(exerciseLogs).omit({
   loggedAt: true,
 });
 
+export const insertWeeklyReportSchema = createInsertSchema(weeklyReports).omit({
+  id: true,
+  clientId: true,
+  createdAt: true,
+});
+
 export const updateUserRoleSchema = z.object({
   role: z.enum(["trainer", "client"]),
 });
@@ -331,5 +369,6 @@ export type UpdateUserProfileInput = z.infer<typeof updateUserProfileSchema>;
 export type InsertClientProgressInput = z.infer<typeof insertClientProgressSchema>;
 export type UpdateClientProgressInput = z.infer<typeof updateClientProgressSchema>;
 export type InsertExerciseLogInput = z.infer<typeof insertExerciseLogSchema>;
+export type InsertWeeklyReportInput = z.infer<typeof insertWeeklyReportSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
