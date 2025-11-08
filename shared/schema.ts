@@ -38,10 +38,21 @@ export const trainingPlans = pgTable("training_plans", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Exercises within training plans
-export const exercises = pgTable("exercises", {
+// Workouts within training plans (e.g., "Trening A", "Trening B")
+export const workouts = pgTable("workouts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   planId: varchar("plan_id").notNull().references(() => trainingPlans.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(), // np. "Trening A - Klatka"
+  description: text("description"),
+  orderIndex: integer("order_index").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Exercises within workouts
+export const exercises = pgTable("exercises", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workoutId: varchar("workout_id").notNull().references(() => workouts.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 255 }).notNull(),
   sets: integer("sets").notNull(),
   reps: integer("reps").notNull(),
@@ -114,14 +125,22 @@ export const trainingPlansRelations = relations(trainingPlans, ({ one, many }) =
     fields: [trainingPlans.trainerId],
     references: [users.id],
   }),
-  exercises: many(exercises),
+  workouts: many(workouts),
   assignments: many(planAssignments),
 }));
 
-export const exercisesRelations = relations(exercises, ({ one }) => ({
+export const workoutsRelations = relations(workouts, ({ one, many }) => ({
   plan: one(trainingPlans, {
-    fields: [exercises.planId],
+    fields: [workouts.planId],
     references: [trainingPlans.id],
+  }),
+  exercises: many(exercises),
+}));
+
+export const exercisesRelations = relations(exercises, ({ one }) => ({
+  workout: one(workouts, {
+    fields: [exercises.workoutId],
+    references: [workouts.id],
   }),
 }));
 
@@ -165,6 +184,10 @@ export type User = typeof users.$inferSelect;
 export type TrainingPlan = typeof trainingPlans.$inferSelect;
 export type InsertTrainingPlan = typeof trainingPlans.$inferInsert;
 
+// Types for workouts
+export type Workout = typeof workouts.$inferSelect;
+export type InsertWorkout = typeof workouts.$inferInsert;
+
 // Types for exercises
 export type Exercise = typeof exercises.$inferSelect;
 export type InsertExercise = typeof exercises.$inferInsert;
@@ -193,9 +216,15 @@ export const insertTrainingPlanSchema = createInsertSchema(trainingPlans).omit({
   updatedAt: true,
 });
 
+export const insertWorkoutSchema = createInsertSchema(workouts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertExerciseSchema = createInsertSchema(exercises).omit({
   id: true,
-  planId: true,
+  workoutId: true,
 });
 
 export const insertPlanAssignmentSchema = createInsertSchema(planAssignments).omit({
@@ -252,6 +281,7 @@ export const loginSchema = z.object({
 });
 
 export type InsertTrainingPlanInput = z.infer<typeof insertTrainingPlanSchema>;
+export type InsertWorkoutInput = z.infer<typeof insertWorkoutSchema>;
 export type InsertExerciseInput = z.infer<typeof insertExerciseSchema>;
 export type InsertPlanAssignmentInput = z.infer<typeof insertPlanAssignmentSchema>;
 export type InsertExerciseLibraryInput = z.infer<typeof insertExerciseLibrarySchema>;
