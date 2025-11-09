@@ -42,9 +42,13 @@ export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: Omit<User, "id" | "createdAt" | "updatedAt" | "profileImageUrl">): Promise<User>;
+  createUser(user: Omit<User, "id" | "createdAt" | "updatedAt" | "profileImageUrl" | "stripeCustomerId" | "stripeSubscriptionId" | "subscriptionStatus" | "subscriptionTier">): Promise<User>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserRole(userId: string, role: "trainer" | "client"): Promise<User>;
+  
+  // Subscription operations
+  updateUserSubscription(userId: string, data: { stripeCustomerId?: string | null; stripeSubscriptionId?: string | null; subscriptionStatus?: string | null; subscriptionTier?: string }): Promise<User>;
+  checkTrainerClientLimit(trainerId: string): Promise<{ withinLimit: boolean; currentCount: number; maxCount: number }>;
   
   // Training plan operations
   createTrainingPlan(plan: Omit<InsertTrainingPlan, 'trainerId' | 'id' | 'createdAt' | 'updatedAt'>, trainerId: string): Promise<TrainingPlan>;
@@ -135,7 +139,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createUser(userData: Omit<User, "id" | "createdAt" | "updatedAt" | "profileImageUrl">): Promise<User> {
+  async createUser(userData: Omit<User, "id" | "createdAt" | "updatedAt" | "profileImageUrl" | "stripeCustomerId" | "stripeSubscriptionId" | "subscriptionStatus" | "subscriptionTier">): Promise<User> {
     const [user] = await db
       .insert(users)
       .values({
@@ -144,6 +148,40 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+  
+  async updateUserSubscription(userId: string, data: { stripeCustomerId?: string | null; stripeSubscriptionId?: string | null; subscriptionStatus?: string | null; subscriptionTier?: string }): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        ...data,
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+  
+  async checkTrainerClientLimit(trainerId: string): Promise<{ withinLimit: boolean; currentCount: number; maxCount: number }> {
+    const trainer = await this.getUser(trainerId);
+    if (!trainer || trainer.role !== 'trainer') {
+      throw new Error("Użytkownik nie jest trenerem");
+    }
+    
+    const clients = await this.getTrainerClients(trainerId);
+    const currentCount = clients.length;
+    
+    const isPremium = trainer.subscriptionTier === 'premium' && 
+                     (trainer.subscriptionStatus === 'active' || trainer.subscriptionStatus === 'trialing');
+    
+    const maxCount = isPremium ? Infinity : 10;
+    const withinLimit = currentCount < maxCount;
+    
+    return {
+      withinLimit,
+      currentCount,
+      maxCount: isPremium ? -1 : 10,
+    };
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
