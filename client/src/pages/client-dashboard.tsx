@@ -1,12 +1,14 @@
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Calendar, AlertCircle } from "lucide-react";
+import { ClipboardList, Calendar, AlertCircle, Bell } from "lucide-react";
 import { Link } from "wouter";
 import { startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
-import type { PlanAssignment, TrainingPlan, Workout, Exercise, WeeklyReport } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { PlanAssignment, TrainingPlan, Workout, Exercise, WeeklyReport, PlanInvitation, User } from "@shared/schema";
 
 type AssignmentWithPlan = PlanAssignment & {
   plan: TrainingPlan & { 
@@ -14,8 +16,14 @@ type AssignmentWithPlan = PlanAssignment & {
   };
 };
 
+type InvitationWithDetails = PlanInvitation & {
+  plan: TrainingPlan;
+  trainer: User;
+};
+
 export default function ClientDashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const { data: assignment } = useQuery<AssignmentWithPlan>({
     queryKey: ["/api/client/assignment"],
@@ -23,6 +31,51 @@ export default function ClientDashboard() {
 
   const { data: reports } = useQuery<WeeklyReport[]>({
     queryKey: ["/api/reports"],
+  });
+
+  const { data: invitations } = useQuery<InvitationWithDetails[]>({
+    queryKey: ["/api/invitations"],
+  });
+
+  const acceptMutation = useMutation({
+    mutationFn: async (invitationId: string) => {
+      return await apiRequest("POST", `/api/invitations/${invitationId}/accept`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invitations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/client/assignment"] });
+      toast({
+        title: "Zaproszenie zaakceptowane",
+        description: "Plan treningowy został przypisany do Twojego konta",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Błąd",
+        description: "Nie udało się zaakceptować zaproszenia",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async (invitationId: string) => {
+      return await apiRequest("POST", `/api/invitations/${invitationId}/reject`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invitations"] });
+      toast({
+        title: "Zaproszenie odrzucone",
+        description: "Zaproszenie zostało odrzucone",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Błąd",
+        description: "Nie udało się odrzucić zaproszenia",
+        variant: "destructive",
+      });
+    },
   });
 
   const getTotalExercises = () => {
@@ -75,6 +128,60 @@ export default function ClientDashboard() {
                 Wypełnij raport
               </Button>
             </Link>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {invitations && invitations.length > 0 && (
+        <Alert data-testid="alert-invitations">
+          <Bell className="w-4 h-4" />
+          <AlertDescription>
+            <div className="flex flex-col gap-4">
+              <span className="font-medium">
+                Masz {invitations.length} {invitations.length === 1 ? "nowe zaproszenie" : "nowe zaproszenia"} do planu treningowego
+              </span>
+              
+              {invitations.map((invitation, index) => (
+                <div 
+                  key={invitation.id} 
+                  className={index > 0 ? "pt-4 border-t" : ""}
+                  data-testid={`invitation-card-${invitation.id}`}
+                >
+                  <div className="space-y-2">
+                    <div>
+                      <p className="font-medium" data-testid={`text-plan-name-${invitation.id}`}>
+                        {invitation.plan.name}
+                      </p>
+                      <p className="text-sm text-muted-foreground" data-testid={`text-trainer-name-${invitation.id}`}>
+                        Od: {invitation.trainer.firstName} {invitation.trainer.lastName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(invitation.createdAt).toLocaleDateString('pl-PL')}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        onClick={() => acceptMutation.mutate(invitation.id)} 
+                        disabled={acceptMutation.isPending || rejectMutation.isPending}
+                        data-testid={`button-accept-${invitation.id}`}
+                      >
+                        {acceptMutation.isPending ? "Akceptowanie..." : "Akceptuj"}
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => rejectMutation.mutate(invitation.id)} 
+                        disabled={acceptMutation.isPending || rejectMutation.isPending}
+                        data-testid={`button-reject-${invitation.id}`}
+                      >
+                        {rejectMutation.isPending ? "Odrzucanie..." : "Odrzuć"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </AlertDescription>
         </Alert>
       )}

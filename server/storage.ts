@@ -9,6 +9,7 @@ import {
   clientProgress,
   exerciseLogs,
   weeklyReports,
+  planInvitations,
   type User,
   type UpsertUser,
   type TrainingPlan,
@@ -30,9 +31,11 @@ import {
   type WeeklyReport,
   type InsertWeeklyReport,
   type InsertPlanWithWorkouts,
+  type PlanInvitation,
+  type InsertPlanInvitationInput,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, or } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -74,7 +77,6 @@ export interface IStorage {
   getClientAssignment(clientId: string): Promise<PlanAssignment | undefined>;
   getAssignmentsByPlan(planId: string): Promise<PlanAssignment[]>;
   getTrainerClients(trainerId: string): Promise<User[]>;
-  getAvailableClients(): Promise<User[]>;
   
   // Stats
   getTrainerStats(trainerId: string): Promise<{
@@ -112,6 +114,13 @@ export interface IStorage {
   
   // Client search - find any client by email
   searchClientByEmail(email: string): Promise<User | undefined>;
+  
+  // Plan invitation operations
+  createInvitation(trainerId: string, data: InsertPlanInvitationInput): Promise<PlanInvitation>;
+  getClientInvitations(clientEmail: string): Promise<PlanInvitation[]>;
+  acceptInvitation(invitationId: string, clientId: string): Promise<void>;
+  rejectInvitation(invitationId: string, clientId: string): Promise<void>;
+  getTrainerInvitations(trainerId: string): Promise<PlanInvitation[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -463,13 +472,6 @@ export class DatabaseStorage implements IStorage {
     return result.map((r) => r.user);
   }
 
-  async getAvailableClients(): Promise<User[]> {
-    return await db
-      .select()
-      .from(users)
-      .where(eq(users.role, "client"));
-  }
-
   // Stats
   async getTrainerStats(trainerId: string): Promise<{
     totalPlans: number;
@@ -686,6 +688,148 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     
     return user;
+  }
+  
+  // Plan invitation operations
+  async createInvitation(trainerId: string, data: InsertPlanInvitationInput): Promise<PlanInvitation> {
+    const { clientEmail, planId } = data;
+    
+    const client = await this.searchClientByEmail(clientEmail);
+    if (!client) {
+      throw new Error("Użytkownik z podanym emailem nie istnieje lub nie ma roli podopiecznego");
+    }
+    
+    const plan = await this.getTrainingPlan(planId);
+    if (!plan) {
+      throw new Error("Plan treningowy nie istnieje");
+    }
+    if (plan.trainerId !== trainerId) {
+      throw new Error("Ten plan nie należy do tego trenera");
+    }
+    
+    const [existingInvitation] = await db
+      .select()
+      .from(planInvitations)
+      .where(
+        and(
+          eq(planInvitations.clientEmail, clientEmail),
+          eq(planInvitations.planId, planId),
+          eq(planInvitations.status, "pending")
+        )
+      )
+      .limit(1);
+    
+    if (existingInvitation) {
+      throw new Error("Aktywne zaproszenie dla tego podopiecznego i planu już istnieje");
+    }
+    
+    const [invitation] = await db
+      .insert(planInvitations)
+      .values({
+        trainerId,
+        clientEmail,
+        planId,
+        status: "pending",
+      })
+      .returning();
+    
+    return invitation;
+  }
+  
+  async getClientInvitations(clientEmail: string): Promise<PlanInvitation[]> {
+    return await db
+      .select()
+      .from(planInvitations)
+      .where(
+        and(
+          eq(planInvitations.clientEmail, clientEmail),
+          eq(planInvitations.status, "pending")
+        )
+      )
+      .orderBy(desc(planInvitations.createdAt));
+  }
+  
+  async acceptInvitation(invitationId: string, clientId: string): Promise<void> {
+    await db.transaction(async (tx) => {
+      const [invitation] = await tx
+        .select()
+        .from(planInvitations)
+        .where(eq(planInvitations.id, invitationId))
+        .limit(1);
+      
+      if (!invitation) {
+        throw new Error("Zaproszenie nie istnieje");
+      }
+      
+      const client = await this.getUser(clientId);
+      if (!client || client.email !== invitation.clientEmail) {
+        throw new Error("Nie masz uprawnień do akceptacji tego zaproszenia");
+      }
+      
+      await tx
+        .update(planInvitations)
+        .set({ status: "accepted", updatedAt: new Date() })
+        .where(eq(planInvitations.id, invitationId));
+      
+      const existingAssignment = await tx
+        .select()
+        .from(planAssignments)
+        .where(eq(planAssignments.clientId, clientId))
+        .limit(1);
+      
+      if (existingAssignment.length > 0) {
+        await tx
+          .delete(planAssignments)
+          .where(eq(planAssignments.clientId, clientId));
+      }
+      
+      await tx
+        .insert(planAssignments)
+        .values({
+          planId: invitation.planId,
+          clientId: clientId,
+        });
+      
+      await tx
+        .update(planInvitations)
+        .set({ status: "rejected", updatedAt: new Date() })
+        .where(
+          and(
+            eq(planInvitations.clientEmail, invitation.clientEmail),
+            eq(planInvitations.status, "pending")
+          )
+        );
+    });
+  }
+  
+  async rejectInvitation(invitationId: string, clientId: string): Promise<void> {
+    const [invitation] = await db
+      .select()
+      .from(planInvitations)
+      .where(eq(planInvitations.id, invitationId))
+      .limit(1);
+    
+    if (!invitation) {
+      throw new Error("Zaproszenie nie istnieje");
+    }
+    
+    const client = await this.getUser(clientId);
+    if (!client || client.email !== invitation.clientEmail) {
+      throw new Error("Nie masz uprawnień do odrzucenia tego zaproszenia");
+    }
+    
+    await db
+      .update(planInvitations)
+      .set({ status: "rejected", updatedAt: new Date() })
+      .where(eq(planInvitations.id, invitationId));
+  }
+  
+  async getTrainerInvitations(trainerId: string): Promise<PlanInvitation[]> {
+    return await db
+      .select()
+      .from(planInvitations)
+      .where(eq(planInvitations.trainerId, trainerId))
+      .orderBy(desc(planInvitations.createdAt));
   }
 }
 

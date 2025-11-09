@@ -18,6 +18,7 @@ import {
   registerSchema,
   loginSchema,
   insertPlanWithWorkoutsSchema,
+  insertPlanInvitationSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
@@ -1055,23 +1056,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Client routes
-  app.get("/api/clients/available", isAuthenticated, async (req, res) => {
-    try {
-      const userId = req.session.userId!;
-      const user = await storage.getUser(userId);
-      
-      if (user?.role !== "trainer") {
-        return res.status(403).json({ message: "Only trainers can access this" });
-      }
-
-      const clients = await storage.getAvailableClients();
-      res.json(clients);
-    } catch (error) {
-      console.error("Error fetching clients:", error);
-      res.status(500).json({ message: "Failed to fetch clients" });
-    }
-  });
-
   app.post("/api/clients/search", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
@@ -1151,6 +1135,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching trainer clients:", error);
       res.status(500).json({ message: "Failed to fetch clients" });
+    }
+  });
+
+  // Invitations routes
+  app.post("/api/invitations/send", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą wysyłać zaproszenia" });
+      }
+
+      const validationResult = insertPlanInvitationSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const invitation = await storage.createInvitation(userId, validationResult.data);
+      res.status(200).json(invitation);
+    } catch (error) {
+      console.error("Error sending invitation:", error);
+      res.status(500).json({ message: "Nie udało się wysłać zaproszenia" });
+    }
+  });
+
+  app.get("/api/invitations", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "Użytkownik nie znaleziony" });
+      }
+
+      let invitations;
+      
+      if (user.role === "client") {
+        invitations = await storage.getClientInvitations(user.email);
+        
+        const invitationsWithDetails = await Promise.all(
+          invitations.map(async (invitation) => {
+            const plan = await storage.getTrainingPlan(invitation.planId);
+            const trainer = await storage.getUser(invitation.trainerId);
+            
+            if (!plan || !trainer) {
+              return null;
+            }
+            
+            const { password: _, ...trainerWithoutPassword } = trainer;
+            
+            return {
+              ...invitation,
+              plan,
+              trainer: trainerWithoutPassword,
+            };
+          })
+        );
+        
+        res.json(invitationsWithDetails.filter(inv => inv !== null));
+      } else if (user.role === "trainer") {
+        invitations = await storage.getTrainerInvitations(userId);
+        
+        const invitationsWithDetails = await Promise.all(
+          invitations.map(async (invitation) => {
+            const plan = await storage.getTrainingPlan(invitation.planId);
+            
+            if (!plan) {
+              return null;
+            }
+            
+            return {
+              ...invitation,
+              plan,
+            };
+          })
+        );
+        
+        res.json(invitationsWithDetails.filter(inv => inv !== null));
+      } else {
+        return res.status(403).json({ message: "Nieznana rola użytkownika" });
+      }
+    } catch (error) {
+      console.error("Error fetching invitations:", error);
+      res.status(500).json({ message: "Nie udało się pobrać zaproszeń" });
+    }
+  });
+
+  app.post("/api/invitations/:id/accept", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko podopieczni mogą akceptować zaproszenia" });
+      }
+
+      const { id } = req.params;
+      
+      try {
+        await storage.acceptInvitation(id, userId);
+        res.status(200).json({ message: "Zaproszenie zaakceptowane" });
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("not found")) {
+          return res.status(404).json({ message: "Zaproszenie nie zostało znalezione" });
+        }
+        throw error;
+      }
+    } catch (error) {
+      console.error("Error accepting invitation:", error);
+      res.status(500).json({ message: "Nie udało się zaakceptować zaproszenia" });
+    }
+  });
+
+  app.post("/api/invitations/:id/reject", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko podopieczni mogą odrzucać zaproszenia" });
+      }
+
+      const { id } = req.params;
+      
+      try {
+        await storage.rejectInvitation(id, userId);
+        res.status(200).json({ message: "Zaproszenie odrzucone" });
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("not found")) {
+          return res.status(404).json({ message: "Zaproszenie nie zostało znalezione" });
+        }
+        throw error;
+      }
+    } catch (error) {
+      console.error("Error rejecting invitation:", error);
+      res.status(500).json({ message: "Nie udało się odrzucić zaproszenia" });
     }
   });
 

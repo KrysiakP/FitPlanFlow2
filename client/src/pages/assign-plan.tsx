@@ -1,73 +1,92 @@
-import { useParams, useLocation } from "wouter";
+import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useState } from "react";
-import type { User, TrainingPlan, Exercise, Workout } from "@shared/schema";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertPlanInvitationSchema } from "@shared/schema";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { format } from "date-fns";
+import type { TrainingPlan, Exercise, Workout, PlanInvitation, InsertPlanInvitationInput } from "@shared/schema";
 
 type PlanWithDetails = TrainingPlan & {
   workouts: (Workout & { exercises: Exercise[] })[];
 };
 
+type InvitationWithPlan = PlanInvitation & {
+  plan: TrainingPlan;
+};
+
 export default function AssignPlan() {
   const { id } = useParams();
-  const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [selectedClients, setSelectedClients] = useState<string[]>([]);
 
   const { data: plan, isLoading: planLoading } = useQuery<PlanWithDetails>({
     queryKey: ["/api/plans", id],
   });
 
-  const { data: availableClients, isLoading: clientsLoading } = useQuery<User[]>({
-    queryKey: ["/api/clients/available"],
+  const { data: allInvitations } = useQuery<InvitationWithPlan[]>({
+    queryKey: ["/api/invitations"],
+    enabled: !!id,
   });
 
-  const assignMutation = useMutation({
-    mutationFn: async () => {
-      await apiRequest("POST", "/api/assignments/bulk", {
-        planId: id,
-        clientIds: selectedClients,
-      });
+  const planInvitations = allInvitations?.filter(inv => inv.planId === id) || [];
+
+  const form = useForm<InsertPlanInvitationInput>({
+    resolver: zodResolver(insertPlanInvitationSchema),
+    defaultValues: {
+      clientEmail: "",
+      planId: id || "",
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/plans"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/trainer/clients"] });
+  });
+
+  const sendInvitationMutation = useMutation({
+    mutationFn: async (data: InsertPlanInvitationInput) => {
+      return await apiRequest("POST", "/api/invitations/send", data);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invitations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/trainer/stats"] });
       toast({
-        title: "Plan przypisany",
-        description: `Plan został przypisany do ${selectedClients.length} podopiecznych`,
+        title: "Zaproszenie wysłane",
+        description: `Zaproszenie wysłane do ${variables.clientEmail}`,
       });
-      setLocation("/plans");
+      form.reset({
+        clientEmail: "",
+        planId: id || "",
+      });
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "Błąd",
-        description: "Nie udało się przypisać planu",
+        description: error.message || "Nie udało się wysłać zaproszenia",
         variant: "destructive",
       });
     },
   });
 
-  const toggleClient = (clientId: string) => {
-    setSelectedClients((prev) =>
-      prev.includes(clientId)
-        ? prev.filter((id) => id !== clientId)
-        : [...prev, clientId]
-    );
+  const onSubmit = (data: InsertPlanInvitationInput) => {
+    sendInvitationMutation.mutate(data);
   };
 
-  const getInitials = (firstName?: string | null, lastName?: string | null) => {
-    const first = firstName?.charAt(0) || "";
-    const last = lastName?.charAt(0) || "";
-    return (first + last).toUpperCase() || "?";
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return <Badge variant="secondary">Oczekujące</Badge>;
+      case "accepted":
+        return <Badge variant="default">Zaakceptowane</Badge>;
+      case "rejected":
+        return <Badge variant="destructive">Odrzucone</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
   };
 
-  if (planLoading || clientsLoading) {
+  if (planLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
@@ -83,10 +102,10 @@ export default function AssignPlan() {
     <div className="space-y-8 max-w-4xl">
       <div>
         <h1 className="font-heading font-bold text-4xl mb-2" data-testid="text-assign-title">
-          Przypisz plan do podopiecznych
+          Zaproś podopiecznego do planu
         </h1>
         <p className="text-muted-foreground">
-          Wybierz podopiecznych, którym chcesz przypisać ten plan
+          Wyślij zaproszenie do planu treningowego na adres email podopiecznego
         </p>
       </div>
 
@@ -138,71 +157,92 @@ export default function AssignPlan() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="font-heading">Wybierz podopiecznych</CardTitle>
+            <CardTitle className="font-heading">Zaproś podopiecznego</CardTitle>
             <CardDescription>
-              Zaznacz osoby, którym chcesz przypisać ten plan
+              Wpisz adres email podopiecznego aby wysłać mu zaproszenie do tego planu
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {!availableClients || availableClients.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>Brak dostępnych podopiecznych</p>
-                <p className="text-sm mt-2">
-                  Podopieczni pojawią się tutaj po zalogowaniu do platformy
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {availableClients.map((client) => (
-                  <div
-                    key={client.id}
-                    className="flex items-center gap-3 p-3 rounded-lg border hover-elevate cursor-pointer"
-                    onClick={() => toggleClient(client.id)}
-                    data-testid={`client-option-${client.id}`}
-                  >
-                    <Checkbox
-                      checked={selectedClients.includes(client.id)}
-                      onCheckedChange={() => toggleClient(client.id)}
-                      data-testid={`checkbox-client-${client.id}`}
-                    />
-                    <Avatar className="w-10 h-10">
-                      <AvatarImage src={client.profileImageUrl || undefined} />
-                      <AvatarFallback className="bg-primary/10 text-primary">
-                        {getInitials(client.firstName, client.lastName)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="font-medium" data-testid={`text-client-name-${client.id}`}>
-                        {client.firstName} {client.lastName}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{client.email}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="clientEmail"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email podopiecznego</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="email@podopiecznego.pl"
+                          data-testid="input-client-email"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Podopieczny otrzyma zaproszenie na podany adres email
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="planId"
+                  render={({ field }) => (
+                    <FormItem className="hidden">
+                      <FormControl>
+                        <Input type="hidden" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="submit"
+                  disabled={sendInvitationMutation.isPending}
+                  data-testid="button-send-invitation"
+                  className="w-full"
+                >
+                  {sendInvitationMutation.isPending
+                    ? "Wysyłanie zaproszenia..."
+                    : "Wyślij zaproszenie"}
+                </Button>
+              </form>
+            </Form>
           </CardContent>
         </Card>
       </div>
 
-      <div className="flex gap-4">
-        <Button
-          onClick={() => assignMutation.mutate()}
-          disabled={selectedClients.length === 0 || assignMutation.isPending}
-          data-testid="button-confirm-assign"
-        >
-          {assignMutation.isPending
-            ? "Przypisywanie..."
-            : `Przypisz do ${selectedClients.length} ${selectedClients.length === 1 ? "osoby" : "osób"}`}
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => setLocation("/plans")}
-          data-testid="button-cancel-assign"
-        >
-          Anuluj
-        </Button>
-      </div>
+      {planInvitations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-heading">Wysłane zaproszenia</CardTitle>
+            <CardDescription>
+              Lista zaproszeń wysłanych dla tego planu
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {planInvitations.map((invitation) => (
+                <div
+                  key={invitation.id}
+                  className="flex items-center justify-between p-4 rounded-lg border"
+                  data-testid={`card-invitation-${invitation.id}`}
+                >
+                  <div className="flex-1">
+                    <p className="font-medium">{invitation.clientEmail}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Wysłano: {format(new Date(invitation.createdAt), "dd.MM.yyyy HH:mm")}
+                    </p>
+                  </div>
+                  <div>
+                    {getStatusBadge(invitation.status)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
