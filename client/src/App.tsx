@@ -21,6 +21,7 @@ import TrainerProfile from "@/pages/trainer-profile";
 import ClientProfile from "@/pages/client-profile";
 import WeeklyReport from "@/pages/weekly-report";
 import TrainerReports from "@/pages/trainer-reports";
+import Pricing from "@/pages/pricing";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -67,6 +68,7 @@ function Router() {
             <Route path="/exercise-library" component={ExerciseLibrary} />
             <Route path="/clients" component={Clients} />
             <Route path="/trainer/reports" component={TrainerReports} />
+            <Route path="/pricing" component={Pricing} />
             <Route path="/profile" component={TrainerProfile} />
           </>
         ) : (
@@ -74,6 +76,7 @@ function Router() {
             <Route path="/" component={ClientDashboard} />
             <Route path="/my-plan" component={ClientPlan} />
             <Route path="/weekly-report" component={WeeklyReport} />
+            <Route path="/pricing" component={Pricing} />
             <Route path="/profile" component={ClientProfile} />
           </>
         )}
