@@ -1425,6 +1425,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko trenerzy mogą wysyłać zaproszenia" });
       }
 
+      // Check trainer client limit before sending invitation
+      const limitCheck = await storage.checkTrainerClientLimit(userId);
+      if (!limitCheck.withinLimit) {
+        return res.status(403).json({ 
+          message: `Osiągnąłeś limit podopiecznych (${limitCheck.currentCount}/${limitCheck.maxCount}). Ulepsz konto do Premium, aby mieć nieograniczoną liczbę podopiecznych.`,
+          currentCount: limitCheck.currentCount,
+          maxCount: limitCheck.maxCount,
+          limitReached: true
+        });
+      }
+
       const validationResult = insertPlanInvitationSchema.safeParse(req.body);
       if (!validationResult.success) {
         return res.status(400).json({ 
