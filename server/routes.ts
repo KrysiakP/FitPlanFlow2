@@ -25,6 +25,12 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
+import Stripe from "stripe";
+import express from "express";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { 
+  apiVersion: '2024-11-20.acacia' as any 
+});
 
 const uploadsDir = path.join(process.cwd(), "attached_assets", "uploads");
 
@@ -63,6 +69,151 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Stripe webhook - MUST be before setupAuth
+  app.post('/api/webhooks/stripe', async (req, res) => {
+    try {
+      // SECURITY: Require STRIPE_WEBHOOK_SECRET - fail fast if not configured
+      if (!process.env.STRIPE_WEBHOOK_SECRET) {
+        console.error('CRITICAL: STRIPE_WEBHOOK_SECRET not configured');
+        return res.status(500).json({ message: "Webhook secret not configured" });
+      }
+
+      const signature = req.headers['stripe-signature'];
+      
+      if (!signature) {
+        return res.status(400).json({ message: "Brak sygnatury webhook" });
+      }
+
+      let event: Stripe.Event;
+
+      // ALWAYS verify webhook signature - no fallback
+      try {
+        event = stripe.webhooks.constructEvent(
+          req.body,
+          signature,
+          process.env.STRIPE_WEBHOOK_SECRET
+        );
+      } catch (err) {
+        console.error('Webhook signature verification failed:', err);
+        return res.status(400).json({ message: "Nieprawidłowa sygnatura webhook" });
+      }
+
+      // Handle different event types
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          const session = event.data.object as Stripe.Checkout.Session;
+          const userId = session.client_reference_id || session.metadata?.userId;
+          
+          if (userId && session.subscription) {
+            await storage.updateUserSubscription(userId, {
+              stripeCustomerId: session.customer as string,
+              stripeSubscriptionId: session.subscription as string,
+              subscriptionStatus: 'active',
+              subscriptionTier: 'premium',
+            });
+          }
+          break;
+        }
+
+        case 'customer.subscription.created': {
+          const subscription = event.data.object as Stripe.Subscription;
+          const userId = subscription.metadata?.userId;
+          
+          if (userId) {
+            await storage.updateUserSubscription(userId, {
+              stripeSubscriptionId: subscription.id,
+              subscriptionStatus: 'active',
+              subscriptionTier: 'premium',
+            });
+          }
+          break;
+        }
+
+        case 'customer.subscription.updated': {
+          const subscription = event.data.object as Stripe.Subscription;
+          const userId = subscription.metadata?.userId;
+          const status = subscription.status;
+          
+          if (userId) {
+            await storage.updateUserSubscription(userId, {
+              subscriptionStatus: status,
+            });
+          }
+          break;
+        }
+
+        case 'customer.subscription.deleted': {
+          const subscription = event.data.object as Stripe.Subscription;
+          const userId = subscription.metadata?.userId;
+          
+          if (userId) {
+            await storage.updateUserSubscription(userId, {
+              subscriptionStatus: 'canceled',
+              subscriptionTier: 'free',
+            });
+          }
+          break;
+        }
+
+        case 'invoice.payment_failed': {
+          const invoice = event.data.object as any;
+          const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+          
+          if (subscriptionId) {
+            // Fetch subscription to get metadata
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            const userId = subscription.metadata?.userId;
+            
+            if (!userId) {
+              console.error('CRITICAL: Missing userId in subscription metadata for invoice.payment_failed event', {
+                subscriptionId,
+                invoiceId: invoice.id,
+              });
+              return res.status(400).json({ message: 'Missing user metadata' });
+            }
+            
+            await storage.updateUserSubscription(userId, {
+              subscriptionStatus: 'past_due',
+            });
+          }
+          break;
+        }
+
+        case 'invoice.paid': {
+          const invoice = event.data.object as any;
+          const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+          
+          if (subscriptionId) {
+            // Fetch subscription to get metadata
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            const userId = subscription.metadata?.userId;
+            
+            if (!userId) {
+              console.error('CRITICAL: Missing userId in subscription metadata for invoice.paid event', {
+                subscriptionId,
+                invoiceId: invoice.id,
+              });
+              return res.status(400).json({ message: 'Missing user metadata' });
+            }
+            
+            await storage.updateUserSubscription(userId, {
+              subscriptionStatus: 'active',
+            });
+          }
+          break;
+        }
+
+        default:
+          console.log(`Unhandled event type: ${event.type}`);
+      }
+
+      res.json({ received: true });
+    } catch (error) {
+      console.error("Błąd przetwarzania webhook Stripe:", error);
+      res.status(500).json({ message: "Błąd przetwarzania webhook" });
+    }
+  });
+
   // Auth middleware
   await setupAuth(app);
 
@@ -229,6 +380,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating role:", error);
       res.status(500).json({ message: "Failed to update role" });
+    }
+  });
+
+  // Subscription endpoints
+  app.post("/api/subscription/create-checkout", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "Użytkownik nie znaleziony" });
+      }
+
+      if (user.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą subskrybować" });
+      }
+
+      let stripeCustomerId = user.stripeCustomerId;
+
+      // Create Stripe Customer if doesn't exist
+      if (!stripeCustomerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          metadata: {
+            userId: user.id,
+          },
+        });
+        stripeCustomerId = customer.id;
+        
+        // Update user with stripeCustomerId
+        await storage.updateUserSubscription(userId, {
+          stripeCustomerId: stripeCustomerId,
+        });
+      }
+
+      // Get price ID from env or use test price
+      const priceId = process.env.STRIPE_PREMIUM_PRICE_ID || 'price_test_12345';
+      
+      // Determine the base URL for redirects
+      const baseUrl = process.env.REPLIT_DOMAINS 
+        ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
+        : 'http://localhost:5000';
+
+      // Create Checkout Session
+      const session = await stripe.checkout.sessions.create({
+        mode: 'subscription',
+        customer: stripeCustomerId,
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        success_url: `${baseUrl}/trainer-dashboard`,
+        cancel_url: `${baseUrl}/pricing`,
+        client_reference_id: userId,
+        metadata: {
+          userId: userId,
+        },
+        subscription_data: {
+          metadata: {
+            userId: userId,
+          },
+        },
+      });
+
+      res.json({ sessionId: session.id });
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      res.status(500).json({ message: "Nie udało się utworzyć sesji" });
+    }
+  });
+
+  app.post("/api/subscription/portal", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "Użytkownik nie znaleziony" });
+      }
+
+      if (user.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą zarządzać subskrypcją" });
+      }
+
+      if (!user.stripeCustomerId) {
+        return res.status(400).json({ message: "Brak konta Stripe" });
+      }
+
+      // Determine the base URL for redirects
+      const baseUrl = process.env.REPLIT_DOMAINS 
+        ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
+        : 'http://localhost:5000';
+
+      // Create Billing Portal Session
+      const session = await stripe.billingPortal.sessions.create({
+        customer: user.stripeCustomerId,
+        return_url: `${baseUrl}/trainer-dashboard`,
+      });
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("Error creating portal session:", error);
+      res.status(500).json({ message: "Nie udało się utworzyć sesji portalu" });
+    }
+  });
+
+  app.get("/api/subscription/status", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "Użytkownik nie znaleziony" });
+      }
+
+      res.json({
+        subscriptionTier: user.subscriptionTier,
+        subscriptionStatus: user.subscriptionStatus,
+        stripeCustomerId: user.stripeCustomerId,
+        stripeSubscriptionId: user.stripeSubscriptionId,
+      });
+    } catch (error) {
+      console.error("Error fetching subscription status:", error);
+      res.status(500).json({ message: "Nie udało się pobrać statusu subskrypcji" });
     }
   });
 

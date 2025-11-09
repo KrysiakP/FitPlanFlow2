@@ -4,16 +4,11 @@ import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 
-declare module 'http' {
-  interface IncomingMessage {
-    rawBody: unknown
-  }
-}
-app.use(express.json({
-  verify: (req, _res, buf) => {
-    req.rawBody = buf;
-  }
-}));
+// CRITICAL: Stripe webhook needs raw body for signature verification
+// This MUST come BEFORE express.json() to prevent body parsing
+app.use('/api/webhooks/stripe', express.raw({type: 'application/json'}));
+
+app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 app.use((req, res, next) => {
