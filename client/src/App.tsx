@@ -46,7 +46,12 @@ function Router() {
   }
 
   if (!user?.role) {
-    return <RoleSelection />;
+    return (
+      <Switch>
+        <Route path="/role-selection" component={RoleSelection} />
+        <Route component={RoleSelection} />
+      </Switch>
+    );
   }
 
   return (
