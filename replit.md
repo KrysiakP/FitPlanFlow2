@@ -14,6 +14,11 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 - ✅ Lista podopiecznych dla trenera
 - ✅ **Logowanie wykonań ćwiczeń** - podopieczni mogą zapisywać swoje wyniki (powtórzenia, obciążenie)
 - ✅ **Automatyczne prefill** - formularz ładuje ostatnie zalogowane wartości
+- ✅ **System subskrypcji Stripe** - trenerzy płacą za dostęp do platformy (SaaS model)
+- ✅ **Free tier (0 zł/mies)** - max 10 podopiecznych, wszystkie funkcje
+- ✅ **Premium tier (49 zł/mies)** - nieograniczona liczba podopiecznych
+- ✅ **Zarządzanie subskrypcją** - upgrade, downgrade, anulowanie przez Stripe Customer Portal
+- ✅ **Webhook handler** - automatyczna synchronizacja statusu subskrypcji
 - ✅ Całkowicie polski interfejs użytkownika
 - ✅ Baza danych PostgreSQL z persystencją danych
 
@@ -33,7 +38,11 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 - Drizzle ORM dla typu-bezpiecznego dostępu do bazy
 
 ### Model Danych
-- `users` - użytkownicy z rolami (trainer/client)
+- `users` - użytkownicy z rolami (trainer/client) + pola subskrypcji:
+  - `stripeCustomerId` - ID klienta w Stripe (unique)
+  - `stripeSubscriptionId` - ID aktywnej subskrypcji
+  - `subscriptionStatus` - status: active, canceled, past_due, etc.
+  - `subscriptionTier` - tier: free, premium
 - `sessions` - sesje użytkowników (express-session + connect-pg-simple)
 - `trainingPlans` - plany treningowe utworzone przez trenerów
 - `workouts` - treningi w planach (relacja 1:N)
@@ -74,15 +83,37 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 - `GET /api/exercises/:exerciseId/logs` - historia wykonań ćwiczenia
 - `GET /api/exercises/:exerciseId/latest-log` - ostatnie wykonanie ćwiczenia (optymalizowane)
 
+### Subskrypcje (Stripe)
+- `POST /api/subscription/create-checkout` - tworzy Stripe Checkout Session dla upgrade do Premium
+- `POST /api/subscription/portal` - tworzy link do Stripe Customer Portal (zarządzanie subskrypcją)
+- `POST /api/webhooks/stripe` - webhook handler dla eventów Stripe (require signature verification)
+- `GET /api/subscription/status` - zwraca aktualny status subskrypcji trenera
+
 ## User Journeys
 
 ### Trener
 1. Rejestracja/logowanie przez email i hasło
-2. Wybór roli "Trener" (przy pierwszym logowaniu)
+2. Wybór roli "Trener" (przy pierwszym logowaniu) - automatycznie Free tier
 3. Dashboard z statystykami (liczba planów, podopiecznych, przypisań)
 4. Tworzenie planu treningowego z ćwiczeniami
 5. Wysyłanie zaproszeń do planu przez email podopiecznego
+   - **Limit Free tier:** maksymalnie 10 aktywnych podopiecznych
+   - Alert z informacją o limicie i CTA do upgrade
 6. Przeglądanie listy podopiecznych z informacją o przypisanych planach
+7. **Zarządzanie subskrypcją:**
+   - Badge Premium/Free w navbar (dropdown menu)
+   - Panel w profilu z aktualnym planem i ceną
+   - Przycisk "Ulepsz do Premium" dla Free users
+   - Przycisk "Zarządzaj subskrypcją" dla Premium users → Stripe Customer Portal
+8. **Stripe Checkout flow:**
+   - Strona /pricing z porównaniem planów Free vs Premium
+   - Checkout Session z metadanymi userId
+   - Redirect do Stripe hosted checkout
+   - Success/cancel URLs
+9. **Automatyczna synchronizacja:**
+   - Webhook events (checkout.session.completed, customer.subscription.*)
+   - Aktualizacja statusu i tier w bazie danych
+   - Real-time enforcement limitów
 
 ### Podopieczny
 1. Rejestracja/logowanie przez email i hasło
@@ -98,6 +129,7 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 - **Backend**: Node.js, Express, TypeScript, bcryptjs
 - **Database**: PostgreSQL (Neon), Drizzle ORM
 - **Auth**: Email/hasło z express-session + connect-pg-simple
+- **Payments**: Stripe (Checkout, Customer Portal, Webhooks)
 - **Deployment**: Replit
 
 ## Uruchomienie
@@ -118,10 +150,25 @@ Aplikacja używa profesjonalnego systemu projektowego opisanego w `design_guidel
 - Ikony: Lucide React
 - Język: Polski z właściwymi znakami diakrytycznymi
 
+## Model Biznesowy
+**Trenerzy płacą, podopieczni korzystają za darmo:**
+- Trenerzy subskrybują platformę (Free lub Premium)
+- Podopieczni nie płacą platformie - rozliczają się prywatnie z trenerem
+- Free tier: Max 10 podopiecznych, 0 zł/mies
+- Premium tier: Nieograniczona liczba podopiecznych, 49 zł/mies
+
+## Zmienne środowiskowe
+Wymagane dla funkcjonowania systemu płatności:
+- `STRIPE_SECRET_KEY` - Secret key z Stripe Dashboard
+- `STRIPE_WEBHOOK_SECRET` - Secret dla webhook signature verification
+- `VITE_STRIPE_PUBLIC_KEY` - Publishable key dla frontend (prefiks VITE_)
+- `DATABASE_URL`, `SESSION_SECRET` - standardowe zmienne
+
 ## Następne Fazy
-- Śledzenie postępów (podopieczni logują wykonane treningi)
+- ✅ **System płatności** - ZAKOŃCZONE
 - Widok kalendarza do planowania treningów
-- Biblioteka ćwiczeń z obrazami/wideo
+- Rozszerzona biblioteka ćwiczeń z kategoryzacją
 - System wiadomości trener-podopieczny
 - Wykresy analityczne postępów
-- System płatności dla trenerów (Stripe)
+- Email notifications dla zaproszeń i raportów
+- Mobile responsive improvements
