@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, varchar, text, timestamp, integer, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, varchar, text, timestamp, integer, index, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -24,9 +24,17 @@ export const users = pgTable("users", {
   lastName: varchar("last_name").notNull(),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role", { length: 20 }), // 'trainer' or 'client' - null until user selects
+  // Stripe subscription fields (trainers only)
+  stripeCustomerId: varchar("stripe_customer_id", { length: 255 }), // Stripe customer ID (cus_xxx)
+  stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }), // Stripe subscription ID (sub_xxx)
+  subscriptionStatus: varchar("subscription_status", { length: 50 }), // 'active', 'canceled', 'past_due', 'unpaid', or null
+  subscriptionTier: varchar("subscription_tier", { length: 50 }).default('free').notNull(), // 'free' or 'premium'
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  // Unique index on Stripe customer ID to prevent duplicate bindings
+  stripeCustomerIdx: uniqueIndex("stripe_customer_idx").on(table.stripeCustomerId),
+}));
 
 // Training plans created by trainers
 export const trainingPlans = pgTable("training_plans", {
