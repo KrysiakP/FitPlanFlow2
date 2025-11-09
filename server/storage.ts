@@ -110,8 +110,8 @@ export interface IStorage {
   getLatestWeeklyReport(clientId: string): Promise<WeeklyReport | undefined>;
   getClientWeeklyReportsForTrainer(clientId: string, trainerId: string): Promise<WeeklyReport[]>;
   
-  // Client search (privacy - search by email only, limited to trainer's clients)
-  searchClientByEmail(email: string, trainerId: string): Promise<User | undefined>;
+  // Client search - find any client by email
+  searchClientByEmail(email: string): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -672,25 +672,20 @@ export class DatabaseStorage implements IStorage {
     return result.map(r => r.report);
   }
 
-  // Client search (privacy - search by email only, limited to trainer's clients)
-  async searchClientByEmail(email: string, trainerId: string): Promise<User | undefined> {
-    const result = await db
-      .select({
-        user: users,
-      })
+  // Client search - find any client by email
+  async searchClientByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
       .from(users)
-      .innerJoin(planAssignments, eq(planAssignments.clientId, users.id))
-      .innerJoin(trainingPlans, eq(planAssignments.planId, trainingPlans.id))
       .where(
         and(
           eq(users.email, email),
-          eq(users.role, "client"),
-          eq(trainingPlans.trainerId, trainerId)
+          eq(users.role, "client")
         )
       )
       .limit(1);
     
-    return result.length > 0 ? result[0].user : undefined;
+    return user;
   }
 }
 

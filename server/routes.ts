@@ -1094,7 +1094,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { email } = validationResult.data;
-      const client = await storage.searchClientByEmail(email, userId);
+      const client = await storage.searchClientByEmail(email);
       
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
