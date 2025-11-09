@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
@@ -11,6 +12,9 @@ import { insertPlanInvitationSchema } from "@shared/schema";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
+import { AlertCircle, Crown } from "lucide-react";
+import { Link } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import type { TrainingPlan, Exercise, Workout, PlanInvitation, InsertPlanInvitationInput } from "@shared/schema";
 
 type PlanWithDetails = TrainingPlan & {
@@ -24,6 +28,7 @@ type InvitationWithPlan = PlanInvitation & {
 export default function AssignPlan() {
   const { id } = useParams();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: plan, isLoading: planLoading } = useQuery<PlanWithDetails>({
     queryKey: ["/api/plans", id],
@@ -98,6 +103,9 @@ export default function AssignPlan() {
     return <div>Plan nie znaleziony</div>;
   }
 
+  const isPremium = user?.subscriptionTier === "premium" && user?.subscriptionStatus === "active";
+  const isFree = !isPremium;
+
   return (
     <div className="space-y-8 max-w-4xl">
       <div>
@@ -108,6 +116,25 @@ export default function AssignPlan() {
           Wyślij zaproszenie do planu treningowego na adres email podopiecznego
         </p>
       </div>
+
+      {isFree && (
+        <Alert data-testid="alert-free-tier-limit">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Plan Free - Limit 10 podopiecznych</AlertTitle>
+          <AlertDescription className="space-y-2">
+            <p>
+              W planie Free możesz mieć maksymalnie 10 aktywnych podopiecznych. 
+              Jeśli potrzebujesz więcej, ulepsz swoje konto do Premium.
+            </p>
+            <Link href="/pricing">
+              <Button variant="outline" size="sm" className="mt-2" data-testid="button-view-pricing">
+                <Crown className="w-4 h-4 mr-2" />
+                Zobacz plany cenowe
+              </Button>
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>

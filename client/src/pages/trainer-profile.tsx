@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Upload, User } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { AlertCircle, Upload, User, Crown, CreditCard } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
 import type { UserProfile } from "@shared/schema";
 import {
   Form,
@@ -220,6 +222,25 @@ export default function TrainerProfile() {
     );
   }
 
+  const subscriptionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/subscription/portal", {});
+      return await response.json() as { url: string };
+    },
+    onSuccess: (data) => {
+      window.location.href = data.url;
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Błąd",
+        description: error.message || "Nie udało się otworzyć portalu subskrypcji",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const isPremium = user?.subscriptionTier === "premium" && user?.subscriptionStatus === "active";
+
   return (
     <div className="space-y-8">
       <div>
@@ -230,6 +251,67 @@ export default function TrainerProfile() {
           Zarządzaj swoimi danymi kontaktowymi i informacjami o sobie
         </p>
       </div>
+
+      {user?.role === "trainer" && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Crown className="w-5 h-5 text-primary" />
+                  Subskrypcja
+                </CardTitle>
+                <CardDescription>Zarządzaj swoim planem i płatnościami</CardDescription>
+              </div>
+              <Badge variant={isPremium ? "default" : "secondary"} data-testid="badge-subscription-tier">
+                {isPremium ? "Premium" : "Free"}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 rounded-lg border">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">
+                  {isPremium ? "Plan Premium" : "Plan Free"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isPremium 
+                    ? "Nieograniczona liczba podopiecznych" 
+                    : "Limit: 10 podopiecznych"}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold">
+                  {isPremium ? "49 zł" : "0 zł"}
+                </p>
+                <p className="text-xs text-muted-foreground">/miesiąc</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              {!isPremium ? (
+                <Link href="/pricing">
+                  <Button className="flex-1" data-testid="button-upgrade-to-premium">
+                    <Crown className="w-4 h-4 mr-2" />
+                    Ulepsz do Premium
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => subscriptionMutation.mutate()}
+                  disabled={subscriptionMutation.isPending}
+                  data-testid="button-manage-subscription"
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  {subscriptionMutation.isPending ? "Ładowanie..." : "Zarządzaj subskrypcją"}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

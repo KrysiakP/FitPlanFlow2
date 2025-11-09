@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, UserCircle } from "lucide-react";
+import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, UserCircle, Crown } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -133,9 +134,27 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     {user?.firstName} {user?.lastName}
                   </p>
                   <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
-                  <p className="text-xs leading-none text-muted-foreground capitalize mt-1">
-                    {user?.role === "trainer" ? "Trener" : "Podopieczny"}
-                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-xs leading-none text-muted-foreground capitalize">
+                      {user?.role === "trainer" ? "Trener" : "Podopieczny"}
+                    </p>
+                    {user?.role === "trainer" && (
+                      <Badge 
+                        variant={user?.subscriptionTier === "premium" && user?.subscriptionStatus === "active" ? "default" : "secondary"}
+                        className="text-xs"
+                        data-testid="badge-nav-subscription"
+                      >
+                        {user?.subscriptionTier === "premium" && user?.subscriptionStatus === "active" ? (
+                          <>
+                            <Crown className="w-3 h-3 mr-1" />
+                            Premium
+                          </>
+                        ) : (
+                          "Free"
+                        )}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
