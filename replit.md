@@ -4,12 +4,12 @@
 Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zarządzanie planami treningowymi. Trenerzy mogą tworzyć szczegółowe plany treningowe i przypisywać je swoim podopiecznym, którzy mają dostęp do przypisanych planów przez przejrzysty interfejs.
 
 ## Funkcjonalności MVP
-- ✅ Rejestracja i logowanie użytkowników z Replit Auth
+- ✅ Rejestracja i logowanie użytkowników (email/hasło)
 - ✅ Wybór roli podczas pierwszego logowania (podopieczny/trener)
 - ✅ Panel trenera z dashboard i statystykami
 - ✅ Tworzenie, edycja i usuwanie planów treningowych
 - ✅ Dodawanie ćwiczeń do planów (nazwa, serie, powtórzenia, opis, odpoczynek)
-- ✅ Przypisywanie planów do podopiecznych
+- ✅ **System zaproszeń** - trener wysyła zaproszenie przez email, podopieczny akceptuje/odrzuca
 - ✅ Panel podopiecznego z dostępem do przypisanego planu
 - ✅ Lista podopiecznych dla trenera
 - ✅ **Logowanie wykonań ćwiczeń** - podopieczni mogą zapisywać swoje wyniki (powtórzenia, obciążenie)
@@ -27,23 +27,28 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 
 ### Backend  
 - Express.js API server
-- Replit Auth (OpenID Connect) dla autentykacji
+- Email/hasło autentykacja z bcryptjs
+- Express session z PostgreSQL storage
 - PostgreSQL (Neon) database
 - Drizzle ORM dla typu-bezpiecznego dostępu do bazy
 
 ### Model Danych
 - `users` - użytkownicy z rolami (trainer/client)
-- `sessions` - sesje użytkowników (Replit Auth)
+- `sessions` - sesje użytkowników (express-session + connect-pg-simple)
 - `trainingPlans` - plany treningowe utworzone przez trenerów
-- `exercises` - ćwiczenia w planach (relacja 1:N)
+- `workouts` - treningi w planach (relacja 1:N)
+- `exercises` - ćwiczenia w treningach (relacja 1:N)
 - `planAssignments` - przypisania planów do podopiecznych
+- `planInvitations` - zaproszenia do planów (trainerId, clientEmail, planId, status)
 - `exerciseLogs` - historia wykonań ćwiczeń (powtórzenia, obciążenie, notatki, timestamp)
+- `weeklyReports` - raporty tygodniowe podopiecznych (waga, pomiary, zdjęcia)
 
 ## API Endpoints
 
 ### Autentykacja
-- `GET /api/login` - inicjuje flow logowania
-- `GET /api/logout` - wylogowuje użytkownika
+- `POST /api/register` - rejestracja użytkownika (email, hasło, firstName, lastName)
+- `POST /api/login` - logowanie (email, hasło)
+- `POST /api/logout` - wylogowanie użytkownika
 - `GET /api/auth/user` - zwraca zalogowanego użytkownika
 - `POST /api/auth/update-role` - ustawia rolę użytkownika
 
@@ -54,9 +59,14 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 - `PUT /api/plans/:id` - aktualizuje plan
 - `DELETE /api/plans/:id` - usuwa plan
 - `POST /api/assignments/bulk` - przypisuje plan do wielu podopiecznych
-- `GET /api/clients/available` - lista dostępnych podopiecznych
 - `GET /api/trainer/clients` - lista podopiecznych trenera
 - `GET /api/trainer/stats` - statystyki trenera
+
+### Zaproszenia
+- `POST /api/invitations/send` - trener wysyła zaproszenie do planu (clientEmail, planId)
+- `GET /api/invitations` - pobiera zaproszenia (dla trenera: wszystkie, dla podopiecznego: pending)
+- `POST /api/invitations/:id/accept` - podopieczny akceptuje zaproszenie
+- `POST /api/invitations/:id/reject` - podopieczny odrzuca zaproszenie
 
 ### Podopieczny
 - `GET /api/client/assignment` - przypisany plan podopiecznego
@@ -67,26 +77,27 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 ## User Journeys
 
 ### Trener
-1. Logowanie przez Replit Auth
+1. Rejestracja/logowanie przez email i hasło
 2. Wybór roli "Trener" (przy pierwszym logowaniu)
 3. Dashboard z statystykami (liczba planów, podopiecznych, przypisań)
 4. Tworzenie planu treningowego z ćwiczeniami
-5. Przypisanie planu do podopiecznych
+5. Wysyłanie zaproszeń do planu przez email podopiecznego
 6. Przeglądanie listy podopiecznych z informacją o przypisanych planach
 
 ### Podopieczny
-1. Logowanie przez Replit Auth
+1. Rejestracja/logowanie przez email i hasło
 2. Wybór roli "Podopieczny" (przy pierwszym logowaniu)
-3. Dashboard z informacją o przypisanym planie
-4. Przeglądanie szczegółów planu treningowego z wszystkimi ćwiczeniami
-5. **Logowanie wykonań** - dla każdego ćwiczenia formularz z automatycznym prefill ostatnich wartości
-6. Zapisywanie powtórzeń, obciążenia i opcjonalnych notatek
+3. Dashboard z informacją o przypisanym planie i zaproszeniach
+4. Akceptacja/odrzucenie zaproszeń do planów treningowych
+5. Przeglądanie szczegółów planu treningowego z wszystkimi ćwiczeniami
+6. **Logowanie wykonań** - dla każdego ćwiczenia formularz z automatycznym prefill ostatnich wartości
+7. Zapisywanie powtórzeń, obciążenia i opcjonalnych notatek
 
 ## Technologie
 - **Frontend**: React, TypeScript, Tailwind CSS, shadcn/ui, TanStack Query, Wouter
-- **Backend**: Node.js, Express, TypeScript, Passport, OpenID Client
+- **Backend**: Node.js, Express, TypeScript, bcryptjs
 - **Database**: PostgreSQL (Neon), Drizzle ORM
-- **Auth**: Replit Auth (OpenID Connect)
+- **Auth**: Email/hasło z express-session + connect-pg-simple
 - **Deployment**: Replit
 
 ## Uruchomienie
