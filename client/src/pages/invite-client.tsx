@@ -111,75 +111,66 @@ export default function InviteClient() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {!plans || plans.length === 0 ? (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                <div className="space-y-4">
-                  <p>Nie masz jeszcze żadnych planów treningowych. Utwórz najpierw plan, aby móc zapraszać podopiecznych.</p>
-                  <Link href="/plans">
-                    <Button size="sm" data-testid="button-create-plan">
-                      Utwórz plan treningowy
-                    </Button>
-                  </Link>
-                </div>
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="planId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Plan treningowy</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-plan">
-                            <SelectValue placeholder="Wybierz plan treningowy" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {plans.map((plan) => (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="clientEmail"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email podopiecznego</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="email"
+                        placeholder="jan.kowalski@example.com"
+                        data-testid="input-client-email"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Adres email osoby, którą chcesz zaprosić do planu treningowego
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="planId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Plan treningowy</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-plan">
+                          <SelectValue placeholder="Wybierz plan treningowy" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {!plans || plans.length === 0 ? (
+                          <SelectItem value="no-plans" disabled data-testid="option-no-plans">
+                            Brak dostępnych planów
+                          </SelectItem>
+                        ) : (
+                          plans.map((plan) => (
                             <SelectItem key={plan.id} value={plan.id} data-testid={`option-plan-${plan.id}`}>
                               {plan.name}
                             </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Wybierz plan, do którego chcesz zaprosić podopiecznego
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Wybierz plan, do którego chcesz zaprosić podopiecznego. Możesz też przypisać plan później z listy podopiecznych.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <FormField
-                  control={form.control}
-                  name="clientEmail"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email podopiecznego</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="email"
-                          placeholder="jan.kowalski@example.com"
-                          data-testid="input-client-email"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Adres email osoby, którą chcesz zaprosić do planu treningowego
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="flex gap-3">
-                  <Button
+              <div className="flex gap-3">
+                <Button
                     type="submit"
                     disabled={sendInvitationMutation.isPending}
                     className="gap-2"
@@ -197,15 +188,14 @@ export default function InviteClient() {
                       </>
                     )}
                   </Button>
-                  <Link href="/plans">
-                    <Button type="button" variant="outline" data-testid="button-back-to-plans">
-                      Anuluj
-                    </Button>
-                  </Link>
-                </div>
+                <Link href="/plans">
+                  <Button type="button" variant="outline" data-testid="button-back-to-plans">
+                    Anuluj
+                  </Button>
+                </Link>
+              </div>
               </form>
             </Form>
-          )}
         </CardContent>
       </Card>
 
@@ -224,7 +214,7 @@ export default function InviteClient() {
             <div>
               <p className="font-medium">Wyślij zaproszenie</p>
               <p className="text-sm text-muted-foreground">
-                Wybierz plan treningowy i podaj email podopiecznego
+                Podaj email podopiecznego i wybierz plan treningowy (lub przypisz go później)
               </p>
             </div>
           </div>

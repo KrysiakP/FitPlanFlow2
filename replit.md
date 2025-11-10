@@ -98,7 +98,8 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 4. Tworzenie planu treningowego z ćwiczeniami
 5. **Wysyłanie zaproszeń do planu:**
    - **Szybki dostęp:** Zakładka "Zaproś podopiecznego" w menu bocznym (ikona UserPlus)
-   - **Strona /invite:** Formularz z dropdown wyboru planu + pole email
+   - **Strona /invite:** Formularz z polem email (pierwsze) + dropdown wyboru planu (drugie)
+   - **User-friendly:** Informacja, że plan można też przypisać później z listy podopiecznych
    - **Instrukcje:** Sekcja "Jak to działa?" wyjaśniająca proces
    - **Limit Free tier:** maksymalnie 10 aktywnych podopiecznych
    - Alert z informacją o limicie i CTA do upgrade
