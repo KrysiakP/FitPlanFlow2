@@ -96,7 +96,10 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 2. Wybór roli "Trener" (przy pierwszym logowaniu) - automatycznie Free tier
 3. Dashboard z statystykami (liczba planów, podopiecznych, przypisań)
 4. Tworzenie planu treningowego z ćwiczeniami
-5. Wysyłanie zaproszeń do planu przez email podopiecznego
+5. **Wysyłanie zaproszeń do planu:**
+   - **Szybki dostęp:** Zakładka "Zaproś podopiecznego" w menu bocznym (ikona UserPlus)
+   - **Strona /invite:** Formularz z dropdown wyboru planu + pole email
+   - **Instrukcje:** Sekcja "Jak to działa?" wyjaśniająca proces
    - **Limit Free tier:** maksymalnie 10 aktywnych podopiecznych
    - Alert z informacją o limicie i CTA do upgrade
 6. Przeglądanie listy podopiecznych z informacją o przypisanych planach
@@ -118,7 +121,12 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 ### Podopieczny
 1. Rejestracja/logowanie przez email i hasło
 2. Wybór roli "Podopieczny" (przy pierwszym logowaniu)
-3. Dashboard z informacją o przypisanym planie i zaproszeniach
+3. **Dashboard z informacją o przypisanym planie i zaproszeniach:**
+   - **Nowe zaproszenia** wyświetlane w widocznej Card z:
+     - Border i background w kolorze primary
+     - Badge z licznikiem zaproszeń na ikonie Mail
+     - Każde zaproszenie w osobnej sekcji z avatarem trenera
+     - Przyciski Akceptuj/Odrzuć z ikonami i loading spinners
 4. Akceptacja/odrzucenie zaproszeń do planów treningowych
 5. Przeglądanie szczegółów planu treningowego z wszystkimi ćwiczeniami
 6. **Logowanie wykonań** - dla każdego ćwiczenia formularz z automatycznym prefill ostatnich wartości
