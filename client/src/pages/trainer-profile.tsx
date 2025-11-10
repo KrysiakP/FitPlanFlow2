@@ -129,6 +129,23 @@ export default function TrainerProfile() {
     },
   });
 
+  const subscriptionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/subscription/portal", {});
+      return await response.json() as { url: string };
+    },
+    onSuccess: (data) => {
+      window.location.href = data.url;
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Błąd",
+        description: error.message || "Nie udało się otworzyć portalu subskrypcji",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: ProfileFormValues) => {
     updateProfileMutation.mutate(data);
   };
@@ -221,23 +238,6 @@ export default function TrainerProfile() {
       </div>
     );
   }
-
-  const subscriptionMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/subscription/portal", {});
-      return await response.json() as { url: string };
-    },
-    onSuccess: (data) => {
-      window.location.href = data.url;
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Błąd",
-        description: error.message || "Nie udało się otworzyć portalu subskrypcji",
-        variant: "destructive",
-      });
-    },
-  });
 
   const isPremium = user?.subscriptionTier === "premium" && user?.subscriptionStatus === "active";
 
