@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -8,50 +8,38 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { Search, User, Calendar, TrendingUp, Target, Heart, CheckCircle2, MessageSquare } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { 
+  Search, 
+  User, 
+  Calendar, 
+  TrendingUp, 
+  Target, 
+  Heart, 
+  CheckCircle2, 
+  MessageSquare,
+  ChevronDown,
+  UserPlus,
+  X,
+} from "lucide-react";
 import { Link } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
 import type { User as UserType, PlanAssignment, TrainingPlan, ClientProgress } from "@shared/schema";
 
 type ClientWithAssignment = UserType & {
   assignment?: PlanAssignment & { plan: TrainingPlan };
 };
 
-export default function Clients() {
-  const [searchEmail, setSearchEmail] = useState("");
-  const [foundClient, setFoundClient] = useState<ClientWithAssignment | null>(null);
-  const [searchError, setSearchError] = useState<string | null>(null);
-
-  const searchMutation = useMutation({
-    mutationFn: async (email: string) => {
-      const response = await apiRequest("POST", "/api/clients/search", { email });
-      return await response.json() as ClientWithAssignment;
-    },
-    onSuccess: (data) => {
-      setFoundClient(data);
-      setSearchError(null);
-    },
-    onError: (error: any) => {
-      setFoundClient(null);
-      if (error?.message === "Client not found") {
-        setSearchError("Nie znaleziono podopiecznego o podanym emailu. Upewnij się że użytkownik zarejestrował się jako podopieczny.");
-      } else {
-        setSearchError("Wystąpił błąd podczas wyszukiwania. Spróbuj ponownie.");
-      }
-    },
-  });
+function ClientCard({ client }: { client: ClientWithAssignment }) {
+  const [isOpen, setIsOpen] = useState(false);
 
   const { data: clientProgress, isLoading: isLoadingProgress } = useQuery<ClientProgress | null>({
-    queryKey: ["/api/trainer/clients", foundClient?.id, "progress"],
-    enabled: !!foundClient?.id,
+    queryKey: [`/api/trainer/clients/${client.id}/progress`],
+    enabled: isOpen && !!client.id,
   });
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchEmail.trim()) {
-      searchMutation.mutate(searchEmail.trim());
-    }
-  };
 
   const getInitials = (firstName?: string | null, lastName?: string | null) => {
     const first = firstName?.charAt(0) || "";
@@ -60,248 +48,341 @@ export default function Clients() {
   };
 
   return (
+    <Card data-testid={`card-client-${client.id}`} className="hover-elevate">
+      <CardHeader>
+        <div className="flex items-start gap-4">
+          <Avatar className="w-16 h-16">
+            <AvatarImage src={client.profileImageUrl || undefined} />
+            <AvatarFallback className="bg-primary/10 text-primary font-medium text-lg">
+              {getInitials(client.firstName, client.lastName)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-2xl truncate" data-testid={`text-client-name-${client.id}`}>
+              {client.firstName} {client.lastName}
+            </CardTitle>
+            <CardDescription className="text-base mt-1 truncate" data-testid={`text-client-email-${client.id}`}>
+              {client.email}
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-6">
+        <div>
+          <h3 className="font-heading font-semibold text-lg mb-3 flex items-center gap-2">
+            <Calendar className="w-5 h-5" />
+            Przypisany plan
+          </h3>
+          {client.assignment ? (
+            <div className="space-y-3">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <Badge variant="secondary" className="text-base mb-2" data-testid={`badge-assigned-plan-${client.id}`}>
+                    {client.assignment.plan.name}
+                  </Badge>
+                  <p className="text-sm text-muted-foreground" data-testid={`text-assignment-date-${client.id}`}>
+                    Przypisano {new Date(client.assignment.assignedAt).toLocaleDateString("pl-PL")}
+                  </p>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Button asChild variant="outline" size="sm" data-testid={`button-view-plan-${client.id}`}>
+                    <Link href={`/plans/${client.assignment.plan.id}/edit`}>
+                      Zobacz plan
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" data-testid={`button-change-plan-${client.id}`}>
+                    <Link href="/plans">
+                      Zmień plan
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+              {client.assignment.plan.description && (
+                <p className="text-sm text-muted-foreground" data-testid={`text-plan-description-${client.id}`}>
+                  {client.assignment.plan.description}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <Badge variant="outline" data-testid={`badge-no-plan-${client.id}`}>
+                Brak przypisanego planu
+              </Badge>
+              <div>
+                <Button asChild size="sm" data-testid={`button-assign-plan-${client.id}`}>
+                  <Link href="/plans">
+                    Przypisz plan
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <Separator />
+
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+          <CollapsibleTrigger asChild>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-between p-0 h-auto hover:bg-transparent"
+              data-testid={`button-toggle-progress-${client.id}`}
+            >
+              <h3 className="font-heading font-semibold text-lg flex items-center gap-2">
+                <TrendingUp className="w-5 h-5" />
+                Postępy podopiecznego
+              </h3>
+              <ChevronDown className={`w-5 h-5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+            </Button>
+          </CollapsibleTrigger>
+          
+          <CollapsibleContent className="mt-3">
+            {isLoadingProgress ? (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-5/6" />
+              </div>
+            ) : clientProgress ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid={`section-progress-${client.id}`}>
+                {clientProgress.weight && (
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Waga</p>
+                    <p className="font-medium" data-testid={`text-weight-${client.id}`}>
+                      {clientProgress.weight}
+                    </p>
+                  </div>
+                )}
+                {clientProgress.height && (
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Wzrost</p>
+                    <p className="font-medium" data-testid={`text-height-${client.id}`}>
+                      {clientProgress.height}
+                    </p>
+                  </div>
+                )}
+                {clientProgress.goal && (
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Target className="w-4 h-4" />
+                      Cel treningowy
+                    </p>
+                    <p className="font-medium" data-testid={`text-goal-${client.id}`}>
+                      {clientProgress.goal}
+                    </p>
+                  </div>
+                )}
+                {clientProgress.mood && (
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Heart className="w-4 h-4" />
+                      Samopoczucie
+                    </p>
+                    <p className="font-medium" data-testid={`text-mood-${client.id}`}>
+                      {clientProgress.mood}
+                    </p>
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Ukończone treningi
+                  </p>
+                  <p className="font-medium text-primary text-xl" data-testid={`text-completed-workouts-${client.id}`}>
+                    {clientProgress.completedWorkouts || 0}
+                  </p>
+                </div>
+                {clientProgress.notes && (
+                  <div className="space-y-1 md:col-span-2">
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <MessageSquare className="w-4 h-4" />
+                      Notatki motywacyjne
+                    </p>
+                    <p className="font-medium" data-testid={`text-notes-${client.id}`}>
+                      {clientProgress.notes}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-muted-foreground" data-testid={`text-no-progress-${client.id}`}>
+                Podopieczny nie uzupełnił jeszcze swoich postępów
+              </p>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function Clients() {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const { data: clients = [], isLoading, error } = useQuery<ClientWithAssignment[]>({
+    queryKey: ["/api/trainer/clients"],
+  });
+
+  const filteredClients = useMemo(() => {
+    if (!searchQuery.trim()) return clients;
+    
+    const query = searchQuery.toLowerCase();
+    return clients.filter((client) => {
+      const fullName = `${client.firstName} ${client.lastName}`.toLowerCase();
+      const email = client.email.toLowerCase();
+      return fullName.includes(query) || email.includes(query);
+    });
+  }, [clients, searchQuery]);
+
+  const clearSearch = () => setSearchQuery("");
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="font-heading font-bold text-4xl mb-2">
+            Podopieczni
+          </h1>
+          <p className="text-muted-foreground">
+            Zarządzaj swoimi podopiecznymi i śledź ich postępy
+          </p>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <div className="flex items-center gap-4">
+                  <Skeleton className="w-16 h-16 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-6 w-48" />
+                    <Skeleton className="h-4 w-64" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-24 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="font-heading font-bold text-4xl mb-2">
+            Podopieczni
+          </h1>
+        </div>
+        <Alert variant="destructive">
+          <AlertDescription>
+            Wystąpił błąd podczas ładowania listy podopiecznych. Spróbuj odświeżyć stronę.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  return (
     <div className="space-y-8">
       <div>
         <h1 className="font-heading font-bold text-4xl mb-2" data-testid="text-clients-title">
           Podopieczni
         </h1>
         <p className="text-muted-foreground" data-testid="text-clients-description">
-          Wyszukaj podopiecznego po emailu aby zobaczyć jego plan i postępy
+          Zarządzaj swoimi podopiecznymi i śledź ich postępy
         </p>
       </div>
 
-      <Card>
-        <CardContent className="p-6">
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <div className="flex-1">
-              <Input
-                type="email"
-                placeholder="Wpisz adres email podopiecznego"
-                value={searchEmail}
-                onChange={(e) => setSearchEmail(e.target.value)}
-                data-testid="input-search-email"
-                required
-              />
-            </div>
-            <Button
-              type="submit"
-              disabled={searchMutation.isPending}
-              data-testid="button-search-client"
-            >
-              {searchMutation.isPending ? (
-                <>
-                  <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2" />
-                  Wyszukiwanie...
-                </>
-              ) : (
-                <>
-                  <Search className="w-4 h-4 mr-2" />
-                  Wyszukaj
-                </>
+      {clients.length > 0 && (
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Wyszukaj po imieniu lub emailu..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                  data-testid="input-filter-clients"
+                />
+              </div>
+              {searchQuery && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={clearSearch}
+                  data-testid="button-clear-filter"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
               )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      {searchError && (
-        <Alert variant="destructive" data-testid="alert-search-error">
-          <AlertDescription>{searchError}</AlertDescription>
-        </Alert>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      {!foundClient && !searchError && !searchMutation.isPending && (
+      {clients.length === 0 ? (
+        <Card>
+          <CardContent className="p-12 text-center space-y-6">
+            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto">
+              <User className="w-10 h-10 text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="font-heading font-semibold text-2xl mb-2" data-testid="text-empty-state">
+                Nie masz jeszcze podopiecznych
+              </h3>
+              <p className="text-muted-foreground mb-6">
+                Rozpocznij wysyłanie zaproszeń do planów treningowych, aby zacząć pracować z podopiecznymi
+              </p>
+              <Button asChild data-testid="button-invite-client">
+                <Link href="/invite">
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Zaproś podopiecznego
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : filteredClients.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center space-y-4">
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
-              <User className="w-8 h-8 text-muted-foreground" />
+              <Search className="w-8 h-8 text-muted-foreground" />
             </div>
             <div>
-              <h3 className="font-heading font-semibold text-xl mb-2" data-testid="text-empty-state">
-                Wyszukaj podopiecznego po emailu
+              <h3 className="font-heading font-semibold text-xl mb-2" data-testid="text-no-results">
+                Brak wyników
               </h3>
-              <p className="text-muted-foreground">
-                Wprowadź adres email podopiecznego w polu wyszukiwania powyżej
+              <p className="text-muted-foreground mb-4">
+                Nie znaleziono podopiecznych pasujących do "{searchQuery}"
               </p>
+              <Button variant="outline" onClick={clearSearch} data-testid="button-clear-search">
+                Wyczyść wyszukiwanie
+              </Button>
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {searchMutation.isPending && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-4">
-              <Skeleton className="w-12 h-12 rounded-full" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-6 w-48" />
-                <Skeleton className="h-4 w-64" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-32 w-full" />
-          </CardContent>
-        </Card>
-      )}
-
-      {foundClient && (
-        <Card data-testid={`card-client-${foundClient.id}`}>
-          <CardHeader>
-            <div className="flex items-start gap-4">
-              <Avatar className="w-16 h-16">
-                <AvatarImage src={foundClient.profileImageUrl || undefined} />
-                <AvatarFallback className="bg-primary/10 text-primary font-medium text-lg">
-                  {getInitials(foundClient.firstName, foundClient.lastName)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <CardTitle className="text-2xl" data-testid={`text-client-name-${foundClient.id}`}>
-                  {foundClient.firstName} {foundClient.lastName}
-                </CardTitle>
-                <CardDescription className="text-base mt-1" data-testid={`text-client-email-${foundClient.id}`}>
-                  {foundClient.email}
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-
-          <CardContent className="space-y-6">
-            <div>
-              <h3 className="font-heading font-semibold text-lg mb-3 flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Przypisany plan
-              </h3>
-              {foundClient.assignment ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div>
-                      <Badge variant="secondary" className="text-base" data-testid={`badge-assigned-plan-${foundClient.id}`}>
-                        {foundClient.assignment.plan.name}
-                      </Badge>
-                      <p className="text-sm text-muted-foreground mt-2" data-testid={`text-assignment-date-${foundClient.id}`}>
-                        Przypisano {new Date(foundClient.assignment.assignedAt).toLocaleDateString("pl-PL")}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button asChild variant="outline" size="sm" data-testid={`button-view-plan-${foundClient.id}`}>
-                        <Link href={`/plans/${foundClient.assignment.plan.id}/edit`}>
-                          Zobacz szczegóły planu
-                        </Link>
-                      </Button>
-                      <Button asChild size="sm" data-testid={`button-change-plan-${foundClient.id}`}>
-                        <Link href="/plans">
-                          Zmień plan
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                  {foundClient.assignment.plan.description && (
-                    <p className="text-sm text-muted-foreground" data-testid={`text-plan-description-${foundClient.id}`}>
-                      {foundClient.assignment.plan.description}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <Badge variant="outline" data-testid={`badge-no-plan-${foundClient.id}`}>
-                    Brak przypisanego planu
-                  </Badge>
-                  <div>
-                    <Button asChild size="sm" data-testid={`button-assign-plan-${foundClient.id}`}>
-                      <Link href="/plans">
-                        Przypisz plan
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <Separator />
-
-            <div>
-              <h3 className="font-heading font-semibold text-lg mb-3 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
-                Postępy podopiecznego
-              </h3>
-              
-              {isLoadingProgress ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-5/6" />
-                </div>
-              ) : clientProgress ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid={`section-progress-${foundClient.id}`}>
-                  {clientProgress.weight && (
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Waga</p>
-                      <p className="font-medium" data-testid={`text-weight-${foundClient.id}`}>
-                        {clientProgress.weight}
-                      </p>
-                    </div>
-                  )}
-                  {clientProgress.height && (
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Wzrost</p>
-                      <p className="font-medium" data-testid={`text-height-${foundClient.id}`}>
-                        {clientProgress.height}
-                      </p>
-                    </div>
-                  )}
-                  {clientProgress.goal && (
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <Target className="w-4 h-4" />
-                        Cel treningowy
-                      </p>
-                      <p className="font-medium" data-testid={`text-goal-${foundClient.id}`}>
-                        {clientProgress.goal}
-                      </p>
-                    </div>
-                  )}
-                  {clientProgress.mood && (
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <Heart className="w-4 h-4" />
-                        Samopoczucie
-                      </p>
-                      <p className="font-medium" data-testid={`text-mood-${foundClient.id}`}>
-                        {clientProgress.mood}
-                      </p>
-                    </div>
-                  )}
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <CheckCircle2 className="w-4 h-4" />
-                      Ukończone treningi
-                    </p>
-                    <p className="font-medium text-primary text-xl" data-testid={`text-completed-workouts-${foundClient.id}`}>
-                      {clientProgress.completedWorkouts || 0}
-                    </p>
-                  </div>
-                  {clientProgress.notes && (
-                    <div className="space-y-1 md:col-span-2">
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <MessageSquare className="w-4 h-4" />
-                        Notatki motywacyjne
-                      </p>
-                      <p className="font-medium" data-testid={`text-notes-${foundClient.id}`}>
-                        {clientProgress.notes}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-muted-foreground" data-testid={`text-no-progress-${foundClient.id}`}>
-                  Podopieczny nie uzupełnił jeszcze swoich postępów
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+      ) : (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-muted-foreground">
+              Wyświetlanie {filteredClients.length} {filteredClients.length === 1 ? 'podopiecznego' : 'podopiecznych'}
+              {searchQuery && ` z ${clients.length}`}
+            </p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {filteredClients.map((client) => (
+              <ClientCard key={client.id} client={client} />
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
