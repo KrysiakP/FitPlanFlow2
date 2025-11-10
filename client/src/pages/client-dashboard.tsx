@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Calendar, AlertCircle, Bell } from "lucide-react";
+import { ClipboardList, Calendar, AlertCircle, Bell, Mail, UserCheck, X } from "lucide-react";
 import { Link } from "wouter";
 import { startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -133,57 +133,99 @@ export default function ClientDashboard() {
       )}
 
       {invitations && invitations.length > 0 && (
-        <Alert data-testid="alert-invitations">
-          <Bell className="w-4 h-4" />
-          <AlertDescription>
-            <div className="flex flex-col gap-4">
-              <span className="font-medium">
-                Masz {invitations.length} {invitations.length === 1 ? "nowe zaproszenie" : "nowe zaproszenia"} do planu treningowego
-              </span>
-              
-              {invitations.map((invitation, index) => (
+        <Card className="border-primary/50 bg-primary/5" data-testid="card-invitations">
+          <CardHeader>
+            <CardTitle className="font-heading flex items-center gap-2">
+              <div className="relative">
+                <Mail className="w-5 h-5 text-primary" />
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-primary-foreground rounded-full text-xs flex items-center justify-center">
+                  {invitations.length}
+                </span>
+              </div>
+              Nowe zaproszenia
+            </CardTitle>
+            <CardDescription>
+              Masz {invitations.length} {invitations.length === 1 ? "nowe zaproszenie" : "nowe zaproszenia"} do planu treningowego
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {invitations.map((invitation) => (
                 <div 
                   key={invitation.id} 
-                  className={index > 0 ? "pt-4 border-t" : ""}
+                  className="border rounded-lg p-6 bg-background hover-elevate"
                   data-testid={`invitation-card-${invitation.id}`}
                 >
-                  <div className="space-y-2">
-                    <div>
-                      <p className="font-medium" data-testid={`text-plan-name-${invitation.id}`}>
-                        {invitation.plan.name}
-                      </p>
-                      <p className="text-sm text-muted-foreground" data-testid={`text-trainer-name-${invitation.id}`}>
-                        Od: {invitation.trainer.firstName} {invitation.trainer.lastName}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(invitation.createdAt).toLocaleDateString('pl-PL')}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        size="sm" 
-                        onClick={() => acceptMutation.mutate(invitation.id)} 
-                        disabled={acceptMutation.isPending || rejectMutation.isPending}
-                        data-testid={`button-accept-${invitation.id}`}
-                      >
-                        {acceptMutation.isPending ? "Akceptowanie..." : "Akceptuj"}
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => rejectMutation.mutate(invitation.id)} 
-                        disabled={acceptMutation.isPending || rejectMutation.isPending}
-                        data-testid={`button-reject-${invitation.id}`}
-                      >
-                        {rejectMutation.isPending ? "Odrzucanie..." : "Odrzuć"}
-                      </Button>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <UserCheck className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-heading font-semibold text-lg" data-testid={`text-plan-name-${invitation.id}`}>
+                            {invitation.plan.name}
+                          </p>
+                          <p className="text-sm text-muted-foreground" data-testid={`text-trainer-name-${invitation.id}`}>
+                            Od: {invitation.trainer.firstName} {invitation.trainer.lastName}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Wysłano: {new Date(invitation.createdAt).toLocaleDateString('pl-PL', { 
+                              day: 'numeric', 
+                              month: 'long', 
+                              year: 'numeric' 
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 ml-13">
+                        <Button 
+                          size="sm" 
+                          onClick={() => acceptMutation.mutate(invitation.id)} 
+                          disabled={acceptMutation.isPending || rejectMutation.isPending}
+                          className="gap-2"
+                          data-testid={`button-accept-${invitation.id}`}
+                        >
+                          {acceptMutation.isPending ? (
+                            <>
+                              <div className="w-3 h-3 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                              Akceptowanie...
+                            </>
+                          ) : (
+                            <>
+                              <UserCheck className="w-4 h-4" />
+                              Akceptuj
+                            </>
+                          )}
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => rejectMutation.mutate(invitation.id)} 
+                          disabled={acceptMutation.isPending || rejectMutation.isPending}
+                          className="gap-2"
+                          data-testid={`button-reject-${invitation.id}`}
+                        >
+                          {rejectMutation.isPending ? (
+                            <>
+                              <div className="w-3 h-3 border-2 border-foreground border-t-transparent rounded-full animate-spin" />
+                              Odrzucanie...
+                            </>
+                          ) : (
+                            <>
+                              <X className="w-4 h-4" />
+                              Odrzuć
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-          </AlertDescription>
-        </Alert>
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
