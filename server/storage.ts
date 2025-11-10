@@ -732,10 +732,7 @@ export class DatabaseStorage implements IStorage {
   async createInvitation(trainerId: string, data: InsertPlanInvitationInput): Promise<PlanInvitation> {
     const { clientEmail, planId } = data;
     
-    const client = await this.searchClientByEmail(clientEmail);
-    if (!client) {
-      throw new Error("Użytkownik z podanym emailem nie istnieje lub nie ma roli podopiecznego");
-    }
+    // Zaproszenie może być wysłane do dowolnego emaila - osoba nie musi być jeszcze zarejestrowana
     
     const plan = await this.getTrainingPlan(planId);
     if (!plan) {
