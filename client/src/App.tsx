@@ -22,6 +22,7 @@ import ClientProfile from "@/pages/client-profile";
 import WeeklyReport from "@/pages/weekly-report";
 import TrainerReports from "@/pages/trainer-reports";
 import Pricing from "@/pages/pricing";
+import InviteClient from "@/pages/invite-client";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -67,6 +68,7 @@ function Router() {
             <Route path="/plans/:id/assign" component={AssignPlan} />
             <Route path="/exercise-library" component={ExerciseLibrary} />
             <Route path="/clients" component={Clients} />
+            <Route path="/invite" component={InviteClient} />
             <Route path="/trainer/reports" component={TrainerReports} />
             <Route path="/pricing" component={Pricing} />
             <Route path="/profile" component={TrainerProfile} />
