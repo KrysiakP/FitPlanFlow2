@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dumbbell, Users, ClipboardList, TrendingUp } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Dumbbell, Users, ClipboardList, TrendingUp, MapPin, Heart } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Landing() {
@@ -71,6 +72,34 @@ export default function Landing() {
           </div>
         </section>
 
+        <section className="py-16 px-4 bg-card">
+          <div className="container mx-auto max-w-5xl">
+            <div className="text-center space-y-8">
+              <div className="flex items-center justify-center gap-2">
+                <MapPin className="w-6 h-6 text-primary" />
+                <h2 className="font-heading font-semibold text-3xl">Polska marka</h2>
+              </div>
+              <div className="max-w-3xl mx-auto space-y-4">
+                <p className="text-lg text-muted-foreground">
+                  Platforma Treningowa to w 100% polska aplikacja, stworzona z myślą o polskich trenerach personalnych i ich podopiecznych. Rozumiemy specyfikę polskiego rynku fitness i dostosowujemy nasze rozwiązania do Twoich potrzeb.
+                </p>
+                <div className="flex flex-wrap gap-3 justify-center items-center">
+                  <Badge variant="outline" data-testid="badge-made-in-poland">
+                    <Heart className="w-4 h-4 mr-2 text-red-500" />
+                    Stworzone w Polsce
+                  </Badge>
+                  <Badge variant="outline" data-testid="badge-polish-support">
+                    Wsparcie w języku polskim
+                  </Badge>
+                  <Badge variant="outline" data-testid="badge-polish-payments">
+                    Płatności w złotówkach
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="py-16 px-4">
           <div className="container mx-auto max-w-4xl">
             <Card>
@@ -90,9 +119,44 @@ export default function Landing() {
         </section>
       </main>
 
-      <footer className="border-t py-8 px-4">
-        <div className="container mx-auto text-center text-sm text-muted-foreground">
-          <p>© 2024 Platforma Treningowa. Wszystkie prawa zastrzeżone.</p>
+      <footer className="border-t py-12 px-4 bg-card">
+        <div className="container mx-auto max-w-6xl">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Dumbbell className="w-6 h-6 text-primary" />
+                <span className="font-heading font-bold text-lg">Platforma Treningowa</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Profesjonalne narzędzie do zarządzania planami treningowymi dla trenerów i podopiecznych.
+              </p>
+            </div>
+            
+            <div className="space-y-4">
+              <h3 className="font-heading font-semibold">Polska marka</h3>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Heart className="w-4 h-4 text-red-500" />
+                  <span>Stworzone w Polsce z pasją</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <MapPin className="w-4 h-4 text-primary" />
+                  <span>Wsparcie lokalne 24/7</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="font-heading font-semibold">Kontakt</h3>
+              <p className="text-sm text-muted-foreground">
+                Masz pytania? Skontaktuj się z nami i dowiedz się więcej o możliwościach platformy.
+              </p>
+            </div>
+          </div>
+
+          <div className="border-t pt-8 text-center text-sm text-muted-foreground">
+            <p>© 2024 Platforma Treningowa. Wszystkie prawa zastrzeżone.</p>
+          </div>
         </div>
       </footer>
     </div>
