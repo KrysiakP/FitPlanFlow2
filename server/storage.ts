@@ -703,23 +703,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getClientWeeklyReportsForTrainer(clientId: string, trainerId: string): Promise<WeeklyReport[]> {
-    const result = await db
-      .select({
-        report: weeklyReports,
-      })
-      .from(weeklyReports)
-      .innerJoin(users, eq(weeklyReports.clientId, users.id))
-      .innerJoin(planAssignments, eq(planAssignments.clientId, users.id))
-      .innerJoin(trainingPlans, eq(planAssignments.planId, trainingPlans.id))
+    // Sprawdź czy istnieje aktywna relacja trener-podopieczny
+    const [relationship] = await db
+      .select()
+      .from(clientRelationships)
       .where(
         and(
-          eq(weeklyReports.clientId, clientId),
-          eq(trainingPlans.trainerId, trainerId)
+          eq(clientRelationships.trainerId, trainerId),
+          eq(clientRelationships.clientId, clientId),
+          eq(clientRelationships.status, 'active')
         )
       )
-      .orderBy(desc(weeklyReports.reportDate));
+      .limit(1);
     
-    return result.map(r => r.report);
+    if (!relationship) {
+      throw new Error("Brak aktywnej relacji z tym podopiecznym");
+    }
+    
+    // Pobierz raporty podopiecznego
+    return await db
+      .select()
+      .from(weeklyReports)
+      .where(eq(weeklyReports.clientId, clientId))
+      .orderBy(desc(weeklyReports.reportDate));
   }
 
   // Client search - find any client by email
