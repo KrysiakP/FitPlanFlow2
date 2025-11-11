@@ -27,7 +27,7 @@ export default function InviteClient() {
     resolver: zodResolver(insertPlanInvitationSchema),
     defaultValues: {
       clientEmail: "",
-      planId: "",
+      planId: null,
     },
   });
 
@@ -44,7 +44,7 @@ export default function InviteClient() {
       });
       form.reset({
         clientEmail: "",
-        planId: "",
+        planId: null,
       });
     },
     onError: (error: any) => {
@@ -141,7 +141,10 @@ export default function InviteClient() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Plan treningowy (opcjonalnie)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <Select 
+                      onValueChange={(value) => field.onChange(value === "" ? null : value)} 
+                      value={field.value || ""}
+                    >
                       <FormControl>
                         <SelectTrigger data-testid="select-plan">
                           <SelectValue placeholder="Wybierz plan lub pomiń" />
