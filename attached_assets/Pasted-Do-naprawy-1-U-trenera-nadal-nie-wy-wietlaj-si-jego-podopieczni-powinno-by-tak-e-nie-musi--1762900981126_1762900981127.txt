@@ -1,0 +1,148 @@
+Do naprawy:
+
+1) U trenera nadal nie wyświetlają się jego podopieczni - powinno być tak, że nie musi on wpisywać maila zeby się wyswietlili. Wchodzi w zakładkę i widzi wszystkich. Bez wpisywania mailow.
+
+
+2)Napraw wysyłanie zaproszeń. Nadal nie działa zapraszanie. Trener ma mieć możliwość wysłania zaproszenia i planu jednocześnie. Jednak samo wysłanie zaproszenia (bez planu) powinno być możliwe - aktualnie bez zaproszenia wyskakuje:  “błąd  500 - nie udalo sie wyslac” 
+
+
+
+3) Zdjęcie nie wyświetla się poprawnie po przesłaniu- u trenera i podopiecznego - raporty 
+
+
+
+
+4) Raporty tygodniowe tez powinny sie wyswietlac od razu jak lista podopiecznych - teraaz trzeba wpisac ich email. Zrób w raportach tak zeby wyswietlalo się imie i nazwisko podopiecznego i po kliknieciu w niego mozna bylo zobaczyc cala liste raportów. 
+
+
+5) Przebuduj cennik w następujący sposób:
+
+START
+0 zł / miesiąc
+Dla trenerów, którzy dopiero zaczynają prowadzić podopiecznych.
+• do 3 podopiecznych
+→ Idealne na przetestowanie aplikacji.
+
+TRENER SOLO
+129 zł / miesiąc
+Dla trenerów obsługujących pierwszych klientów.
+• do 20 podopiecznych
+• szablony planów treningowych
+• kopiowanie planów między podopiecznymi
+• raport tygodniowy wykonania
+• wsparcie mailowe
+
+TRENER PRO (rekomendowane)
+249 zł / miesiąc
+Dla trenerów pracujących full-time i rozwijających markę.
+• do 50 podopiecznych
+• wszystko z TRENER SOLO
+• priorytetowe wsparcie
+→ Najlepszy stosunek wartości do ceny.
+→ Projektowane jako „centrum pracy trenera”.
+
+TRENER ELITE
+499 zł / miesiąc
+Dla trenerów, którzy skalują biznes i prowadzą dziesiątki podopiecznych.
+• do 150 podopiecznych
+• wszystko z TRENER PRO
+• scenariusze automatyzacji (onboarding, progres, przypomnienia)
+• eksport PDF/CSV całych planów
+• wsparcie 1:1 przy konfiguracji
+• dedykowany opiekun po stronie aplikacji
+
+STUDIO / KLUB
+999 zł + / miesiąc
+Dla studiów treningowych, boxów, akademii i klubów.
+• 2–10 trenerów
+• nieograniczona liczba podopiecznych
+• role, uprawnienia, zarządzanie zespołem
+• raporty zbiorcze wyników
+• konfiguracja pod Twoją markę (opcjonalnie white-label)
+• szkolenie wdrożeniowe zespołu
+• wsparcie premium
+
+Ceny brutto, 🇵🇱.
+1% przychodu przekazujemy na sport dzieci, domy dziecka i dożywianie dzieci.
+Comiesięczny raport transparentny — widoczny publicznie.
+
+
+
+C) Jak sprawić, żeby 80% trenerów wybierało COACH PRO (249 zł)
+Trzy elementy:
+1. 
+Podświetlenie w UI
+W karcie COACH PRO dodaj:
+ramkę, cień lub kolor,
+małą odznakę: Polecany lub Najczęściej wybierany.
+2. 
+Język przewagi
+W opisie dodaj jedno krótkie zdanie:
+„Najlepszy stosunek wartości do ceny dla aktywnych trenerów.”
+3. 
+Układ przycisków
+Przy każdym planie:
+START → „Wypróbuj”
+TRENER SOLO → „Wybierz SOLO”
+TRENER PRO → „Rozpocznij prowadzenie teraz” (główny CTA)
+ELITE → „Porozmawiaj z nami”
+STUDIO → „Umów rozmowę”
+Dzięki temu:
+początkujący biorą START (i naturalnie wchodzą w SOLO/PRO),
+TRENER PRO staje się domyślnym wyborem, bo ma najmądrzejszy CTA,
+ELITE i STUDIO trafiają tylko ci, którzy powinni.
+
+
+W rodzajach subskrypcjach dodaj info, że w tych płatnych 1% przekazujemy na inicjatywy
+
+
+
+6) Dodaj informację, że jest to polska marka. W zakładce “Panel” U trenera i podpoiecznego na dolnej belce zrób napis” Tworzymy tę aplikację tutaj – w Polsce.
+Dla trenerów, którzy pracują z ludźmi tu, gdzie żyjemy:
+w klubach, szkołach, domowych siłowniach i małych salach treningowych.
+
+Znamy ten rytm, te warunki, tę codzienność.
+Dlatego budujemy narzędzie, które pasuje do nas.
+
+Tworzone w Polsce. Dla trenerów z Polski.
+“
+
+
+
+Na stronie głównej w miejscu czerwonego napisz: 
+Polska marka. Polski zespół.
+Robimy to po polsku. I robimy to dobrze.
+
+
+
+
+
+7) Dodaj zakładkę PomagaMY - Napisz sekcję "PomagaMY" do aplikacji Cel zakładki: pokazać, że 1% przychodu aplikacji jest przekazywany na wsparcie dzieci w sportowym rozwoju i na programy zapewniające posiłki w szkołach. 
+
+Tekst na te strone:
+Pomagamy dzieciom dorastać silnym. W ciele i w życiu.
+
+Wierzymy, że ruch i zdrowie nie powinny być luksusem. Dlatego 1% przychodu z tej aplikacji przeznaczamy na wsparcie dzieci, które potrzebują dostępu do sportu, posiłków i bezpiecznego rozwoju.
+Każdy trener i podopieczny, który korzysta z naszej aplikacji, dokłada swoją cegiełkę do czegoś większego. Każdy trening to wyciągnięcie ręki do tych, którzy potrzebują pomocy. 
+
+Na co przeznaczamy wsparcie:
+zakup sprzętu sportowego dla dzieci i klubów szkolnych
+dofinansowanie zajęć sportowych dla dzieci z domów dziecka
+programy zapewniające posiłki w szkołach
+
+
+Jak działamy:
+Co miesiąc przekazujemy 1% przychodów na wybrane inicjatywy i publikujemy raport, aby każdy mógł zobaczyć realny wpływ.
+👉 Strona raportów: /pomagaMY/raporty (na samym dole stwórz miejsce na dodawanie raportów dla mnie Administratora) 
+👉 Głosowanie społeczności raz na kwartał: trenerzy wybierają cel
+Twoja praca zmienia więcej niż jedną osobę. Zmienia pokolenia.
+Dziękujemy, że jesteś częścią tego ruchu.
+
+
+
+
+
+
+
+
+
