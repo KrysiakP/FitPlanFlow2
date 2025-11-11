@@ -177,16 +177,30 @@ export class DatabaseStorage implements IStorage {
     const clients = await this.getTrainerClients(trainerId);
     const currentCount = clients.length;
     
-    const isPremium = trainer.subscriptionTier === 'premium' && 
-                     (trainer.subscriptionStatus === 'active' || trainer.subscriptionStatus === 'trialing');
+    // Map tier to client limit
+    const tierLimits: Record<string, number> = {
+      start: 3,
+      solo: 20,
+      pro: 50,
+      elite: 150,
+      studio: Infinity,
+      // Legacy support
+      free: 3,
+      premium: 50,
+    };
     
-    const maxCount = isPremium ? Infinity : 10;
+    const tier = trainer.subscriptionTier || 'start';
+    const isActive = trainer.subscriptionStatus === 'active' || trainer.subscriptionStatus === 'trialing';
+    
+    // For paid tiers, require active subscription
+    const effectiveTier = (isActive || tier === 'start' || tier === 'free') ? tier : 'start';
+    const maxCount = tierLimits[effectiveTier] || tierLimits.start;
     const withinLimit = currentCount < maxCount;
     
     return {
       withinLimit,
       currentCount,
-      maxCount: isPremium ? -1 : 10,
+      maxCount: maxCount === Infinity ? -1 : maxCount,
     };
   }
 

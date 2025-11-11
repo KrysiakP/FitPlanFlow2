@@ -32,6 +32,29 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-11-20.acacia' as any 
 });
 
+// Helper function to extract tier from Stripe subscription
+function getTierFromSubscription(subscription: Stripe.Subscription): string {
+  // First check metadata
+  if (subscription.metadata?.tier) {
+    return subscription.metadata.tier;
+  }
+  
+  // Fallback: map price ID to tier
+  const priceId = subscription.items.data[0]?.price?.id;
+  if (!priceId) {
+    return 'start'; // Default fallback
+  }
+  
+  const priceToTierMap: Record<string, string> = {
+    [process.env.STRIPE_SOLO_PRICE_ID || 'price_test_solo']: 'solo',
+    [process.env.STRIPE_PRO_PRICE_ID || 'price_test_pro']: 'pro',
+    [process.env.STRIPE_ELITE_PRICE_ID || 'price_test_elite']: 'elite',
+    [process.env.STRIPE_STUDIO_PRICE_ID || 'price_test_studio']: 'studio',
+  };
+  
+  return priceToTierMap[priceId] || 'start';
+}
+
 const uploadsDir = path.join(process.cwd(), "attached_assets", "uploads");
 
 const multerStorage = multer.diskStorage({
@@ -103,13 +126,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         case 'checkout.session.completed': {
           const session = event.data.object as Stripe.Checkout.Session;
           const userId = session.client_reference_id || session.metadata?.userId;
+          const tier = session.metadata?.tier || 'start';
           
           if (userId && session.subscription) {
             await storage.updateUserSubscription(userId, {
               stripeCustomerId: session.customer as string,
               stripeSubscriptionId: session.subscription as string,
               subscriptionStatus: 'active',
-              subscriptionTier: 'premium',
+              subscriptionTier: tier,
             });
           }
           break;
@@ -118,12 +142,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         case 'customer.subscription.created': {
           const subscription = event.data.object as Stripe.Subscription;
           const userId = subscription.metadata?.userId;
+          const tier = getTierFromSubscription(subscription);
           
           if (userId) {
             await storage.updateUserSubscription(userId, {
               stripeSubscriptionId: subscription.id,
               subscriptionStatus: 'active',
-              subscriptionTier: 'premium',
+              subscriptionTier: tier,
             });
           }
           break;
@@ -149,7 +174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (userId) {
             await storage.updateUserSubscription(userId, {
               subscriptionStatus: 'canceled',
-              subscriptionTier: 'free',
+              subscriptionTier: 'start',
             });
           }
           break;
@@ -397,6 +422,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko trenerzy mogą subskrybować" });
       }
 
+      const { tier } = req.body;
+      
+      // Validate tier
+      const validTiers = ['solo', 'pro', 'elite', 'studio'];
+      if (!tier || !validTiers.includes(tier)) {
+        return res.status(400).json({ message: "Nieprawidłowy plan subskrypcji" });
+      }
+
       let stripeCustomerId = user.stripeCustomerId;
 
       // Create Stripe Customer if doesn't exist
@@ -415,8 +448,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Get price ID from env or use test price
-      const priceId = process.env.STRIPE_PREMIUM_PRICE_ID || 'price_test_12345';
+      // Map tier to Stripe price ID
+      const priceIdMap: Record<string, string> = {
+        solo: process.env.STRIPE_SOLO_PRICE_ID || 'price_test_solo',
+        pro: process.env.STRIPE_PRO_PRICE_ID || 'price_test_pro',
+        elite: process.env.STRIPE_ELITE_PRICE_ID || 'price_test_elite',
+        studio: process.env.STRIPE_STUDIO_PRICE_ID || 'price_test_studio',
+      };
+
+      const priceId = priceIdMap[tier];
       
       // Determine the base URL for redirects
       const baseUrl = process.env.REPLIT_DOMAINS 
@@ -433,20 +473,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             quantity: 1,
           },
         ],
-        success_url: `${baseUrl}/trainer-dashboard`,
+        success_url: `${baseUrl}/`,
         cancel_url: `${baseUrl}/pricing`,
         client_reference_id: userId,
         metadata: {
           userId: userId,
+          tier: tier,
         },
         subscription_data: {
           metadata: {
             userId: userId,
+            tier: tier,
           },
         },
       });
 
-      res.json({ sessionId: session.id });
+      res.json({ url: session.url });
     } catch (error) {
       console.error("Error creating checkout session:", error);
       res.status(500).json({ message: "Nie udało się utworzyć sesji" });

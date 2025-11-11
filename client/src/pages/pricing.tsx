@@ -1,48 +1,128 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Crown, Dumbbell } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Check, Crown, Dumbbell, Zap, Building2, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
-import { loadStripe } from "@stripe/stripe-js";
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+type PlanTier = 'start' | 'solo' | 'pro' | 'elite' | 'studio';
+
+interface PlanConfig {
+  id: PlanTier;
+  name: string;
+  price: number;
+  description: string;
+  icon: any;
+  features: string[];
+  clientLimit: number;
+  highlighted?: boolean;
+  trainerLimit?: string;
+}
+
+const plans: PlanConfig[] = [
+  {
+    id: 'start',
+    name: 'START',
+    price: 0,
+    description: 'Idealny na start, wypróbuj platformę za darmo',
+    icon: Dumbbell,
+    clientLimit: 3,
+    features: [
+      'Do 3 aktywnych podopiecznych',
+      'Nieograniczona liczba planów treningowych',
+      'Biblioteka ćwiczeń z filmami',
+      'Raporty tygodniowe podopiecznych',
+      'System zaproszeń',
+    ],
+  },
+  {
+    id: 'solo',
+    name: 'TRENER SOLO',
+    price: 129,
+    description: 'Dla rozwijających się trenerów personalnych',
+    icon: Star,
+    clientLimit: 20,
+    features: [
+      'Do 20 aktywnych podopiecznych',
+      'Wszystkie funkcje planu START',
+      'Rozszerzone statystyki',
+      'Email wsparcie',
+      'Zaawansowane raporty',
+    ],
+  },
+  {
+    id: 'pro',
+    name: 'TRENER PRO',
+    price: 249,
+    description: 'Najpopularniejszy wybór profesjonalnych trenerów',
+    icon: Crown,
+    clientLimit: 50,
+    highlighted: true,
+    features: [
+      'Do 50 aktywnych podopiecznych',
+      'Wszystkie funkcje SOLO',
+      'Priorytetowe wsparcie',
+      'Wczesny dostęp do nowych funkcji',
+      'Dedykowane szkolenia',
+    ],
+  },
+  {
+    id: 'elite',
+    name: 'TRENER ELITE',
+    price: 499,
+    description: 'Dla dużych studiów i czołowych trenerów',
+    icon: Zap,
+    clientLimit: 150,
+    features: [
+      'Do 150 aktywnych podopiecznych',
+      'Wszystkie funkcje PRO',
+      'Priorytetowe wsparcie 24/7',
+      'Indywidualne konsultacje',
+      'Dedykowany opiekun konta',
+    ],
+  },
+  {
+    id: 'studio',
+    name: 'STUDIO/KLUB',
+    price: 999,
+    description: 'Dla studiów i klubów fitness z zespołem trenerów',
+    icon: Building2,
+    clientLimit: -1,
+    trainerLimit: '2-10 trenerów',
+    features: [
+      '2-10 trenerów w zespole',
+      'Nieograniczona liczba podopiecznych',
+      'Wszystkie funkcje ELITE',
+      'Własne branding',
+      'Dedykowane wsparcie techniczne',
+      'SLA gwarancje',
+    ],
+  },
+];
 
 export default function Pricing() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [upgradingTier, setUpgradingTier] = useState<PlanTier | null>(null);
 
   const createCheckoutMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/subscription/create-checkout", {});
-      return await response.json() as { sessionId: string };
+    mutationFn: async (tier: PlanTier) => {
+      const response = await apiRequest("POST", "/api/subscription/create-checkout", { tier });
+      return await response.json() as { url: string };
     },
-    onSuccess: async (data) => {
-      const stripe = await stripePromise;
-      if (!stripe) {
+    onSuccess: (data) => {
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
         toast({
           title: "Błąd",
-          description: "Nie udało się załadować Stripe",
+          description: "Nie udało się uzyskać linku do płatności",
           variant: "destructive",
         });
-        setIsUpgrading(false);
-        return;
-      }
-
-      const result = await stripe.redirectToCheckout({
-        sessionId: data.sessionId,
-      });
-
-      if (result.error) {
-        toast({
-          title: "Błąd",
-          description: result.error.message || "Nie udało się rozpocząć procesu płatności",
-          variant: "destructive",
-        });
-        setIsUpgrading(false);
+        setUpgradingTier(null);
       }
     },
     onError: (error: any) => {
@@ -51,33 +131,51 @@ export default function Pricing() {
         description: error.message || "Nie udało się rozpocząć procesu płatności",
         variant: "destructive",
       });
-      setIsUpgrading(false);
+      setUpgradingTier(null);
     },
   });
 
-  const handleUpgrade = () => {
-    setIsUpgrading(true);
-    createCheckoutMutation.mutate();
+  const handleUpgrade = (tier: PlanTier) => {
+    setUpgradingTier(tier);
+    createCheckoutMutation.mutate(tier);
   };
 
-  const freePlanFeatures = [
-    "Do 10 podopiecznych",
-    "Nieograniczona liczba planów treningowych",
-    "Biblioteka ćwiczeń z filmami",
-    "Raporty tygodniowe podopiecznych",
-    "System zaproszeń",
-  ];
-
-  const premiumPlanFeatures = [
-    "Nieograniczona liczba podopiecznych",
-    "Wszystkie funkcje planu Free",
-    "Priorytetowe wsparcie",
-    "Wczesny dostęp do nowych funkcji",
-    "Brak limitów",
-  ];
-
   const isTrainer = user?.role === "trainer";
-  const isPremium = user?.subscriptionTier === "premium" && user?.subscriptionStatus === "active";
+  const currentTier = user?.subscriptionTier || 'start';
+  const isActive = user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing';
+
+  const getButtonConfig = (plan: PlanConfig) => {
+    if (!isTrainer) {
+      return {
+        text: 'Tylko dla trenerów',
+        disabled: true,
+        variant: 'outline' as const,
+      };
+    }
+
+    if (plan.id === 'start') {
+      return {
+        text: currentTier === 'start' ? 'Aktualny plan' : 'Przejdź na START',
+        disabled: true,
+        variant: 'outline' as const,
+      };
+    }
+
+    if (currentTier === plan.id && isActive) {
+      return {
+        text: 'Aktualny plan',
+        disabled: true,
+        variant: 'default' as const,
+      };
+    }
+
+    return {
+      text: upgradingTier === plan.id ? 'Przetwarzanie...' : `Wybierz ${plan.name}`,
+      disabled: upgradingTier !== null,
+      variant: 'default' as const,
+      onClick: () => handleUpgrade(plan.id),
+    };
+  };
 
   return (
     <div className="space-y-8">
@@ -88,107 +186,113 @@ export default function Pricing() {
         <p className="text-muted-foreground text-lg">
           Wybierz plan, który najlepiej odpowiada Twoim potrzebom
         </p>
+        {isTrainer && (
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <Badge variant="secondary" data-testid="badge-current-tier">
+              Aktualny plan: {plans.find(p => p.id === currentTier)?.name || 'START'}
+            </Badge>
+            {currentTier !== 'start' && isActive && (
+              <Badge variant="default" data-testid="badge-subscription-status">
+                Aktywna subskrypcja
+              </Badge>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
-        <Card className="relative" data-testid="card-plan-free">
-          <CardHeader className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Dumbbell className="w-6 h-6 text-primary" />
-              <CardTitle className="font-heading text-2xl">Free</CardTitle>
-            </div>
-            <CardDescription>
-              Idealny na start, wypróbuj platformę za darmo
-            </CardDescription>
-            <div>
-              <span className="text-4xl font-bold">0 zł</span>
-              <span className="text-muted-foreground">/miesiąc</span>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              {freePlanFeatures.map((feature, index) => (
-                <div key={index} className="flex items-start gap-3" data-testid={`text-free-feature-${index}`}>
-                  <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                  <span>{feature}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button
-              variant="outline"
-              className="w-full"
-              disabled={!isTrainer || isPremium}
-              data-testid="button-plan-free"
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 max-w-7xl mx-auto">
+        {plans.map((plan) => {
+          const Icon = plan.icon;
+          const buttonConfig = getButtonConfig(plan);
+          
+          return (
+            <Card 
+              key={plan.id} 
+              className={`relative flex flex-col ${plan.highlighted ? 'border-primary shadow-lg' : ''}`}
+              data-testid={`card-plan-${plan.id}`}
             >
-              {!isTrainer ? "Tylko dla trenerów" : isPremium ? "Posiadasz Premium" : "Aktualny plan"}
-            </Button>
-          </CardFooter>
-        </Card>
-
-        <Card className="relative border-primary shadow-lg" data-testid="card-plan-premium">
-          <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-            <div className="bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-medium flex items-center gap-2">
-              <Crown className="w-4 h-4" />
-              Polecane
-            </div>
-          </div>
-          <CardHeader className="space-y-4 pt-8">
-            <div className="flex items-center gap-2">
-              <Crown className="w-6 h-6 text-primary" />
-              <CardTitle className="font-heading text-2xl">Premium</CardTitle>
-            </div>
-            <CardDescription>
-              Dla profesjonalnych trenerów z większą bazą podopiecznych
-            </CardDescription>
-            <div>
-              <span className="text-4xl font-bold">49 zł</span>
-              <span className="text-muted-foreground">/miesiąc</span>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              {premiumPlanFeatures.map((feature, index) => (
-                <div key={index} className="flex items-start gap-3" data-testid={`text-premium-feature-${index}`}>
-                  <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                  <span className="font-medium">{feature}</span>
+              {plan.highlighted && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                  <Badge className="bg-primary text-primary-foreground flex items-center gap-1">
+                    <Crown className="w-3 h-3" />
+                    Polecane
+                  </Badge>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-          <CardFooter>
-            {!isTrainer ? (
-              <Button variant="default" className="w-full" disabled data-testid="button-plan-premium">
-                Tylko dla trenerów
-              </Button>
-            ) : isPremium ? (
-              <Button variant="default" className="w-full" disabled data-testid="button-plan-premium">
-                Aktualny plan
-              </Button>
-            ) : (
-              <Button
-                variant="default"
-                className="w-full"
-                onClick={handleUpgrade}
-                disabled={isUpgrading}
-                data-testid="button-upgrade-premium"
-              >
-                {isUpgrading ? "Przetwarzanie..." : "Ulepsz do Premium"}
-              </Button>
-            )}
-          </CardFooter>
-        </Card>
+              )}
+              
+              <CardHeader className={`space-y-4 ${plan.highlighted ? 'pt-8' : ''}`}>
+                <div className="flex items-center gap-2">
+                  <Icon className="w-6 h-6 text-primary" />
+                  <CardTitle className="font-heading text-xl">{plan.name}</CardTitle>
+                </div>
+                <CardDescription className="min-h-12">
+                  {plan.description}
+                </CardDescription>
+                <div>
+                  <span className="text-3xl font-bold">{plan.price} zł</span>
+                  <span className="text-muted-foreground">/miesiąc</span>
+                </div>
+                <div className="text-sm font-medium text-primary">
+                  {plan.clientLimit === -1 ? 'Unlimited clients' : `Max ${plan.clientLimit} podopiecznych`}
+                </div>
+                {plan.trainerLimit && (
+                  <div className="text-sm font-medium text-muted-foreground">
+                    {plan.trainerLimit}
+                  </div>
+                )}
+              </CardHeader>
+              
+              <CardContent className="flex-1 space-y-4">
+                <div className="space-y-3">
+                  {plan.features.map((feature, index) => (
+                    <div 
+                      key={index} 
+                      className="flex items-start gap-2" 
+                      data-testid={`text-${plan.id}-feature-${index}`}
+                    >
+                      <Check className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                      <span className="text-sm">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+              
+              <CardFooter>
+                <Button
+                  variant={buttonConfig.variant}
+                  className="w-full"
+                  disabled={buttonConfig.disabled}
+                  onClick={buttonConfig.onClick}
+                  data-testid={`button-plan-${plan.id}`}
+                >
+                  {buttonConfig.text}
+                </Button>
+              </CardFooter>
+            </Card>
+          );
+        })}
       </div>
 
       {isTrainer && (
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-7xl mx-auto space-y-4">
           <Card className="bg-muted/50">
             <CardContent className="p-6 space-y-2">
               <h3 className="font-heading font-semibold text-lg">Bezpieczne płatności przez Stripe</h3>
               <p className="text-sm text-muted-foreground">
                 Wszystkie transakcje są przetwarzane bezpiecznie przez Stripe. Możesz w każdej chwili zmienić lub anulować swoją subskrypcję w panelu zarządzania kontem.
               </p>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="p-6 space-y-2">
+              <h3 className="font-heading font-semibold text-lg">Pytania o plan STUDIO/KLUB?</h3>
+              <p className="text-sm text-muted-foreground">
+                Plan STUDIO/KLUB jest dedykowany dla większych organizacji. Skontaktuj się z nami, aby omówić szczegóły i dopasować rozwiązanie do Twoich potrzeb.
+              </p>
+              <Button variant="outline" size="sm" data-testid="button-contact-studio">
+                Skontaktuj się
+              </Button>
             </CardContent>
           </Card>
         </div>

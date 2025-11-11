@@ -28,7 +28,7 @@ export const users = pgTable("users", {
   stripeCustomerId: varchar("stripe_customer_id", { length: 255 }), // Stripe customer ID (cus_xxx)
   stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }), // Stripe subscription ID (sub_xxx)
   subscriptionStatus: varchar("subscription_status", { length: 50 }), // 'active', 'canceled', 'past_due', 'unpaid', or null
-  subscriptionTier: varchar("subscription_tier", { length: 50 }).default('free').notNull(), // 'free' or 'premium'
+  subscriptionTier: varchar("subscription_tier", { length: 50 }).default('start').notNull(), // 'start', 'solo', 'pro', 'elite', 'studio'
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
