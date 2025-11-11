@@ -140,19 +140,18 @@ export default function InviteClient() {
                 name="planId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Plan treningowy</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <FormLabel>Plan treningowy (opcjonalnie)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
                       <FormControl>
                         <SelectTrigger data-testid="select-plan">
-                          <SelectValue placeholder="Wybierz plan treningowy" />
+                          <SelectValue placeholder="Wybierz plan lub pomiń" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {!plans || plans.length === 0 ? (
-                          <SelectItem value="no-plans" disabled data-testid="option-no-plans">
-                            Brak dostępnych planów
-                          </SelectItem>
-                        ) : (
+                        <SelectItem value="" data-testid="option-no-plan">
+                          Bez planu (przypisz później)
+                        </SelectItem>
+                        {plans && plans.length > 0 && (
                           plans.map((plan) => (
                             <SelectItem key={plan.id} value={plan.id} data-testid={`option-plan-${plan.id}`}>
                               {plan.name}
@@ -162,7 +161,7 @@ export default function InviteClient() {
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Wybierz plan, do którego chcesz zaprosić podopiecznego. Możesz też przypisać plan później z listy podopiecznych.
+                      Możesz zaprosić podopiecznego bez przypisywania planu. Plan można przypisać później z listy podopiecznych.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

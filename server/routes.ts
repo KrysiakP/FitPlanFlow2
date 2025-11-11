@@ -1415,6 +1415,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/clients/:clientId/archive", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą archiwizować podopiecznych" });
+      }
+
+      const { clientId } = req.params;
+      
+      await storage.archiveClientRelationship(userId, clientId);
+      
+      res.status(200).json({ message: "Współpraca została zakończona" });
+    } catch (error: any) {
+      console.error("Error archiving client relationship:", error);
+      res.status(500).json({ message: error?.message || "Nie udało się zakończyć współpracy" });
+    }
+  });
+
   // Invitations routes
   app.post("/api/invitations/send", isAuthenticated, async (req, res) => {
     try {
@@ -1468,10 +1488,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const invitationsWithDetails = await Promise.all(
           invitations.map(async (invitation) => {
-            const plan = await storage.getTrainingPlan(invitation.planId);
+            // Plan może być null - zaproszenie bez planu
+            const plan = invitation.planId ? await storage.getTrainingPlan(invitation.planId) : null;
             const trainer = await storage.getUser(invitation.trainerId);
             
-            if (!plan || !trainer) {
+            if (!trainer) {
               return null;
             }
             
@@ -1479,7 +1500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             return {
               ...invitation,
-              plan,
+              plan: plan || undefined,
               trainer: trainerWithoutPassword,
             };
           })
@@ -1491,20 +1512,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const invitationsWithDetails = await Promise.all(
           invitations.map(async (invitation) => {
-            const plan = await storage.getTrainingPlan(invitation.planId);
-            
-            if (!plan) {
-              return null;
-            }
+            // Plan może być null - zaproszenie bez planu
+            const plan = invitation.planId ? await storage.getTrainingPlan(invitation.planId) : null;
             
             return {
               ...invitation,
-              plan,
+              plan: plan || undefined,
             };
           })
         );
         
-        res.json(invitationsWithDetails.filter(inv => inv !== null));
+        res.json(invitationsWithDetails);
       } else {
         return res.status(403).json({ message: "Nieznana rola użytkownika" });
       }

@@ -10,6 +10,7 @@ import {
   exerciseLogs,
   weeklyReports,
   planInvitations,
+  clientRelationships,
   type User,
   type UpsertUser,
   type TrainingPlan,
@@ -33,9 +34,11 @@ import {
   type InsertPlanWithWorkouts,
   type PlanInvitation,
   type InsertPlanInvitationInput,
+  type ClientRelationship,
+  type InsertClientRelationshipInput,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, or } from "drizzle-orm";
+import { eq, and, desc, or, isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -125,6 +128,9 @@ export interface IStorage {
   acceptInvitation(invitationId: string, clientId: string): Promise<void>;
   rejectInvitation(invitationId: string, clientId: string): Promise<void>;
   getTrainerInvitations(trainerId: string): Promise<PlanInvitation[]>;
+  
+  // Client relationship operations
+  archiveClientRelationship(trainerId: string, clientId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -501,11 +507,15 @@ export class DatabaseStorage implements IStorage {
       .select({
         user: users,
       })
-      .from(planAssignments)
-      .innerJoin(trainingPlans, eq(planAssignments.planId, trainingPlans.id))
-      .innerJoin(users, eq(planAssignments.clientId, users.id))
-      .where(eq(trainingPlans.trainerId, trainerId))
-      .groupBy(users.id);
+      .from(clientRelationships)
+      .innerJoin(users, eq(clientRelationships.clientId, users.id))
+      .where(
+        and(
+          eq(clientRelationships.trainerId, trainerId),
+          eq(clientRelationships.status, 'active')
+        )
+      )
+      .orderBy(users.firstName, users.lastName);
     
     return result.map((r) => r.user);
   }
@@ -734,28 +744,49 @@ export class DatabaseStorage implements IStorage {
     
     // Zaproszenie może być wysłane do dowolnego emaila - osoba nie musi być jeszcze zarejestrowana
     
-    const plan = await this.getTrainingPlan(planId);
-    if (!plan) {
-      throw new Error("Plan treningowy nie istnieje");
-    }
-    if (plan.trainerId !== trainerId) {
-      throw new Error("Ten plan nie należy do tego trenera");
-    }
-    
-    const [existingInvitation] = await db
-      .select()
-      .from(planInvitations)
-      .where(
-        and(
-          eq(planInvitations.clientEmail, clientEmail),
-          eq(planInvitations.planId, planId),
-          eq(planInvitations.status, "pending")
+    // Jeśli planId podane, waliduj że plan istnieje i należy do trenera
+    if (planId) {
+      const plan = await this.getTrainingPlan(planId);
+      if (!plan) {
+        throw new Error("Plan treningowy nie istnieje");
+      }
+      if (plan.trainerId !== trainerId) {
+        throw new Error("Ten plan nie należy do tego trenera");
+      }
+      
+      // Sprawdź czy już nie ma takiego zaproszenia (z tym samym planem)
+      const [existingInvitation] = await db
+        .select()
+        .from(planInvitations)
+        .where(
+          and(
+            eq(planInvitations.clientEmail, clientEmail),
+            eq(planInvitations.planId, planId),
+            eq(planInvitations.status, "pending")
+          )
         )
-      )
-      .limit(1);
-    
-    if (existingInvitation) {
-      throw new Error("Aktywne zaproszenie dla tego podopiecznego i planu już istnieje");
+        .limit(1);
+      
+      if (existingInvitation) {
+        throw new Error("Aktywne zaproszenie dla tego podopiecznego i planu już istnieje");
+      }
+    } else {
+      // Jeśli brak planId, sprawdź czy nie ma już zaproszenia bez planu
+      const [existingInvitation] = await db
+        .select()
+        .from(planInvitations)
+        .where(
+          and(
+            eq(planInvitations.clientEmail, clientEmail),
+            isNull(planInvitations.planId),
+            eq(planInvitations.status, "pending")
+          )
+        )
+        .limit(1);
+      
+      if (existingInvitation) {
+        throw new Error("Aktywne zaproszenie dla tego podopiecznego już istnieje");
+      }
     }
     
     const [invitation] = await db
@@ -763,7 +794,7 @@ export class DatabaseStorage implements IStorage {
       .values({
         trainerId,
         clientEmail,
-        planId,
+        planId: planId || null,
         status: "pending",
       })
       .returning();
@@ -801,36 +832,80 @@ export class DatabaseStorage implements IStorage {
         throw new Error("Nie masz uprawnień do akceptacji tego zaproszenia");
       }
       
+      // 1. Utwórz lub aktywuj relację trener-podopieczny
+      const [existingRelationship] = await tx
+        .select()
+        .from(clientRelationships)
+        .where(
+          and(
+            eq(clientRelationships.trainerId, invitation.trainerId),
+            eq(clientRelationships.clientId, clientId)
+          )
+        )
+        .limit(1);
+      
+      if (existingRelationship) {
+        // Jeśli relacja istnieje ale jest archived, reaktywuj ją
+        if (existingRelationship.status === 'archived') {
+          await tx
+            .update(clientRelationships)
+            .set({ status: 'active', archivedAt: null })
+            .where(eq(clientRelationships.id, existingRelationship.id));
+        }
+      } else {
+        // Utwórz nową relację
+        await tx
+          .insert(clientRelationships)
+          .values({
+            trainerId: invitation.trainerId,
+            clientId: clientId,
+            status: 'active',
+          });
+      }
+      
+      // 2. Jeśli zaproszenie zawiera planId, przypisz plan
+      if (invitation.planId) {
+        const [existingAssignment] = await tx
+          .select()
+          .from(planAssignments)
+          .where(eq(planAssignments.clientId, clientId))
+          .limit(1);
+        
+        // Jeśli klient ma już przypisany ten sam plan, pomiń
+        if (existingAssignment && existingAssignment.planId === invitation.planId) {
+          // Plan już przypisany, nic nie rób
+        } else {
+          // Usuń stare przypisanie jeśli istnieje
+          if (existingAssignment) {
+            await tx
+              .delete(planAssignments)
+              .where(eq(planAssignments.clientId, clientId));
+          }
+          
+          // Dodaj nowe przypisanie
+          await tx
+            .insert(planAssignments)
+            .values({
+              planId: invitation.planId,
+              clientId: clientId,
+            });
+        }
+      }
+      
+      // 3. Zaktualizuj status zaproszenia
       await tx
         .update(planInvitations)
         .set({ status: "accepted", updatedAt: new Date() })
         .where(eq(planInvitations.id, invitationId));
       
-      const existingAssignment = await tx
-        .select()
-        .from(planAssignments)
-        .where(eq(planAssignments.clientId, clientId))
-        .limit(1);
-      
-      if (existingAssignment.length > 0) {
-        await tx
-          .delete(planAssignments)
-          .where(eq(planAssignments.clientId, clientId));
-      }
-      
-      await tx
-        .insert(planAssignments)
-        .values({
-          planId: invitation.planId,
-          clientId: clientId,
-        });
-      
+      // 4. Odrzuć wszystkie inne pending zaproszenia dla tego klienta od tego trenera
       await tx
         .update(planInvitations)
         .set({ status: "rejected", updatedAt: new Date() })
         .where(
           and(
             eq(planInvitations.clientEmail, invitation.clientEmail),
+            eq(planInvitations.trainerId, invitation.trainerId),
             eq(planInvitations.status, "pending")
           )
         );
@@ -865,6 +940,42 @@ export class DatabaseStorage implements IStorage {
       .from(planInvitations)
       .where(eq(planInvitations.trainerId, trainerId))
       .orderBy(desc(planInvitations.createdAt));
+  }
+  
+  // Client relationship operations
+  async archiveClientRelationship(trainerId: string, clientId: string): Promise<void> {
+    await db.transaction(async (tx) => {
+      // 1. Znajdź aktywną relację
+      const [relationship] = await tx
+        .select()
+        .from(clientRelationships)
+        .where(
+          and(
+            eq(clientRelationships.trainerId, trainerId),
+            eq(clientRelationships.clientId, clientId),
+            eq(clientRelationships.status, 'active')
+          )
+        )
+        .limit(1);
+      
+      if (!relationship) {
+        throw new Error("Nie znaleziono aktywnej relacji z tym podopiecznym");
+      }
+      
+      // 2. Archiwizuj relację
+      await tx
+        .update(clientRelationships)
+        .set({ 
+          status: 'archived',
+          archivedAt: new Date()
+        })
+        .where(eq(clientRelationships.id, relationship.id));
+      
+      // 3. Usuń przypisanie planu (jeśli istnieje)
+      await tx
+        .delete(planAssignments)
+        .where(eq(planAssignments.clientId, clientId));
+    });
   }
 }
 

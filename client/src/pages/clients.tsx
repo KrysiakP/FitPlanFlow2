@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,8 @@ import {
   X,
 } from "lucide-react";
 import { Link } from "wouter";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User as UserType, PlanAssignment, TrainingPlan, ClientProgress } from "@shared/schema";
 
 type ClientWithAssignment = UserType & {
@@ -35,10 +37,32 @@ type ClientWithAssignment = UserType & {
 
 function ClientCard({ client }: { client: ClientWithAssignment }) {
   const [isOpen, setIsOpen] = useState(false);
+  const { toast } = useToast();
 
   const { data: clientProgress, isLoading: isLoadingProgress } = useQuery<ClientProgress | null>({
     queryKey: [`/api/trainer/clients/${client.id}/progress`],
     enabled: isOpen && !!client.id,
+  });
+
+  const archiveClientMutation = useMutation({
+    mutationFn: async (clientId: string) => {
+      return await apiRequest("POST", `/api/clients/${clientId}/archive`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/clients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/stats"] });
+      toast({
+        title: "Współpraca zakończona",
+        description: `Relacja z ${client.firstName} ${client.lastName} została zarchiwizowana`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Błąd",
+        description: error.message || "Nie udało się zakończyć współpracy",
+        variant: "destructive",
+      });
+    },
   });
 
   const getInitials = (firstName?: string | null, lastName?: string | null) => {
@@ -212,6 +236,31 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
             )}
           </CollapsibleContent>
         </Collapsible>
+
+        <Separator />
+
+        <div className="flex justify-end">
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="gap-2 text-destructive hover:bg-destructive/10"
+            onClick={() => archiveClientMutation.mutate(client.id)}
+            disabled={archiveClientMutation.isPending}
+            data-testid={`button-archive-${client.id}`}
+          >
+            {archiveClientMutation.isPending ? (
+              <>
+                <div className="w-4 h-4 border-2 border-destructive border-t-transparent rounded-full animate-spin" />
+                Kończenie...
+              </>
+            ) : (
+              <>
+                <X className="w-4 h-4" />
+                Zakończ współpracę
+              </>
+            )}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
