@@ -150,12 +150,27 @@ export const weeklyReports = pgTable("weekly_reports", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Plan invitations - trainer invites client to a plan
+// Client-Trainer relationships - tracks active/archived collaborations
+export const clientRelationships = pgTable("client_relationships", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  trainerId: varchar("trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  status: varchar("status", { length: 20 }).notNull().default("active"), // 'active' or 'archived'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  archivedAt: timestamp("archived_at"),
+}, (table) => ({
+  // Unique constraint: one active relationship per trainer-client pair
+  uniqueActiveRelationship: uniqueIndex("unique_active_trainer_client")
+    .on(table.trainerId, table.clientId)
+    .where(sql`status = 'active'`),
+}));
+
+// Plan invitations - trainer invites client to a plan (plan optional)
 export const planInvitations = pgTable("plan_invitations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   trainerId: varchar("trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   clientEmail: varchar("client_email").notNull(), // email podopiecznego
-  planId: varchar("plan_id").notNull().references(() => trainingPlans.id, { onDelete: "cascade" }),
+  planId: varchar("plan_id").references(() => trainingPlans.id, { onDelete: "cascade" }), // NULLABLE - zaproszenie może być bez planu
   status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, accepted, rejected
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -247,6 +262,17 @@ export const weeklyReportsRelations = relations(weeklyReports, ({ one }) => ({
   }),
 }));
 
+export const clientRelationshipsRelations = relations(clientRelationships, ({ one }) => ({
+  trainer: one(users, {
+    fields: [clientRelationships.trainerId],
+    references: [users.id],
+  }),
+  client: one(users, {
+    fields: [clientRelationships.clientId],
+    references: [users.id],
+  }),
+}));
+
 export const planInvitationsRelations = relations(planInvitations, ({ one }) => ({
   trainer: one(users, {
     fields: [planInvitations.trainerId],
@@ -297,6 +323,10 @@ export type InsertExerciseLog = typeof exerciseLogs.$inferInsert;
 // Types for weekly reports
 export type WeeklyReport = typeof weeklyReports.$inferSelect;
 export type InsertWeeklyReport = typeof weeklyReports.$inferInsert;
+
+// Types for client relationships
+export type ClientRelationship = typeof clientRelationships.$inferSelect;
+export type InsertClientRelationship = typeof clientRelationships.$inferInsert;
 
 // Types for plan invitations
 export type PlanInvitation = typeof planInvitations.$inferSelect;
@@ -377,12 +407,20 @@ export const insertWeeklyReportSchema = createInsertSchema(weeklyReports).omit({
   reportDate: z.coerce.date(),
 });
 
+export const insertClientRelationshipSchema = createInsertSchema(clientRelationships).omit({
+  id: true,
+  createdAt: true,
+  archivedAt: true,
+});
+
 export const insertPlanInvitationSchema = createInsertSchema(planInvitations).omit({
   id: true,
   trainerId: true,
   status: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  planId: z.string().uuid().optional().nullable(), // planId is optional - can invite without plan
 });
 
 export const updateUserRoleSchema = z.object({
@@ -414,6 +452,7 @@ export type InsertClientProgressInput = z.infer<typeof insertClientProgressSchem
 export type UpdateClientProgressInput = z.infer<typeof updateClientProgressSchema>;
 export type InsertExerciseLogInput = z.infer<typeof insertExerciseLogSchema>;
 export type InsertWeeklyReportInput = z.infer<typeof insertWeeklyReportSchema>;
+export type InsertClientRelationshipInput = z.infer<typeof insertClientRelationshipSchema>;
 export type InsertPlanInvitationInput = z.infer<typeof insertPlanInvitationSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
