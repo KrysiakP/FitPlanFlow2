@@ -60,8 +60,7 @@ export default function InviteClient() {
     sendInvitationMutation.mutate(data);
   };
 
-  const isPremium = user?.subscriptionTier === "premium" && user?.subscriptionStatus === "active";
-  const isFree = !isPremium;
+  const isStartTier = !user?.subscriptionTier || user?.subscriptionTier === "start";
 
   if (plansLoading) {
     return (
@@ -82,18 +81,18 @@ export default function InviteClient() {
         </p>
       </div>
 
-      {isFree && (
+      {isStartTier && (
         <Alert data-testid="alert-free-tier-limit">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Plan Free - Limit 10 podopiecznych</AlertTitle>
+          <AlertTitle>Plan START - Limit 3 podopiecznych</AlertTitle>
           <AlertDescription className="space-y-2">
             <p>
-              Korzystasz z darmowego planu Free. Możesz mieć maksymalnie 10 aktywnych podopiecznych.
+              Korzystasz z darmowego planu START. Możesz mieć maksymalnie 3 aktywnych podopiecznych.
             </p>
             <Button variant="outline" size="sm" className="gap-2" data-testid="button-upgrade-premium" asChild>
               <Link href="/pricing">
                 <Crown className="w-4 h-4" />
-                Ulepsz do Premium
+                Upgrade do SOLO/PRO/ELITE
               </Link>
             </Button>
           </AlertDescription>
