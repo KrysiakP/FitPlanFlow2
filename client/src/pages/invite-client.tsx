@@ -19,8 +19,9 @@ export default function InviteClient() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const { data: plans, isLoading: plansLoading } = useQuery<TrainingPlan[]>({
+  const { data: plans, isLoading: plansLoading, error: plansError } = useQuery<TrainingPlan[]>({
     queryKey: ["/api/plans"],
+    retry: false,
   });
 
   const form = useForm<InsertPlanInvitationInput>({
@@ -62,10 +63,29 @@ export default function InviteClient() {
 
   const isStartTier = !user?.subscriptionTier || user?.subscriptionTier === "start";
 
+  // Debug - sprawdź co się dzieje
+  if (!user) {
+    return (
+      <div className="p-8">
+        <h1 className="text-2xl font-bold text-red-600">Błąd: Nie jesteś zalogowany</h1>
+        <p>Użytkownik nie jest załadowany. Odśwież stronę lub zaloguj się ponownie.</p>
+      </div>
+    );
+  }
+
   if (plansLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (plansError) {
+    return (
+      <div className="p-8">
+        <h1 className="text-2xl font-bold text-red-600">Błąd ładowania planów</h1>
+        <p>{plansError.message}</p>
       </div>
     );
   }
