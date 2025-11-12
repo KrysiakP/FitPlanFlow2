@@ -179,6 +179,21 @@ export default function Pricing() {
 
   return (
     <div className="space-y-8">
+      <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border-primary/20">
+        <CardContent className="p-6 text-center">
+          <p className="text-base font-medium" data-testid="text-charity-banner">
+            💚 1% ze wszystkich przychodów przekazujemy na sport dzieci, domy dziecka i dożywianie dzieci.
+            <br />
+            <span className="text-sm text-muted-foreground">
+              Comiesięczne raporty — widoczne publicznie w{" "}
+              <a href="/pomagamy" className="text-primary hover:underline">
+                zakładce PomagaMY
+              </a>
+            </span>
+          </p>
+        </CardContent>
+      </Card>
+
       <div className="text-center space-y-2">
         <h1 className="font-heading font-bold text-4xl" data-testid="text-pricing-title">
           Plany cenowe

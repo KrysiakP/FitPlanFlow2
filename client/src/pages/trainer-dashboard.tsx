@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ClipboardList, Users, UserPlus } from "lucide-react";
+import { ClipboardList, Users, UserPlus, Dumbbell, FileText, Heart, Crown, UserCircle, ShieldCheck } from "lucide-react";
 import { Link } from "wouter";
 
 export default function TrainerDashboard() {
@@ -73,7 +73,7 @@ export default function TrainerDashboard() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Link href="/plans">
           <Card className="hover-elevate cursor-pointer" data-testid="card-quick-plans">
             <CardContent className="p-6">
@@ -84,6 +84,22 @@ export default function TrainerDashboard() {
                 <div>
                   <h3 className="font-heading font-semibold text-lg">Plany treningowe</h3>
                   <p className="text-sm text-muted-foreground">Przeglądaj i edytuj swoje plany</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/exercise-library">
+          <Card className="hover-elevate cursor-pointer" data-testid="card-quick-exercises">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <Dumbbell className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-semibold text-lg">Moje ćwiczenia</h3>
+                  <p className="text-sm text-muted-foreground">Zarządzaj biblioteką ćwiczeń</p>
                 </div>
               </div>
             </CardContent>
@@ -105,7 +121,116 @@ export default function TrainerDashboard() {
             </CardContent>
           </Card>
         </Link>
+
+        <Link href="/invite">
+          <Card className="hover-elevate cursor-pointer" data-testid="card-quick-invite">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <UserPlus className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-semibold text-lg">Zaproś podopiecznego</h3>
+                  <p className="text-sm text-muted-foreground">Wyślij zaproszenie do współpracy</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/trainer/reports">
+          <Card className="hover-elevate cursor-pointer" data-testid="card-quick-reports">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <FileText className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-semibold text-lg">Raporty tygodniowe</h3>
+                  <p className="text-sm text-muted-foreground">Przeglądaj postępy podopiecznych</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {user?.isAdmin && (
+          <Link href="/admin/charity-donations">
+            <Card className="hover-elevate cursor-pointer" data-testid="card-quick-admin">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-primary/10 rounded-lg">
+                    <ShieldCheck className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-heading font-semibold text-lg">Panel Admin</h3>
+                    <p className="text-sm text-muted-foreground">Zarządzaj raportami PomagaMY</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
+
+        <Link href="/pomagamy">
+          <Card className="hover-elevate cursor-pointer" data-testid="card-quick-pomagamy">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-red-100 dark:bg-red-950 rounded-lg">
+                  <Heart className="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-semibold text-lg">PomagaMY</h3>
+                  <p className="text-sm text-muted-foreground">Zobacz jak pomagamy dzieciom</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/pricing">
+          <Card className="hover-elevate cursor-pointer" data-testid="card-quick-subscription">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <Crown className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-semibold text-lg">Subskrypcja</h3>
+                  <p className="text-sm text-muted-foreground">Zarządzaj swoim planem</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/profile">
+          <Card className="hover-elevate cursor-pointer" data-testid="card-quick-profile">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <UserCircle className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-semibold text-lg">Profil</h3>
+                  <p className="text-sm text-muted-foreground">Edytuj swoje dane</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
+
+      <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border-primary/20 mt-8">
+        <CardContent className="p-6 text-center">
+          <p className="font-heading font-bold text-lg mb-1" data-testid="text-polish-brand">
+            🇵🇱 Polska marka. Polski zespół.
+          </p>
+          <p className="text-muted-foreground">
+            Robimy to po polsku. I robimy to dobrze.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
