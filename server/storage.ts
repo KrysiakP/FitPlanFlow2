@@ -41,7 +41,7 @@ import {
   type InsertCharityDonationInput,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, or, isNull } from "drizzle-orm";
+import { eq, and, desc, or, isNull, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -149,7 +149,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
+    const [user] = await db.select().from(users).where(sql`LOWER(${users.email}) = LOWER(${email})`);
     return user;
   }
 
@@ -158,6 +158,7 @@ export class DatabaseStorage implements IStorage {
       .insert(users)
       .values({
         ...userData,
+        email: userData.email.toLowerCase(),
         profileImageUrl: null,
       })
       .returning();
@@ -757,7 +758,7 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .where(
         and(
-          eq(users.email, email),
+          sql`LOWER(${users.email}) = LOWER(${email})`,
           eq(users.role, "client")
         )
       )
@@ -768,7 +769,8 @@ export class DatabaseStorage implements IStorage {
   
   // Plan invitation operations
   async createInvitation(trainerId: string, data: InsertPlanInvitationInput): Promise<PlanInvitation> {
-    const { clientEmail, planId } = data;
+    const clientEmail = data.clientEmail.toLowerCase();
+    const { planId } = data;
     
     // Zaproszenie może być wysłane do dowolnego emaila - osoba nie musi być jeszcze zarejestrowana
     
@@ -836,7 +838,7 @@ export class DatabaseStorage implements IStorage {
       .from(planInvitations)
       .where(
         and(
-          eq(planInvitations.clientEmail, clientEmail),
+          sql`LOWER(${planInvitations.clientEmail}) = LOWER(${clientEmail})`,
           eq(planInvitations.status, "pending")
         )
       )
@@ -856,7 +858,7 @@ export class DatabaseStorage implements IStorage {
       }
       
       const client = await this.getUser(clientId);
-      if (!client || client.email !== invitation.clientEmail) {
+      if (!client || client.email.toLowerCase() !== invitation.clientEmail.toLowerCase()) {
         throw new Error("Nie masz uprawnień do akceptacji tego zaproszenia");
       }
       
@@ -952,7 +954,7 @@ export class DatabaseStorage implements IStorage {
     }
     
     const client = await this.getUser(clientId);
-    if (!client || client.email !== invitation.clientEmail) {
+    if (!client || client.email.toLowerCase() !== invitation.clientEmail.toLowerCase()) {
       throw new Error("Nie masz uprawnień do odrzucenia tego zaproszenia");
     }
     

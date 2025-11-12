@@ -164,7 +164,7 @@ export default function ClientDashboard() {
                         </div>
                         <div className="flex-1">
                           <p className="font-heading font-semibold text-lg" data-testid={`text-plan-name-${invitation.id}`}>
-                            {invitation.plan.name}
+                            {invitation.plan ? invitation.plan.name : "Współpraca treningowa"}
                           </p>
                           <p className="text-sm text-muted-foreground" data-testid={`text-trainer-name-${invitation.id}`}>
                             Od: {invitation.trainer.firstName} {invitation.trainer.lastName}
