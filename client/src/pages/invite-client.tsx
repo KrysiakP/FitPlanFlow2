@@ -90,12 +90,12 @@ export default function InviteClient() {
             <p>
               Korzystasz z darmowego planu Free. Możesz mieć maksymalnie 10 aktywnych podopiecznych.
             </p>
-            <Link href="/pricing">
-              <Button variant="outline" size="sm" className="gap-2" data-testid="button-upgrade-premium">
+            <Button variant="outline" size="sm" className="gap-2" data-testid="button-upgrade-premium" asChild>
+              <Link href="/pricing">
                 <Crown className="w-4 h-4" />
                 Ulepsz do Premium
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </AlertDescription>
         </Alert>
       )}
@@ -190,11 +190,11 @@ export default function InviteClient() {
                       </>
                     )}
                   </Button>
-                <Link href="/plans">
-                  <Button type="button" variant="outline" data-testid="button-back-to-plans">
+                <Button type="button" variant="outline" data-testid="button-back-to-plans" asChild>
+                  <Link href="/plans">
                     Anuluj
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </div>
               </form>
             </Form>
