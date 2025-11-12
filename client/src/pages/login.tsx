@@ -111,10 +111,8 @@ export default function Login() {
 
           <div className="text-center text-sm">
             <span className="text-muted-foreground">Nie masz konta? </span>
-            <Link href="/register">
-              <a className="text-primary hover:underline font-medium" data-testid="link-register">
-                Zarejestruj się
-              </a>
+            <Link href="/register" className="text-primary hover:underline font-medium" data-testid="link-register">
+              Zarejestruj się
             </Link>
           </div>
         </CardContent>
