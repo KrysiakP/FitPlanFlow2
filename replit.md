@@ -19,6 +19,9 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 - ✅ **Premium tier (49 zł/mies)** - nieograniczona liczba podopiecznych
 - ✅ **Zarządzanie subskrypcją** - upgrade, downgrade, anulowanie przez Stripe Customer Portal
 - ✅ **Webhook handler** - automatyczna synchronizacja statusu subskrypcji
+- ✅ **System 5-tier subskrypcji** - START (0 zł, 3 podopiecznych), SOLO (129 zł, 20), PRO (249 zł, 50), ELITE (499 zł, 150), STUDIO (999 zł+, wielutrenerski)
+- ✅ **System PomagaMY** - administrator publikuje miesięczne potwierdzenia wpłat charytatywnych, transparentność dla użytkowników
+- ✅ **Sekcja "Polska marka"** - podkreślenie lokalnego charakteru platformy w landing page i footer
 - ✅ Całkowicie polski interfejs użytkownika
 - ✅ Baza danych PostgreSQL z persystencją danych
 
@@ -39,10 +42,11 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 
 ### Model Danych
 - `users` - użytkownicy z rolami (trainer/client) + pola subskrypcji:
+  - `isAdmin` - flaga administratora platformy (boolean, default false)
   - `stripeCustomerId` - ID klienta w Stripe (unique)
   - `stripeSubscriptionId` - ID aktywnej subskrypcji
   - `subscriptionStatus` - status: active, canceled, past_due, etc.
-  - `subscriptionTier` - tier: free, premium
+  - `subscriptionTier` - tier: start, solo, pro, elite, studio
 - `sessions` - sesje użytkowników (express-session + connect-pg-simple)
 - `trainingPlans` - plany treningowe utworzone przez trenerów
 - `workouts` - treningi w planach (relacja 1:N)
@@ -51,6 +55,7 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 - `planInvitations` - zaproszenia do planów (trainerId, clientEmail, planId, status)
 - `exerciseLogs` - historia wykonań ćwiczeń (powtórzenia, obciążenie, notatki, timestamp)
 - `weeklyReports` - raporty tygodniowe podopiecznych (waga, pomiary, zdjęcia)
+- `charityDonations` - miesięczne potwierdzenia wpłat charytatywnych (month, year, documentUrl, uploadedAt) + unique index na (month, year)
 
 ## API Endpoints
 
@@ -84,10 +89,15 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 - `GET /api/exercises/:exerciseId/latest-log` - ostatnie wykonanie ćwiczenia (optymalizowane)
 
 ### Subskrypcje (Stripe)
-- `POST /api/subscription/create-checkout` - tworzy Stripe Checkout Session dla upgrade do Premium
+- `POST /api/subscription/create-checkout` - tworzy Stripe Checkout Session dla upgrade (przyjmuje tier parameter)
 - `POST /api/subscription/portal` - tworzy link do Stripe Customer Portal (zarządzanie subskrypcją)
 - `POST /api/webhooks/stripe` - webhook handler dla eventów Stripe (require signature verification)
 - `GET /api/subscription/status` - zwraca aktualny status subskrypcji trenera
+
+### PomagaMY (Charity Donations)
+- `GET /api/charity-donations` - publiczny endpoint, lista wszystkich potwierdzeń wpłat (sortowane DESC)
+- `POST /api/admin/charity-donations` - tylko admin, tworzy nowe potwierdzenie (month, year, documentUrl)
+- `DELETE /api/admin/charity-donations/:id` - tylko admin, usuwa potwierdzenie
 
 ## User Journeys
 
@@ -173,8 +183,37 @@ Wymagane dla funkcjonowania systemu płatności:
 - `VITE_STRIPE_PUBLIC_KEY` - Publishable key dla frontend (prefiks VITE_)
 - `DATABASE_URL`, `SESSION_SECRET` - standardowe zmienne
 
+## System PomagaMY - Administrator
+**Administrator platformy** (użytkownik z flagą `isAdmin=true`) ma dostęp do specjalnego panelu:
+
+### Panel Admin (/admin/charity-donations)
+1. Formularz do dodawania miesięcznych potwierdzeń wpłat:
+   - Wybór miesiąca (polskie nazwy)
+   - Rok wpłaty
+   - Upload dokumentu (PDF/JPG/PNG) - automatyczny upload do /attached_assets/uploads
+   - Walidacja: brak duplikatów dla tego samego miesiąca i roku
+2. Lista wszystkich potwierdzeń z możliwością usunięcia
+
+### Publiczna strona PomagaMY (/pomagamy)
+- Dostępna dla wszystkich użytkowników (trenerzy i podopieczni)
+- Lista wszystkich miesięcznych potwierdzeń wpłat charytatywnych
+- Każde potwierdzenie zawiera:
+  * Miesiąc i rok (polskie formatowanie)
+  * Data uploadu
+  * Link do dokumentu (PDF/obrazek)
+  * Badge "Zweryfikowane"
+- Sortowanie: od najnowszych do najstarszych
+
+### Jak ustawić administratora?
+Administrator musi być ustawiony ręcznie w bazie danych:
+```sql
+UPDATE users SET is_admin = true WHERE email = 'twoj-email@example.com';
+```
+
 ## Następne Fazy
-- ✅ **System płatności** - ZAKOŃCZONE
+- ✅ **System płatności 5-tier** - ZAKOŃCZONE
+- ✅ **System PomagaMY** - ZAKOŃCZONE  
+- ✅ **Sekcja "Polska marka"** - ZAKOŃCZONE
 - Widok kalendarza do planowania treningów
 - Rozszerzona biblioteka ćwiczeń z kategoryzacją
 - System wiadomości trener-podopieczny

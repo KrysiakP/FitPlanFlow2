@@ -48,7 +48,7 @@ export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: Omit<User, "id" | "createdAt" | "updatedAt" | "profileImageUrl" | "stripeCustomerId" | "stripeSubscriptionId" | "subscriptionStatus" | "subscriptionTier">): Promise<User>;
+  createUser(user: Omit<User, "id" | "createdAt" | "updatedAt" | "profileImageUrl" | "isAdmin" | "stripeCustomerId" | "stripeSubscriptionId" | "subscriptionStatus" | "subscriptionTier">): Promise<User>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserRole(userId: string, role: "trainer" | "client"): Promise<User>;
   
@@ -153,7 +153,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createUser(userData: Omit<User, "id" | "createdAt" | "updatedAt" | "profileImageUrl" | "stripeCustomerId" | "stripeSubscriptionId" | "subscriptionStatus" | "subscriptionTier">): Promise<User> {
+  async createUser(userData: Omit<User, "id" | "createdAt" | "updatedAt" | "profileImageUrl" | "isAdmin" | "stripeCustomerId" | "stripeSubscriptionId" | "subscriptionStatus" | "subscriptionTier">): Promise<User> {
     const [user] = await db
       .insert(users)
       .values({
