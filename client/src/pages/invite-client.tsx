@@ -18,8 +18,6 @@ import type { TrainingPlan, InsertPlanInvitationInput } from "@shared/schema";
 export default function InviteClient() {
   const { toast } = useToast();
   const { user } = useAuth();
-  
-  console.log("InviteClient rendering, user:", user);
 
   const { data: plans, isLoading: plansLoading } = useQuery<TrainingPlan[]>({
     queryKey: ["/api/plans"],
