@@ -141,8 +141,8 @@ export default function InviteClient() {
                   <FormItem>
                     <FormLabel>Plan treningowy (opcjonalnie)</FormLabel>
                     <Select 
-                      onValueChange={(value) => field.onChange(value === "" ? null : value)} 
-                      value={field.value || ""}
+                      onValueChange={(value) => field.onChange(value === "NO_PLAN" ? null : value)} 
+                      value={field.value || "NO_PLAN"}
                     >
                       <FormControl>
                         <SelectTrigger data-testid="select-plan">
@@ -150,7 +150,7 @@ export default function InviteClient() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="" data-testid="option-no-plan">
+                        <SelectItem value="NO_PLAN" data-testid="option-no-plan">
                           Bez planu (przypisz później)
                         </SelectItem>
                         {plans && plans.length > 0 && (
