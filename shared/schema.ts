@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, varchar, text, timestamp, integer, index, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, varchar, text, timestamp, integer, index, uniqueIndex, jsonb, boolean } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -24,6 +24,7 @@ export const users = pgTable("users", {
   lastName: varchar("last_name").notNull(),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role", { length: 20 }), // 'trainer' or 'client' - null until user selects
+  isAdmin: boolean("is_admin").default(false).notNull(), // Platform administrator flag
   // Stripe subscription fields (trainers only)
   stripeCustomerId: varchar("stripe_customer_id", { length: 255 }), // Stripe customer ID (cus_xxx)
   stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }), // Stripe subscription ID (sub_xxx)
@@ -175,6 +176,18 @@ export const planInvitations = pgTable("plan_invitations", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// Charity donations - platform administrator uploads monthly charity proofs
+export const charityDonations = pgTable("charity_donations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  month: integer("month").notNull(), // 1-12
+  year: integer("year").notNull(), // YYYY
+  documentUrl: text("document_url").notNull(), // URL to uploaded PDF/image proof
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+}, (table) => ({
+  // Prevent duplicate donations for same month/year
+  uniqueMonthYear: uniqueIndex("unique_month_year").on(table.month, table.year),
+}));
 
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -423,6 +436,15 @@ export const insertPlanInvitationSchema = createInsertSchema(planInvitations).om
   planId: z.string().uuid().optional().nullable(), // planId is optional - can invite without plan
 });
 
+export const insertCharityDonationSchema = createInsertSchema(charityDonations).omit({
+  id: true,
+  uploadedAt: true,
+}).extend({
+  month: z.coerce.number().int().min(1, "Miesiąc musi być między 1 a 12").max(12, "Miesiąc musi być między 1 a 12"),
+  year: z.coerce.number().int().min(2024, "Rok musi być co najmniej 2024").max(2100, "Rok nie może być większy niż 2100"),
+  documentUrl: z.string().min(1, "URL dokumentu jest wymagany"),
+});
+
 export const updateUserRoleSchema = z.object({
   role: z.enum(["trainer", "client"]),
 });
@@ -454,5 +476,7 @@ export type InsertExerciseLogInput = z.infer<typeof insertExerciseLogSchema>;
 export type InsertWeeklyReportInput = z.infer<typeof insertWeeklyReportSchema>;
 export type InsertClientRelationshipInput = z.infer<typeof insertClientRelationshipSchema>;
 export type InsertPlanInvitationInput = z.infer<typeof insertPlanInvitationSchema>;
+export type InsertCharityDonationInput = z.infer<typeof insertCharityDonationSchema>;
+export type CharityDonation = typeof charityDonations.$inferSelect;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

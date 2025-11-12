@@ -19,6 +19,7 @@ import {
   loginSchema,
   insertPlanWithWorkoutsSchema,
   insertPlanInvitationSchema,
+  insertCharityDonationSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
@@ -74,12 +75,13 @@ const multerStorage = multer.diskStorage({
 const fileFilter = (req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/x-msvideo", "video/webm"];
   const allowedImageTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-  const allowedTypes = [...allowedVideoTypes, ...allowedImageTypes];
+  const allowedDocumentTypes = ["application/pdf"];
+  const allowedTypes = [...allowedVideoTypes, ...allowedImageTypes, ...allowedDocumentTypes];
 
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error("Nieprawidłowy typ pliku. Dozwolone są tylko wideo (mp4, mov, avi, webm) i obrazy (jpg, jpeg, png, webp)"));
+    cb(new Error("Nieprawidłowy typ pliku. Dozwolone są tylko wideo (mp4, mov, avi, webm), obrazy (jpg, jpeg, png, webp) i dokumenty PDF"));
   }
 };
 
@@ -90,6 +92,22 @@ const upload = multer({
     fileSize: 50 * 1024 * 1024,
   },
 });
+
+function requireAdmin(req: any, res: any, next: any) {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: "Wymagane uwierzytelnienie" });
+  }
+  
+  storage.getUser(req.session.userId).then(user => {
+    if (!user?.isAdmin) {
+      return res.status(403).json({ message: "Tylko administratorzy mają dostęp do tej funkcji" });
+    }
+    next();
+  }).catch(error => {
+    console.error("Error checking admin status:", error);
+    res.status(500).json({ message: "Błąd sprawdzania uprawnień" });
+  });
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Stripe webhook - MUST be before setupAuth
@@ -1815,6 +1833,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching client weekly reports:", error);
       res.status(500).json({ message: "Nie udało się pobrać raportów podopiecznego" });
+    }
+  });
+
+  // Charity donations endpoints
+  app.get("/api/charity-donations", async (req, res) => {
+    try {
+      const donations = await storage.listCharityDonations();
+      res.json(donations);
+    } catch (error) {
+      console.error("Error fetching charity donations:", error);
+      res.status(500).json({ message: "Nie udało się pobrać darowizn" });
+    }
+  });
+
+  app.post("/api/admin/charity-donations", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const validationResult = insertCharityDonationSchema.safeParse(req.body);
+
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const donation = await storage.createCharityDonation(validationResult.data);
+      res.json(donation);
+    } catch (error: any) {
+      console.error("Error creating charity donation:", error);
+      
+      if (error.code === '23505' || error.message?.includes('unique')) {
+        return res.status(400).json({ 
+          message: "Darowizna dla tego miesiąca i roku już istnieje" 
+        });
+      }
+      
+      res.status(500).json({ message: "Nie udało się utworzyć darowizny" });
+    }
+  });
+
+  app.delete("/api/admin/charity-donations/:id", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteCharityDonation(id);
+      res.json({ message: "Darowizna została usunięta" });
+    } catch (error) {
+      console.error("Error deleting charity donation:", error);
+      res.status(500).json({ message: "Nie udało się usunąć darowizny" });
     }
   });
 

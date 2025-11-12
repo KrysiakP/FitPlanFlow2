@@ -11,6 +11,7 @@ import {
   weeklyReports,
   planInvitations,
   clientRelationships,
+  charityDonations,
   type User,
   type UpsertUser,
   type TrainingPlan,
@@ -36,6 +37,8 @@ import {
   type InsertPlanInvitationInput,
   type ClientRelationship,
   type InsertClientRelationshipInput,
+  type CharityDonation,
+  type InsertCharityDonationInput,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, isNull } from "drizzle-orm";
@@ -131,6 +134,11 @@ export interface IStorage {
   
   // Client relationship operations
   archiveClientRelationship(trainerId: string, clientId: string): Promise<void>;
+  
+  // Charity donation operations
+  listCharityDonations(): Promise<CharityDonation[]>;
+  createCharityDonation(data: InsertCharityDonationInput): Promise<CharityDonation>;
+  deleteCharityDonation(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -996,6 +1004,28 @@ export class DatabaseStorage implements IStorage {
         .delete(planAssignments)
         .where(eq(planAssignments.clientId, clientId));
     });
+  }
+  
+  // Charity donation operations
+  async listCharityDonations(): Promise<CharityDonation[]> {
+    return await db
+      .select()
+      .from(charityDonations)
+      .orderBy(desc(charityDonations.year), desc(charityDonations.month));
+  }
+  
+  async createCharityDonation(data: InsertCharityDonationInput): Promise<CharityDonation> {
+    const [donation] = await db
+      .insert(charityDonations)
+      .values(data)
+      .returning();
+    return donation;
+  }
+  
+  async deleteCharityDonation(id: string): Promise<void> {
+    await db
+      .delete(charityDonations)
+      .where(eq(charityDonations.id, id));
   }
 }
 
