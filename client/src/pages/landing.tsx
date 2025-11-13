@@ -11,7 +11,7 @@ export default function Landing() {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Dumbbell className="w-8 h-8 text-primary" />
-            <h1 className="font-heading font-bold text-2xl">Platforma Treningowa</h1>
+            <h1 className="font-heading font-bold text-2xl">Panel Trenera</h1>
           </div>
           <Button asChild data-testid="button-login">
             <Link href="/login">Zaloguj się</Link>
@@ -81,7 +81,7 @@ export default function Landing() {
               </div>
               <div className="max-w-3xl mx-auto space-y-4">
                 <p className="text-lg text-muted-foreground">
-                  Platforma Treningowa to w 100% polska aplikacja, stworzona z myślą o polskich trenerach personalnych i ich podopiecznych. Rozumiemy specyfikę polskiego rynku fitness i dostosowujemy nasze rozwiązania do Twoich potrzeb.
+                  Panel Trenera to w 100% polska aplikacja, stworzona z myślą o polskich trenerach personalnych i ich podopiecznych. Rozumiemy specyfikę polskiego rynku fitness i dostosowujemy nasze rozwiązania do Twoich potrzeb.
                 </p>
                 <div className="flex flex-wrap gap-3 justify-center items-center">
                   <Badge variant="outline" data-testid="badge-made-in-poland">
@@ -125,7 +125,7 @@ export default function Landing() {
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Dumbbell className="w-6 h-6 text-primary" />
-                <span className="font-heading font-bold text-lg">Platforma Treningowa</span>
+                <span className="font-heading font-bold text-lg">Panel Trenera</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 Profesjonalne narzędzie do zarządzania planami treningowymi dla trenerów i podopiecznych.
@@ -155,7 +155,7 @@ export default function Landing() {
           </div>
 
           <div className="border-t pt-8 text-center text-sm text-muted-foreground">
-            <p>© 2024 Platforma Treningowa. Wszystkie prawa zastrzeżone.</p>
+            <p>© 2024 Panel Trenera. Wszystkie prawa zastrzeżone.</p>
           </div>
         </div>
       </footer>

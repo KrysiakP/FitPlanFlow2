@@ -36,7 +36,7 @@ export default function Register() {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({
         title: "Konto utworzone!",
-        description: "Witamy na Platformie Treningowej",
+        description: "Witamy w Panelu Trenera",
       });
       setLocation("/");
     },
@@ -60,7 +60,7 @@ export default function Register() {
           <div className="flex justify-center">
             <Dumbbell className="w-12 h-12 text-primary" />
           </div>
-          <CardTitle className="font-heading text-3xl">Platforma Treningowa</CardTitle>
+          <CardTitle className="font-heading text-3xl">Panel Trenera</CardTitle>
           <CardDescription className="text-base">
             Utwórz nowe konto
           </CardDescription>

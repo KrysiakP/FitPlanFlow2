@@ -102,7 +102,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <SheetContent side="left" className="w-64">
                 <div className="flex items-center gap-2 mb-8">
                   <Dumbbell className="w-6 h-6 text-primary" />
-                  <span className="font-heading font-bold text-lg">Platforma Treningowa</span>
+                  <span className="font-heading font-bold text-lg">Panel Trenera</span>
                 </div>
                 <NavLinks onClick={() => setMobileMenuOpen(false)} />
               </SheetContent>
@@ -112,7 +112,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <div className="flex items-center gap-2">
                 <Dumbbell className="w-8 h-8 text-primary" />
                 <span className="font-heading font-bold text-xl hidden sm:inline">
-                  Platforma Treningowa
+                  Panel Trenera
                 </span>
               </div>
             </Link>

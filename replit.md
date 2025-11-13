@@ -1,4 +1,4 @@
-# Platforma Treningowa
+# Panel Trenera
 
 ## Przegląd
 Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zarządzanie planami treningowymi. Trenerzy mogą tworzyć szczegółowe plany treningowe i przypisywać je swoim podopiecznym, którzy mają dostęp do przypisanych planów przez przejrzysty interfejs.

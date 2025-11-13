@@ -1,4 +1,4 @@
-# Design Guidelines - Platforma Trenerska
+# Design Guidelines - Panel Trenera
 
 ## Design Approach
 
