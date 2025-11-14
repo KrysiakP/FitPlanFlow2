@@ -189,9 +189,10 @@ export class DatabaseStorage implements IStorage {
     // Map tier to client limit
     const tierLimits: Record<string, number> = {
       start: 3,
-      solo: 20,
-      pro: 50,
-      elite: 150,
+      solo: 10,
+      pro: 20,
+      elite: 35,
+      max: 50,
       studio: Infinity,
       // Legacy support
       free: 3,

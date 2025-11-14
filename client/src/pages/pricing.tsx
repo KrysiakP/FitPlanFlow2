@@ -8,18 +8,19 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 
-type PlanTier = 'start' | 'solo' | 'pro' | 'elite' | 'studio';
+type PlanTier = 'start' | 'solo' | 'pro' | 'elite' | 'max' | 'studio';
 
 interface PlanConfig {
   id: PlanTier;
   name: string;
-  price: number;
+  price: number | string;
   description: string;
   icon: any;
   features: string[];
   clientLimit: number;
   highlighted?: boolean;
   trainerLimit?: string;
+  customPricing?: boolean;
 }
 
 const plans: PlanConfig[] = [
@@ -40,13 +41,13 @@ const plans: PlanConfig[] = [
   },
   {
     id: 'solo',
-    name: 'TRENER SOLO',
-    price: 129,
-    description: 'Dla rozwijających się trenerów personalnych',
+    name: 'SOLO',
+    price: 99,
+    description: 'Dla początkujących trenerów personalnych',
     icon: Star,
-    clientLimit: 20,
+    clientLimit: 10,
     features: [
-      'Do 20 aktywnych podopiecznych',
+      'Do 10 aktywnych podopiecznych',
       'Wszystkie funkcje planu START',
       'Rozszerzone statystyki',
       'Email wsparcie',
@@ -55,14 +56,14 @@ const plans: PlanConfig[] = [
   },
   {
     id: 'pro',
-    name: 'TRENER PRO',
-    price: 249,
-    description: 'Najpopularniejszy wybór profesjonalnych trenerów',
+    name: 'PRO',
+    price: 189,
+    description: 'Dla rozwijających się trenerów',
     icon: Crown,
-    clientLimit: 50,
+    clientLimit: 20,
     highlighted: true,
     features: [
-      'Do 50 aktywnych podopiecznych',
+      'Do 20 aktywnych podopiecznych',
       'Wszystkie funkcje SOLO',
       'Priorytetowe wsparcie',
       'Wczesny dostęp do nowych funkcji',
@@ -71,13 +72,13 @@ const plans: PlanConfig[] = [
   },
   {
     id: 'elite',
-    name: 'TRENER ELITE',
-    price: 499,
-    description: 'Dla dużych studiów i czołowych trenerów',
+    name: 'ELITE',
+    price: 279,
+    description: 'Dla profesjonalnych trenerów',
     icon: Zap,
-    clientLimit: 150,
+    clientLimit: 35,
     features: [
-      'Do 150 aktywnych podopiecznych',
+      'Do 35 aktywnych podopiecznych',
       'Wszystkie funkcje PRO',
       'Priorytetowe wsparcie 24/7',
       'Indywidualne konsultacje',
@@ -85,17 +86,33 @@ const plans: PlanConfig[] = [
     ],
   },
   {
+    id: 'max',
+    name: 'MAX',
+    price: 349,
+    description: 'Dla ekspertów z dużą bazą klientów',
+    icon: Crown,
+    clientLimit: 50,
+    features: [
+      'Do 50 aktywnych podopiecznych',
+      'Wszystkie funkcje ELITE',
+      'VIP wsparcie techniczne',
+      'Zaawansowane analizy i raporty',
+      'Dedykowany sukces manager',
+    ],
+  },
+  {
     id: 'studio',
     name: 'STUDIO/KLUB',
-    price: 999,
-    description: 'Dla studiów i klubów fitness z zespołem trenerów',
+    price: 'Wycena indywidualna',
+    description: 'Dla studiów, klubów fitness i dużych organizacji',
     icon: Building2,
     clientLimit: -1,
+    customPricing: true,
     trainerLimit: '2-10 trenerów',
     features: [
+      'Powyżej 50 podopiecznych',
       '2-10 trenerów w zespole',
-      'Nieograniczona liczba podopiecznych',
-      'Wszystkie funkcje ELITE',
+      'Wszystkie funkcje MAX',
       'Własne branding',
       'Dedykowane wsparcie techniczne',
       'SLA gwarancje',
@@ -215,7 +232,7 @@ export default function Pricing() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
         {plans.map((plan) => {
           const Icon = plan.icon;
           const buttonConfig = getButtonConfig(plan);
@@ -244,8 +261,14 @@ export default function Pricing() {
                   {plan.description}
                 </CardDescription>
                 <div>
-                  <span className="text-3xl font-bold">{plan.price} zł</span>
-                  <span className="text-muted-foreground">/miesiąc</span>
+                  {plan.customPricing ? (
+                    <span className="text-2xl font-bold">{plan.price}</span>
+                  ) : (
+                    <>
+                      <span className="text-3xl font-bold">{plan.price} zł</span>
+                      <span className="text-muted-foreground">/miesiąc</span>
+                    </>
+                  )}
                 </div>
                 <div className="text-sm font-medium text-primary">
                   {plan.clientLimit === -1 ? 'Unlimited clients' : `Max ${plan.clientLimit} podopiecznych`}

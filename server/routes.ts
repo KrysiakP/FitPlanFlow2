@@ -50,6 +50,7 @@ function getTierFromSubscription(subscription: Stripe.Subscription): string {
     [process.env.STRIPE_SOLO_PRICE_ID || 'price_test_solo']: 'solo',
     [process.env.STRIPE_PRO_PRICE_ID || 'price_test_pro']: 'pro',
     [process.env.STRIPE_ELITE_PRICE_ID || 'price_test_elite']: 'elite',
+    [process.env.STRIPE_MAX_PRICE_ID || 'price_test_max']: 'max',
     [process.env.STRIPE_STUDIO_PRICE_ID || 'price_test_studio']: 'studio',
   };
   
@@ -443,7 +444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { tier } = req.body;
       
       // Validate tier
-      const validTiers = ['solo', 'pro', 'elite', 'studio'];
+      const validTiers = ['solo', 'pro', 'elite', 'max', 'studio'];
       if (!tier || !validTiers.includes(tier)) {
         return res.status(400).json({ message: "Nieprawidłowy plan subskrypcji" });
       }
@@ -471,6 +472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         solo: process.env.STRIPE_SOLO_PRICE_ID || 'price_test_solo',
         pro: process.env.STRIPE_PRO_PRICE_ID || 'price_test_pro',
         elite: process.env.STRIPE_ELITE_PRICE_ID || 'price_test_elite',
+        max: process.env.STRIPE_MAX_PRICE_ID || 'price_test_max',
         studio: process.env.STRIPE_STUDIO_PRICE_ID || 'price_test_studio',
       };
 

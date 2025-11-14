@@ -15,11 +15,9 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 - ✅ **Logowanie wykonań ćwiczeń** - podopieczni mogą zapisywać swoje wyniki (powtórzenia, obciążenie)
 - ✅ **Automatyczne prefill** - formularz ładuje ostatnie zalogowane wartości
 - ✅ **System subskrypcji Stripe** - trenerzy płacą za dostęp do platformy (SaaS model)
-- ✅ **Free tier (0 zł/mies)** - max 10 podopiecznych, wszystkie funkcje
-- ✅ **Premium tier (49 zł/mies)** - nieograniczona liczba podopiecznych
 - ✅ **Zarządzanie subskrypcją** - upgrade, downgrade, anulowanie przez Stripe Customer Portal
 - ✅ **Webhook handler** - automatyczna synchronizacja statusu subskrypcji
-- ✅ **System 5-tier subskrypcji** - START (0 zł, 3 podopiecznych), SOLO (129 zł, 20), PRO (249 zł, 50), ELITE (499 zł, 150), STUDIO (999 zł+, wielutrenerski)
+- ✅ **System 6-tier subskrypcji** - START (0 zł, 3 podopiecznych), SOLO (99 zł, 10), PRO (189 zł, 20), ELITE (279 zł, 35), MAX (349 zł, 50), STUDIO (wycena indywidualna, 50+, wielutrenerski)
 - ✅ **System PomagaMY** - administrator publikuje miesięczne potwierdzenia wpłat charytatywnych, transparentność dla użytkowników
 - ✅ **Sekcja "Polska marka"** - podkreślenie lokalnego charakteru platformy w landing page i footer
 - ✅ Całkowicie polski interfejs użytkownika
@@ -46,7 +44,7 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
   - `stripeCustomerId` - ID klienta w Stripe (unique)
   - `stripeSubscriptionId` - ID aktywnej subskrypcji
   - `subscriptionStatus` - status: active, canceled, past_due, etc.
-  - `subscriptionTier` - tier: start, solo, pro, elite, studio
+  - `subscriptionTier` - tier: start, solo, pro, elite, max, studio
 - `sessions` - sesje użytkowników (express-session + connect-pg-simple)
 - `trainingPlans` - plany treningowe utworzone przez trenerów
 - `workouts` - treningi w planach (relacja 1:N)
@@ -103,7 +101,7 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 
 ### Trener
 1. Rejestracja/logowanie przez email i hasło
-2. Wybór roli "Trener" (przy pierwszym logowaniu) - automatycznie Free tier
+2. Wybór roli "Trener" (przy pierwszym logowaniu) - automatycznie START tier (0 zł, 3 podopiecznych)
 3. Dashboard z statystykami (liczba planów, podopiecznych, przypisań)
 4. Tworzenie planu treningowego z ćwiczeniami
 5. **Wysyłanie zaproszeń do planu:**
@@ -111,23 +109,23 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
    - **Strona /invite:** Formularz z polem email (pierwsze) + dropdown wyboru planu (drugie)
    - **User-friendly:** Informacja, że plan można też przypisać później z listy podopiecznych
    - **Instrukcje:** Sekcja "Jak to działa?" wyjaśniająca proces
-   - **Limit Free tier:** maksymalnie 10 aktywnych podopiecznych
+   - **Limity tier-ów:** START (3), SOLO (10), PRO (20), ELITE (35), MAX (50), STUDIO (50+)
    - Alert z informacją o limicie i CTA do upgrade
 6. Przeglądanie listy podopiecznych z informacją o przypisanych planach
 7. **Zarządzanie subskrypcją:**
-   - Badge Premium/Free w navbar (dropdown menu)
+   - Badge z aktualnym tier-em w navbar (dropdown menu)
    - Panel w profilu z aktualnym planem i ceną
-   - Przycisk "Ulepsz do Premium" dla Free users
-   - Przycisk "Zarządzaj subskrypcją" dla Premium users → Stripe Customer Portal
+   - Przycisk "Zmień plan" dla użytkowników START
+   - Przycisk "Zarządzaj subskrypcją" dla płatnych tier-ów → Stripe Customer Portal
 8. **Stripe Checkout flow:**
-   - Strona /pricing z porównaniem planów Free vs Premium
-   - Checkout Session z metadanymi userId
+   - Strona /pricing z porównaniem wszystkich 6 planów (START, SOLO, PRO, ELITE, MAX, STUDIO)
+   - Checkout Session z metadanymi userId i tier
    - Redirect do Stripe hosted checkout
    - Success/cancel URLs
 9. **Automatyczna synchronizacja:**
    - Webhook events (checkout.session.completed, customer.subscription.*)
    - Aktualizacja statusu i tier w bazie danych
-   - Real-time enforcement limitów
+   - Real-time enforcement limitów dla każdego tier-a
 
 ### Podopieczny
 1. Rejestracja/logowanie przez email i hasło
@@ -171,16 +169,27 @@ Aplikacja używa profesjonalnego systemu projektowego opisanego w `design_guidel
 
 ## Model Biznesowy
 **Trenerzy płacą, podopieczni korzystają za darmo:**
-- Trenerzy subskrybują platformę (Free lub Premium)
+- Trenerzy subskrybują platformę (6 tier-ów)
 - Podopieczni nie płacą platformie - rozliczają się prywatnie z trenerem
-- Free tier: Max 10 podopiecznych, 0 zł/mies
-- Premium tier: Nieograniczona liczba podopiecznych, 49 zł/mies
+
+**Cennik dla trenerów:**
+- START: 0 zł/mies - do 3 podopiecznych
+- SOLO: 99 zł/mies - do 10 podopiecznych
+- PRO: 189 zł/mies - do 20 podopiecznych
+- ELITE: 279 zł/mies - do 35 podopiecznych
+- MAX: 349 zł/mies - do 50 podopiecznych
+- STUDIO/KLUB: wycena indywidualna - 50+ podopiecznych, 2-10 trenerów
 
 ## Zmienne środowiskowe
 Wymagane dla funkcjonowania systemu płatności:
 - `STRIPE_SECRET_KEY` - Secret key z Stripe Dashboard
 - `STRIPE_WEBHOOK_SECRET` - Secret dla webhook signature verification
 - `VITE_STRIPE_PUBLIC_KEY` - Publishable key dla frontend (prefiks VITE_)
+- `STRIPE_SOLO_PRICE_ID` - Price ID dla planu SOLO (99 zł)
+- `STRIPE_PRO_PRICE_ID` - Price ID dla planu PRO (189 zł)
+- `STRIPE_ELITE_PRICE_ID` - Price ID dla planu ELITE (279 zł)
+- `STRIPE_MAX_PRICE_ID` - Price ID dla planu MAX (349 zł)
+- `STRIPE_STUDIO_PRICE_ID` - Price ID dla planu STUDIO (wycena indywidualna)
 - `DATABASE_URL`, `SESSION_SECRET` - standardowe zmienne
 
 ## System PomagaMY - Administrator
@@ -211,7 +220,7 @@ UPDATE users SET is_admin = true WHERE email = 'twoj-email@example.com';
 ```
 
 ## Następne Fazy
-- ✅ **System płatności 5-tier** - ZAKOŃCZONE
+- ✅ **System płatności 6-tier** - ZAKOŃCZONE (START, SOLO, PRO, ELITE, MAX, STUDIO)
 - ✅ **System PomagaMY** - ZAKOŃCZONE  
 - ✅ **Sekcja "Polska marka"** - ZAKOŃCZONE
 - Widok kalendarza do planowania treningów
