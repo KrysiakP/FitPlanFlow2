@@ -490,22 +490,104 @@ export class DatabaseStorage implements IStorage {
 
   // Assignment operations
   async createAssignment(assignment: InsertPlanAssignment): Promise<PlanAssignment> {
-    const [created] = await db
-      .insert(planAssignments)
-      .values(assignment)
-      .returning();
-    return created;
+    return await db.transaction(async (tx) => {
+      const [plan] = await tx
+        .select()
+        .from(trainingPlans)
+        .where(eq(trainingPlans.id, assignment.planId))
+        .limit(1);
+      
+      if (!plan) {
+        throw new Error("Plan nie istnieje");
+      }
+      
+      const [existingRelationship] = await tx
+        .select()
+        .from(clientRelationships)
+        .where(
+          and(
+            eq(clientRelationships.trainerId, plan.trainerId),
+            eq(clientRelationships.clientId, assignment.clientId)
+          )
+        )
+        .limit(1);
+      
+      if (existingRelationship) {
+        if (existingRelationship.status === 'archived') {
+          await tx
+            .update(clientRelationships)
+            .set({ status: 'active', archivedAt: null })
+            .where(eq(clientRelationships.id, existingRelationship.id));
+        }
+      } else {
+        await tx
+          .insert(clientRelationships)
+          .values({
+            trainerId: plan.trainerId,
+            clientId: assignment.clientId,
+            status: 'active',
+          });
+      }
+      
+      const [created] = await tx
+        .insert(planAssignments)
+        .values(assignment)
+        .returning();
+      return created;
+    });
   }
 
   async createBulkAssignments(planId: string, clientIds: string[]): Promise<PlanAssignment[]> {
     if (clientIds.length === 0) return [];
     
-    const assignments = clientIds.map((clientId) => ({
-      planId,
-      clientId,
-    }));
-    
-    return await db.insert(planAssignments).values(assignments).returning();
+    return await db.transaction(async (tx) => {
+      const [plan] = await tx
+        .select()
+        .from(trainingPlans)
+        .where(eq(trainingPlans.id, planId))
+        .limit(1);
+      
+      if (!plan) {
+        throw new Error("Plan nie istnieje");
+      }
+      
+      for (const clientId of clientIds) {
+        const [existingRelationship] = await tx
+          .select()
+          .from(clientRelationships)
+          .where(
+            and(
+              eq(clientRelationships.trainerId, plan.trainerId),
+              eq(clientRelationships.clientId, clientId)
+            )
+          )
+          .limit(1);
+        
+        if (existingRelationship) {
+          if (existingRelationship.status === 'archived') {
+            await tx
+              .update(clientRelationships)
+              .set({ status: 'active', archivedAt: null })
+              .where(eq(clientRelationships.id, existingRelationship.id));
+          }
+        } else {
+          await tx
+            .insert(clientRelationships)
+            .values({
+              trainerId: plan.trainerId,
+              clientId: clientId,
+              status: 'active',
+            });
+        }
+      }
+      
+      const assignments = clientIds.map((clientId) => ({
+        planId,
+        clientId,
+      }));
+      
+      return await tx.insert(planAssignments).values(assignments).returning();
+    });
   }
 
   async getClientAssignment(clientId: string): Promise<PlanAssignment | undefined> {
