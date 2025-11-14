@@ -15,10 +15,12 @@ import {
   ArrowRight
 } from "lucide-react";
 import { Link } from "wouter";
+import { PublicHeader } from "@/components/public-header";
 
 export default function DlaTrenera() {
   return (
     <div className="min-h-screen bg-background">
+      <PublicHeader />
       <div className="container mx-auto px-4 py-12 max-w-6xl">
         <div className="space-y-16">
           <div className="text-center space-y-6">

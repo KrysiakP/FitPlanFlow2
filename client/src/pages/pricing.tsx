@@ -8,6 +8,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
+import { PublicHeader } from "@/components/public-header";
 
 type PlanTier = 'start' | 'solo' | 'pro' | 'elite' | 'max' | 'studio';
 
@@ -213,8 +214,10 @@ export default function Pricing() {
   };
 
   return (
-    <div className="space-y-8">
-      <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border-primary/20">
+    <div className="min-h-screen bg-background">
+      <PublicHeader />
+      <div className="container mx-auto px-4 py-12 space-y-8">
+        <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border-primary/20">
         <CardContent className="p-6 text-center">
           <p className="text-base font-medium" data-testid="text-charity-banner">
             💚 1% ze wszystkich przychodów przekazujemy na sport dzieci, domy dziecka i dożywianie dzieci.
@@ -366,6 +369,7 @@ export default function Pricing() {
           </Card>
         </div>
       )}
+      </div>
     </div>
   );
 }

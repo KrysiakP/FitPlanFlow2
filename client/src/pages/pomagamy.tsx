@@ -8,6 +8,7 @@ import { pl } from "date-fns/locale";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import type { CharityDonation } from "@shared/schema";
+import { PublicHeader } from "@/components/public-header";
 
 const POLISH_MONTHS = [
   "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec",
@@ -22,6 +23,7 @@ export default function Pomagamy() {
 
   return (
     <div className="min-h-screen bg-background">
+      <PublicHeader />
       <div className="container mx-auto px-4 py-12 max-w-6xl">
         <div className="space-y-8">
           <div className="text-center space-y-6">
