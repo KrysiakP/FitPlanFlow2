@@ -175,10 +175,10 @@ Aplikacja używa profesjonalnego systemu projektowego opisanego w `design_guidel
 **Cennik dla trenerów:**
 - START: 0 zł/mies - do 3 podopiecznych
 - SOLO: 99 zł/mies - do 10 podopiecznych
-- PRO: 189 zł/mies - do 20 podopiecznych
-- ELITE: 279 zł/mies - do 35 podopiecznych
-- MAX: 349 zł/mies - do 50 podopiecznych
-- STUDIO/KLUB: wycena indywidualna - 50+ podopiecznych, 2-10 trenerów
+- PRO: 189 zł/mies - do 20 podopiecznych (+ dedykowany opiekun konta)
+- ELITE: 279 zł/mies - do 35 podopiecznych (+ dedykowany opiekun konta)
+- MAX: 349 zł/mies - do 50 podopiecznych (+ dedykowany opiekun konta)
+- STUDIO/KLUB: wycena indywidualna - 50+ podopiecznych (+ dedykowany opiekun konta)
 
 ## Zmienne środowiskowe
 Wymagane dla funkcjonowania systemu płatności:

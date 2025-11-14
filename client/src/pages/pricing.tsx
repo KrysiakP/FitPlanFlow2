@@ -71,6 +71,7 @@ const plans: PlanConfig[] = [
       'Biblioteka ćwiczeń z filmami',
       'Raporty tygodniowe podopiecznych',
       'Priorytetowe wsparcie email',
+      'Dedykowany opiekun konta',
     ],
   },
   {
@@ -104,7 +105,7 @@ const plans: PlanConfig[] = [
       'Biblioteka ćwiczeń z filmami',
       'Raporty tygodniowe podopiecznych',
       'Priorytetowe wsparcie email',
-      'VIP wsparcie techniczne',
+      'Dedykowany opiekun konta',
     ],
   },
   {
@@ -115,15 +116,14 @@ const plans: PlanConfig[] = [
     icon: Building2,
     clientLimit: -1,
     customPricing: true,
-    trainerLimit: '2-10 trenerów',
     features: [
       'Powyżej 50 podopiecznych',
-      '2-10 trenerów w zespole',
       'Zarządzanie podopiecznymi',
       'Nieograniczona liczba planów treningowych',
       'Biblioteka ćwiczeń z filmami',
       'Raporty tygodniowe podopiecznych',
       'Priorytetowe wsparcie email',
+      'Dedykowany opiekun konta',
     ],
   },
 ];
