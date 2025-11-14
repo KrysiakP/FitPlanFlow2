@@ -188,7 +188,7 @@ export default function Landing() {
           </div>
 
           <div className="border-t pt-8 text-center text-sm text-muted-foreground">
-            <p>© 2024 Panel Trenera. Wszystkie prawa zastrzeżone.</p>
+            <p>© 2025 Panel Trenera. Wszystkie prawa zastrzeżone.</p>
           </div>
         </div>
       </footer>
