@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
+import { Link } from "wouter";
 
 type PlanTier = 'start' | 'solo' | 'pro' | 'elite' | 'max' | 'studio';
 
@@ -162,6 +163,16 @@ export default function Pricing() {
   const isActive = user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing';
 
   const getButtonConfig = (plan: PlanConfig) => {
+    if (!user) {
+      return {
+        text: plan.id === 'start' ? 'Zacznij za darmo' : 'Rozpocznij',
+        disabled: false,
+        variant: 'default' as const,
+        asChild: true,
+        href: '/register',
+      };
+    }
+
     if (!isTrainer) {
       return {
         text: 'Tylko dla trenerów',
@@ -296,15 +307,28 @@ export default function Pricing() {
               </CardContent>
               
               <CardFooter>
-                <Button
-                  variant={buttonConfig.variant}
-                  className="w-full"
-                  disabled={buttonConfig.disabled}
-                  onClick={buttonConfig.onClick}
-                  data-testid={`button-plan-${plan.id}`}
-                >
-                  {buttonConfig.text}
-                </Button>
+                {buttonConfig.asChild ? (
+                  <Button
+                    variant={buttonConfig.variant}
+                    className="w-full"
+                    asChild
+                    data-testid={`button-plan-${plan.id}`}
+                  >
+                    <Link href={buttonConfig.href!}>
+                      {buttonConfig.text}
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button
+                    variant={buttonConfig.variant}
+                    className="w-full"
+                    disabled={buttonConfig.disabled}
+                    onClick={buttonConfig.onClick}
+                    data-testid={`button-plan-${plan.id}`}
+                  >
+                    {buttonConfig.text}
+                  </Button>
+                )}
               </CardFooter>
             </Card>
           );

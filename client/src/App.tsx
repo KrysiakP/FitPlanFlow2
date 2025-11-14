@@ -25,6 +25,7 @@ import Pricing from "@/pages/pricing";
 import InviteClient from "@/pages/invite-client";
 import AdminCharityDonations from "@/pages/admin-charity-donations";
 import PomagaMY from "@/pages/pomagamy";
+import DlaTrenera from "@/pages/dla-trenera";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -44,6 +45,9 @@ function Router() {
         <Route path="/" component={Landing} />
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
+        <Route path="/dla-trenera" component={DlaTrenera} />
+        <Route path="/pricing" component={Pricing} />
+        <Route path="/pomagamy" component={PomagaMY} />
         <Route component={Landing} />
       </Switch>
     );
