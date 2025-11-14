@@ -21,11 +21,8 @@ import TrainerProfile from "@/pages/trainer-profile";
 import ClientProfile from "@/pages/client-profile";
 import WeeklyReport from "@/pages/weekly-report";
 import TrainerReports from "@/pages/trainer-reports";
-import Pricing from "@/pages/pricing";
 import InviteClient from "@/pages/invite-client";
 import AdminCharityDonations from "@/pages/admin-charity-donations";
-import PomagaMY from "@/pages/pomagamy";
-import DlaTrenera from "@/pages/dla-trenera";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -45,9 +42,6 @@ function Router() {
         <Route path="/" component={Landing} />
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
-        <Route path="/dla-trenera" component={DlaTrenera} />
-        <Route path="/pricing" component={Pricing} />
-        <Route path="/pomagamy" component={PomagaMY} />
         <Route component={Landing} />
       </Switch>
     );
@@ -79,8 +73,6 @@ function Router() {
             {user.isAdmin && (
               <Route path="/admin/charity-donations" component={AdminCharityDonations} />
             )}
-            <Route path="/pomagamy" component={PomagaMY} />
-            <Route path="/pricing" component={Pricing} />
             <Route path="/profile" component={TrainerProfile} />
           </>
         ) : (
@@ -88,8 +80,6 @@ function Router() {
             <Route path="/" component={ClientDashboard} />
             <Route path="/my-plan" component={ClientPlan} />
             <Route path="/weekly-report" component={WeeklyReport} />
-            <Route path="/pomagamy" component={PomagaMY} />
-            <Route path="/pricing" component={Pricing} />
             <Route path="/profile" component={ClientProfile} />
           </>
         )}

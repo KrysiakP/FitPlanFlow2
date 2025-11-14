@@ -4,6 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dumbbell, Users, ClipboardList, TrendingUp, MapPin, Heart } from "lucide-react";
 import { Link } from "wouter";
 import { PublicHeader } from "@/components/public-header";
+import { TrainerSection } from "@/components/landing/TrainerSection";
+import { PricingSection } from "@/components/landing/PricingSection";
+import { CharitySection } from "@/components/landing/CharitySection";
 
 export default function Landing() {
   return (
@@ -90,6 +93,10 @@ export default function Landing() {
             </div>
           </div>
         </section>
+
+        <TrainerSection />
+        <PricingSection />
+        <CharitySection />
 
         <section className="py-16 px-4">
           <div className="container mx-auto max-w-4xl">
