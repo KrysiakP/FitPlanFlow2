@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, UserCircle, Crown, CreditCard, UserPlus, ShieldCheck, Heart } from "lucide-react";
+import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, UserCircle, Crown, CreditCard, UserPlus, ShieldCheck, Heart, UtensilsCrossed, Apple } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -45,6 +45,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/plans", icon: ClipboardList, label: "Plany treningowe" },
     { href: "/exercise-library", icon: Dumbbell, label: "Moje ćwiczenia" },
     { href: "/clients", icon: Users, label: "Podopieczni" },
+    { href: "/trainer/diets", icon: UtensilsCrossed, label: "Diety" },
     { href: "/invite", icon: UserPlus, label: "Zaproś podopiecznego" },
     { href: "/trainer/reports", icon: FileText, label: "Raporty tygodniowe" },
     ...(user?.isAdmin ? [{ href: "/admin/charity-donations", icon: ShieldCheck, label: "Panel Admin" }] : []),
@@ -56,6 +57,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const clientNavItems = [
     { href: "/", icon: LayoutDashboard, label: "Panel" },
     { href: "/my-plan", icon: ClipboardList, label: "Mój plan" },
+    { href: "/client/diet", icon: Apple, label: "Dieta" },
     { href: "/weekly-report", icon: FileText, label: "Raport tygodniowy" },
     { href: "/pomagamy", icon: Heart, label: "PomagaMY" },
     { href: "/profile", icon: UserCircle, label: "Profil" },

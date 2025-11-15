@@ -12,6 +12,10 @@ import {
   planInvitations,
   clientRelationships,
   charityDonations,
+  dietPlans,
+  dietMeals,
+  dailyHabitLogs,
+  mealCheckmarks,
   type User,
   type UpsertUser,
   type TrainingPlan,
@@ -39,9 +43,17 @@ import {
   type InsertClientRelationshipInput,
   type CharityDonation,
   type InsertCharityDonationInput,
+  type DietPlan,
+  type InsertDietPlan,
+  type DietMeal,
+  type InsertDietMeal,
+  type DailyHabitLog,
+  type InsertDailyHabitLog,
+  type MealCheckmark,
+  type InsertMealCheckmark,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, or, isNull, sql } from "drizzle-orm";
+import { eq, and, desc, or, isNull, sql, gte, lte, asc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -139,6 +151,29 @@ export interface IStorage {
   listCharityDonations(): Promise<CharityDonation[]>;
   createCharityDonation(data: InsertCharityDonationInput): Promise<CharityDonation>;
   deleteCharityDonation(id: string): Promise<void>;
+  
+  // Diet Plans
+  createDietPlan(plan: InsertDietPlan): Promise<DietPlan>;
+  getDietPlanById(id: string): Promise<DietPlan | null>;
+  getTrainerDietPlans(trainerId: string): Promise<DietPlan[]>;
+  getClientActiveDietPlan(clientId: string): Promise<DietPlan | null>;
+  updateDietPlan(id: string, updates: Partial<InsertDietPlan>): Promise<DietPlan>;
+  deleteDietPlan(id: string): Promise<void>;
+  
+  // Diet Meals
+  createDietMeal(meal: InsertDietMeal): Promise<DietMeal>;
+  getDietPlanMeals(planId: string): Promise<DietMeal[]>;
+  updateDietMeal(id: string, updates: Partial<InsertDietMeal>): Promise<DietMeal>;
+  deleteDietMeal(id: string): Promise<void>;
+  
+  // Daily Habit Logs
+  upsertDailyHabitLog(log: InsertDailyHabitLog): Promise<DailyHabitLog>;
+  getDailyHabitLog(clientId: string, planId: string, date: Date): Promise<DailyHabitLog | null>;
+  getClientHabitLogs(clientId: string, planId: string, startDate: Date, endDate: Date): Promise<DailyHabitLog[]>;
+  
+  // Meal Checkmarks
+  upsertMealCheckmark(checkmark: { habitLogId: string, mealId: string, completed: boolean }): Promise<MealCheckmark>;
+  getHabitLogCheckmarks(habitLogId: string): Promise<MealCheckmark[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1111,6 +1146,171 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(charityDonations)
       .where(eq(charityDonations.id, id));
+  }
+  
+  // Diet Plans
+  async createDietPlan(plan: InsertDietPlan): Promise<DietPlan> {
+    const [dietPlan] = await db
+      .insert(dietPlans)
+      .values(plan)
+      .returning();
+    return dietPlan;
+  }
+  
+  async getDietPlanById(id: string): Promise<DietPlan | null> {
+    const [plan] = await db
+      .select()
+      .from(dietPlans)
+      .where(eq(dietPlans.id, id))
+      .limit(1);
+    return plan || null;
+  }
+  
+  async getTrainerDietPlans(trainerId: string): Promise<DietPlan[]> {
+    return await db
+      .select()
+      .from(dietPlans)
+      .where(eq(dietPlans.trainerId, trainerId))
+      .orderBy(desc(dietPlans.createdAt));
+  }
+  
+  async getClientActiveDietPlan(clientId: string): Promise<DietPlan | null> {
+    const [plan] = await db
+      .select()
+      .from(dietPlans)
+      .where(
+        and(
+          eq(dietPlans.clientId, clientId),
+          eq(dietPlans.status, 'active')
+        )
+      )
+      .orderBy(desc(dietPlans.createdAt))
+      .limit(1);
+    return plan || null;
+  }
+  
+  async updateDietPlan(id: string, updates: Partial<InsertDietPlan>): Promise<DietPlan> {
+    const [plan] = await db
+      .update(dietPlans)
+      .set(updates)
+      .where(eq(dietPlans.id, id))
+      .returning();
+    return plan;
+  }
+  
+  async deleteDietPlan(id: string): Promise<void> {
+    await db
+      .delete(dietPlans)
+      .where(eq(dietPlans.id, id));
+  }
+  
+  // Diet Meals
+  async createDietMeal(meal: InsertDietMeal): Promise<DietMeal> {
+    const [dietMeal] = await db
+      .insert(dietMeals)
+      .values(meal)
+      .returning();
+    return dietMeal;
+  }
+  
+  async getDietPlanMeals(planId: string): Promise<DietMeal[]> {
+    return await db
+      .select()
+      .from(dietMeals)
+      .where(eq(dietMeals.planId, planId))
+      .orderBy(asc(dietMeals.orderIndex));
+  }
+  
+  async updateDietMeal(id: string, updates: Partial<InsertDietMeal>): Promise<DietMeal> {
+    const [meal] = await db
+      .update(dietMeals)
+      .set(updates)
+      .where(eq(dietMeals.id, id))
+      .returning();
+    return meal;
+  }
+  
+  async deleteDietMeal(id: string): Promise<void> {
+    await db
+      .delete(dietMeals)
+      .where(eq(dietMeals.id, id));
+  }
+  
+  // Daily Habit Logs
+  async upsertDailyHabitLog(log: InsertDailyHabitLog): Promise<DailyHabitLog> {
+    const [habitLog] = await db
+      .insert(dailyHabitLogs)
+      .values(log)
+      .onConflictDoUpdate({
+        target: [dailyHabitLogs.clientId, dailyHabitLogs.planId, dailyHabitLogs.date],
+        set: {
+          waterLiters: log.waterLiters,
+          hitCalories: log.hitCalories,
+          hitProtein: log.hitProtein,
+          hitFat: log.hitFat,
+          hitCarbs: log.hitCarbs,
+        },
+      })
+      .returning();
+    return habitLog;
+  }
+  
+  async getDailyHabitLog(clientId: string, planId: string, date: Date): Promise<DailyHabitLog | null> {
+    const [log] = await db
+      .select()
+      .from(dailyHabitLogs)
+      .where(
+        and(
+          eq(dailyHabitLogs.clientId, clientId),
+          eq(dailyHabitLogs.planId, planId),
+          eq(dailyHabitLogs.date, date.toISOString().split('T')[0])
+        )
+      )
+      .limit(1);
+    return log || null;
+  }
+  
+  async getClientHabitLogs(clientId: string, planId: string, startDate: Date, endDate: Date): Promise<DailyHabitLog[]> {
+    return await db
+      .select()
+      .from(dailyHabitLogs)
+      .where(
+        and(
+          eq(dailyHabitLogs.clientId, clientId),
+          eq(dailyHabitLogs.planId, planId),
+          gte(dailyHabitLogs.date, startDate.toISOString().split('T')[0]),
+          lte(dailyHabitLogs.date, endDate.toISOString().split('T')[0])
+        )
+      )
+      .orderBy(asc(dailyHabitLogs.date));
+  }
+  
+  // Meal Checkmarks
+  async upsertMealCheckmark(checkmark: { habitLogId: string, mealId: string, completed: boolean }): Promise<MealCheckmark> {
+    const [mealCheckmark] = await db
+      .insert(mealCheckmarks)
+      .values({
+        habitLogId: checkmark.habitLogId,
+        mealId: checkmark.mealId,
+        completed: checkmark.completed,
+        completedAt: checkmark.completed ? new Date() : null,
+      })
+      .onConflictDoUpdate({
+        target: [mealCheckmarks.habitLogId, mealCheckmarks.mealId],
+        set: {
+          completed: checkmark.completed,
+          completedAt: checkmark.completed ? new Date() : null,
+        },
+      })
+      .returning();
+    return mealCheckmark;
+  }
+  
+  async getHabitLogCheckmarks(habitLogId: string): Promise<MealCheckmark[]> {
+    return await db
+      .select()
+      .from(mealCheckmarks)
+      .where(eq(mealCheckmarks.habitLogId, habitLogId));
   }
 }
 

@@ -20,6 +20,10 @@ import {
   insertPlanWithWorkoutsSchema,
   insertPlanInvitationSchema,
   insertCharityDonationSchema,
+  insertDietPlanSchema,
+  insertDietMealSchema,
+  insertDailyHabitLogSchema,
+  insertMealCheckmarkSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
@@ -1835,6 +1839,525 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching client weekly reports:", error);
       res.status(500).json({ message: "Nie udało się pobrać raportów podopiecznego" });
+    }
+  });
+
+  // Diet Plans - Trainer endpoints
+  app.post("/api/diets/plans", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą tworzyć plany dietetyczne" });
+      }
+
+      const validationResult = insertDietPlanSchema.safeParse(req.body);
+
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const plan = await storage.createDietPlan({
+        ...validationResult.data,
+        trainerId: userId,
+      });
+      res.status(201).json(plan);
+    } catch (error) {
+      console.error("Error creating diet plan:", error);
+      res.status(500).json({ message: "Nie udało się utworzyć planu dietetycznego" });
+    }
+  });
+
+  app.get("/api/diets/plans", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą przeglądać plany dietetyczne" });
+      }
+
+      const plans = await storage.getTrainerDietPlans(userId);
+      res.json(plans);
+    } catch (error) {
+      console.error("Error fetching diet plans:", error);
+      res.status(500).json({ message: "Nie udało się pobrać planów dietetycznych" });
+    }
+  });
+
+  app.get("/api/diets/plans/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { id } = req.params;
+      
+      const plan = await storage.getDietPlanById(id);
+      
+      if (!plan) {
+        return res.status(404).json({ message: "Plan dietetyczny nie został znaleziony" });
+      }
+
+      if (user?.role === "trainer" && plan.trainerId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego planu" });
+      }
+
+      if (user?.role === "client" && plan.clientId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego planu" });
+      }
+
+      res.json(plan);
+    } catch (error) {
+      console.error("Error fetching diet plan:", error);
+      res.status(500).json({ message: "Nie udało się pobrać planu dietetycznego" });
+    }
+  });
+
+  app.put("/api/diets/plans/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { id } = req.params;
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą aktualizować plany dietetyczne" });
+      }
+
+      const plan = await storage.getDietPlanById(id);
+      
+      if (!plan) {
+        return res.status(404).json({ message: "Plan dietetyczny nie został znaleziony" });
+      }
+
+      if (plan.trainerId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego planu" });
+      }
+
+      const validationResult = insertDietPlanSchema.partial().safeParse(req.body);
+
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const updatedPlan = await storage.updateDietPlan(id, validationResult.data);
+      res.json(updatedPlan);
+    } catch (error) {
+      console.error("Error updating diet plan:", error);
+      res.status(500).json({ message: "Nie udało się zaktualizować planu dietetycznego" });
+    }
+  });
+
+  app.delete("/api/diets/plans/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { id } = req.params;
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą usuwać plany dietetyczne" });
+      }
+
+      const plan = await storage.getDietPlanById(id);
+      
+      if (!plan) {
+        return res.status(404).json({ message: "Plan dietetyczny nie został znaleziony" });
+      }
+
+      if (plan.trainerId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego planu" });
+      }
+
+      await storage.deleteDietPlan(id);
+      res.json({ message: "Plan dietetyczny został usunięty" });
+    } catch (error) {
+      console.error("Error deleting diet plan:", error);
+      res.status(500).json({ message: "Nie udało się usunąć planu dietetycznego" });
+    }
+  });
+
+  // Diet Meals - Trainer endpoints
+  app.post("/api/diets/plans/:planId/meals", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { planId } = req.params;
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą dodawać posiłki" });
+      }
+
+      const plan = await storage.getDietPlanById(planId);
+      
+      if (!plan) {
+        return res.status(404).json({ message: "Plan dietetyczny nie został znaleziony" });
+      }
+
+      if (plan.trainerId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego planu" });
+      }
+
+      const validationResult = insertDietMealSchema.safeParse({
+        ...req.body,
+        planId,
+      });
+
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const meal = await storage.createDietMeal(validationResult.data);
+      res.status(201).json(meal);
+    } catch (error) {
+      console.error("Error creating diet meal:", error);
+      res.status(500).json({ message: "Nie udało się utworzyć posiłku" });
+    }
+  });
+
+  app.get("/api/diets/plans/:planId/meals", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { planId } = req.params;
+      
+      const plan = await storage.getDietPlanById(planId);
+      
+      if (!plan) {
+        return res.status(404).json({ message: "Plan dietetyczny nie został znaleziony" });
+      }
+
+      if (user?.role === "trainer" && plan.trainerId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego planu" });
+      }
+
+      if (user?.role === "client" && plan.clientId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego planu" });
+      }
+
+      const meals = await storage.getDietPlanMeals(planId);
+      res.json(meals);
+    } catch (error) {
+      console.error("Error fetching diet meals:", error);
+      res.status(500).json({ message: "Nie udało się pobrać posiłków" });
+    }
+  });
+
+  app.put("/api/diets/meals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { id } = req.params;
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą aktualizować posiłki" });
+      }
+
+      const meals = await storage.getDietPlanMeals(req.body.planId);
+      const meal = meals.find(m => m.id === id);
+      
+      if (!meal) {
+        return res.status(404).json({ message: "Posiłek nie został znaleziony" });
+      }
+
+      const plan = await storage.getDietPlanById(meal.planId);
+      
+      if (!plan || plan.trainerId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego posiłku" });
+      }
+
+      const validationResult = insertDietMealSchema.partial().safeParse(req.body);
+
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const updatedMeal = await storage.updateDietMeal(id, validationResult.data);
+      res.json(updatedMeal);
+    } catch (error) {
+      console.error("Error updating diet meal:", error);
+      res.status(500).json({ message: "Nie udało się zaktualizować posiłku" });
+    }
+  });
+
+  app.delete("/api/diets/meals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { id } = req.params;
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą usuwać posiłki" });
+      }
+
+      const meals = await storage.getDietPlanMeals(req.body.planId || '');
+      const meal = meals.find(m => m.id === id);
+      
+      if (meal) {
+        const plan = await storage.getDietPlanById(meal.planId);
+        
+        if (plan && plan.trainerId !== userId) {
+          return res.status(403).json({ message: "Nie masz uprawnień do tego posiłku" });
+        }
+      }
+
+      await storage.deleteDietMeal(id);
+      res.json({ message: "Posiłek został usunięty" });
+    } catch (error) {
+      console.error("Error deleting diet meal:", error);
+      res.status(500).json({ message: "Nie udało się usunąć posiłku" });
+    }
+  });
+
+  // Client diet endpoints
+  app.get("/api/client/diet", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko podopieczni mogą przeglądać swoje plany dietetyczne" });
+      }
+
+      const plan = await storage.getClientActiveDietPlan(userId);
+      
+      if (!plan) {
+        return res.status(404).json({ message: "Nie masz aktywnego planu dietetycznego" });
+      }
+
+      const meals = await storage.getDietPlanMeals(plan.id);
+      res.json({ plan, meals });
+    } catch (error) {
+      console.error("Error fetching client diet:", error);
+      res.status(500).json({ message: "Nie udało się pobrać planu dietetycznego" });
+    }
+  });
+
+  app.post("/api/client/diet/log", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko podopieczni mogą logować nawyki" });
+      }
+
+      const { date, waterLiters, hitCalories, hitProtein, hitFat, hitCarbs, mealCheckmarks, planId } = req.body;
+
+      if (!planId) {
+        return res.status(400).json({ message: "planId jest wymagane" });
+      }
+
+      const validationResult = insertDailyHabitLogSchema.safeParse({
+        clientId: userId,
+        planId,
+        date,
+        waterLiters,
+        hitCalories,
+        hitProtein,
+        hitFat,
+        hitCarbs,
+      });
+
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const habitLog = await storage.upsertDailyHabitLog({
+        ...validationResult.data,
+        clientId: userId,
+        date: validationResult.data.date.toISOString().split('T')[0],
+      });
+
+      if (mealCheckmarks && Array.isArray(mealCheckmarks)) {
+        await Promise.all(
+          mealCheckmarks.map((checkmark: { mealId: string, completed: boolean }) =>
+            storage.upsertMealCheckmark({
+              habitLogId: habitLog.id,
+              mealId: checkmark.mealId,
+              completed: checkmark.completed,
+            })
+          )
+        );
+      }
+
+      const checkmarks = await storage.getHabitLogCheckmarks(habitLog.id);
+      res.json({ habitLog, checkmarks });
+    } catch (error) {
+      console.error("Error logging daily habits:", error);
+      res.status(500).json({ message: "Nie udało się zapisać dziennika nawyków" });
+    }
+  });
+
+  app.get("/api/client/diet/logs", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko podopieczni mogą przeglądać swoje logi" });
+      }
+
+      const { startDate, endDate, planId } = req.query;
+
+      if (!planId || !startDate || !endDate) {
+        return res.status(400).json({ message: "planId, startDate i endDate są wymagane" });
+      }
+
+      const start = new Date(startDate as string);
+      const end = new Date(endDate as string);
+
+      const logs = await storage.getClientHabitLogs(userId, planId as string, start, end);
+
+      const logsWithCheckmarks = await Promise.all(
+        logs.map(async (log) => {
+          const checkmarks = await storage.getHabitLogCheckmarks(log.id);
+          return { ...log, checkmarks };
+        })
+      );
+
+      res.json(logsWithCheckmarks);
+    } catch (error) {
+      console.error("Error fetching client habit logs:", error);
+      res.status(500).json({ message: "Nie udało się pobrać logów nawyków" });
+    }
+  });
+
+  // Trainer - get client's active diet plan
+  app.get("/api/trainer/clients/:clientId/active-diet", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą przeglądać plany podopiecznych" });
+      }
+
+      const { clientId } = req.params;
+      const activePlan = await storage.getClientActiveDietPlan(clientId);
+      
+      if (activePlan && activePlan.trainerId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego planu" });
+      }
+
+      res.json(activePlan);
+    } catch (error) {
+      console.error("Error fetching client active diet plan:", error);
+      res.status(500).json({ message: "Nie udało się pobrać aktywnego planu diety" });
+    }
+  });
+
+  // Trainer stats endpoint
+  app.get("/api/trainer/clients/:clientId/diet-stats", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą przeglądać statystyki podopiecznych" });
+      }
+
+      const { clientId } = req.params;
+      const { planId, days = '7' } = req.query;
+
+      if (!planId) {
+        return res.status(400).json({ message: "planId jest wymagane" });
+      }
+
+      const plan = await storage.getDietPlanById(planId as string);
+      
+      if (!plan || plan.trainerId !== userId || plan.clientId !== clientId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tych statystyk" });
+      }
+
+      const daysCount = parseInt(days as string);
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - daysCount);
+
+      const logs = await storage.getClientHabitLogs(clientId, planId as string, startDate, endDate);
+      const meals = await storage.getDietPlanMeals(planId as string);
+
+      let totalCompletedMeals = 0;
+      let totalPossibleMeals = 0;
+      let totalWater = 0;
+      let streak = 0;
+      let currentStreak = 0;
+
+      const logsWithCheckmarks = await Promise.all(
+        logs.map(async (log) => {
+          const checkmarks = await storage.getHabitLogCheckmarks(log.id);
+          return { log, checkmarks };
+        })
+      );
+
+      const dailyStats = [];
+
+      for (let i = 0; i < logsWithCheckmarks.length; i++) {
+        const { log, checkmarks } = logsWithCheckmarks[i];
+        
+        const waterLiters = parseFloat(log.waterLiters || '0');
+        totalWater += waterLiters;
+        
+        const completedMealsCount = checkmarks.filter(c => c.completed).length;
+        totalPossibleMeals += meals.length;
+        totalCompletedMeals += completedMealsCount;
+
+        const completedMealsPercent = meals.length > 0 
+          ? (completedMealsCount / meals.length) * 100 
+          : 0;
+
+        dailyStats.push({
+          date: log.date,
+          completedMealsPercent: Math.round(completedMealsPercent * 10) / 10,
+          waterLiters: Math.round(waterLiters * 10) / 10,
+        });
+
+        if (checkmarks.length > 0) {
+          currentStreak++;
+          if (currentStreak > streak) {
+            streak = currentStreak;
+          }
+        } else {
+          currentStreak = 0;
+        }
+      }
+
+      const avgCompletedMealsPercent = totalPossibleMeals > 0 
+        ? (totalCompletedMeals / totalPossibleMeals) * 100 
+        : 0;
+      
+      const avgWaterLiters = logs.length > 0 
+        ? totalWater / logs.length 
+        : 0;
+
+      res.json({
+        avgCompletedMealsPercent: Math.round(avgCompletedMealsPercent * 10) / 10,
+        streakDays: streak,
+        avgWaterLiters: Math.round(avgWaterLiters * 10) / 10,
+        totalDaysLogged: logs.length,
+        dailyStats: dailyStats.sort((a, b) => a.date.localeCompare(b.date)),
+        dateRange: {
+          start: startDate.toISOString().split('T')[0],
+          end: endDate.toISOString().split('T')[0],
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching client diet stats:", error);
+      res.status(500).json({ message: "Nie udało się pobrać statystyk" });
     }
   });
 

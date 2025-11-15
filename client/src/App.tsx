@@ -23,6 +23,10 @@ import WeeklyReport from "@/pages/weekly-report";
 import TrainerReports from "@/pages/trainer-reports";
 import InviteClient from "@/pages/invite-client";
 import AdminCharityDonations from "@/pages/admin-charity-donations";
+import TrainerDiets from "@/pages/trainer-diets";
+import DietPlanForm from "@/pages/diet-plan-form";
+import ClientDiet from "@/pages/client-diet";
+import TrainerClientDietStats from "@/pages/trainer-client-diet-stats";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -68,6 +72,10 @@ function Router() {
             <Route path="/plans/:id/assign" component={AssignPlan} />
             <Route path="/exercise-library" component={ExerciseLibrary} />
             <Route path="/clients" component={Clients} />
+            <Route path="/trainer/clients/:clientId/diet" component={TrainerClientDietStats} />
+            <Route path="/trainer/diets" component={TrainerDiets} />
+            <Route path="/trainer/diets/new" component={DietPlanForm} />
+            <Route path="/trainer/diets/:id/edit" component={DietPlanForm} />
             <Route path="/invite" component={InviteClient} />
             <Route path="/trainer/reports" component={TrainerReports} />
             {user.isAdmin && (
@@ -79,6 +87,7 @@ function Router() {
           <>
             <Route path="/" component={ClientDashboard} />
             <Route path="/my-plan" component={ClientPlan} />
+            <Route path="/client/diet" component={ClientDiet} />
             <Route path="/weekly-report" component={WeeklyReport} />
             <Route path="/profile" component={ClientProfile} />
           </>
