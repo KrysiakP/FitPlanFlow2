@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, varchar, text, timestamp, integer, index, uniqueIndex, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, varchar, text, timestamp, integer, index, uniqueIndex, jsonb, boolean, date, numeric } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -189,6 +189,71 @@ export const charityDonations = pgTable("charity_donations", {
   uniqueMonthYear: uniqueIndex("unique_month_year").on(table.month, table.year),
 }));
 
+// Diet plans - nutritional plans created by trainers for clients
+export const dietPlans = pgTable("diet_plans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  trainerId: varchar("trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  clientId: varchar("client_id").references(() => users.id, { onDelete: "cascade" }), // nullable - plan może być w formie draftu
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  targetCalories: integer("target_calories").notNull(),
+  targetProtein: integer("target_protein").notNull(), // gramy
+  targetFat: integer("target_fat").notNull(), // gramy
+  targetCarbs: integer("target_carbs").notNull(), // gramy
+  mealsPerDay: integer("meals_per_day").notNull(), // 3-6
+  status: varchar("status", { length: 20 }).notNull().default("draft"), // draft/active/completed
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  trainerIdx: index("diet_plans_trainer_idx").on(table.trainerId),
+  clientIdx: index("diet_plans_client_idx").on(table.clientId),
+}));
+
+// Diet meals - meals within a diet plan
+export const dietMeals = pgTable("diet_meals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  planId: varchar("plan_id").notNull().references(() => dietPlans.id, { onDelete: "cascade" }),
+  orderIndex: integer("order_index").notNull(), // 1-6
+  name: varchar("name", { length: 255 }).notNull(), // np. "Śniadanie", "Drugie śniadanie"
+  description: text("description").notNull(), // składniki i wskazówki
+}, (table) => ({
+  planIdx: index("diet_meals_plan_idx").on(table.planId),
+  uniquePlanOrder: uniqueIndex("unique_diet_meal_plan_order").on(table.planId, table.orderIndex),
+}));
+
+// Daily habit logs - client's daily diet and habit tracking
+export const dailyHabitLogs = pgTable("daily_habit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  planId: varchar("plan_id").notNull().references(() => dietPlans.id, { onDelete: "cascade" }),
+  date: date("date").notNull(),
+  waterLiters: numeric("water_liters", { precision: 4, scale: 1 }).default("0").notNull(), // wypita woda
+  hitCalories: boolean("hit_calories").default(false).notNull(),
+  hitProtein: boolean("hit_protein").default(false).notNull(),
+  hitFat: boolean("hit_fat").default(false).notNull(),
+  hitCarbs: boolean("hit_carbs").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  clientIdx: index("daily_habit_logs_client_idx").on(table.clientId),
+  planIdx: index("daily_habit_logs_plan_idx").on(table.planId),
+  dateIdx: index("daily_habit_logs_date_idx").on(table.date),
+  uniqueClientPlanDate: uniqueIndex("unique_client_plan_date").on(table.clientId, table.planId, table.date),
+}));
+
+// Meal checkmarks - track completed meals in daily habit logs
+export const mealCheckmarks = pgTable("meal_checkmarks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  habitLogId: varchar("habit_log_id").notNull().references(() => dailyHabitLogs.id, { onDelete: "cascade" }),
+  mealId: varchar("meal_id").notNull().references(() => dietMeals.id, { onDelete: "cascade" }),
+  completed: boolean("completed").default(false).notNull(),
+  completedAt: timestamp("completed_at"),
+}, (table) => ({
+  habitLogIdx: index("meal_checkmarks_habit_log_idx").on(table.habitLogId),
+  mealIdx: index("meal_checkmarks_meal_idx").on(table.mealId),
+  uniqueHabitLogMeal: uniqueIndex("unique_habit_log_meal").on(table.habitLogId, table.mealId),
+}));
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   createdPlans: many(trainingPlans),
@@ -198,6 +263,9 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   progress: many(clientProgress),
   exerciseLogs: many(exerciseLogs),
   weeklyReports: many(weeklyReports),
+  createdDietPlans: many(dietPlans, { relationName: "trainerDietPlans" }),
+  assignedDietPlans: many(dietPlans, { relationName: "clientDietPlans" }),
+  dailyHabitLogs: many(dailyHabitLogs),
 }));
 
 export const trainingPlansRelations = relations(trainingPlans, ({ one, many }) => ({
@@ -297,6 +365,52 @@ export const planInvitationsRelations = relations(planInvitations, ({ one }) => 
   }),
 }));
 
+export const dietPlansRelations = relations(dietPlans, ({ one, many }) => ({
+  trainer: one(users, {
+    fields: [dietPlans.trainerId],
+    references: [users.id],
+    relationName: "trainerDietPlans",
+  }),
+  client: one(users, {
+    fields: [dietPlans.clientId],
+    references: [users.id],
+    relationName: "clientDietPlans",
+  }),
+  meals: many(dietMeals),
+  habitLogs: many(dailyHabitLogs),
+}));
+
+export const dietMealsRelations = relations(dietMeals, ({ one, many }) => ({
+  plan: one(dietPlans, {
+    fields: [dietMeals.planId],
+    references: [dietPlans.id],
+  }),
+  checkmarks: many(mealCheckmarks),
+}));
+
+export const dailyHabitLogsRelations = relations(dailyHabitLogs, ({ one, many }) => ({
+  client: one(users, {
+    fields: [dailyHabitLogs.clientId],
+    references: [users.id],
+  }),
+  plan: one(dietPlans, {
+    fields: [dailyHabitLogs.planId],
+    references: [dietPlans.id],
+  }),
+  mealCheckmarks: many(mealCheckmarks),
+}));
+
+export const mealCheckmarksRelations = relations(mealCheckmarks, ({ one }) => ({
+  habitLog: one(dailyHabitLogs, {
+    fields: [mealCheckmarks.habitLogId],
+    references: [dailyHabitLogs.id],
+  }),
+  meal: one(dietMeals, {
+    fields: [mealCheckmarks.mealId],
+    references: [dietMeals.id],
+  }),
+}));
+
 // Types for Replit Auth
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -344,6 +458,22 @@ export type InsertClientRelationship = typeof clientRelationships.$inferInsert;
 // Types for plan invitations
 export type PlanInvitation = typeof planInvitations.$inferSelect;
 export type InsertPlanInvitation = typeof planInvitations.$inferInsert;
+
+// Types for diet plans
+export type DietPlan = typeof dietPlans.$inferSelect;
+export type InsertDietPlan = typeof dietPlans.$inferInsert;
+
+// Types for diet meals
+export type DietMeal = typeof dietMeals.$inferSelect;
+export type InsertDietMeal = typeof dietMeals.$inferInsert;
+
+// Types for daily habit logs
+export type DailyHabitLog = typeof dailyHabitLogs.$inferSelect;
+export type InsertDailyHabitLog = typeof dailyHabitLogs.$inferInsert;
+
+// Types for meal checkmarks
+export type MealCheckmark = typeof mealCheckmarks.$inferSelect;
+export type InsertMealCheckmark = typeof mealCheckmarks.$inferInsert;
 
 // Zod schemas
 export const insertTrainingPlanSchema = createInsertSchema(trainingPlans).omit({
@@ -445,6 +575,30 @@ export const insertCharityDonationSchema = createInsertSchema(charityDonations).
   documentUrl: z.string().min(1, "URL dokumentu jest wymagany"),
 });
 
+export const insertDietPlanSchema = createInsertSchema(dietPlans).omit({
+  id: true,
+  trainerId: true,
+  createdAt: true,
+}).extend({
+  mealsPerDay: z.coerce.number().int().min(3, "Liczba posiłków musi być między 3 a 6").max(6, "Liczba posiłków musi być między 3 a 6"),
+});
+
+export const insertDietMealSchema = createInsertSchema(dietMeals).omit({
+  id: true,
+});
+
+export const insertDailyHabitLogSchema = createInsertSchema(dailyHabitLogs).omit({
+  id: true,
+  clientId: true,
+  createdAt: true,
+}).extend({
+  date: z.coerce.date(),
+});
+
+export const insertMealCheckmarkSchema = createInsertSchema(mealCheckmarks).omit({
+  id: true,
+});
+
 export const updateUserRoleSchema = z.object({
   role: z.enum(["trainer", "client"]),
 });
@@ -478,5 +632,9 @@ export type InsertClientRelationshipInput = z.infer<typeof insertClientRelations
 export type InsertPlanInvitationInput = z.infer<typeof insertPlanInvitationSchema>;
 export type InsertCharityDonationInput = z.infer<typeof insertCharityDonationSchema>;
 export type CharityDonation = typeof charityDonations.$inferSelect;
+export type InsertDietPlanInput = z.infer<typeof insertDietPlanSchema>;
+export type InsertDietMealInput = z.infer<typeof insertDietMealSchema>;
+export type InsertDailyHabitLogInput = z.infer<typeof insertDailyHabitLogSchema>;
+export type InsertMealCheckmarkInput = z.infer<typeof insertMealCheckmarkSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
