@@ -20,6 +20,10 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 - ✅ **System 6-tier subskrypcji** - START (0 zł, 3 podopiecznych), SOLO (99 zł, 10), PRO (189 zł, 20), ELITE (279 zł, 35), MAX (349 zł, 50), STUDIO (wycena indywidualna, 50+, wielutrenerski)
 - ✅ **System PomagaMY** - administrator publikuje miesięczne potwierdzenia wpłat charytatywnych, transparentność dla użytkowników
 - ✅ **Sekcja "Polska marka"** - podkreślenie lokalnego charakteru platformy w landing page i footer
+- ✅ **System Diety** - kompleksowe zarządzanie planami żywieniowymi:
+  - Trener tworzy plany dietetyczne z makroskładnikami i posiłkami
+  - Podopieczny loguje dzienne nawyki (posiłki, woda, makro)
+  - Panel postępów z wykresami i statystykami (% realizacji, streak, średnia woda)
 - ✅ Całkowicie polski interfejs użytkownika
 - ✅ Baza danych PostgreSQL z persystencją danych
 
@@ -54,6 +58,10 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 - `exerciseLogs` - historia wykonań ćwiczeń (powtórzenia, obciążenie, notatki, timestamp)
 - `weeklyReports` - raporty tygodniowe podopiecznych (waga, pomiary, zdjęcia)
 - `charityDonations` - miesięczne potwierdzenia wpłat charytatywnych (month, year, documentUrl, uploadedAt) + unique index na (month, year)
+- `dietPlans` - plany dietetyczne (trainerId, clientId, name, description, targetCalories/Protein/Fat/Carbs, mealsPerDay, status, startDate, endDate)
+- `dietMeals` - posiłki w planach dietetycznych (planId, orderIndex, name, description) + unique(planId, orderIndex)
+- `dailyHabitLogs` - dzienne logi nawyków podopiecznego (clientId, planId, date, waterLiters, hitCalories/Protein/Fat/Carbs) + unique(clientId, planId, date)
+- `mealCheckmarks` - odhaczenia posiłków (habitLogId, mealId, completed, completedAt) + unique(habitLogId, mealId)
 
 ## API Endpoints
 
@@ -96,6 +104,25 @@ Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zar
 - `GET /api/charity-donations` - publiczny endpoint, lista wszystkich potwierdzeń wpłat (sortowane DESC)
 - `POST /api/admin/charity-donations` - tylko admin, tworzy nowe potwierdzenie (month, year, documentUrl)
 - `DELETE /api/admin/charity-donations/:id` - tylko admin, usuwa potwierdzenie
+
+### Diety
+**Trener:**
+- `POST /api/diets/plans` - tworzy nowy plan dietetyczny
+- `GET /api/diets/plans` - lista planów trenera
+- `GET /api/diets/plans/:id` - szczegóły planu
+- `PUT /api/diets/plans/:id` - aktualizuje plan
+- `DELETE /api/diets/plans/:id` - usuwa plan
+- `POST /api/diets/plans/:planId/meals` - dodaje posiłek do planu
+- `GET /api/diets/plans/:planId/meals` - lista posiłków planu
+- `PUT /api/diets/meals/:id` - aktualizuje posiłek
+- `DELETE /api/diets/meals/:id` - usuwa posiłek
+- `GET /api/trainer/clients/:clientId/active-diet` - aktywny plan diety klienta
+- `GET /api/trainer/clients/:clientId/diet-stats` - statystyki (% posiłków, streak, woda)
+
+**Podopieczny:**
+- `GET /api/client/diet` - pobiera aktywny plan dietetyczny
+- `POST /api/client/diet/log` - zapisuje dzienny dziennik (posiłki, woda, makro)
+- `GET /api/client/diet/logs` - historia logów (startDate, endDate, planId)
 
 ## User Journeys
 
@@ -223,6 +250,11 @@ UPDATE users SET is_admin = true WHERE email = 'twoj-email@example.com';
 - ✅ **System płatności 6-tier** - ZAKOŃCZONE (START, SOLO, PRO, ELITE, MAX, STUDIO)
 - ✅ **System PomagaMY** - ZAKOŃCZONE  
 - ✅ **Sekcja "Polska marka"** - ZAKOŃCZONE
+- ✅ **System Diety** - ZAKOŃCZONE
+  - Backend: 4 tabele (dietPlans, dietMeals, dailyHabitLogs, mealCheckmarks)
+  - Frontend trenera: lista planów, formularz tworzenia/edycji, panel statystyk
+  - Frontend podopiecznego: widok aktywnego planu, dzienny dziennik nawyków
+  - Statystyki: % realizacji posiłków, streak dni, średnie spożycie wody
 - Widok kalendarza do planowania treningów
 - Rozszerzona biblioteka ćwiczeń z kategoryzacją
 - System wiadomości trener-podopieczny
