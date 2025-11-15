@@ -1,263 +1,85 @@
 # Panel Trenera
 
-## Przegląd
-Profesjonalna platforma webowa dla trenerów i podopiecznych umożliwiająca zarządzanie planami treningowymi. Trenerzy mogą tworzyć szczegółowe plany treningowe i przypisywać je swoim podopiecznym, którzy mają dostęp do przypisanych planów przez przejrzysty interfejs.
+## Overview
+Panel Trenera is a professional web platform designed for trainers and their clients to manage training and nutrition plans. It enables trainers to create detailed training and diet plans, assign them to clients, and track their progress. The platform features a subscription-based model for trainers (SaaS), a transparent charity donation system ("PomagaMY"), and emphasizes its Polish origin.
 
-## Funkcjonalności MVP
-- ✅ Rejestracja i logowanie użytkowników (email/hasło)
-- ✅ Wybór roli podczas pierwszego logowania (podopieczny/trener)
-- ✅ Panel trenera z dashboard i statystykami
-- ✅ Tworzenie, edycja i usuwanie planów treningowych
-- ✅ Dodawanie ćwiczeń do planów (nazwa, serie, powtórzenia, opis, odpoczynek)
-- ✅ **System zaproszeń** - trener wysyła zaproszenie przez email, podopieczny akceptuje/odrzuca
-- ✅ Panel podopiecznego z dostępem do przypisanego planu
-- ✅ Lista podopiecznych dla trenera
-- ✅ **Logowanie wykonań ćwiczeń** - podopieczni mogą zapisywać swoje wyniki (powtórzenia, obciążenie)
-- ✅ **Automatyczne prefill** - formularz ładuje ostatnie zalogowane wartości
-- ✅ **System subskrypcji Stripe** - trenerzy płacą za dostęp do platformy (SaaS model)
-- ✅ **Zarządzanie subskrypcją** - upgrade, downgrade, anulowanie przez Stripe Customer Portal
-- ✅ **Webhook handler** - automatyczna synchronizacja statusu subskrypcji
-- ✅ **System 6-tier subskrypcji** - START (0 zł, 3 podopiecznych), SOLO (99 zł, 10), PRO (189 zł, 20), ELITE (279 zł, 35), MAX (349 zł, 50), STUDIO (wycena indywidualna, 50+, wielutrenerski)
-- ✅ **System PomagaMY** - administrator publikuje miesięczne potwierdzenia wpłat charytatywnych, transparentność dla użytkowników
-- ✅ **Sekcja "Polska marka"** - podkreślenie lokalnego charakteru platformy w landing page i footer
-- ✅ **System Diety** - kompleksowe zarządzanie planami żywieniowymi:
-  - Trener tworzy plany dietetyczne z makroskładnikami i posiłkami
-  - Podopieczny loguje dzienne nawyki (posiłki, woda, makro)
-  - Panel postępów z wykresami i statystykami (% realizacji, streak, średnia woda)
-- ✅ Całkowicie polski interfejs użytkownika
-- ✅ Baza danych PostgreSQL z persystencją danych
+**Key Capabilities:**
+- User authentication with distinct roles (trainer/client).
+- Comprehensive training plan management (create, edit, assign exercises, log performance).
+- Detailed diet plan management (create, assign meals, track daily habits, monitor progress).
+- Invitation system for trainers to connect with clients.
+- Multi-tiered subscription system for trainers via Stripe.
+- Publicly verifiable charity donation records.
+- Fully localized Polish user interface.
 
-## Architektura
-### Frontend
-- React SPA z Wouter routing
-- Tailwind CSS + shadcn/ui components
-- TanStack Query dla zarządzania stanem i cache
-- React Hook Form + Zod validation
-- Inter (UI) i Poppins (nagłówki) fonts
+## User Preferences
+I prefer clear and concise communication.
+I value an iterative development approach, with regular updates and opportunities for feedback.
+Please prioritize security and data privacy in all implementations.
+I prefer to be asked before any major architectural changes or significant feature additions are made.
+I prefer detailed explanations for complex technical decisions.
+Do not make changes to the folder `design_guidelines.md`.
 
-### Backend  
-- Express.js API server
-- Email/hasło autentykacja z bcryptjs
-- Express session z PostgreSQL storage
-- PostgreSQL (Neon) database
-- Drizzle ORM dla typu-bezpiecznego dostępu do bazy
+## System Architecture
+The application follows a client-server architecture with a React-based frontend and an Express.js backend.
 
-### Model Danych
-- `users` - użytkownicy z rolami (trainer/client) + pola subskrypcji:
-  - `isAdmin` - flaga administratora platformy (boolean, default false)
-  - `stripeCustomerId` - ID klienta w Stripe (unique)
-  - `stripeSubscriptionId` - ID aktywnej subskrypcji
-  - `subscriptionStatus` - status: active, canceled, past_due, etc.
-  - `subscriptionTier` - tier: start, solo, pro, elite, max, studio
-- `sessions` - sesje użytkowników (express-session + connect-pg-simple)
-- `trainingPlans` - plany treningowe utworzone przez trenerów
-- `workouts` - treningi w planach (relacja 1:N)
-- `exercises` - ćwiczenia w treningach (relacja 1:N)
-- `planAssignments` - przypisania planów do podopiecznych
-- `planInvitations` - zaproszenia do planów (trainerId, clientEmail, planId, status)
-- `exerciseLogs` - historia wykonań ćwiczeń (powtórzenia, obciążenie, notatki, timestamp)
-- `weeklyReports` - raporty tygodniowe podopiecznych (waga, pomiary, zdjęcia)
-- `charityDonations` - miesięczne potwierdzenia wpłat charytatywnych (month, year, documentUrl, uploadedAt) + unique index na (month, year)
-- `dietPlans` - plany dietetyczne (trainerId, clientId, name, description, targetCalories/Protein/Fat/Carbs, mealsPerDay, status, startDate, endDate)
-- `dietMeals` - posiłki w planach dietetycznych (planId, orderIndex, name, description) + unique(planId, orderIndex)
-- `dailyHabitLogs` - dzienne logi nawyków podopiecznego (clientId, planId, date, waterLiters, hitCalories/Protein/Fat/Carbs) + unique(clientId, planId, date)
-- `mealCheckmarks` - odhaczenia posiłków (habitLogId, mealId, completed, completedAt) + unique(habitLogId, mealId)
+**UI/UX Decisions:**
+- **Design System:** Professional design system utilizing Inter (UI) and Poppins (headers) fonts, Tailwind CSS for styling, and shadcn/ui components.
+- **Iconography:** Lucide React for consistent icons.
+- **Language:** Entirely in Polish, including proper diacritics.
+- **Theming:** Custom theme tokens integrated with shadcn/ui.
 
-## API Endpoints
+**Technical Implementations:**
+- **Frontend:**
+    - React SPA with Wouter for routing.
+    - TanStack Query for state management and caching.
+    - React Hook Form and Zod for form handling and validation.
+- **Backend:**
+    - Express.js API server.
+    - Email/password authentication using bcryptjs for secure password hashing.
+    - Express session management with PostgreSQL for persistent sessions.
+    - Drizzle ORM for type-safe database interactions.
+- **Database:** PostgreSQL (Neon) for robust and scalable data storage.
 
-### Autentykacja
-- `POST /api/register` - rejestracja użytkownika (email, hasło, firstName, lastName)
-- `POST /api/login` - logowanie (email, hasło)
-- `POST /api/logout` - wylogowanie użytkownika
-- `GET /api/auth/user` - zwraca zalogowanego użytkownika
-- `POST /api/auth/update-role` - ustawia rolę użytkownika
+**Feature Specifications:**
+- **Subscription System (6-tier):** Implemented with Stripe Checkout, Customer Portal, and Webhooks for automated subscription management (START, SOLO, PRO, ELITE, MAX, STUDIO tiers). Real-time enforcement of client limits per tier.
+- **Invitation System:** Trainers send email invitations to clients, who can accept or reject them.
+- **Exercise Logging:** Clients can log exercise performance (repetitions, weight) with automatic prefill from previous entries.
+- **Diet Management:**
+    - Trainers create diet plans with macronutrient targets and define meals.
+    - Clients log daily habits including meals, water intake, and macronutrient consumption.
+    - Progress tracking with charts and statistics for meal completion, streaks, and water intake.
+- **"PomagaMY" Charity System:** Administrator uploads monthly charity donation confirmations, which are publicly displayed for transparency.
+- **"Polska marka" Section:** Dedicated content highlighting the platform's local origin on the landing page and footer.
 
-### Trener
-- `GET /api/plans` - lista planów trenera
-- `POST /api/plans` - tworzy nowy plan
-- `GET /api/plans/:id` - szczegóły planu
-- `PUT /api/plans/:id` - aktualizuje plan
-- `DELETE /api/plans/:id` - usuwa plan
-- `POST /api/assignments/bulk` - przypisuje plan do wielu podopiecznych
-- `GET /api/trainer/clients` - lista podopiecznych trenera
-- `GET /api/trainer/stats` - statystyki trenera
+**System Design Choices:**
+- **Data Model:** Comprehensive PostgreSQL schema including:
+  - `users` (with roles and subscription data)
+  - `sessions`, `trainingPlans`, `workouts`, `exercises`
+  - `planAssignments`, `planInvitations`, `exerciseLogs`, `weeklyReports`
+  - `charityDonations`
+  - **Diet System Tables:**
+    - `dietPlans` - Diet plans (trainerId, clientId, name, targetCalories/Protein/Fat/Carbs, mealsPerDay, status)
+    - `dietMeals` - Meals in diet plans (planId, orderIndex, name, description) + unique(planId, orderIndex)
+    - `dailyHabitLogs` - Daily habit logs (clientId, planId, date, waterLiters, hitCalories/Protein/Fat/Carbs) + unique(clientId, planId, date)
+    - `mealCheckmarks` - Meal completion tracking (habitLogId, mealId, completed, completedAt) + unique(habitLogId, mealId)
+- **API Endpoints:** Structured RESTful API covering:
+  - Authentication (login, register, session management)
+  - Trainer management (plans, clients, invitations)
+  - Client actions (exercise logging, diet tracking)
+  - Subscriptions (Stripe Checkout, Customer Portal, Webhooks)
+  - **Diet Management:** 13 endpoints for plan CRUD, meal management, habit logging, and progress statistics
+- **Authentication:** Session-based authentication with secure password handling.
 
-### Zaproszenia
-- `POST /api/invitations/send` - trener wysyła zaproszenie do planu (clientEmail, planId)
-- `GET /api/invitations` - pobiera zaproszenia (dla trenera: wszystkie, dla podopiecznego: pending)
-- `POST /api/invitations/:id/accept` - podopieczny akceptuje zaproszenie
-- `POST /api/invitations/:id/reject` - podopieczny odrzuca zaproszenie
-
-### Podopieczny
-- `GET /api/client/assignment` - przypisany plan podopiecznego
-- `POST /api/exercises/:exerciseId/log` - loguje wykonanie ćwiczenia
-- `GET /api/exercises/:exerciseId/logs` - historia wykonań ćwiczenia
-- `GET /api/exercises/:exerciseId/latest-log` - ostatnie wykonanie ćwiczenia (optymalizowane)
-
-### Subskrypcje (Stripe)
-- `POST /api/subscription/create-checkout` - tworzy Stripe Checkout Session dla upgrade (przyjmuje tier parameter)
-- `POST /api/subscription/portal` - tworzy link do Stripe Customer Portal (zarządzanie subskrypcją)
-- `POST /api/webhooks/stripe` - webhook handler dla eventów Stripe (require signature verification)
-- `GET /api/subscription/status` - zwraca aktualny status subskrypcji trenera
-
-### PomagaMY (Charity Donations)
-- `GET /api/charity-donations` - publiczny endpoint, lista wszystkich potwierdzeń wpłat (sortowane DESC)
-- `POST /api/admin/charity-donations` - tylko admin, tworzy nowe potwierdzenie (month, year, documentUrl)
-- `DELETE /api/admin/charity-donations/:id` - tylko admin, usuwa potwierdzenie
-
-### Diety
-**Trener:**
-- `POST /api/diets/plans` - tworzy nowy plan dietetyczny
-- `GET /api/diets/plans` - lista planów trenera
-- `GET /api/diets/plans/:id` - szczegóły planu
-- `PUT /api/diets/plans/:id` - aktualizuje plan
-- `DELETE /api/diets/plans/:id` - usuwa plan
-- `POST /api/diets/plans/:planId/meals` - dodaje posiłek do planu
-- `GET /api/diets/plans/:planId/meals` - lista posiłków planu
-- `PUT /api/diets/meals/:id` - aktualizuje posiłek
-- `DELETE /api/diets/meals/:id` - usuwa posiłek
-- `GET /api/trainer/clients/:clientId/active-diet` - aktywny plan diety klienta
-- `GET /api/trainer/clients/:clientId/diet-stats` - statystyki (% posiłków, streak, woda)
-
-**Podopieczny:**
-- `GET /api/client/diet` - pobiera aktywny plan dietetyczny
-- `POST /api/client/diet/log` - zapisuje dzienny dziennik (posiłki, woda, makro)
-- `GET /api/client/diet/logs` - historia logów (startDate, endDate, planId)
-
-## User Journeys
-
-### Trener
-1. Rejestracja/logowanie przez email i hasło
-2. Wybór roli "Trener" (przy pierwszym logowaniu) - automatycznie START tier (0 zł, 3 podopiecznych)
-3. Dashboard z statystykami (liczba planów, podopiecznych, przypisań)
-4. Tworzenie planu treningowego z ćwiczeniami
-5. **Wysyłanie zaproszeń do planu:**
-   - **Szybki dostęp:** Zakładka "Zaproś podopiecznego" w menu bocznym (ikona UserPlus)
-   - **Strona /invite:** Formularz z polem email (pierwsze) + dropdown wyboru planu (drugie)
-   - **User-friendly:** Informacja, że plan można też przypisać później z listy podopiecznych
-   - **Instrukcje:** Sekcja "Jak to działa?" wyjaśniająca proces
-   - **Limity tier-ów:** START (3), SOLO (10), PRO (20), ELITE (35), MAX (50), STUDIO (50+)
-   - Alert z informacją o limicie i CTA do upgrade
-6. Przeglądanie listy podopiecznych z informacją o przypisanych planach
-7. **Zarządzanie subskrypcją:**
-   - Badge z aktualnym tier-em w navbar (dropdown menu)
-   - Panel w profilu z aktualnym planem i ceną
-   - Przycisk "Zmień plan" dla użytkowników START
-   - Przycisk "Zarządzaj subskrypcją" dla płatnych tier-ów → Stripe Customer Portal
-8. **Stripe Checkout flow:**
-   - Strona /pricing z porównaniem wszystkich 6 planów (START, SOLO, PRO, ELITE, MAX, STUDIO)
-   - Checkout Session z metadanymi userId i tier
-   - Redirect do Stripe hosted checkout
-   - Success/cancel URLs
-9. **Automatyczna synchronizacja:**
-   - Webhook events (checkout.session.completed, customer.subscription.*)
-   - Aktualizacja statusu i tier w bazie danych
-   - Real-time enforcement limitów dla każdego tier-a
-
-### Podopieczny
-1. Rejestracja/logowanie przez email i hasło
-2. Wybór roli "Podopieczny" (przy pierwszym logowaniu)
-3. **Dashboard z informacją o przypisanym planie i zaproszeniach:**
-   - **Nowe zaproszenia** wyświetlane w widocznej Card z:
-     - Border i background w kolorze primary
-     - Badge z licznikiem zaproszeń na ikonie Mail
-     - Każde zaproszenie w osobnej sekcji z avatarem trenera
-     - Przyciski Akceptuj/Odrzuć z ikonami i loading spinners
-4. Akceptacja/odrzucenie zaproszeń do planów treningowych
-5. Przeglądanie szczegółów planu treningowego z wszystkimi ćwiczeniami
-6. **Logowanie wykonań** - dla każdego ćwiczenia formularz z automatycznym prefill ostatnich wartości
-7. Zapisywanie powtórzeń, obciążenia i opcjonalnych notatek
-
-## Technologie
-- **Frontend**: React, TypeScript, Tailwind CSS, shadcn/ui, TanStack Query, Wouter
-- **Backend**: Node.js, Express, TypeScript, bcryptjs
-- **Database**: PostgreSQL (Neon), Drizzle ORM
-- **Auth**: Email/hasło z express-session + connect-pg-simple
-- **Payments**: Stripe (Checkout, Customer Portal, Webhooks)
-- **Deployment**: Replit
-
-## Uruchomienie
-```bash
-npm run dev  # Uruchamia Express + Vite dev server na porcie 5000
-```
-
-## Database Operations
-```bash
-npm run db:push  # Synchronizuje schemat z bazą danych
-```
-
-## Design System
-Aplikacja używa profesjonalnego systemu projektowego opisanego w `design_guidelines.md`:
-- Czcionki: Inter (UI) i Poppins (nagłówki)
-- Spacing: 2, 4, 6, 8 jednostek Tailwind
-- Komponenty: Shadcn UI z własnymi theme tokens
-- Ikony: Lucide React
-- Język: Polski z właściwymi znakami diakrytycznymi
-
-## Model Biznesowy
-**Trenerzy płacą, podopieczni korzystają za darmo:**
-- Trenerzy subskrybują platformę (6 tier-ów)
-- Podopieczni nie płacą platformie - rozliczają się prywatnie z trenerem
-
-**Cennik dla trenerów:**
-- START: 0 zł/mies - do 3 podopiecznych
-- SOLO: 99 zł/mies - do 10 podopiecznych
-- PRO: 189 zł/mies - do 20 podopiecznych (+ dedykowany opiekun konta)
-- ELITE: 279 zł/mies - do 35 podopiecznych (+ dedykowany opiekun konta)
-- MAX: 349 zł/mies - do 50 podopiecznych (+ dedykowany opiekun konta)
-- STUDIO/KLUB: wycena indywidualna - 50+ podopiecznych (+ dedykowany opiekun konta)
-
-## Zmienne środowiskowe
-Wymagane dla funkcjonowania systemu płatności:
-- `STRIPE_SECRET_KEY` - Secret key z Stripe Dashboard
-- `STRIPE_WEBHOOK_SECRET` - Secret dla webhook signature verification
-- `VITE_STRIPE_PUBLIC_KEY` - Publishable key dla frontend (prefiks VITE_)
-- `STRIPE_SOLO_PRICE_ID` - Price ID dla planu SOLO (99 zł)
-- `STRIPE_PRO_PRICE_ID` - Price ID dla planu PRO (189 zł)
-- `STRIPE_ELITE_PRICE_ID` - Price ID dla planu ELITE (279 zł)
-- `STRIPE_MAX_PRICE_ID` - Price ID dla planu MAX (349 zł)
-- `STRIPE_STUDIO_PRICE_ID` - Price ID dla planu STUDIO (wycena indywidualna)
-- `DATABASE_URL`, `SESSION_SECRET` - standardowe zmienne
-
-## System PomagaMY - Administrator
-**Administrator platformy** (użytkownik z flagą `isAdmin=true`) ma dostęp do specjalnego panelu:
-
-### Panel Admin (/admin/charity-donations)
-1. Formularz do dodawania miesięcznych potwierdzeń wpłat:
-   - Wybór miesiąca (polskie nazwy)
-   - Rok wpłaty
-   - Upload dokumentu (PDF/JPG/PNG) - automatyczny upload do /attached_assets/uploads
-   - Walidacja: brak duplikatów dla tego samego miesiąca i roku
-2. Lista wszystkich potwierdzeń z możliwością usunięcia
-
-### Publiczna strona PomagaMY (/pomagamy)
-- Dostępna dla wszystkich użytkowników (trenerzy i podopieczni)
-- Lista wszystkich miesięcznych potwierdzeń wpłat charytatywnych
-- Każde potwierdzenie zawiera:
-  * Miesiąc i rok (polskie formatowanie)
-  * Data uploadu
-  * Link do dokumentu (PDF/obrazek)
-  * Badge "Zweryfikowane"
-- Sortowanie: od najnowszych do najstarszych
-
-### Jak ustawić administratora?
-Administrator musi być ustawiony ręcznie w bazie danych:
-```sql
-UPDATE users SET is_admin = true WHERE email = 'twoj-email@example.com';
-```
-
-## Następne Fazy
-- ✅ **System płatności 6-tier** - ZAKOŃCZONE (START, SOLO, PRO, ELITE, MAX, STUDIO)
-- ✅ **System PomagaMY** - ZAKOŃCZONE  
-- ✅ **Sekcja "Polska marka"** - ZAKOŃCZONE
-- ✅ **System Diety** - ZAKOŃCZONE
-  - Backend: 4 tabele (dietPlans, dietMeals, dailyHabitLogs, mealCheckmarks)
-  - Frontend trenera: lista planów, formularz tworzenia/edycji, panel statystyk
-  - Frontend podopiecznego: widok aktywnego planu, dzienny dziennik nawyków
-  - Statystyki: % realizacji posiłków, streak dni, średnie spożycie wody
-- Widok kalendarza do planowania treningów
-- Rozszerzona biblioteka ćwiczeń z kategoryzacją
-- System wiadomości trener-podopieczny
-- Wykresy analityczne postępów
-- Email notifications dla zaproszeń i raportów
-- Mobile responsive improvements
+## External Dependencies
+- **Stripe:** For payment processing (Checkout, Customer Portal) and subscription management (Webhooks).
+- **PostgreSQL (Neon):** Primary database solution.
+- **bcryptjs:** Password hashing library.
+- **Express-session & connect-pg-simple:** Session management.
+- **Nodemailer:** (Implicit, for email invitations if not using an internal system)
+- **Tailwind CSS:** Utility-first CSS framework.
+- **shadcn/ui:** UI component library.
+- **TanStack Query:** Data fetching and caching library.
+- **React Hook Form & Zod:** Form management and validation.
+- **Wouter:** React routing library.
+- **Lucide React:** Icon library.
