@@ -27,6 +27,8 @@ import TrainerDiets from "@/pages/trainer-diets";
 import DietPlanForm from "@/pages/diet-plan-form";
 import ClientDiet from "@/pages/client-diet";
 import TrainerClientDietStats from "@/pages/trainer-client-diet-stats";
+import Pomagamy from "@/pages/pomagamy";
+import Pricing from "@/pages/pricing";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -81,6 +83,8 @@ function Router() {
             {user.isAdmin && (
               <Route path="/admin/charity-donations" component={AdminCharityDonations} />
             )}
+            <Route path="/pomagamy" component={Pomagamy} />
+            <Route path="/pricing" component={Pricing} />
             <Route path="/profile" component={TrainerProfile} />
           </>
         ) : (
@@ -89,6 +93,8 @@ function Router() {
             <Route path="/my-plan" component={ClientPlan} />
             <Route path="/client/diet" component={ClientDiet} />
             <Route path="/weekly-report" component={WeeklyReport} />
+            <Route path="/pomagamy" component={Pomagamy} />
+            <Route path="/pricing" component={Pricing} />
             <Route path="/profile" component={ClientProfile} />
           </>
         )}

@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Dumbbell } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
   { id: "dla-trenera", label: "Dla Trenera" },
@@ -10,6 +11,7 @@ const navItems = [
 
 export function PublicHeader() {
   const [location] = useLocation();
+  const { user } = useAuth();
 
   const handleSectionScroll = (sectionId: string) => {
     const element = document.getElementById(sectionId);
@@ -33,9 +35,15 @@ export function PublicHeader() {
             <h1 className="font-heading font-bold text-2xl">Panel Trenera</h1>
           </Link>
           
-          <Button asChild className="md:hidden" data-testid="button-login-mobile">
-            <Link href="/login">Zaloguj się</Link>
-          </Button>
+          {user ? (
+            <Button asChild className="md:hidden" data-testid="button-dashboard-mobile">
+              <Link href="/">Dashboard</Link>
+            </Button>
+          ) : (
+            <Button asChild className="md:hidden" data-testid="button-login-mobile">
+              <Link href="/login">Zaloguj się</Link>
+            </Button>
+          )}
         </div>
         
         <nav className="flex flex-wrap items-center gap-1 md:flex-1 md:justify-center" data-testid="nav-main">
@@ -53,9 +61,15 @@ export function PublicHeader() {
           ))}
         </nav>
 
-        <Button asChild className="hidden md:inline-flex" data-testid="button-login">
-          <Link href="/login">Zaloguj się</Link>
-        </Button>
+        {user ? (
+          <Button asChild className="hidden md:inline-flex" data-testid="button-dashboard">
+            <Link href="/">Dashboard</Link>
+          </Button>
+        ) : (
+          <Button asChild className="hidden md:inline-flex" data-testid="button-login">
+            <Link href="/login">Zaloguj się</Link>
+          </Button>
+        )}
       </div>
     </header>
   );
