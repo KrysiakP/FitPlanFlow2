@@ -471,6 +471,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { email, password, firstName, lastName, role } = validationResult.data;
       
+      const referralCodeStr = req.query.ref as string | undefined;
+      let referralCode = null;
+      
+      if (referralCodeStr) {
+        referralCode = await storage.getReferralCodeByCode(referralCodeStr);
+        if (!referralCode) {
+          console.warn(`Invalid referral code attempted: ${referralCodeStr}`);
+        }
+      }
+      
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
         return res.status(400).json({ message: "Użytkownik z tym adresem email już istnieje" });
@@ -478,7 +488,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const hashedPassword = await hashPassword(password);
       
-      // Create user with trial for trainers
       const user = await storage.createUser({
         email,
         password: hashedPassword,
@@ -487,11 +496,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role,
       });
 
-      // Set 30-day trial for trainers
       if (role === 'trainer') {
         const trialEndsAt = new Date();
         trialEndsAt.setDate(trialEndsAt.getDate() + 30);
         await storage.updateUserSubscription(user.id, { trialEndsAt });
+      }
+
+      if (referralCode) {
+        await storage.createReferralEvent({
+          referralCodeId: referralCode.id,
+          referrerTrainerId: referralCode.trainerId,
+          referredUserId: user.id,
+          referredRole: role as 'trainer' | 'client',
+          status: 'pending',
+        });
       }
 
       req.session.regenerate((err) => {
