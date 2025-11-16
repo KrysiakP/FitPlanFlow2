@@ -1386,6 +1386,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Updates video URL in exercise library and sets ACL policy
+  app.put("/api/exercises/library/:id/video", isAuthenticated, async (req, res) => {
+    if (!req.body.videoUrl) {
+      return res.status(400).json({ message: "videoUrl jest wymagane" });
+    }
+
+    const userId = req.session.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Wymagane uwierzytelnienie" });
+    }
+
+    try {
+      const exerciseId = req.params.id;
+      const exercise = await storage.getExerciseFromLibrary(exerciseId);
+      
+      if (!exercise) {
+        return res.status(404).json({ message: "Ćwiczenie nie znalezione" });
+      }
+
+      const user = await storage.getUser(userId);
+      
+      // Only trainer who owns this exercise can update video
+      if (user?.role !== 'trainer' || exercise.trainerId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do modyfikacji tego ćwiczenia" });
+      }
+
+      const objectStorageService = new ObjectStorageService();
+      
+      // Normalize and validate URL
+      const normalizedPath = objectStorageService.normalizeObjectEntityPath(req.body.videoUrl);
+      
+      if (!normalizedPath) {
+        console.warn(`Invalid video URL rejected: ${req.body.videoUrl}`);
+        return res.status(400).json({ message: "Nieprawidłowy URL filmu" });
+      }
+      
+      // Get existing object file to verify owner (if exists)
+      try {
+        const objectFile = await objectStorageService.getObjectEntityFile(normalizedPath);
+        const existingAcl = await objectStorageService.getObjectAclPolicy(objectFile);
+        
+        // Verify object owner matches trainer
+        if (existingAcl && existingAcl.owner !== userId) {
+          console.error(`Object owner mismatch: ${existingAcl.owner} !== ${userId}`);
+          return res.status(403).json({ message: "Nie możesz użyć filmu innego użytkownika" });
+        }
+      } catch (error) {
+        // Object doesn't exist yet - OK for new uploads
+        console.info(`New video upload: ${normalizedPath}`);
+      }
+      
+      // Set ACL policy (public visibility for exercise videos)
+      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
+        req.body.videoUrl,
+        {
+          owner: userId, // Trainer is owner
+          visibility: "public", // Exercise videos are public
+        }
+      );
+      
+      if (!objectPath) {
+        console.error(`Failed to set ACL policy for: ${req.body.videoUrl}`);
+        return res.status(400).json({ message: "Nie udało się ustawić uprawnień do filmu" });
+      }
+
+      // Update the exercise with the new video path
+      await storage.updateExerciseLibrary(exerciseId, { videoUrl: objectPath });
+
+      res.status(200).json({
+        objectPath: objectPath,
+      });
+    } catch (error) {
+      console.error("Error setting exercise video:", error);
+      res.status(500).json({ message: "Błąd podczas zapisywania filmu" });
+    }
+  });
+
   // User profile routes
   app.get("/api/profile", isAuthenticated, async (req, res) => {
     try {
