@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, varchar, text, timestamp, integer, index, uniqueIndex, jsonb, boolean, date, numeric } from "drizzle-orm/pg-core";
+import { pgTable, varchar, text, timestamp, integer, index, uniqueIndex, jsonb, boolean, date, numeric, pgEnum } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -31,6 +31,9 @@ export const users = pgTable("users", {
   subscriptionStatus: varchar("subscription_status", { length: 50 }), // 'active', 'canceled', 'past_due', 'unpaid', or null
   subscriptionTier: varchar("subscription_tier", { length: 50 }).default('start').notNull(), // 'start', 'solo', 'pro', 'elite', 'studio'
   trialEndsAt: timestamp("trial_ends_at"), // 30-day trial end date for trainers
+  // Referral system fields
+  referredByTrainerId: varchar("referred_by_trainer_id", { length: 255 }).references(() => users.id), // Who referred this user (self-reference)
+  referralBonusDays: integer("referral_bonus_days").default(0).notNull(), // Total bonus days earned from referrals
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
@@ -327,6 +330,42 @@ export const messages = pgTable("messages", {
   conversationIdx: index("messages_conversation_idx").on(table.trainerId, table.clientId),
 }));
 
+// User role enum (for referralEvents.referredRole)
+export const userRoleEnum = pgEnum("user_role", ["trainer", "client"]);
+
+// Referral status enum
+export const referralStatusEnum = pgEnum("referral_status", ["pending", "qualified", "bonus_granted"]);
+
+// Referral codes - unique codes for trainers to share (one-to-one with trainers)
+export const referralCodes = pgTable("referral_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  trainerId: varchar("trainer_id").unique().notNull().references(() => users.id, { onDelete: "cascade" }), // One code per trainer (unique constraint)
+  code: varchar("code", { length: 20 }).unique().notNull(), // Unique referral code (e.g., "ABC123XY")
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  lastUsedAt: timestamp("last_used_at"), // Last time this code was used
+}, (table) => ({
+  codeIdx: uniqueIndex("referral_codes_code_idx").on(table.code),
+}));
+
+// Referral events - tracks who referred whom and bonus status
+export const referralEvents = pgTable("referral_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  referralCodeId: varchar("referral_code_id").notNull().references(() => referralCodes.id, { onDelete: "cascade" }),
+  referrerTrainerId: varchar("referrer_trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  referredUserId: varchar("referred_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  referredRole: userRoleEnum("referred_role"), // Enum: 'trainer' or 'client'
+  status: referralStatusEnum("status").default("pending").notNull(), // Enum: 'pending', 'qualified', 'bonus_granted'
+  qualifiedAt: timestamp("qualified_at"), // When referral became qualified (trainer confirmed)
+  bonusGrantedAt: timestamp("bonus_granted_at"), // When bonus was applied
+  metadata: jsonb("metadata"), // Additional data (e.g., notes, tracking info)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  referralCodeIdx: index("referral_events_code_idx").on(table.referralCodeId),
+  referrerIdx: index("referral_events_referrer_idx").on(table.referrerTrainerId),
+  referredIdx: index("referral_events_referred_idx").on(table.referredUserId),
+  statusIdx: index("referral_events_status_idx").on(table.status),
+}));
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   createdPlans: many(trainingPlans),
@@ -345,6 +384,16 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   paymentsAsTrainer: many(clientPayments, { relationName: "trainerPayments" }),
   sentMessages: many(messages, { relationName: "sentMessages" }),
   receivedMessages: many(messages, { relationName: "receivedMessages" }),
+  referralCode: one(referralCodes, {
+    fields: [users.id],
+    references: [referralCodes.trainerId],
+  }),
+  referredByTrainer: one(users, {
+    fields: [users.referredByTrainerId],
+    references: [users.id],
+  }),
+  referralsAsReferrer: many(referralEvents, { relationName: "referrerEvents" }),
+  referralsAsReferred: many(referralEvents, { relationName: "referredEvents" }),
 }));
 
 export const trainingPlansRelations = relations(trainingPlans, ({ one, many }) => ({
@@ -547,6 +596,31 @@ export const messagesRelations = relations(messages, ({ one }) => ({
   }),
 }));
 
+export const referralCodesRelations = relations(referralCodes, ({ one, many }) => ({
+  trainer: one(users, {
+    fields: [referralCodes.trainerId],
+    references: [users.id],
+  }),
+  referralEvents: many(referralEvents),
+}));
+
+export const referralEventsRelations = relations(referralEvents, ({ one }) => ({
+  referralCode: one(referralCodes, {
+    fields: [referralEvents.referralCodeId],
+    references: [referralCodes.id],
+  }),
+  referrer: one(users, {
+    fields: [referralEvents.referrerTrainerId],
+    references: [users.id],
+    relationName: "referrerEvents",
+  }),
+  referred: one(users, {
+    fields: [referralEvents.referredUserId],
+    references: [users.id],
+    relationName: "referredEvents",
+  }),
+}));
+
 // Types for Replit Auth
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -626,6 +700,14 @@ export type InsertDietSupplement = typeof dietSupplements.$inferInsert;
 // Types for messages
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = typeof messages.$inferInsert;
+
+// Types for referral codes
+export type ReferralCode = typeof referralCodes.$inferSelect;
+export type InsertReferralCode = typeof referralCodes.$inferInsert;
+
+// Types for referral events
+export type ReferralEvent = typeof referralEvents.$inferSelect;
+export type InsertReferralEvent = typeof referralEvents.$inferInsert;
 
 // Zod schemas
 export const insertTrainingPlanSchema = createInsertSchema(trainingPlans).omit({
@@ -793,6 +875,24 @@ export const sendMessageSchema = z.object({
   body: z.string().min(1, "Wiadomość nie może być pusta").max(5000, "Wiadomość może mieć maksymalnie 5000 znaków"),
 });
 
+export const insertReferralCodeSchema = createInsertSchema(referralCodes).omit({
+  id: true,
+  createdAt: true,
+  lastUsedAt: true,
+}).extend({
+  code: z.string().length(8, "Kod polecający musi mieć dokładnie 8 znaków"),
+});
+
+export const insertReferralEventSchema = createInsertSchema(referralEvents).omit({
+  id: true,
+  createdAt: true,
+  qualifiedAt: true,
+  bonusGrantedAt: true,
+}).extend({
+  status: z.enum(["pending", "qualified", "bonus_granted"]).default("pending"),
+  referredRole: z.enum(["trainer", "client"]).optional(),
+});
+
 export const updateUserRoleSchema = z.object({
   role: z.enum(["trainer", "client"]),
 });
@@ -834,5 +934,7 @@ export type InsertClientPaymentInput = z.infer<typeof insertClientPaymentSchema>
 export type InsertDietSupplementInput = z.infer<typeof insertDietSupplementSchema>;
 export type InsertMessageInput = z.infer<typeof insertMessageSchema>;
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
+export type InsertReferralCodeInput = z.infer<typeof insertReferralCodeSchema>;
+export type InsertReferralEventInput = z.infer<typeof insertReferralEventSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
