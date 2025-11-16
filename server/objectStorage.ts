@@ -263,6 +263,28 @@ export class ObjectStorageService {
       requestedPermission: requestedPermission ?? ObjectPermission.READ,
     });
   }
+
+  // Generates a presigned URL for reading an object (7 days validity)
+  async getObjectReadUrl(objectPath: string): Promise<string | null> {
+    try {
+      const objectFile = await this.getObjectEntityFile(objectPath);
+      
+      // Get bucket name and object name from the file
+      const bucketName = objectFile.bucket.name;
+      const objectName = objectFile.name;
+      
+      // Generate presigned URL valid for 7 days
+      return await signObjectURL({
+        bucketName,
+        objectName,
+        method: "GET",
+        ttlSec: 604800, // 7 days
+      });
+    } catch (error) {
+      console.error(`Error generating read URL for ${objectPath}:`, error);
+      return null;
+    }
+  }
 }
 
 function parseObjectPath(path: string): {

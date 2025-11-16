@@ -126,6 +126,7 @@ export interface IStorage {
   // Exercise logs operations
   logExercise(clientId: string, exerciseId: string, data: { reps: number, load?: string, notes?: string }): Promise<ExerciseLog>;
   getExerciseLogs(clientId: string, exerciseId: string): Promise<ExerciseLog[]>;
+  getAllClientExerciseLogs(clientId: string): Promise<ExerciseLog[]>;
   getLatestExerciseLog(clientId: string, exerciseId: string): Promise<ExerciseLog | undefined>;
   
   // Weekly reports operations
@@ -801,6 +802,14 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(exerciseLogs.loggedAt);
+  }
+
+  async getAllClientExerciseLogs(clientId: string): Promise<ExerciseLog[]> {
+    return await db
+      .select()
+      .from(exerciseLogs)
+      .where(eq(exerciseLogs.clientId, clientId))
+      .orderBy(desc(exerciseLogs.loggedAt));
   }
 
   async getLatestExerciseLog(clientId: string, exerciseId: string): Promise<ExerciseLog | undefined> {

@@ -1271,7 +1271,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const exercises = await storage.getTrainerExerciseLibrary(userId);
-      res.json(exercises);
+      
+      // Generate presigned URLs for videos
+      const objectStorageService = new ObjectStorageService();
+      const exercisesWithUrls = await Promise.all(
+        exercises.map(async (exercise) => {
+          if (exercise.videoUrl && exercise.videoUrl.startsWith('/objects/')) {
+            const presignedUrl = await objectStorageService.getObjectReadUrl(exercise.videoUrl);
+            return { ...exercise, videoUrl: presignedUrl || exercise.videoUrl };
+          }
+          return exercise;
+        })
+      );
+      
+      res.json(exercisesWithUrls);
     } catch (error) {
       console.error("Error fetching exercise library:", error);
       res.status(500).json({ message: "Failed to fetch exercise library" });
@@ -1315,6 +1328,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (exercise.trainerId !== userId) {
         return res.status(403).json({ message: "You can only access your own exercises" });
+      }
+
+      // Generate presigned URL for video
+      if (exercise.videoUrl && exercise.videoUrl.startsWith('/objects/')) {
+        const objectStorageService = new ObjectStorageService();
+        const presignedUrl = await objectStorageService.getObjectReadUrl(exercise.videoUrl);
+        if (presignedUrl) {
+          exercise.videoUrl = presignedUrl;
+        }
       }
 
       res.json(exercise);
@@ -2038,6 +2060,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/exercise-logs", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko klienci mogą pobierać logi ćwiczeń" });
+      }
+
+      const logs = await storage.getAllClientExerciseLogs(userId);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching exercise logs:", error);
+      res.status(500).json({ message: "Nie udało się pobrać logów ćwiczeń" });
+    }
+  });
+
   // Weekly reports endpoints
   app.post("/api/reports", isAuthenticated, async (req, res) => {
     try {
@@ -2083,7 +2122,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const reports = await storage.getClientWeeklyReports(userId);
-      res.json(reports);
+      
+      // Generate presigned URLs for photos
+      const objectStorageService = new ObjectStorageService();
+      const reportsWithUrls = await Promise.all(
+        reports.map(async (report) => {
+          if (report.photoUrl) {
+            const presignedUrl = await objectStorageService.getObjectReadUrl(report.photoUrl);
+            return { ...report, photoUrl: presignedUrl || report.photoUrl };
+          }
+          return report;
+        })
+      );
+      
+      res.json(reportsWithUrls);
     } catch (error) {
       console.error("Error fetching weekly reports:", error);
       res.status(500).json({ message: "Nie udało się pobrać raportów" });
@@ -2101,7 +2153,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { clientId } = req.params;
       const reports = await storage.getClientWeeklyReportsForTrainer(clientId, userId);
-      res.json(reports);
+      
+      // Generate presigned URLs for photos
+      const objectStorageService = new ObjectStorageService();
+      const reportsWithUrls = await Promise.all(
+        reports.map(async (report) => {
+          if (report.photoUrl) {
+            const presignedUrl = await objectStorageService.getObjectReadUrl(report.photoUrl);
+            return { ...report, photoUrl: presignedUrl || report.photoUrl };
+          }
+          return report;
+        })
+      );
+      
+      res.json(reportsWithUrls);
     } catch (error) {
       console.error("Error fetching client weekly reports:", error);
       res.status(500).json({ message: "Nie udało się pobrać raportów podopiecznego" });

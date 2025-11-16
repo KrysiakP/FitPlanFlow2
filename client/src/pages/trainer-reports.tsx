@@ -24,7 +24,7 @@ export default function TrainerReports() {
   });
 
   const { data: reports, isLoading: isLoadingReports } = useQuery<WeeklyReport[]>({
-    queryKey: ["/api/clients", selectedClientId, "reports"],
+    queryKey: [`/api/clients/${selectedClientId}/reports`],
     enabled: !!selectedClientId,
   });
 

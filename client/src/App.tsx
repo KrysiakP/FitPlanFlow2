@@ -28,6 +28,7 @@ import TrainerDiets from "@/pages/trainer-diets";
 import DietPlanForm from "@/pages/diet-plan-form";
 import ClientDiet from "@/pages/client-diet";
 import TrainerClientDietStats from "@/pages/trainer-client-diet-stats";
+import MyProgress from "@/pages/my-progress";
 import Pomagamy from "@/pages/pomagamy";
 import Pricing from "@/pages/pricing";
 import NotFound from "@/pages/not-found";
@@ -93,6 +94,7 @@ function Router() {
             <Route path="/" component={ClientDashboard} />
             <Route path="/my-plan" component={ClientPlan} />
             <Route path="/my-trainer" component={MyTrainer} />
+            <Route path="/my-progress" component={MyProgress} />
             <Route path="/client/diet" component={ClientDiet} />
             <Route path="/weekly-report" component={WeeklyReport} />
             <Route path="/pomagamy" component={Pomagamy} />
