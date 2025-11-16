@@ -63,6 +63,12 @@ import {
   messages,
   type Message,
   type InsertMessage,
+  referralCodes,
+  referralEvents,
+  type ReferralCode,
+  type InsertReferralCode,
+  type ReferralEvent,
+  type InsertReferralEvent,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, isNull, sql, gte, lte, asc } from "drizzle-orm";
@@ -228,6 +234,20 @@ export interface IStorage {
   markMessageAsRead(messageId: string): Promise<void>;
   markConversationAsRead(userId: string, partnerId: string): Promise<void>;
   getUnreadMessageCount(userId: string): Promise<number>;
+
+  // Referral System
+  ensureReferralCode(trainerId: string): Promise<ReferralCode>;
+  getReferralCodeByCode(code: string): Promise<ReferralCode | null>;
+  getReferralCodeByTrainerId(trainerId: string): Promise<ReferralCode | null>;
+  createReferralEvent(event: InsertReferralEvent): Promise<ReferralEvent>;
+  getTrainerReferralStats(trainerId: string): Promise<{
+    totalReferrals: number;
+    qualifiedReferrals: number;
+    pendingReferrals: number;
+    totalBonusDaysEarned: number;
+  }>;
+  listTrainerReferrals(trainerId: string): Promise<Array<ReferralEvent & { referredUser: User }>>;
+  applyReferralBonus(userId: string, bonusDays: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1783,6 +1803,162 @@ export class DatabaseStorage implements IStorage {
       );
 
     return result[0]?.count || 0;
+  }
+
+  // Referral System Implementation
+  private generateReferralCode(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 8; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  }
+
+  async ensureReferralCode(trainerId: string): Promise<ReferralCode> {
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (attempts < maxAttempts) {
+      const existing = await this.getReferralCodeByTrainerId(trainerId);
+      if (existing) {
+        return existing;
+      }
+
+      const code = this.generateReferralCode();
+      
+      const result = await db
+        .insert(referralCodes)
+        .values({ trainerId, code })
+        .onConflictDoNothing()
+        .returning();
+
+      if (result.length > 0) {
+        return result[0];
+      }
+
+      attempts++;
+    }
+
+    const finalCheck = await this.getReferralCodeByTrainerId(trainerId);
+    if (finalCheck) {
+      return finalCheck;
+    }
+
+    throw new Error('Failed to generate unique referral code after multiple attempts');
+  }
+
+  async getReferralCodeByCode(code: string): Promise<ReferralCode | null> {
+    const [referralCode] = await db
+      .select()
+      .from(referralCodes)
+      .where(eq(referralCodes.code, code));
+    return referralCode || null;
+  }
+
+  async getReferralCodeByTrainerId(trainerId: string): Promise<ReferralCode | null> {
+    const [referralCode] = await db
+      .select()
+      .from(referralCodes)
+      .where(eq(referralCodes.trainerId, trainerId));
+    return referralCode || null;
+  }
+
+  async createReferralEvent(event: InsertReferralEvent): Promise<ReferralEvent> {
+    const [newEvent] = await db
+      .insert(referralEvents)
+      .values(event)
+      .returning();
+    return newEvent;
+  }
+
+  async getTrainerReferralStats(trainerId: string): Promise<{
+    totalReferrals: number;
+    qualifiedReferrals: number;
+    pendingReferrals: number;
+    totalBonusDaysEarned: number;
+  }> {
+    const referralCode = await this.getReferralCodeByTrainerId(trainerId);
+    if (!referralCode) {
+      return {
+        totalReferrals: 0,
+        qualifiedReferrals: 0,
+        pendingReferrals: 0,
+        totalBonusDaysEarned: 0,
+      };
+    }
+
+    const events = await db
+      .select()
+      .from(referralEvents)
+      .where(eq(referralEvents.referrerTrainerId, trainerId));
+
+    const totalReferrals = events.length;
+    const bonusGrantedEvents = events.filter(e => e.status === 'bonus_granted');
+    const qualifiedReferrals = bonusGrantedEvents.length;
+    const pendingReferrals = events.filter(e => e.status === 'pending').length;
+    const totalBonusDaysEarned = bonusGrantedEvents.length * 30;
+
+    return {
+      totalReferrals,
+      qualifiedReferrals,
+      pendingReferrals,
+      totalBonusDaysEarned,
+    };
+  }
+
+  async listTrainerReferrals(trainerId: string): Promise<Array<ReferralEvent & { referredUser: User }>> {
+    const results = await db
+      .select()
+      .from(referralEvents)
+      .innerJoin(users, eq(referralEvents.referredUserId, users.id))
+      .where(eq(referralEvents.referrerTrainerId, trainerId))
+      .orderBy(desc(referralEvents.createdAt));
+
+    return results.map(row => ({
+      id: row.referral_events.id,
+      referralCodeId: row.referral_events.referralCodeId,
+      referrerTrainerId: row.referral_events.referrerTrainerId,
+      referredUserId: row.referral_events.referredUserId,
+      referredUserRole: row.referral_events.referredUserRole,
+      status: row.referral_events.status,
+      qualificationDate: row.referral_events.qualificationDate,
+      bonusGrantedDate: row.referral_events.bonusGrantedDate,
+      createdAt: row.referral_events.createdAt,
+      referredUser: row.users,
+    }));
+  }
+
+  async applyReferralBonus(userId: string, bonusDays: number): Promise<void> {
+    if (bonusDays <= 0) {
+      throw new Error('Bonus days must be positive');
+    }
+
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId));
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    if (user.role !== 'trainer') {
+      throw new Error('Only trainers can receive referral bonuses');
+    }
+
+    await db
+      .update(users)
+      .set({
+        referralBonusDays: sql`COALESCE(${users.referralBonusDays}, 0) + ${bonusDays}`,
+        trialEndsAt: sql`CASE 
+          WHEN ${users.trialEndsAt} IS NULL THEN NOW() + INTERVAL '${sql.raw(bonusDays.toString())} days'
+          WHEN ${users.trialEndsAt} > NOW() THEN ${users.trialEndsAt} + INTERVAL '${sql.raw(bonusDays.toString())} days'
+          ELSE NOW() + INTERVAL '${sql.raw(bonusDays.toString())} days'
+        END`,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
   }
 }
 
