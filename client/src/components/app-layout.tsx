@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, UserCircle, Crown, CreditCard, UserPlus, ShieldCheck, Heart, UtensilsCrossed, Apple, GraduationCap, TrendingUp } from "lucide-react";
+import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, UserCircle, Crown, CreditCard, UserPlus, ShieldCheck, Heart, UtensilsCrossed, Apple, GraduationCap, TrendingUp, DollarSign, Clock } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -24,6 +25,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const isTrainer = user?.role === "trainer";
 
+  // Helper function to calculate days remaining in trial
+  const getDaysRemaining = (trialEndsAt: string | null | undefined) => {
+    if (!trialEndsAt) return 0;
+    const diff = new Date(trialEndsAt).getTime() - new Date().getTime();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  };
+
+  const isInTrial = user?.trialEndsAt && new Date(user.trialEndsAt) > new Date();
+  const daysRemaining = getDaysRemaining(user?.trialEndsAt);
+
   const { data: unreadReportsData } = useQuery<{ count: number }>({
     queryKey: ["/api/trainer/unread-reports-count"],
     enabled: isTrainer,
@@ -31,6 +42,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   });
 
   const unreadCount = unreadReportsData?.count || 0;
+
+  const { data: upcomingPayments = [] } = useQuery<any[]>({
+    queryKey: ["/api/payments/upcoming"],
+    enabled: !!user,
+    refetchInterval: 60000,
+  });
+
+  const upcomingPaymentsCount = upcomingPayments.length;
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -56,6 +75,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/trainer/diets", icon: UtensilsCrossed, label: "Diety" },
     { href: "/invite", icon: UserPlus, label: "Zaproś podopiecznego" },
     { href: "/trainer/reports", icon: FileText, label: "Raporty tygodniowe" },
+    { href: "/payment-schedule", icon: DollarSign, label: "Płatności" },
     ...(user?.isAdmin ? [{ href: "/admin/charity-donations", icon: ShieldCheck, label: "Panel Admin" }] : []),
     { href: "/pomagamy", icon: Heart, label: "PomagaMY" },
     { href: "/pricing", icon: Crown, label: "Subskrypcja" },
@@ -69,6 +89,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/client/diet", icon: Apple, label: "Dieta" },
     { href: "/weekly-report", icon: FileText, label: "Raport tygodniowy" },
     { href: "/my-progress", icon: TrendingUp, label: "Mój progres" },
+    { href: "/payment-schedule", icon: DollarSign, label: "Płatności" },
     { href: "/pomagamy", icon: Heart, label: "PomagaMY" },
     { href: "/profile", icon: UserCircle, label: "Profil" },
   ];
@@ -80,7 +101,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive = location === item.href;
-        const showBadge = isTrainer && item.href === "/trainer/reports" && unreadCount > 0;
+        const showReportsBadge = isTrainer && item.href === "/trainer/reports" && unreadCount > 0;
+        const showPaymentsBadge = item.href === "/payment-schedule" && upcomingPaymentsCount > 0;
         return (
           <Link key={item.href} href={item.href}>
             <button
@@ -96,13 +118,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <Icon className="w-5 h-5 flex-shrink-0" />
                 <span>{item.label}</span>
               </div>
-              {showBadge && (
+              {showReportsBadge && (
                 <Badge 
                   variant="destructive" 
                   className="text-xs px-2 py-0.5"
                   data-testid="badge-unread-reports"
                 >
                   {unreadCount}
+                </Badge>
+              )}
+              {showPaymentsBadge && (
+                <Badge 
+                  variant="destructive" 
+                  className="text-xs px-2 py-0.5"
+                  data-testid="badge-upcoming-payments"
+                >
+                  {upcomingPaymentsCount}
                 </Badge>
               )}
             </button>
@@ -208,7 +239,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </aside>
 
         <main className="flex-1 p-6 md:p-8">
-          <div className="container mx-auto max-w-7xl">{children}</div>
+          <div className="container mx-auto max-w-7xl">
+            {isTrainer && isInTrial && (
+              <Alert className="mb-6" data-testid="alert-trial-banner">
+                <Clock className="h-4 w-4" />
+                <AlertTitle data-testid="text-trial-title">Okres próbny</AlertTitle>
+                <AlertDescription data-testid="text-trial-description">
+                  Twój 30-dniowy trial kończy się za {daysRemaining} {daysRemaining === 1 ? 'dzień' : 'dni'}. 
+                  <Link href="/pricing">
+                    <button className="ml-2 underline hover:text-primary" data-testid="link-trial-pricing">
+                      Wykup subskrypcję
+                    </button>
+                  </Link> aby kontynuować z nieograniczoną liczbą podopiecznych.
+                </AlertDescription>
+              </Alert>
+            )}
+            {children}
+          </div>
         </main>
       </div>
     </div>

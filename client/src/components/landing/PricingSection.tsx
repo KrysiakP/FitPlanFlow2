@@ -222,6 +222,13 @@ export function PricingSection() {
           <p className="text-muted-foreground text-lg">
             Wybierz plan, który najlepiej odpowiada Twoim potrzebom
           </p>
+          {!user && (
+            <div className="mt-6">
+              <Badge variant="default" className="text-base px-4 py-2" data-testid="badge-trial-offer">
+                🎉 30 dni za darmo dla nowych trenerów! Nieograniczona liczba podopiecznych podczas trial
+              </Badge>
+            </div>
+          )}
           {isTrainer && (
             <div className="flex items-center justify-center gap-2 mt-4">
               <Badge variant="secondary" data-testid="badge-current-tier">

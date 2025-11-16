@@ -16,6 +16,8 @@ import {
   dietMeals,
   dailyHabitLogs,
   mealCheckmarks,
+  medicalTests,
+  clientPayments,
   type User,
   type UpsertUser,
   type TrainingPlan,
@@ -51,6 +53,10 @@ import {
   type InsertDailyHabitLog,
   type MealCheckmark,
   type InsertMealCheckmark,
+  type MedicalTest,
+  type InsertMedicalTest,
+  type ClientPayment,
+  type InsertClientPayment,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, isNull, sql, gte, lte, asc } from "drizzle-orm";
@@ -182,6 +188,18 @@ export interface IStorage {
   // Meal Checkmarks
   upsertMealCheckmark(checkmark: { habitLogId: string, mealId: string, completed: boolean }): Promise<MealCheckmark>;
   getHabitLogCheckmarks(habitLogId: string): Promise<MealCheckmark[]>;
+  
+  // Medical Tests
+  getMedicalTestsByClient(clientId: string): Promise<MedicalTest[]>;
+  createMedicalTest(data: InsertMedicalTest): Promise<MedicalTest>;
+  deleteMedicalTest(testId: string): Promise<void>;
+  
+  // Client Payments
+  getClientPayments(userId: string, role: string): Promise<ClientPayment[]>;
+  createPayment(data: InsertClientPayment): Promise<ClientPayment>;
+  markPaymentAsPaid(paymentId: string): Promise<void>;
+  deletePayment(paymentId: string): Promise<void>;
+  getUpcomingPayments(userId: string, role: string): Promise<ClientPayment[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -208,7 +226,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
   
-  async updateUserSubscription(userId: string, data: { stripeCustomerId?: string | null; stripeSubscriptionId?: string | null; subscriptionStatus?: string | null; subscriptionTier?: string }): Promise<User> {
+  async updateUserSubscription(userId: string, data: { stripeCustomerId?: string | null; stripeSubscriptionId?: string | null; subscriptionStatus?: string | null; subscriptionTier?: string; trialEndsAt?: Date | null }): Promise<User> {
     const [user] = await db
       .update(users)
       .set({ 
@@ -220,6 +238,43 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
   
+  // Check if user is in trial period
+  isInTrial(user: User): boolean {
+    if (!user.trialEndsAt) return false;
+    return new Date() < new Date(user.trialEndsAt);
+  }
+  
+  // Get effective client limit considering trial and subscription
+  getEffectiveClientLimit(user: User): number {
+    // Map tier to client limit
+    const tierLimits: Record<string, number> = {
+      start: 3,
+      solo: 10,
+      pro: 20,
+      elite: 35,
+      max: 50,
+      studio: 9999,
+      // Legacy support
+      free: 3,
+      premium: 50,
+    };
+    
+    // If in trial, return unlimited clients (9999)
+    if (this.isInTrial(user)) {
+      return 9999;
+    }
+    
+    // If has active subscription, return limit from plan
+    const isActive = user.subscriptionStatus === 'active' || user.subscriptionStatus === 'trialing';
+    if (isActive) {
+      const tier = user.subscriptionTier || 'start';
+      return tierLimits[tier] || tierLimits.start;
+    }
+    
+    // If no trial and no active subscription, return START limit (3)
+    return 3;
+  }
+  
   async checkTrainerClientLimit(trainerId: string): Promise<{ withinLimit: boolean; currentCount: number; maxCount: number }> {
     const trainer = await this.getUser(trainerId);
     if (!trainer || trainer.role !== 'trainer') {
@@ -229,31 +284,13 @@ export class DatabaseStorage implements IStorage {
     const clients = await this.getTrainerClients(trainerId);
     const currentCount = clients.length;
     
-    // Map tier to client limit
-    const tierLimits: Record<string, number> = {
-      start: 3,
-      solo: 10,
-      pro: 20,
-      elite: 35,
-      max: 50,
-      studio: Infinity,
-      // Legacy support
-      free: 3,
-      premium: 50,
-    };
-    
-    const tier = trainer.subscriptionTier || 'start';
-    const isActive = trainer.subscriptionStatus === 'active' || trainer.subscriptionStatus === 'trialing';
-    
-    // For paid tiers, require active subscription
-    const effectiveTier = (isActive || tier === 'start' || tier === 'free') ? tier : 'start';
-    const maxCount = tierLimits[effectiveTier] || tierLimits.start;
+    const maxCount = this.getEffectiveClientLimit(trainer);
     const withinLimit = currentCount < maxCount;
     
     return {
       withinLimit,
       currentCount,
-      maxCount: maxCount === Infinity ? -1 : maxCount,
+      maxCount: maxCount === 9999 ? -1 : maxCount,
     };
   }
 
@@ -1433,6 +1470,102 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(mealCheckmarks)
       .where(eq(mealCheckmarks.habitLogId, habitLogId));
+  }
+  
+  // Medical Tests
+  async getMedicalTestsByClient(clientId: string): Promise<MedicalTest[]> {
+    return await db
+      .select()
+      .from(medicalTests)
+      .where(eq(medicalTests.clientId, clientId))
+      .orderBy(desc(medicalTests.testDate));
+  }
+  
+  async createMedicalTest(data: InsertMedicalTest): Promise<MedicalTest> {
+    const [test] = await db
+      .insert(medicalTests)
+      .values(data)
+      .returning();
+    return test;
+  }
+  
+  async deleteMedicalTest(testId: string): Promise<void> {
+    await db
+      .delete(medicalTests)
+      .where(eq(medicalTests.id, testId));
+  }
+  
+  // Client Payments
+  async getClientPayments(userId: string, role: string): Promise<ClientPayment[]> {
+    if (role === 'trainer') {
+      return await db
+        .select()
+        .from(clientPayments)
+        .where(eq(clientPayments.trainerId, userId))
+        .orderBy(asc(clientPayments.dueDate));
+    } else {
+      return await db
+        .select()
+        .from(clientPayments)
+        .where(eq(clientPayments.clientId, userId))
+        .orderBy(asc(clientPayments.dueDate));
+    }
+  }
+  
+  async createPayment(data: InsertClientPayment): Promise<ClientPayment> {
+    const [payment] = await db
+      .insert(clientPayments)
+      .values(data)
+      .returning();
+    return payment;
+  }
+  
+  async markPaymentAsPaid(paymentId: string): Promise<void> {
+    await db
+      .update(clientPayments)
+      .set({ 
+        isPaid: true, 
+        paidAt: new Date() 
+      })
+      .where(eq(clientPayments.id, paymentId));
+  }
+  
+  async deletePayment(paymentId: string): Promise<void> {
+    await db
+      .delete(clientPayments)
+      .where(eq(clientPayments.id, paymentId));
+  }
+  
+  async getUpcomingPayments(userId: string, role: string): Promise<ClientPayment[]> {
+    const now = new Date();
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(now.getDate() + 7);
+    
+    if (role === 'trainer') {
+      return await db
+        .select()
+        .from(clientPayments)
+        .where(
+          and(
+            eq(clientPayments.trainerId, userId),
+            eq(clientPayments.isPaid, false),
+            lte(clientPayments.dueDate, sevenDaysFromNow)
+          )
+        )
+        .orderBy(asc(clientPayments.dueDate));
+    } else {
+      return await db
+        .select()
+        .from(clientPayments)
+        .where(
+          and(
+            eq(clientPayments.clientId, userId),
+            eq(clientPayments.isPaid, false),
+            lte(clientPayments.dueDate, sevenDaysFromNow)
+          )
+        )
+        .orderBy(asc(clientPayments.dueDate));
+    }
   }
 }
 

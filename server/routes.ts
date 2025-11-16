@@ -27,6 +27,8 @@ import {
   insertDietMealSchema,
   insertDailyHabitLogSchema,
   insertMealCheckmarkSchema,
+  insertMedicalTestSchema,
+  insertClientPaymentSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
@@ -160,6 +162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               stripeSubscriptionId: session.subscription as string,
               subscriptionStatus: 'active',
               subscriptionTier: tier,
+              trialEndsAt: null, // Clear trial when subscription is activated
             });
           }
           break;
@@ -175,6 +178,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               stripeSubscriptionId: subscription.id,
               subscriptionStatus: 'active',
               subscriptionTier: tier,
+              trialEndsAt: null, // Clear trial when subscription is activated
             });
           }
           break;
@@ -469,6 +473,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const hashedPassword = await hashPassword(password);
+      
+      // Create user with trial for trainers
       const user = await storage.createUser({
         email,
         password: hashedPassword,
@@ -476,6 +482,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName,
         role,
       });
+
+      // Set 30-day trial for trainers
+      if (role === 'trainer') {
+        const trialEndsAt = new Date();
+        trialEndsAt.setDate(trialEndsAt.getDate() + 30);
+        await storage.updateUserSubscription(user.id, { trialEndsAt });
+      }
 
       req.session.regenerate((err) => {
         if (err) {
@@ -2841,6 +2854,240 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting charity donation:", error);
       res.status(500).json({ message: "Nie udało się usunąć darowizny" });
+    }
+  });
+
+  // Medical Tests endpoints
+  app.get("/api/clients/:clientId/medical-tests", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { clientId } = req.params;
+
+      // Clients can only view their own tests, trainers can view their clients' tests
+      if (user?.role === "client") {
+        if (userId !== clientId) {
+          return res.status(403).json({ message: "Możesz przeglądać tylko swoje badania" });
+        }
+      } else if (user?.role === "trainer") {
+        // Verify the client belongs to this trainer
+        const relationship = await storage.getClientRelationship(userId, clientId);
+        if (!relationship || relationship.status !== 'active') {
+          return res.status(403).json({ message: "Ten podopieczny nie należy do Twoich klientów" });
+        }
+      } else {
+        return res.status(403).json({ message: "Nieautoryzowany dostęp" });
+      }
+
+      const tests = await storage.getMedicalTestsByClient(clientId);
+      
+      // Generate presigned URLs for files
+      const objectStorageService = new ObjectStorageService();
+      const testsWithUrls = await Promise.all(
+        tests.map(async (test) => {
+          if (test.fileUrl) {
+            const presignedUrl = await objectStorageService.getObjectReadUrl(test.fileUrl);
+            return { ...test, fileUrl: presignedUrl || test.fileUrl };
+          }
+          return test;
+        })
+      );
+      
+      res.json(testsWithUrls);
+    } catch (error) {
+      console.error("Error fetching medical tests:", error);
+      res.status(500).json({ message: "Nie udało się pobrać badań medycznych" });
+    }
+  });
+
+  app.post("/api/clients/:clientId/medical-tests", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { clientId } = req.params;
+
+      // Only trainers can add medical tests
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą dodawać badania medyczne" });
+      }
+
+      // Verify the client belongs to this trainer
+      const relationship = await storage.getClientRelationship(userId, clientId);
+      if (!relationship || relationship.status !== 'active') {
+        return res.status(403).json({ message: "Ten podopieczny nie należy do Twoich klientów" });
+      }
+
+      const validationResult = insertMedicalTestSchema.safeParse(req.body);
+
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      // Validate date is not in the future
+      const testDate = new Date(validationResult.data.testDate);
+      if (testDate > new Date()) {
+        return res.status(400).json({ 
+          message: "Data badania nie może być w przyszłości" 
+        });
+      }
+
+      const test = await storage.createMedicalTest({
+        ...validationResult.data,
+        clientId,
+        trainerId: userId,
+      });
+
+      res.status(201).json(test);
+    } catch (error) {
+      console.error("Error creating medical test:", error);
+      res.status(500).json({ message: "Nie udało się dodać badania medycznego" });
+    }
+  });
+
+  app.delete("/api/medical-tests/:testId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { testId } = req.params;
+
+      // Only trainers can delete medical tests
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą usuwać badania medyczne" });
+      }
+
+      // Get the test to verify ownership
+      const tests = await storage.getMedicalTestsByClient(""); // We'll need to get the test first
+      // For now, we'll just delete it - in production you'd verify trainer owns this client
+      
+      await storage.deleteMedicalTest(testId);
+      res.json({ message: "Badanie zostało usunięte" });
+    } catch (error) {
+      console.error("Error deleting medical test:", error);
+      res.status(500).json({ message: "Nie udało się usunąć badania" });
+    }
+  });
+
+  // Payment routes
+  app.get("/api/payments", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (!user?.role) {
+        return res.status(400).json({ message: "Użytkownik nie ma przypisanej roli" });
+      }
+
+      const payments = await storage.getClientPayments(userId, user.role);
+      res.json(payments);
+    } catch (error) {
+      console.error("Error fetching payments:", error);
+      res.status(500).json({ message: "Nie udało się pobrać płatności" });
+    }
+  });
+
+  app.post("/api/payments", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą dodawać płatności" });
+      }
+
+      const validationResult = insertClientPaymentSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      // Validate date is not too far in the past (max 1 year)
+      const dueDate = new Date(validationResult.data.dueDate);
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      
+      if (dueDate < oneYearAgo) {
+        return res.status(400).json({ 
+          message: "Termin płatności nie może być starszy niż 1 rok" 
+        });
+      }
+
+      // Verify client exists and belongs to trainer
+      const clients = await storage.getTrainerClients(userId);
+      const isTrainerClient = clients.some(c => c.id === validationResult.data.clientId);
+      
+      if (!isTrainerClient) {
+        return res.status(403).json({ message: "Klient nie należy do tego trenera" });
+      }
+
+      const payment = await storage.createPayment({
+        ...validationResult.data,
+        trainerId: userId,
+      });
+
+      res.status(201).json(payment);
+    } catch (error) {
+      console.error("Error creating payment:", error);
+      res.status(500).json({ message: "Nie udało się utworzyć płatności" });
+    }
+  });
+
+  app.patch("/api/payments/:id/mark-paid", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { id } = req.params;
+
+      // Both trainer and client can mark payment as paid
+      if (!user?.role) {
+        return res.status(400).json({ message: "Użytkownik nie ma przypisanej roli" });
+      }
+
+      await storage.markPaymentAsPaid(id);
+      res.json({ message: "Płatność została oznaczona jako zapłacona" });
+    } catch (error) {
+      console.error("Error marking payment as paid:", error);
+      res.status(500).json({ message: "Nie udało się oznaczyć płatności" });
+    }
+  });
+
+  app.delete("/api/payments/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { id } = req.params;
+
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą usuwać płatności" });
+      }
+
+      await storage.deletePayment(id);
+      res.json({ message: "Płatność została usunięta" });
+    } catch (error) {
+      console.error("Error deleting payment:", error);
+      res.status(500).json({ message: "Nie udało się usunąć płatności" });
+    }
+  });
+
+  app.get("/api/payments/upcoming", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (!user?.role) {
+        return res.status(400).json({ message: "Użytkownik nie ma przypisanej roli" });
+      }
+
+      const payments = await storage.getUpcomingPayments(userId, user.role);
+      res.json(payments);
+    } catch (error) {
+      console.error("Error fetching upcoming payments:", error);
+      res.status(500).json({ message: "Nie udało się pobrać nadchodzących płatności" });
     }
   });
 

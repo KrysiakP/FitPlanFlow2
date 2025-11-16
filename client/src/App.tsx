@@ -30,6 +30,8 @@ import ClientDiet from "@/pages/client-diet";
 import TrainerClientDietStats from "@/pages/trainer-client-diet-stats";
 import TrainerClientProgress from "@/pages/trainer-client-progress";
 import MyProgress from "@/pages/my-progress";
+import ClientMedicalTests from "@/pages/client-medical-tests";
+import PaymentSchedule from "@/pages/payment-schedule";
 import Pomagamy from "@/pages/pomagamy";
 import Pricing from "@/pages/pricing";
 import NotFound from "@/pages/not-found";
@@ -84,6 +86,7 @@ function Router() {
             <Route path="/trainer/diets/:id/edit" component={DietPlanForm} />
             <Route path="/invite" component={InviteClient} />
             <Route path="/trainer/reports" component={TrainerReports} />
+            <Route path="/payment-schedule" component={PaymentSchedule} />
             {user.isAdmin && (
               <Route path="/admin/charity-donations" component={AdminCharityDonations} />
             )}
@@ -97,8 +100,10 @@ function Router() {
             <Route path="/my-plan" component={ClientPlan} />
             <Route path="/my-trainer" component={MyTrainer} />
             <Route path="/my-progress" component={MyProgress} />
+            <Route path="/my-medical-tests" component={ClientMedicalTests} />
             <Route path="/client/diet" component={ClientDiet} />
             <Route path="/weekly-report" component={WeeklyReport} />
+            <Route path="/payment-schedule" component={PaymentSchedule} />
             <Route path="/pomagamy" component={Pomagamy} />
             <Route path="/pricing" component={Pricing} />
             <Route path="/profile" component={ClientProfile} />

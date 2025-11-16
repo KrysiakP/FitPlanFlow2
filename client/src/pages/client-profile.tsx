@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Upload, Pill } from "lucide-react";
+import { AlertCircle, Upload, Pill, Heart } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { UserProfile } from "@shared/schema";
@@ -31,6 +31,8 @@ const profileSchema = z.object({
   profileImageUrl: z.string().url().optional().or(z.literal("")),
   phone: z.string().optional(),
   pharmacologicalSupport: z.string().max(2000, "Maksymalna długość to 2000 znaków").optional(),
+  injuries: z.string().max(2000, "Maksymalna długość to 2000 znaków").optional(),
+  healthIssues: z.string().max(2000, "Maksymalna długość to 2000 znaków").optional(),
   imageType: z.enum(["upload", "url"]).optional(),
   imageFile: z.any().optional(),
 });
@@ -60,6 +62,8 @@ export default function ClientProfile() {
       profileImageUrl: "",
       phone: "",
       pharmacologicalSupport: "",
+      injuries: "",
+      healthIssues: "",
     },
   });
 
@@ -70,6 +74,8 @@ export default function ClientProfile() {
         profileImageUrl: profile.profileImageUrl || "",
         phone: profile.phone || "",
         pharmacologicalSupport: profile.pharmacologicalSupport || "",
+        injuries: profile.injuries || "",
+        healthIssues: profile.healthIssues || "",
       });
     }
   }, [profile, profileForm]);
@@ -103,6 +109,8 @@ export default function ClientProfile() {
         profileImageUrl: imageUrl || null,
         phone: data.phone || null,
         pharmacologicalSupport: data.pharmacologicalSupport || null,
+        injuries: data.injuries || null,
+        healthIssues: data.healthIssues || null,
       };
 
       await apiRequest("PUT", "/api/profile", profileData);
@@ -387,6 +395,56 @@ export default function ClientProfile() {
                     </FormControl>
                     <FormDescription>
                       Informacje o przyjmowanych lekach i suplementach (opcjonalnie, max 2000 znaków)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={profileForm.control}
+                name="injuries"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <Heart className="w-4 h-4" />
+                      Kontuzje i urazy
+                    </FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Wymień przebyte kontuzje, urazy, dolegliwości kostno-stawowe..."
+                        rows={4}
+                        {...field}
+                        data-testid="textarea-injuries"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Informacje o kontuzjach i urazach (opcjonalnie, max 2000 znaków)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={profileForm.control}
+                name="healthIssues"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <Heart className="w-4 h-4" />
+                      Problemy zdrowotne
+                    </FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Alergie, choroby przewlekłe, problemy zdrowotne..."
+                        rows={4}
+                        {...field}
+                        data-testid="textarea-health-issues"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Informacje o problemach zdrowotnych, alergiach, chorobach przewlekłych (opcjonalnie, max 2000 znaków)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

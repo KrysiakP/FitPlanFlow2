@@ -5,9 +5,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Collapsible,
   CollapsibleContent,
@@ -27,13 +36,18 @@ import {
   X,
   FileText,
   Pill,
+  Activity,
+  Trash2,
+  Plus,
+  Download,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
-import type { User as UserType, PlanAssignment, TrainingPlan, ClientProgress, WeeklyReport, UserProfile } from "@shared/schema";
+import ObjectUploader from "@/components/ObjectUploader";
+import type { User as UserType, PlanAssignment, TrainingPlan, ClientProgress, WeeklyReport, UserProfile, MedicalTest } from "@shared/schema";
 
 type ClientWithAssignment = UserType & {
   assignment?: PlanAssignment & { plan: TrainingPlan };
@@ -41,6 +55,10 @@ type ClientWithAssignment = UserType & {
 
 function ClientCard({ client }: { client: ClientWithAssignment }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [testType, setTestType] = useState<string>("krew");
+  const [testDate, setTestDate] = useState<string>("");
+  const [testNotes, setTestNotes] = useState<string>("");
+  const [testFileUrl, setTestFileUrl] = useState<string>("");
   const { toast } = useToast();
 
   const { data: clientProgress, isLoading: isLoadingProgress } = useQuery<ClientProgress | null>({
@@ -55,6 +73,11 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
 
   const { data: clientProfile, isLoading: isLoadingProfile } = useQuery<UserProfile | null>({
     queryKey: [`/api/clients/${client.id}/profile`],
+    enabled: isOpen && !!client.id,
+  });
+
+  const { data: medicalTests, isLoading: isLoadingMedicalTests } = useQuery<MedicalTest[]>({
+    queryKey: ["/api/clients", client.id, "medical-tests"],
     enabled: isOpen && !!client.id,
   });
 
@@ -78,6 +101,55 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
       toast({
         title: "Błąd",
         description: error.message || "Nie udało się zakończyć współpracy",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createMedicalTestMutation = useMutation({
+    mutationFn: async (data: { testType: string; testDate: string; notes: string; fileUrl: string }) => {
+      return await apiRequest("POST", `/api/clients/${client.id}/medical-tests`, {
+        testType: data.testType,
+        testDate: new Date(data.testDate).toISOString(),
+        notes: data.notes || null,
+        fileUrl: data.fileUrl || null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", client.id, "medical-tests"] });
+      toast({
+        title: "Badanie dodane",
+        description: "Badanie medyczne zostało pomyślnie dodane",
+      });
+      setTestType("krew");
+      setTestDate("");
+      setTestNotes("");
+      setTestFileUrl("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Błąd",
+        description: error.message || "Nie udało się dodać badania",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMedicalTestMutation = useMutation({
+    mutationFn: async (testId: string) => {
+      return await apiRequest("DELETE", `/api/medical-tests/${testId}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", client.id, "medical-tests"] });
+      toast({
+        title: "Badanie usunięte",
+        description: "Badanie medyczne zostało usunięte",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Błąd",
+        description: error.message || "Nie udało się usunąć badania",
         variant: "destructive",
       });
     },
@@ -186,7 +258,7 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-4 w-5/6" />
               </div>
-            ) : clientProgress || latestReport || clientProfile?.pharmacologicalSupport ? (
+            ) : clientProgress || latestReport || clientProfile?.pharmacologicalSupport || clientProfile?.injuries || clientProfile?.healthIssues ? (
               <div className="space-y-6">
                 {clientProgress && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid={`section-progress-${client.id}`}>
@@ -266,9 +338,39 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
                   </>
                 )}
 
-                {latestReport && (
+                {(clientProfile?.injuries || clientProfile?.healthIssues) && (
                   <>
                     {(clientProgress || clientProfile?.pharmacologicalSupport) && <Separator />}
+                    <div className="space-y-4" data-testid={`section-medical-profile-${client.id}`}>
+                      <h4 className="text-sm font-medium flex items-center gap-2">
+                        <Heart className="w-4 h-4" />
+                        Profil medyczny
+                      </h4>
+                      
+                      {clientProfile.injuries && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-muted-foreground">Kontuzje i urazy</p>
+                          <p className="text-sm whitespace-pre-wrap" data-testid={`text-injuries-${client.id}`}>
+                            {clientProfile.injuries}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {clientProfile.healthIssues && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-muted-foreground">Problemy zdrowotne</p>
+                          <p className="text-sm whitespace-pre-wrap" data-testid={`text-health-issues-${client.id}`}>
+                            {clientProfile.healthIssues}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {latestReport && (
+                  <>
+                    {(clientProgress || clientProfile?.pharmacologicalSupport || clientProfile?.injuries || clientProfile?.healthIssues) && <Separator />}
                     <div className="space-y-3" data-testid={`section-latest-report-${client.id}`}>
                       <div className="flex items-center justify-between gap-4 flex-wrap">
                         <h4 className="text-sm font-medium flex items-center gap-2">
@@ -332,6 +434,161 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
             )}
           </CollapsibleContent>
         </Collapsible>
+
+        <Separator />
+
+        <div>
+          <h3 className="font-heading font-semibold text-lg mb-3 flex items-center gap-2">
+            <Activity className="w-5 h-5" />
+            Badania medyczne
+          </h3>
+
+          {isLoadingMedicalTests ? (
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="p-4 border rounded-lg space-y-4" data-testid={`form-add-medical-test-${client.id}`}>
+                <h4 className="font-medium text-sm">Dodaj nowe badanie</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor={`test-type-${client.id}`}>Typ badania</Label>
+                    <Select value={testType} onValueChange={setTestType}>
+                      <SelectTrigger id={`test-type-${client.id}`} data-testid={`select-test-type-${client.id}`}>
+                        <SelectValue placeholder="Wybierz typ badania" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="krew">Krew</SelectItem>
+                        <SelectItem value="echo">Echo serca</SelectItem>
+                        <SelectItem value="usg">USG</SelectItem>
+                        <SelectItem value="inne">Inne</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor={`test-date-${client.id}`}>Data badania</Label>
+                    <Input
+                      id={`test-date-${client.id}`}
+                      type="date"
+                      value={testDate}
+                      onChange={(e) => setTestDate(e.target.value)}
+                      max={new Date().toISOString().split('T')[0]}
+                      data-testid={`input-test-date-${client.id}`}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor={`test-notes-${client.id}`}>Notatki (opcjonalne)</Label>
+                  <Textarea
+                    id={`test-notes-${client.id}`}
+                    value={testNotes}
+                    onChange={(e) => setTestNotes(e.target.value)}
+                    placeholder="Dodaj notatki dotyczące badania..."
+                    data-testid={`textarea-test-notes-${client.id}`}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Plik z wynikami (opcjonalnie)</Label>
+                  <ObjectUploader
+                    path=".private/medical-tests"
+                    onUploadComplete={(url) => setTestFileUrl(url)}
+                    data-testid={`uploader-test-file-${client.id}`}
+                  />
+                  {testFileUrl && (
+                    <p className="text-sm text-muted-foreground" data-testid={`text-file-uploaded-${client.id}`}>
+                      Plik został przesłany
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  onClick={() => createMedicalTestMutation.mutate({ testType, testDate, notes: testNotes, fileUrl: testFileUrl })}
+                  disabled={!testDate || createMedicalTestMutation.isPending}
+                  size="sm"
+                  data-testid={`button-add-test-${client.id}`}
+                >
+                  {createMedicalTestMutation.isPending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      Dodawanie...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Dodaj badanie
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {medicalTests && medicalTests.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm">Istniejące badania ({medicalTests.length})</h4>
+                  <div className="space-y-2">
+                    {medicalTests.map((test) => (
+                      <div
+                        key={test.id}
+                        className="p-3 border rounded-lg space-y-2"
+                        data-testid={`card-medical-test-${test.id}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <Badge variant="outline" data-testid={`badge-test-type-${test.id}`}>
+                                {test.testType === "krew" && "Krew"}
+                                {test.testType === "echo" && "Echo serca"}
+                                {test.testType === "usg" && "USG"}
+                                {test.testType === "inne" && "Inne"}
+                              </Badge>
+                              <span className="text-sm text-muted-foreground" data-testid={`text-test-date-${test.id}`}>
+                                {format(new Date(test.testDate), "d MMM yyyy", { locale: pl })}
+                              </span>
+                            </div>
+                            {test.notes && (
+                              <p className="text-sm" data-testid={`text-test-notes-${test.id}`}>
+                                {test.notes}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {test.fileUrl && (
+                              <Button
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                data-testid={`button-download-test-${test.id}`}
+                              >
+                                <a href={test.fileUrl} target="_blank" rel="noopener noreferrer">
+                                  <Download className="w-4 h-4" />
+                                </a>
+                              </Button>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => deleteMedicalTestMutation.mutate(test.id)}
+                              disabled={deleteMedicalTestMutation.isPending}
+                              className="text-destructive hover:bg-destructive/10"
+                              data-testid={`button-delete-test-${test.id}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         <Separator />
 

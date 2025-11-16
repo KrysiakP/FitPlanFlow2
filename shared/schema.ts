@@ -30,6 +30,7 @@ export const users = pgTable("users", {
   stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }), // Stripe subscription ID (sub_xxx)
   subscriptionStatus: varchar("subscription_status", { length: 50 }), // 'active', 'canceled', 'past_due', 'unpaid', or null
   subscriptionTier: varchar("subscription_tier", { length: 50 }).default('start').notNull(), // 'start', 'solo', 'pro', 'elite', 'studio'
+  trialEndsAt: timestamp("trial_ends_at"), // 30-day trial end date for trainers
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
@@ -105,6 +106,8 @@ export const userProfiles = pgTable("user_profiles", {
   phone: varchar("phone"), // telefon kontaktowy
   specialization: varchar("specialization"), // tylko dla trenerów, specjalizacja
   pharmacologicalSupport: text("pharmacological_support"), // wsparcie farmakologiczne/suplementacja
+  injuries: text("injuries"), // Kontuzje i urazy
+  healthIssues: text("health_issues"), // Problemy zdrowotne, alergie, choroby przewlekłe
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -257,6 +260,38 @@ export const mealCheckmarks = pgTable("meal_checkmarks", {
   uniqueHabitLogMeal: uniqueIndex("unique_habit_log_meal").on(table.habitLogId, table.mealId),
 }));
 
+// Medical tests - trainer assigns medical tests to clients with dates and files
+export const medicalTests = pgTable("medical_tests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  trainerId: varchar("trainer_id").notNull().references(() => users.id),
+  testType: varchar("test_type", { length: 50 }).notNull(), // 'krew', 'echo', 'usg', 'inne'
+  testDate: timestamp("test_date").notNull(),
+  fileUrl: text("file_url"), // link do pliku w Object Storage
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  clientIdx: index("medical_tests_client_idx").on(table.clientId),
+  trainerIdx: index("medical_tests_trainer_idx").on(table.trainerId),
+}));
+
+// Client payments - payment schedule between trainer and client
+export const clientPayments = pgTable("client_payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  trainerId: varchar("trainer_id").notNull().references(() => users.id),
+  amount: integer("amount").notNull(), // kwota w groszach (np. 20000 = 200.00 PLN)
+  dueDate: timestamp("due_date").notNull(), // termin płatności
+  isPaid: boolean("is_paid").default(false).notNull(),
+  paidAt: timestamp("paid_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  clientIdx: index("client_payments_client_idx").on(table.clientId),
+  trainerIdx: index("client_payments_trainer_idx").on(table.trainerId),
+  dueDateIdx: index("client_payments_due_date_idx").on(table.dueDate),
+}));
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   createdPlans: many(trainingPlans),
@@ -269,6 +304,10 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   createdDietPlans: many(dietPlans, { relationName: "trainerDietPlans" }),
   assignedDietPlans: many(dietPlans, { relationName: "clientDietPlans" }),
   dailyHabitLogs: many(dailyHabitLogs),
+  medicalTestsAsClient: many(medicalTests, { relationName: "clientMedicalTests" }),
+  medicalTestsAsTrainer: many(medicalTests, { relationName: "trainerMedicalTests" }),
+  paymentsAsClient: many(clientPayments, { relationName: "clientPayments" }),
+  paymentsAsTrainer: many(clientPayments, { relationName: "trainerPayments" }),
 }));
 
 export const trainingPlansRelations = relations(trainingPlans, ({ one, many }) => ({
@@ -414,6 +453,32 @@ export const mealCheckmarksRelations = relations(mealCheckmarks, ({ one }) => ({
   }),
 }));
 
+export const medicalTestsRelations = relations(medicalTests, ({ one }) => ({
+  client: one(users, {
+    fields: [medicalTests.clientId],
+    references: [users.id],
+    relationName: "clientMedicalTests",
+  }),
+  trainer: one(users, {
+    fields: [medicalTests.trainerId],
+    references: [users.id],
+    relationName: "trainerMedicalTests",
+  }),
+}));
+
+export const clientPaymentsRelations = relations(clientPayments, ({ one }) => ({
+  client: one(users, {
+    fields: [clientPayments.clientId],
+    references: [users.id],
+    relationName: "clientPayments",
+  }),
+  trainer: one(users, {
+    fields: [clientPayments.trainerId],
+    references: [users.id],
+    relationName: "trainerPayments",
+  }),
+}));
+
 // Types for Replit Auth
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -477,6 +542,14 @@ export type InsertDailyHabitLog = typeof dailyHabitLogs.$inferInsert;
 // Types for meal checkmarks
 export type MealCheckmark = typeof mealCheckmarks.$inferSelect;
 export type InsertMealCheckmark = typeof mealCheckmarks.$inferInsert;
+
+// Types for medical tests
+export type MedicalTest = typeof medicalTests.$inferSelect;
+export type InsertMedicalTest = typeof medicalTests.$inferInsert;
+
+// Types for client payments
+export type ClientPayment = typeof clientPayments.$inferSelect;
+export type InsertClientPayment = typeof clientPayments.$inferInsert;
 
 // Zod schemas
 export const insertTrainingPlanSchema = createInsertSchema(trainingPlans).omit({
@@ -602,6 +675,22 @@ export const insertMealCheckmarkSchema = createInsertSchema(mealCheckmarks).omit
   id: true,
 });
 
+export const insertMedicalTestSchema = createInsertSchema(medicalTests).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  testDate: z.coerce.date(),
+});
+
+export const insertClientPaymentSchema = createInsertSchema(clientPayments).omit({
+  id: true,
+  createdAt: true,
+  paidAt: true,
+}).extend({
+  amount: z.coerce.number().int().min(1, "Kwota musi być większa niż 0"),
+  dueDate: z.coerce.date(),
+});
+
 export const updateUserRoleSchema = z.object({
   role: z.enum(["trainer", "client"]),
 });
@@ -639,5 +728,6 @@ export type InsertDietPlanInput = z.infer<typeof insertDietPlanSchema>;
 export type InsertDietMealInput = z.infer<typeof insertDietMealSchema>;
 export type InsertDailyHabitLogInput = z.infer<typeof insertDailyHabitLogSchema>;
 export type InsertMealCheckmarkInput = z.infer<typeof insertMealCheckmarkSchema>;
+export type InsertClientPaymentInput = z.infer<typeof insertClientPaymentSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
