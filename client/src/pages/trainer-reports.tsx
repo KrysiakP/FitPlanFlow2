@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,6 +11,7 @@ import { FileText, User, Calendar, Weight, Ruler, Activity, Heart, Pill, Message
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import type { User as UserType, WeeklyReport } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 type ClientWithReports = UserType & {
   assignment?: any;
@@ -27,6 +28,33 @@ export default function TrainerReports() {
     queryKey: [`/api/clients/${selectedClientId}/reports`],
     enabled: !!selectedClientId,
   });
+
+  useEffect(() => {
+    if (reports && reports.length > 0) {
+      const markReportsAsViewed = async () => {
+        const unviewedReports = reports.filter(report => !report.viewedByTrainer);
+        
+        if (unviewedReports.length === 0) {
+          return;
+        }
+
+        try {
+          await Promise.all(
+            unviewedReports.map(report =>
+              apiRequest("POST", `/api/reports/${report.id}/mark-as-viewed`)
+            )
+          );
+          
+          queryClient.invalidateQueries({ queryKey: ["/api/trainer/unread-reports-count"] });
+          queryClient.invalidateQueries({ queryKey: [`/api/clients/${selectedClientId}/reports`] });
+        } catch (error) {
+          console.error("Error marking reports as viewed:", error);
+        }
+      };
+
+      markReportsAsViewed();
+    }
+  }, [reports, selectedClientId]);
 
   const getInitials = (firstName?: string | null, lastName?: string | null) => {
     const first = firstName?.charAt(0) || "";

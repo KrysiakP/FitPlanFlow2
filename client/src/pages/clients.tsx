@@ -26,13 +26,14 @@ import {
   UserPlus,
   X,
   FileText,
+  Pill,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
-import type { User as UserType, PlanAssignment, TrainingPlan, ClientProgress, WeeklyReport } from "@shared/schema";
+import type { User as UserType, PlanAssignment, TrainingPlan, ClientProgress, WeeklyReport, UserProfile } from "@shared/schema";
 
 type ClientWithAssignment = UserType & {
   assignment?: PlanAssignment & { plan: TrainingPlan };
@@ -49,6 +50,11 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
 
   const { data: reports, isLoading: isLoadingReports } = useQuery<WeeklyReport[]>({
     queryKey: [`/api/clients/${client.id}/reports`],
+    enabled: isOpen && !!client.id,
+  });
+
+  const { data: clientProfile, isLoading: isLoadingProfile } = useQuery<UserProfile | null>({
+    queryKey: [`/api/clients/${client.id}/profile`],
     enabled: isOpen && !!client.id,
   });
 
@@ -174,13 +180,13 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
           </CollapsibleTrigger>
           
           <CollapsibleContent className="mt-3">
-            {isLoadingProgress || isLoadingReports ? (
+            {isLoadingProgress || isLoadingReports || isLoadingProfile ? (
               <div className="space-y-2">
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-4 w-5/6" />
               </div>
-            ) : clientProgress || latestReport ? (
+            ) : clientProgress || latestReport || clientProfile?.pharmacologicalSupport ? (
               <div className="space-y-6">
                 {clientProgress && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid={`section-progress-${client.id}`}>
@@ -245,9 +251,24 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
                   </div>
                 )}
 
-                {latestReport && (
+                {clientProfile?.pharmacologicalSupport && (
                   <>
                     {clientProgress && <Separator />}
+                    <div className="space-y-3" data-testid={`section-pharmacological-${client.id}`}>
+                      <h4 className="text-sm font-medium flex items-center gap-2">
+                        <Pill className="w-4 h-4" />
+                        Wsparcie farmakologiczne/Suplementacja
+                      </h4>
+                      <p className="text-sm whitespace-pre-wrap" data-testid={`text-pharmacological-support-${client.id}`}>
+                        {clientProfile.pharmacologicalSupport}
+                      </p>
+                    </div>
+                  </>
+                )}
+
+                {latestReport && (
+                  <>
+                    {(clientProgress || clientProfile?.pharmacologicalSupport) && <Separator />}
                     <div className="space-y-3" data-testid={`section-latest-report-${client.id}`}>
                       <div className="flex items-center justify-between gap-4 flex-wrap">
                         <h4 className="text-sm font-medium flex items-center gap-2">
@@ -274,13 +295,33 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
                         )}
                       </div>
 
-                      <Button asChild variant="outline" size="sm" className="w-full" data-testid={`button-view-all-reports-${client.id}`}>
-                        <Link href="/trainer/reports">
-                          <FileText className="w-4 h-4 mr-2" />
-                          Zobacz wszystkie raporty ({reports?.length || 0})
-                        </Link>
-                      </Button>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button asChild variant="outline" size="sm" className="flex-1" data-testid={`button-view-all-reports-${client.id}`}>
+                          <Link href="/trainer/reports">
+                            <FileText className="w-4 h-4 mr-2" />
+                            Zobacz wszystkie raporty ({reports?.length || 0})
+                          </Link>
+                        </Button>
+                        <Button asChild size="sm" className="flex-1" data-testid={`button-view-progress-${client.id}`}>
+                          <Link href={`/trainer/clients/${client.id}/progress`}>
+                            <TrendingUp className="w-4 h-4 mr-2" />
+                            Zobacz progres
+                          </Link>
+                        </Button>
+                      </div>
                     </div>
+                  </>
+                )}
+
+                {(clientProgress || latestReport) && (
+                  <>
+                    <Separator />
+                    <Button asChild variant="default" size="sm" className="w-full" data-testid={`button-view-full-progress-${client.id}`}>
+                      <Link href={`/trainer/clients/${client.id}/progress`}>
+                        <TrendingUp className="w-4 h-4 mr-2" />
+                        Zobacz pełny progres
+                      </Link>
+                    </Button>
                   </>
                 )}
               </div>

@@ -1646,6 +1646,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Trainer viewing client exercise logs
+  app.get("/api/trainer/clients/:clientId/exercise-logs", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can view client exercise logs" });
+      }
+
+      const { clientId } = req.params;
+      
+      const trainerClients = await storage.getTrainerClients(userId);
+      const isTrainerClient = trainerClients.some(client => client.id === clientId);
+      
+      if (!isTrainerClient) {
+        return res.status(403).json({ message: "You can only view exercise logs of your own clients" });
+      }
+
+      const logs = await storage.getAllClientExerciseLogs(clientId);
+      const sortedLogs = logs.sort((a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime());
+
+      res.json(sortedLogs);
+    } catch (error) {
+      console.error("Error fetching client exercise logs:", error);
+      res.status(500).json({ message: "Failed to fetch client exercise logs" });
+    }
+  });
+
+  // Trainer viewing client profile
+  app.get("/api/clients/:clientId/profile", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can view client profiles" });
+      }
+
+      const { clientId } = req.params;
+      
+      const trainerClients = await storage.getTrainerClients(userId);
+      const isTrainerClient = trainerClients.some(client => client.id === clientId);
+      
+      if (!isTrainerClient) {
+        return res.status(403).json({ message: "You can only view profiles of your own clients" });
+      }
+
+      const profile = await storage.getUserProfile(clientId);
+      res.json(profile || null);
+    } catch (error) {
+      console.error("Error fetching client profile:", error);
+      res.status(500).json({ message: "Failed to fetch client profile" });
+    }
+  });
+
   // Assignment routes
   app.post("/api/assignments/bulk", isAuthenticated, async (req, res) => {
     try {
@@ -2170,6 +2226,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching client weekly reports:", error);
       res.status(500).json({ message: "Nie udało się pobrać raportów podopiecznego" });
+    }
+  });
+
+  app.get("/api/trainer/unread-reports-count", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą sprawdzać liczbę nieprzeczytanych raportów" });
+      }
+
+      const count = await storage.getUnreadReportsCount(userId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error getting unread reports count:", error);
+      res.status(500).json({ message: "Nie udało się pobrać liczby nieprzeczytanych raportów" });
+    }
+  });
+
+  app.post("/api/reports/:reportId/mark-as-viewed", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą oznaczać raporty jako przeczytane" });
+      }
+
+      const { reportId } = req.params;
+      
+      // Verify the report belongs to one of trainer's clients
+      const report = await storage.getWeeklyReport(reportId);
+      if (!report) {
+        return res.status(404).json({ message: "Raport nie został znaleziony" });
+      }
+
+      // Check if the client belongs to this trainer
+      const relationship = await storage.getClientRelationship(userId, report.clientId);
+      if (!relationship || relationship.status !== 'active') {
+        return res.status(403).json({ message: "Ten raport nie należy do Twoich podopiecznych" });
+      }
+
+      await storage.markReportAsViewed(reportId);
+      res.json({ message: "Raport oznaczony jako przeczytany" });
+    } catch (error) {
+      console.error("Error marking report as viewed:", error);
+      res.status(500).json({ message: "Nie udało się oznaczyć raportu jako przeczytanego" });
     }
   });
 

@@ -70,6 +70,7 @@ export const exercises = pgTable("exercises", {
   orderIndex: integer("order_index").notNull().default(0),
   load: varchar("load"), // obciążenie zalecane przez trenera (np. "20kg", "bodyweight")
   videoUrl: text("video_url"), // link do filmu lub upload
+  technique: varchar("technique", { length: 50 }), // technika treningowa: 'dropset', 'cluster_set', 'rest_pause', 'piramida', lub null
 });
 
 // Plan assignments to clients
@@ -103,6 +104,7 @@ export const userProfiles = pgTable("user_profiles", {
   profileImageUrl: varchar("profile_image_url"), // zdjęcie profilowe
   phone: varchar("phone"), // telefon kontaktowy
   specialization: varchar("specialization"), // tylko dla trenerów, specjalizacja
+  pharmacologicalSupport: text("pharmacological_support"), // wsparcie farmakologiczne/suplementacja
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -148,6 +150,7 @@ export const weeklyReports = pgTable("weekly_reports", {
   mood: text("mood"), // samopoczucie
   thoughts: text("thoughts"), // ogólne przemyślenia
   photoUrl: text("photo_url"), // zdjęcie raportowe sylwetki
+  viewedByTrainer: boolean("viewed_by_trainer").default(false).notNull(), // czy trener widział raport
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

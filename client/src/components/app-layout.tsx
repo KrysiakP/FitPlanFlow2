@@ -14,7 +14,7 @@ import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, Fi
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +23,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isTrainer = user?.role === "trainer";
+
+  const { data: unreadReportsData } = useQuery<{ count: number }>({
+    queryKey: ["/api/trainer/unread-reports-count"],
+    enabled: isTrainer,
+    refetchInterval: 30000,
+  });
+
+  const unreadCount = unreadReportsData?.count || 0;
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -72,19 +80,31 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive = location === item.href;
+        const showBadge = isTrainer && item.href === "/trainer/reports" && unreadCount > 0;
         return (
           <Link key={item.href} href={item.href}>
             <button
               onClick={onClick}
-              className={`w-full flex items-center justify-start gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover-elevate text-left ${
+              className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover-elevate text-left ${
                 isActive
                   ? "bg-primary text-primary-foreground"
                   : "text-foreground"
               }`}
               data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
             >
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              <span>{item.label}</span>
+              <div className="flex items-center gap-3">
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                <span>{item.label}</span>
+              </div>
+              {showBadge && (
+                <Badge 
+                  variant="destructive" 
+                  className="text-xs px-2 py-0.5"
+                  data-testid="badge-unread-reports"
+                >
+                  {unreadCount}
+                </Badge>
+              )}
             </button>
           </Link>
         );

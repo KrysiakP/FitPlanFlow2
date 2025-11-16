@@ -28,6 +28,7 @@ import TrainerDiets from "@/pages/trainer-diets";
 import DietPlanForm from "@/pages/diet-plan-form";
 import ClientDiet from "@/pages/client-diet";
 import TrainerClientDietStats from "@/pages/trainer-client-diet-stats";
+import TrainerClientProgress from "@/pages/trainer-client-progress";
 import MyProgress from "@/pages/my-progress";
 import Pomagamy from "@/pages/pomagamy";
 import Pricing from "@/pages/pricing";
@@ -76,6 +77,7 @@ function Router() {
             <Route path="/plans/:id/assign" component={AssignPlan} />
             <Route path="/exercise-library" component={ExerciseLibrary} />
             <Route path="/clients" component={Clients} />
+            <Route path="/trainer/clients/:clientId/progress" component={TrainerClientProgress} />
             <Route path="/trainer/clients/:clientId/diet" component={TrainerClientDietStats} />
             <Route path="/trainer/diets" component={TrainerDiets} />
             <Route path="/trainer/diets/new" component={DietPlanForm} />

@@ -136,6 +136,8 @@ export interface IStorage {
   getClientWeeklyReportsForTrainer(clientId: string, trainerId: string): Promise<WeeklyReport[]>;
   getWeeklyReport(reportId: string): Promise<WeeklyReport | undefined>;
   updateWeeklyReport(reportId: string, data: Partial<InsertWeeklyReport>): Promise<WeeklyReport>;
+  getUnreadReportsCount(trainerId: string): Promise<number>;
+  markReportAsViewed(reportId: string): Promise<void>;
   
   // Client search - find any client by email
   searchClientByEmail(email: string): Promise<User | undefined>;
@@ -899,6 +901,47 @@ export class DatabaseStorage implements IStorage {
       .where(eq(weeklyReports.id, reportId))
       .returning();
     return report;
+  }
+
+  async getUnreadReportsCount(trainerId: string): Promise<number> {
+    // Get all active clients for this trainer
+    const clients = await db
+      .select({ id: users.id })
+      .from(users)
+      .innerJoin(
+        clientRelationships,
+        and(
+          eq(clientRelationships.clientId, users.id),
+          eq(clientRelationships.trainerId, trainerId),
+          eq(clientRelationships.status, 'active')
+        )
+      );
+    
+    if (clients.length === 0) {
+      return 0;
+    }
+    
+    const clientIds = clients.map(c => c.id);
+    
+    // Count unread reports for these clients
+    const [result] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(weeklyReports)
+      .where(
+        and(
+          sql`${weeklyReports.clientId} = ANY(${clientIds})`,
+          eq(weeklyReports.viewedByTrainer, false)
+        )
+      );
+    
+    return result?.count || 0;
+  }
+
+  async markReportAsViewed(reportId: string): Promise<void> {
+    await db
+      .update(weeklyReports)
+      .set({ viewedByTrainer: true })
+      .where(eq(weeklyReports.id, reportId));
   }
 
   // Client search - find any client by email

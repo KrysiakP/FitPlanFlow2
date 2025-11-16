@@ -239,13 +239,21 @@ export default function ClientPlan() {
                     <CardHeader>
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
+                          <div className="flex items-center gap-3 mb-2 flex-wrap">
                             <Badge variant="outline" className="font-mono">
                               #{index + 1}
                             </Badge>
                             <CardTitle className="font-heading" data-testid={`text-exercise-name-${exercise.id}`}>
                               {exercise.name}
                             </CardTitle>
+                            {exercise.technique && (
+                              <Badge variant="secondary" data-testid={`badge-exercise-technique-${exercise.id}`}>
+                                {exercise.technique === 'dropset' && 'Dropset'}
+                                {exercise.technique === 'cluster_set' && 'Cluster Set'}
+                                {exercise.technique === 'rest_pause' && 'Rest-Pause'}
+                                {exercise.technique === 'piramida' && 'Piramida'}
+                              </Badge>
+                            )}
                           </div>
                           {exercise.description && (
                             <CardDescription>{exercise.description}</CardDescription>

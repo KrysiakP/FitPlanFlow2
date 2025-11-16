@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Upload } from "lucide-react";
+import { AlertCircle, Upload, Pill } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { UserProfile } from "@shared/schema";
@@ -30,6 +30,7 @@ const profileSchema = z.object({
   bio: z.string().optional(),
   profileImageUrl: z.string().url().optional().or(z.literal("")),
   phone: z.string().optional(),
+  pharmacologicalSupport: z.string().max(2000, "Maksymalna długość to 2000 znaków").optional(),
   imageType: z.enum(["upload", "url"]).optional(),
   imageFile: z.any().optional(),
 });
@@ -58,6 +59,7 @@ export default function ClientProfile() {
       bio: "",
       profileImageUrl: "",
       phone: "",
+      pharmacologicalSupport: "",
     },
   });
 
@@ -67,6 +69,7 @@ export default function ClientProfile() {
         bio: profile.bio || "",
         profileImageUrl: profile.profileImageUrl || "",
         phone: profile.phone || "",
+        pharmacologicalSupport: profile.pharmacologicalSupport || "",
       });
     }
   }, [profile, profileForm]);
@@ -99,6 +102,7 @@ export default function ClientProfile() {
         bio: data.bio || null,
         profileImageUrl: imageUrl || null,
         phone: data.phone || null,
+        pharmacologicalSupport: data.pharmacologicalSupport || null,
       };
 
       await apiRequest("PUT", "/api/profile", profileData);
@@ -358,6 +362,31 @@ export default function ClientProfile() {
                     </FormControl>
                     <FormDescription>
                       Numer telefonu kontaktowego (opcjonalnie)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={profileForm.control}
+                name="pharmacologicalSupport"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <Pill className="w-4 h-4" />
+                      Wsparcie farmakologiczne/Suplementacja
+                    </FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Wymień przyjmowane leki, suplementy, ich dawkowanie i częstotliwość..."
+                        rows={4}
+                        {...field}
+                        data-testid="textarea-pharmacological-support"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Informacje o przyjmowanych lekach i suplementach (opcjonalnie, max 2000 znaków)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

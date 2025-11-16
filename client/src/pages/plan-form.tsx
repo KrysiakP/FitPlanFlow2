@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, GripVertical, Library } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -23,6 +24,7 @@ const exerciseSchema = z.object({
   videoUrl: z.string().optional(),
   restTime: z.coerce.number().optional(),
   load: z.string().optional(),
+  technique: z.string().optional(),
   orderIndex: z.number(),
 });
 
@@ -71,7 +73,7 @@ export default function PlanForm() {
       workouts: [{
         name: "Trening 1",
         description: "",
-        exercises: [{ name: "", sets: 3, reps: 10, description: "", videoUrl: "", restTime: 60, load: "", orderIndex: 0 }],
+        exercises: [{ name: "", sets: 3, reps: 10, description: "", videoUrl: "", restTime: 60, load: "", technique: "", orderIndex: 0 }],
         orderIndex: 0
       }],
     },
@@ -89,6 +91,7 @@ export default function PlanForm() {
           videoUrl: ex.videoUrl || "",
           restTime: ex.restTime ?? 60,
           load: ex.load ?? "",
+          technique: ex.technique ?? "",
           orderIndex: ex.orderIndex,
         })),
         orderIndex: workout.orderIndex,
@@ -157,7 +160,7 @@ export default function PlanForm() {
     const newExerciseIndex = currentExercises.length;
     form.setValue(`workouts.${workoutIndex}.exercises`, [
       ...currentExercises,
-      { name: "", sets: 3, reps: 10, description: "", videoUrl: "", restTime: 60, load: "", orderIndex: currentExercises.length },
+      { name: "", sets: 3, reps: 10, description: "", videoUrl: "", restTime: 60, load: "", technique: "", orderIndex: currentExercises.length },
     ]);
     
     setTimeout(() => {
@@ -495,6 +498,34 @@ export default function PlanForm() {
                                   )}
                                 />
                               </div>
+
+                              <FormField
+                                control={form.control}
+                                name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.technique`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Technika treningowa (opcjonalnie)</FormLabel>
+                                    <Select 
+                                      onValueChange={field.onChange} 
+                                      value={field.value || ""}
+                                    >
+                                      <FormControl>
+                                        <SelectTrigger data-testid={`select-exercise-technique-${workoutIndex}-${exerciseIndex}`}>
+                                          <SelectValue placeholder="Wybierz technikę" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="">Brak</SelectItem>
+                                        <SelectItem value="dropset">Dropset</SelectItem>
+                                        <SelectItem value="cluster_set">Cluster Set</SelectItem>
+                                        <SelectItem value="rest_pause">Rest-Pause</SelectItem>
+                                        <SelectItem value="piramida">Piramida</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
                             </div>
                             <Button
                               type="button"
