@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Video, Link as LinkIcon, AlertCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Video, Link as LinkIcon, AlertCircle, Upload } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -44,6 +44,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState } from "react";
+import { ObjectUploader } from "@/components/ObjectUploader";
 
 const exerciseFormSchema = insertExerciseLibrarySchema.extend({
   videoType: z.enum(["upload", "url"]).optional(),
@@ -64,7 +65,7 @@ function ExerciseDialog({
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [videoType, setVideoType] = useState<"upload" | "url">("url");
-  const [uploadProgress, setUploadProgress] = useState(false);
+  const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(exercise?.id || null);
 
   const form = useForm<ExerciseFormValues>({
     resolver: zodResolver(exerciseFormSchema),
@@ -81,31 +82,10 @@ function ExerciseDialog({
 
   const createMutation = useMutation({
     mutationFn: async (data: ExerciseFormValues) => {
-      let videoUrl = data.videoUrl;
-
-      if (videoType === "upload" && data.videoFile && data.videoFile[0]) {
-        setUploadProgress(true);
-        const formData = new FormData();
-        formData.append("file", data.videoFile[0]);
-
-        const uploadResponse = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error("Nie udało się przesłać pliku");
-        }
-
-        const uploadData = await uploadResponse.json();
-        videoUrl = uploadData.url;
-        setUploadProgress(false);
-      }
-
       const exerciseData = {
         name: data.name,
         description: data.description || null,
-        videoUrl: videoUrl || null,
+        videoUrl: data.videoUrl || null,
         defaultSets: data.defaultSets || null,
         defaultReps: data.defaultReps || null,
         defaultLoad: data.defaultLoad || null,
@@ -114,24 +94,30 @@ function ExerciseDialog({
 
       if (exercise) {
         await apiRequest("PUT", `/api/exercises/library/${exercise.id}`, exerciseData);
+        return { exerciseId: exercise.id, videoUrl: data.videoUrl };
       } else {
-        await apiRequest("POST", "/api/exercises/library", exerciseData);
+        const response: any = await apiRequest("POST", "/api/exercises/library", exerciseData);
+        return { exerciseId: response.id, videoUrl: data.videoUrl };
       }
     },
-    onSuccess: () => {
+    onSuccess: ({ exerciseId, videoUrl }) => {
+      setCurrentExerciseId(exerciseId);
       queryClient.invalidateQueries({ queryKey: ["/api/exercises/library"] });
       toast({
         title: exercise ? "Ćwiczenie zaktualizowane" : "Ćwiczenie dodane",
         description: exercise
           ? "Ćwiczenie zostało pomyślnie zaktualizowane"
-          : "Ćwiczenie zostało pomyślnie dodane do biblioteki",
+          : "Ćwiczenie zostało pomyślnie dodane do biblioteki. Możesz teraz dodać film.",
       });
-      setOpen(false);
-      form.reset();
-      onSuccess?.();
+      
+      // Only close if no video upload is needed
+      if (videoType === "url" || videoUrl) {
+        setOpen(false);
+        form.reset();
+        onSuccess?.();
+      }
     },
     onError: () => {
-      setUploadProgress(false);
       toast({
         title: "Błąd",
         description: exercise
@@ -326,27 +312,80 @@ function ExerciseDialog({
                 </TabsContent>
 
                 <TabsContent value="upload" className="space-y-2">
-                  <FormField
-                    control={form.control}
-                    name="videoFile"
-                    render={({ field: { onChange, value, ...field } }) => (
-                      <FormItem>
-                        <FormControl>
-                          <Input
-                            type="file"
-                            accept="video/mp4,video/quicktime,video/x-msvideo,video/webm"
-                            onChange={(e) => onChange(e.target.files)}
-                            {...field}
-                            data-testid="input-video-file"
-                          />
-                        </FormControl>
-                        <FormDescription>
+                  <div className="space-y-4">
+                    {!currentExerciseId ? (
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Informacja</AlertTitle>
+                        <AlertDescription>
+                          Aby przesłać film, najpierw zapisz ćwiczenie klikając "Dodaj ćwiczenie" poniżej.
+                          Następnie będziesz mógł przesłać film.
+                        </AlertDescription>
+                      </Alert>
+                    ) : (
+                      <>
+                        <ObjectUploader
+                          maxNumberOfFiles={1}
+                          maxFileSize={52428800}
+                          onGetUploadParameters={async () => {
+                            const response = await fetch("/api/objects/upload", {
+                              method: "POST",
+                              credentials: "include",
+                            });
+                            
+                            if (!response.ok) {
+                              throw new Error("Nie udało się uzyskać URL uploadu");
+                            }
+                            
+                            const data = await response.json();
+                            return {
+                              method: "PUT" as const,
+                              url: data.uploadURL,
+                            };
+                          }}
+                          onComplete={async (result) => {
+                            if (!currentExerciseId) return;
+                            
+                            const uploadedFile = result.successful?.[0];
+                            if (!uploadedFile) return;
+                            
+                            try {
+                              const response: any = await apiRequest(
+                                "PUT",
+                                `/api/exercises/library/${currentExerciseId}/video`,
+                                { videoUrl: uploadedFile.uploadURL }
+                              );
+                              
+                              form.setValue("videoUrl", response.objectPath);
+                              queryClient.invalidateQueries({ queryKey: ["/api/exercises/library"] });
+                              
+                              toast({
+                                title: "Film dodany",
+                                description: "Film został pomyślnie przesłany i dodany do ćwiczenia",
+                              });
+                              
+                              setOpen(false);
+                              form.reset();
+                              onSuccess?.();
+                            } catch (error) {
+                              toast({
+                                title: "Błąd",
+                                description: "Nie udało się zapisać filmu",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          buttonClassName="w-full"
+                        >
+                          <Upload className="w-4 h-4 mr-2" />
+                          Prześlij film
+                        </ObjectUploader>
+                        <p className="text-sm text-muted-foreground">
                           Maksymalny rozmiar pliku: 50MB (mp4, mov, avi, webm)
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
+                        </p>
+                      </>
                     )}
-                  />
+                  </div>
                 </TabsContent>
               </Tabs>
             </div>
@@ -362,10 +401,10 @@ function ExerciseDialog({
               </Button>
               <Button
                 type="submit"
-                disabled={createMutation.isPending || uploadProgress}
+                disabled={createMutation.isPending}
                 data-testid="button-save-exercise"
               >
-                {createMutation.isPending || uploadProgress
+                {createMutation.isPending
                   ? "Zapisywanie..."
                   : exercise
                   ? "Zapisz zmiany"
