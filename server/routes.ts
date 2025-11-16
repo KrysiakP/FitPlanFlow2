@@ -3447,6 +3447,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Referral system routes (trainers only)
+  app.get("/api/referrals/my-code", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'trainer') {
+        return res.status(403).json({ message: "Tylko trenerzy mogą mieć kody polecające" });
+      }
+
+      const referralCode = await storage.ensureReferralCode(userId);
+      res.json(referralCode);
+    } catch (error) {
+      console.error("Error fetching referral code:", error);
+      res.status(500).json({ message: "Nie udało się pobrać kodu polecającego" });
+    }
+  });
+
+  app.get("/api/referrals/my-stats", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'trainer') {
+        return res.status(403).json({ message: "Tylko trenerzy mają statystyki poleceń" });
+      }
+
+      const stats = await storage.getTrainerReferralStats(userId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching referral stats:", error);
+      res.status(500).json({ message: "Nie udało się pobrać statystyk poleceń" });
+    }
+  });
+
+  app.get("/api/referrals/my-referrals", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'trainer') {
+        return res.status(403).json({ message: "Tylko trenerzy mogą przeglądać swoje polecenia" });
+      }
+
+      const referrals = await storage.listTrainerReferrals(userId);
+      res.json(referrals);
+    } catch (error) {
+      console.error("Error fetching referrals:", error);
+      res.status(500).json({ message: "Nie udało się pobrać listy poleceń" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   // WebSocket setup for real-time chat
