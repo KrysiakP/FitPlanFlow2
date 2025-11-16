@@ -1,0 +1,93 @@
+BŁĘDY KRYTYCZNE: 
+
+
+Do naprawy:
+
+1) Usunąć z landing page część z raportami pomagamy 1% 
+
+
+2) przy zakładaniu konta popraw polszczyznę:
+podopieczny - darmowe 
+trener - profesjonalne
+
+
+3) Zdjęcie z raportu nie wyświetla się poprawnie - u trenera i podopiecznego - raporty. Po 1dniu zdjęcie przestaje się wyswietlać
+
+
+
+
+
+
+4) w zakładce Mój profil
+Zarządzaj swoimi danymi kontaktowymi i informacjami o sobie
+
+Plan Free
+Limit: 10 podopiecznych
+ZMIEN TO NA 3 podpieczncyh 
+
+
+
+
+Do stworzenia:
+
+System polecania. Jeśli polecisz nasza aplikacje innemu trenerowi to on i ty dostaniecie po jednym miesiacu kozystania gratis. 
+
+
+5) w bibliotece ćwiczeń - filmy przestają się odtwarzać po 1 skeundzie - napraw to zeby po wlaczeniu fillmy on po prostu leciał dalej. 
+
+
+6) w zakładce podpieczni -  “postępy podopiecznego”  - nie wyswietlają się raporty 
+
+
+7) Dodawanie nowych ćwiczeń w planach treningowych
+Po kliknięciu przycisku „dodaj nowe ćwiczenie” lub dodaj nowy trening, moduł powinien automatycznie przewijać widok na dół listy, tak aby nie trzeba było ręcznie wracać do nowo dodanego elementu.
+
+
+8)Dodaj zakładkę “Mój progres” u podopiecznego w niej dodaj  funkcję porównywania zdjęć “przed i po”, np. w formie suwaka, galerii lub układu obok siebie. Najstarsze i najnowsze wgrane zdjęcie. Miej w niej również progres  danego planu, Np jeśli plan początkowo opiewał na danym ćwiczeniu 20kg, a poodpieczny lub trener zmienili dane cwiczenie na 22kg to zawrzyj to jako progres. Adrekwatnie tak samo do powtórzeń i innych ćwiczeń.  Dobrą opcją byłaby możliwość monitorowania trendów masy ciała lub innych antropometrii (np. obwodów), najlepiej w formie wykresów.
+
+9) Dodaj zakładkę Progres podopiecznych  - adekwatnie jak w zakładce “Mój progres”, ale tutaj trener widzi progres podopiecznych. Różnice w ich wadze, obwodach, powtórzeniach, zwiekoszonym cięrzaże i widzi najstarsze i najnowsze zdjęcie podopiecznego
+. Dobrą opcją byłaby możliwość monitorowania trendów masy ciała lub innych antropometrii (np. obwodów), najlepiej w formie wykresów.
+ 
+10
+) Rozwój funkcji progresji treningowej
+Do rozważenia dodanie form progresji w seriach, takich jak:
+dropset
+cluster set
+rest-pause
+piramida
+Funkcje te mogą pozostać w opisie, ale warto mieć możliwość systemowego wyboru z listy.
+
+11) Wsparcie farmakologiczne
+W branży często uwzględnia się farmakologię jako element wsparcia, dlatego warto byłoby dodać dedykowany moduł lub sekcję — mogę pomóc i podpowiedzieć, jak to najlepiej uporządkować.
+
+
+12)  Funkcjonalności dietetyczne — trzy tryby
+Tylko makro na cały dzień
+Makro z podziałem na posiłki + możliwość opisów, wariant DT/DNT
+Pełna szczegółowa rozpiska żywieniowa
+Albo jako  tabelkę na dt dnt albo jedna taka ogólna - co myślisz? 
+
+
+13)  Powiadomienia i widoczność raportów
+Dobrym rozwiązaniem byłoby dodanie komunikatu lub alertu informującego o nowych raportach oraz ich ilości — przyspieszy to pracę i organizację. Trener dostaje powiadomienie ze podopieczny uzupelnil raport. Np w postaci czerowengo powiadomienia w lewej belce “raporty” tak jak jest na iphone - wyswietla sie licza powiadomien danej aplikacji 
+
+
+14) Polityka rozliczeń
+Rozpoczęcie naliczania opłat od 3 podopiecznych uznaję za bardzo dobrze dobrany próg.
+
+15) do diety dodaj Dodawanie suplementacji - pore zażywania ramo/wieczor - przed ,w trakcie, po posilku  - trener ma napisać czy w miligramach, mililitrach - ma wpisać jednostkę  - Ewentualnie opcja Opisu w diecie gdzie trener wprowadzi szczegółowe inofmracje I rozpiska ed Każdego dnia lub np e2d e3d bo są to rzeczy nie stałe
+
+
+16) Dla trenera - Badania krw
+Możliwość przypisywania do podopiecznego badań i daty
+Krew i inne takie jak echo serca usg jamy brzusznej itp
+
+
+
+17) Tworzenie opisu podopiecznego z notatka kontuzji urazów i problemow zdrowotnych - podopieczny ma mozliwośc dodania w swoim profilu nowych badań w postaci pliku/zdjęcia i ma mieć opcję uzupełnienia informacji o sobie. Waga, wzrost, choroby, schorzenia, wszystkie medyczne rzeczy które trener powinien wiedzieć.  Trener ma mieć wgląd w profil podopiecznego.  Zachęcaj podopiecznego do uzupełnienai swojego profilu, ułatw mu to. zachęc go tez do dodania swojego profilowego. 
+
+
+18) Dodaj system chatu/wiadomości między treenerm a podopiecznym. 
+
+19) Z poziomu Trenera i podopiecznego dodaj terminarz opłat . Tak żeby oboje wiedzieli na jaką stawkę i jaki termin zapłaty się umówili - to tylko takie przypomnienie dla ich obojga. Ja jako admin  nie pośredniczę między nimi. Tylko przypominamy im. 
+
