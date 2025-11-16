@@ -98,7 +98,7 @@ export default function RoleSelection() {
                   </p>
                 </div>
                 <div className="inline-block px-3 py-1 bg-blue-500/10 text-blue-700 dark:text-blue-400 rounded-full text-sm font-medium">
-                  Darmowe
+                  Profesjonalne
                 </div>
               </div>
             </button>

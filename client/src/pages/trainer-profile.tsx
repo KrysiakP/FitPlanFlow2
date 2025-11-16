@@ -264,7 +264,7 @@ export default function TrainerProfile() {
                 <CardDescription>Zarządzaj swoim planem i płatnościami</CardDescription>
               </div>
               <Badge variant={isPremium ? "default" : "secondary"} data-testid="badge-subscription-tier">
-                {isPremium ? "Premium" : "Free"}
+                {isPremium ? "Premium" : "START"}
               </Badge>
             </div>
           </CardHeader>
@@ -272,12 +272,12 @@ export default function TrainerProfile() {
             <div className="flex items-center justify-between p-4 rounded-lg border">
               <div className="space-y-1">
                 <p className="text-sm font-medium">
-                  {isPremium ? "Plan Premium" : "Plan Free"}
+                  {isPremium ? "Plan Premium" : "Plan START"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {isPremium 
                     ? "Nieograniczona liczba podopiecznych" 
-                    : "Limit: 10 podopiecznych"}
+                    : "Limit: 3 podopiecznych"}
                 </p>
               </div>
               <div className="text-right">
