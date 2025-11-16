@@ -149,6 +149,7 @@ export interface IStorage {
   // Client relationship operations
   getClientRelationship(trainerId: string, clientId: string): Promise<ClientRelationship | null>;
   hasActiveTrainer(clientId: string): Promise<boolean>;
+  getTrainerForClient(clientId: string): Promise<User | null>;
   archiveClientRelationship(trainerId: string, clientId: string): Promise<void>;
   
   // Charity donation operations
@@ -1140,6 +1141,24 @@ export class DatabaseStorage implements IStorage {
       )
       .limit(1);
     return !!relationship;
+  }
+
+  async getTrainerForClient(clientId: string): Promise<User | null> {
+    const [relationship] = await db
+      .select({
+        trainer: users,
+      })
+      .from(clientRelationships)
+      .innerJoin(users, eq(clientRelationships.trainerId, users.id))
+      .where(
+        and(
+          eq(clientRelationships.clientId, clientId),
+          eq(clientRelationships.status, 'active')
+        )
+      )
+      .limit(1);
+    
+    return relationship?.trainer || null;
   }
 
   async archiveClientRelationship(trainerId: string, clientId: string): Promise<void> {

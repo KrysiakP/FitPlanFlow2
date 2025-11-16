@@ -16,6 +16,7 @@ import PlanForm from "@/pages/plan-form";
 import AssignPlan from "@/pages/assign-plan";
 import Clients from "@/pages/clients";
 import ClientPlan from "@/pages/client-plan";
+import MyTrainer from "@/pages/my-trainer";
 import ExerciseLibrary from "@/pages/exercise-library";
 import TrainerProfile from "@/pages/trainer-profile";
 import ClientProfile from "@/pages/client-profile";
@@ -91,6 +92,7 @@ function Router() {
           <>
             <Route path="/" component={ClientDashboard} />
             <Route path="/my-plan" component={ClientPlan} />
+            <Route path="/my-trainer" component={MyTrainer} />
             <Route path="/client/diet" component={ClientDiet} />
             <Route path="/weekly-report" component={WeeklyReport} />
             <Route path="/pomagamy" component={Pomagamy} />

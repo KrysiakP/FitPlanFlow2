@@ -1463,6 +1463,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get trainer information for client
+  app.get("/api/my-trainer", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko podopieczni mogą zobaczyć informacje o swoim trenerze" });
+      }
+
+      const trainer = await storage.getTrainerForClient(userId);
+      
+      if (!trainer) {
+        return res.status(404).json({ message: "Nie masz przypisanego trenera" });
+      }
+
+      // Return trainer info without sensitive data
+      res.json({
+        id: trainer.id,
+        firstName: trainer.firstName,
+        lastName: trainer.lastName,
+        email: trainer.email,
+        profileImageUrl: trainer.profileImageUrl,
+      });
+    } catch (error) {
+      console.error("Error fetching trainer info:", error);
+      res.status(500).json({ message: "Nie udało się pobrać informacji o trenerze" });
+    }
+  });
+
   // User profile routes
   app.get("/api/profile", isAuthenticated, async (req, res) => {
     try {
