@@ -25,11 +25,14 @@ import {
   ChevronDown,
   UserPlus,
   X,
+  FileText,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { User as UserType, PlanAssignment, TrainingPlan, ClientProgress } from "@shared/schema";
+import { format } from "date-fns";
+import { pl } from "date-fns/locale";
+import type { User as UserType, PlanAssignment, TrainingPlan, ClientProgress, WeeklyReport } from "@shared/schema";
 
 type ClientWithAssignment = UserType & {
   assignment?: PlanAssignment & { plan: TrainingPlan };
@@ -43,6 +46,15 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
     queryKey: [`/api/trainer/clients/${client.id}/progress`],
     enabled: isOpen && !!client.id,
   });
+
+  const { data: reports, isLoading: isLoadingReports } = useQuery<WeeklyReport[]>({
+    queryKey: [`/api/clients/${client.id}/reports`],
+    enabled: isOpen && !!client.id,
+  });
+
+  const latestReport = reports && reports.length > 0 
+    ? [...reports].sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime())[0]
+    : null;
 
   const archiveClientMutation = useMutation({
     mutationFn: async (clientId: string) => {
@@ -162,71 +174,114 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
           </CollapsibleTrigger>
           
           <CollapsibleContent className="mt-3">
-            {isLoadingProgress ? (
+            {isLoadingProgress || isLoadingReports ? (
               <div className="space-y-2">
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-4 w-5/6" />
               </div>
-            ) : clientProgress ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid={`section-progress-${client.id}`}>
-                {clientProgress.weight && (
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Waga</p>
-                    <p className="font-medium" data-testid={`text-weight-${client.id}`}>
-                      {clientProgress.weight}
-                    </p>
+            ) : clientProgress || latestReport ? (
+              <div className="space-y-6">
+                {clientProgress && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid={`section-progress-${client.id}`}>
+                    {clientProgress.weight && (
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Waga</p>
+                        <p className="font-medium" data-testid={`text-weight-${client.id}`}>
+                          {clientProgress.weight}
+                        </p>
+                      </div>
+                    )}
+                    {clientProgress.height && (
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Wzrost</p>
+                        <p className="font-medium" data-testid={`text-height-${client.id}`}>
+                          {clientProgress.height}
+                        </p>
+                      </div>
+                    )}
+                    {clientProgress.goal && (
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <Target className="w-4 h-4" />
+                          Cel treningowy
+                        </p>
+                        <p className="font-medium" data-testid={`text-goal-${client.id}`}>
+                          {clientProgress.goal}
+                        </p>
+                      </div>
+                    )}
+                    {clientProgress.mood && (
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <Heart className="w-4 h-4" />
+                          Samopoczucie
+                        </p>
+                        <p className="font-medium" data-testid={`text-mood-${client.id}`}>
+                          {clientProgress.mood}
+                        </p>
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Ukończone treningi
+                      </p>
+                      <p className="font-medium text-primary text-xl" data-testid={`text-completed-workouts-${client.id}`}>
+                        {clientProgress.completedWorkouts || 0}
+                      </p>
+                    </div>
+                    {clientProgress.notes && (
+                      <div className="space-y-1 md:col-span-2">
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <MessageSquare className="w-4 h-4" />
+                          Notatki motywacyjne
+                        </p>
+                        <p className="font-medium" data-testid={`text-notes-${client.id}`}>
+                          {clientProgress.notes}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
-                {clientProgress.height && (
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Wzrost</p>
-                    <p className="font-medium" data-testid={`text-height-${client.id}`}>
-                      {clientProgress.height}
-                    </p>
-                  </div>
-                )}
-                {clientProgress.goal && (
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Target className="w-4 h-4" />
-                      Cel treningowy
-                    </p>
-                    <p className="font-medium" data-testid={`text-goal-${client.id}`}>
-                      {clientProgress.goal}
-                    </p>
-                  </div>
-                )}
-                {clientProgress.mood && (
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Heart className="w-4 h-4" />
-                      Samopoczucie
-                    </p>
-                    <p className="font-medium" data-testid={`text-mood-${client.id}`}>
-                      {clientProgress.mood}
-                    </p>
-                  </div>
-                )}
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground flex items-center gap-1">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Ukończone treningi
-                  </p>
-                  <p className="font-medium text-primary text-xl" data-testid={`text-completed-workouts-${client.id}`}>
-                    {clientProgress.completedWorkouts || 0}
-                  </p>
-                </div>
-                {clientProgress.notes && (
-                  <div className="space-y-1 md:col-span-2">
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <MessageSquare className="w-4 h-4" />
-                      Notatki motywacyjne
-                    </p>
-                    <p className="font-medium" data-testid={`text-notes-${client.id}`}>
-                      {clientProgress.notes}
-                    </p>
-                  </div>
+
+                {latestReport && (
+                  <>
+                    {clientProgress && <Separator />}
+                    <div className="space-y-3" data-testid={`section-latest-report-${client.id}`}>
+                      <div className="flex items-center justify-between gap-4 flex-wrap">
+                        <h4 className="text-sm font-medium flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          Ostatni raport tygodniowy
+                        </h4>
+                        <Badge variant="secondary">
+                          {format(new Date(latestReport.reportDate), "d MMMM yyyy", { locale: pl })}
+                        </Badge>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        {latestReport.weight && (
+                          <div>
+                            <span className="text-muted-foreground">Waga: </span>
+                            <span className="font-medium">{latestReport.weight}</span>
+                          </div>
+                        )}
+                        {latestReport.mood && (
+                          <div>
+                            <span className="text-muted-foreground">Samopoczucie: </span>
+                            <span className="font-medium">{latestReport.mood}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <Button asChild variant="outline" size="sm" className="w-full" data-testid={`button-view-all-reports-${client.id}`}>
+                        <Link href="/trainer/reports">
+                          <FileText className="w-4 h-4 mr-2" />
+                          Zobacz wszystkie raporty ({reports?.length || 0})
+                        </Link>
+                      </Button>
+                    </div>
+                  </>
                 )}
               </div>
             ) : (
