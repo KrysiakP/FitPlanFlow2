@@ -11,12 +11,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, UserCircle, Crown, CreditCard, UserPlus, ShieldCheck, Heart, UtensilsCrossed, Apple, GraduationCap, TrendingUp, DollarSign, Clock } from "lucide-react";
+import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, UserCircle, Crown, CreditCard, UserPlus, ShieldCheck, Heart, UtensilsCrossed, Apple, GraduationCap, TrendingUp, DollarSign, Clock, MessageSquare } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useUnreadCount } from "@/hooks/use-chat";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -26,7 +27,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const isTrainer = user?.role === "trainer";
 
   // Helper function to calculate days remaining in trial
-  const getDaysRemaining = (trialEndsAt: string | null | undefined) => {
+  const getDaysRemaining = (trialEndsAt: Date | string | null | undefined) => {
     if (!trialEndsAt) return 0;
     const diff = new Date(trialEndsAt).getTime() - new Date().getTime();
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
@@ -50,6 +51,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   });
 
   const upcomingPaymentsCount = upcomingPayments.length;
+
+  const { data: unreadMessagesData } = useUnreadCount();
+  const unreadMessagesCount = unreadMessagesData?.count || 0;
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -75,6 +79,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/trainer/diets", icon: UtensilsCrossed, label: "Diety" },
     { href: "/invite", icon: UserPlus, label: "Zaproś podopiecznego" },
     { href: "/trainer/reports", icon: FileText, label: "Raporty tygodniowe" },
+    { href: "/chat", icon: MessageSquare, label: "Wiadomości" },
     { href: "/payment-schedule", icon: DollarSign, label: "Płatności" },
     ...(user?.isAdmin ? [{ href: "/admin/charity-donations", icon: ShieldCheck, label: "Panel Admin" }] : []),
     { href: "/pomagamy", icon: Heart, label: "PomagaMY" },
@@ -89,6 +94,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/client/diet", icon: Apple, label: "Dieta" },
     { href: "/weekly-report", icon: FileText, label: "Raport tygodniowy" },
     { href: "/my-progress", icon: TrendingUp, label: "Mój progres" },
+    { href: "/chat", icon: MessageSquare, label: "Wiadomości" },
     { href: "/payment-schedule", icon: DollarSign, label: "Płatności" },
     { href: "/pomagamy", icon: Heart, label: "PomagaMY" },
     { href: "/profile", icon: UserCircle, label: "Profil" },
@@ -100,9 +106,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <nav className="space-y-1">
       {navItems.map((item) => {
         const Icon = item.icon;
-        const isActive = location === item.href;
+        const isActive = location === item.href || (item.href === "/chat" && location.startsWith("/chat"));
         const showReportsBadge = isTrainer && item.href === "/trainer/reports" && unreadCount > 0;
         const showPaymentsBadge = item.href === "/payment-schedule" && upcomingPaymentsCount > 0;
+        const showMessagesBadge = item.href === "/chat" && unreadMessagesCount > 0;
         return (
           <Link key={item.href} href={item.href}>
             <button
@@ -134,6 +141,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   data-testid="badge-upcoming-payments"
                 >
                   {upcomingPaymentsCount}
+                </Badge>
+              )}
+              {showMessagesBadge && (
+                <Badge 
+                  variant="destructive" 
+                  className="text-xs px-2 py-0.5"
+                  data-testid="badge-unread-messages"
+                >
+                  {unreadMessagesCount}
                 </Badge>
               )}
             </button>

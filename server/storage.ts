@@ -60,6 +60,9 @@ import {
   type InsertClientPayment,
   type DietSupplement,
   type InsertDietSupplement,
+  messages,
+  type Message,
+  type InsertMessage,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, isNull, sql, gte, lte, asc } from "drizzle-orm";
@@ -209,6 +212,22 @@ export interface IStorage {
   markPaymentAsPaid(paymentId: string): Promise<void>;
   deletePayment(paymentId: string): Promise<void>;
   getUpcomingPayments(userId: string, role: string): Promise<ClientPayment[]>;
+
+  // Chat Messages
+  getConversations(userId: string, role: 'trainer' | 'client'): Promise<Array<{
+    partnerId: string;
+    partnerFirstName: string;
+    partnerLastName: string;
+    partnerProfileImageUrl: string | null;
+    lastMessage: string | null;
+    lastMessageAt: Date | null;
+    unreadCount: number;
+  }>>;
+  getMessages(trainerId: string, clientId: string): Promise<Message[]>;
+  createMessage(data: InsertMessage): Promise<Message>;
+  markMessageAsRead(messageId: string): Promise<void>;
+  markConversationAsRead(userId: string, partnerId: string): Promise<void>;
+  getUnreadMessageCount(userId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1607,6 +1626,163 @@ export class DatabaseStorage implements IStorage {
         )
         .orderBy(asc(clientPayments.dueDate));
     }
+  }
+
+  // Chat Messages
+  async getConversations(userId: string, role: 'trainer' | 'client'): Promise<Array<{
+    partnerId: string;
+    partnerFirstName: string;
+    partnerLastName: string;
+    partnerProfileImageUrl: string | null;
+    lastMessage: string | null;
+    lastMessageAt: Date | null;
+    unreadCount: number;
+  }>> {
+    if (role === 'trainer') {
+      // Trainer sees all their clients
+      const clients = await this.getTrainerClients(userId);
+      
+      const conversations = await Promise.all(
+        clients.map(async (client) => {
+          // Get last message
+          const [lastMsg] = await db
+            .select()
+            .from(messages)
+            .where(
+              and(
+                eq(messages.trainerId, userId),
+                eq(messages.clientId, client.id)
+              )
+            )
+            .orderBy(desc(messages.createdAt))
+            .limit(1);
+
+          // Get unread count (messages sent by client to trainer that are unread)
+          const unreadResult = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(messages)
+            .where(
+              and(
+                eq(messages.trainerId, userId),
+                eq(messages.clientId, client.id),
+                eq(messages.senderId, client.id),
+                isNull(messages.readAt)
+              )
+            );
+
+          return {
+            partnerId: client.id,
+            partnerFirstName: client.firstName,
+            partnerLastName: client.lastName,
+            partnerProfileImageUrl: client.profileImageUrl,
+            lastMessage: lastMsg?.body || null,
+            lastMessageAt: lastMsg?.createdAt || null,
+            unreadCount: unreadResult[0]?.count || 0,
+          };
+        })
+      );
+
+      return conversations.sort((a, b) => {
+        if (!a.lastMessageAt && !b.lastMessageAt) return 0;
+        if (!a.lastMessageAt) return 1;
+        if (!b.lastMessageAt) return -1;
+        return b.lastMessageAt.getTime() - a.lastMessageAt.getTime();
+      });
+    } else {
+      // Client sees only their trainer
+      const trainer = await this.getTrainerForClient(userId);
+      if (!trainer) return [];
+
+      const [lastMsg] = await db
+        .select()
+        .from(messages)
+        .where(
+          and(
+            eq(messages.trainerId, trainer.id),
+            eq(messages.clientId, userId)
+          )
+        )
+        .orderBy(desc(messages.createdAt))
+        .limit(1);
+
+      const unreadResult = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.trainerId, trainer.id),
+            eq(messages.clientId, userId),
+            eq(messages.senderId, trainer.id),
+            isNull(messages.readAt)
+          )
+        );
+
+      return [{
+        partnerId: trainer.id,
+        partnerFirstName: trainer.firstName,
+        partnerLastName: trainer.lastName,
+        partnerProfileImageUrl: trainer.profileImageUrl,
+        lastMessage: lastMsg?.body || null,
+        lastMessageAt: lastMsg?.createdAt || null,
+        unreadCount: unreadResult[0]?.count || 0,
+      }];
+    }
+  }
+
+  async getMessages(trainerId: string, clientId: string): Promise<Message[]> {
+    return await db
+      .select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.trainerId, trainerId),
+          eq(messages.clientId, clientId)
+        )
+      )
+      .orderBy(asc(messages.createdAt));
+  }
+
+  async createMessage(data: InsertMessage): Promise<Message> {
+    const [message] = await db
+      .insert(messages)
+      .values(data)
+      .returning();
+    return message;
+  }
+
+  async markMessageAsRead(messageId: string): Promise<void> {
+    await db
+      .update(messages)
+      .set({ readAt: new Date() })
+      .where(eq(messages.id, messageId));
+  }
+
+  async markConversationAsRead(userId: string, partnerId: string): Promise<void> {
+    // Mark all unread messages where userId is the recipient
+    await db
+      .update(messages)
+      .set({ readAt: new Date() })
+      .where(
+        and(
+          eq(messages.recipientId, userId),
+          eq(messages.senderId, partnerId),
+          isNull(messages.readAt)
+        )
+      );
+  }
+
+  async getUnreadMessageCount(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.recipientId, userId),
+          isNull(messages.readAt)
+        )
+      );
+
+    return result[0]?.count || 0;
   }
 }
 

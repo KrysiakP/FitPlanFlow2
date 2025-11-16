@@ -1,10 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, hashPassword, comparePassword } from "./auth";
+import { setupAuth, isAuthenticated, hashPassword, comparePassword, getSession } from "./auth";
 // Object Storage - code adapted from javascript_object_storage blueprint
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
+import { WebSocketServer, WebSocket } from "ws";
+import { parse as parseCookie } from "cookie";
 import {
   insertTrainingPlanSchema,
   insertWorkoutSchema,
@@ -30,6 +32,7 @@ import {
   insertMealCheckmarkSchema,
   insertMedicalTestSchema,
   insertClientPaymentSchema,
+  insertMessageSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
@@ -3226,6 +3229,248 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Chat endpoints
+  app.get("/api/chat/conversations", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (!user?.role) {
+        return res.status(400).json({ message: "Użytkownik nie ma przypisanej roli" });
+      }
+
+      const conversations = await storage.getConversations(userId, user.role);
+      res.json(conversations);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      res.status(500).json({ message: "Nie udało się pobrać konwersacji" });
+    }
+  });
+
+  app.get("/api/chat/messages/:trainerId/:clientId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { trainerId, clientId } = req.params;
+      
+      if (!user?.role) {
+        return res.status(400).json({ message: "Użytkownik nie ma przypisanej roli" });
+      }
+
+      // Validate access: trainer can only view their client messages, client can only view their trainer messages
+      if (user.role === "trainer") {
+        if (trainerId !== userId) {
+          return res.status(403).json({ message: "Brak dostępu do tej konwersacji" });
+        }
+        // Verify client belongs to trainer
+        const clients = await storage.getTrainerClients(trainerId);
+        if (!clients.some(c => c.id === clientId)) {
+          return res.status(403).json({ message: "Ten podopieczny nie należy do Ciebie" });
+        }
+      } else {
+        // Client
+        if (clientId !== userId) {
+          return res.status(403).json({ message: "Brak dostępu do tej konwersacji" });
+        }
+        // Verify trainer is their trainer
+        const trainer = await storage.getTrainerForClient(clientId);
+        if (!trainer || trainer.id !== trainerId) {
+          return res.status(403).json({ message: "To nie jest Twój trener" });
+        }
+      }
+
+      const messages = await storage.getMessages(trainerId, clientId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ message: "Nie udało się pobrać wiadomości" });
+    }
+  });
+
+  // Declare broadcastMessage function that will be set after WebSocket setup
+  let broadcastMessageFn: ((recipientId: string, message: any) => void) | null = null;
+
+  app.post("/api/chat/messages", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (!user?.role) {
+        return res.status(400).json({ message: "Użytkownik nie ma przypisanej roli" });
+      }
+
+      const parsed = insertMessageSchema.parse(req.body);
+      
+      // Validate sender is current user
+      if (parsed.senderId !== userId) {
+        return res.status(403).json({ message: "Nie możesz wysyłać wiadomości w imieniu innej osoby" });
+      }
+
+      // Validate access based on role
+      if (user.role === "trainer") {
+        if (parsed.trainerId !== userId) {
+          return res.status(403).json({ message: "Nie możesz wysyłać wiadomości jako inny trener" });
+        }
+        // Verify client belongs to trainer
+        const clients = await storage.getTrainerClients(userId);
+        if (!clients.some(c => c.id === parsed.clientId)) {
+          return res.status(403).json({ message: "Ten podopieczny nie należy do Ciebie" });
+        }
+        // Recipient must be the client
+        if (parsed.recipientId !== parsed.clientId) {
+          return res.status(400).json({ message: "Nieprawidłowy odbiorca" });
+        }
+      } else {
+        // Client
+        if (parsed.clientId !== userId) {
+          return res.status(403).json({ message: "Nie możesz wysyłać wiadomości jako inny klient" });
+        }
+        // Verify trainer is their trainer
+        const trainer = await storage.getTrainerForClient(userId);
+        if (!trainer || trainer.id !== parsed.trainerId) {
+          return res.status(403).json({ message: "To nie jest Twój trener" });
+        }
+        // Recipient must be the trainer
+        if (parsed.recipientId !== parsed.trainerId) {
+          return res.status(400).json({ message: "Nieprawidłowy odbiorca" });
+        }
+      }
+
+      const message = await storage.createMessage(parsed);
+      
+      // Broadcast to recipient via WebSocket if available
+      if (broadcastMessageFn) {
+        broadcastMessageFn(parsed.recipientId, message);
+      }
+      
+      res.json(message);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Nieprawidłowe dane wiadomości", errors: error.errors });
+      }
+      console.error("Error creating message:", error);
+      res.status(500).json({ message: "Nie udało się wysłać wiadomości" });
+    }
+  });
+
+  app.post("/api/chat/mark-read", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { partnerId } = req.body;
+      
+      if (!partnerId) {
+        return res.status(400).json({ message: "Brak ID rozmówcy" });
+      }
+
+      await storage.markConversationAsRead(userId, partnerId);
+      res.json({ message: "Konwersacja oznaczona jako przeczytana" });
+    } catch (error) {
+      console.error("Error marking conversation as read:", error);
+      res.status(500).json({ message: "Nie udało się oznaczyć konwersacji jako przeczytanej" });
+    }
+  });
+
+  app.get("/api/chat/unread-count", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const count = await storage.getUnreadMessageCount(userId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+      res.status(500).json({ message: "Nie udało się pobrać liczby nieprzeczytanych wiadomości" });
+    }
+  });
+
   const httpServer = createServer(app);
+
+  // WebSocket setup for real-time chat
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws/chat' });
+  const clients = new Map<string, WebSocket>();
+
+  wss.on('connection', async (ws: WebSocket, req) => {
+    try {
+      // Parse cookies to get session
+      const cookies = req.headers.cookie;
+      if (!cookies) {
+        ws.close(1008, 'No cookies provided');
+        return;
+      }
+
+      const parsedCookies = parseCookie(cookies);
+      const sessionCookieName = 'connect.sid';
+      const sessionId = parsedCookies[sessionCookieName];
+
+      if (!sessionId) {
+        ws.close(1008, 'No session cookie');
+        return;
+      }
+
+      // Decode session ID (remove 's:' prefix and signature)
+      const decodedSessionId = decodeURIComponent(sessionId).split('.')[0].substring(2);
+
+      // Get session from store
+      const sessionStore = (getSession() as any).store;
+      
+      sessionStore.get(decodedSessionId, async (err: any, session: any) => {
+        if (err || !session || !session.userId) {
+          ws.close(1008, 'Invalid session');
+          return;
+        }
+
+        const userId = session.userId;
+        
+        // Store client connection
+        clients.set(userId, ws);
+        console.log(`WebSocket client connected: ${userId}`);
+
+        // Handle client disconnect
+        ws.on('close', () => {
+          clients.delete(userId);
+          console.log(`WebSocket client disconnected: ${userId}`);
+        });
+
+        // Handle ping/pong for keep-alive
+        ws.on('pong', () => {
+          // Client is alive
+        });
+      });
+    } catch (error) {
+      console.error('WebSocket connection error:', error);
+      ws.close(1011, 'Server error');
+    }
+  });
+
+  // Keep-alive ping interval
+  const keepAliveInterval = setInterval(() => {
+    clients.forEach((ws, userId) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.ping();
+      } else {
+        clients.delete(userId);
+      }
+    });
+  }, 30000); // Every 30 seconds
+
+  // Cleanup on server shutdown
+  httpServer.on('close', () => {
+    clearInterval(keepAliveInterval);
+    clients.forEach(ws => ws.close());
+    clients.clear();
+  });
+
+  // Broadcast new message to recipient
+  function broadcastMessage(recipientId: string, message: any) {
+    const recipientWs = clients.get(recipientId);
+    if (recipientWs && recipientWs.readyState === WebSocket.OPEN) {
+      recipientWs.send(JSON.stringify({
+        type: 'new_message',
+        data: message
+      }));
+    }
+  }
+
+  // Set the broadcast function for use in message endpoint
+  broadcastMessageFn = broadcastMessage;
+
   return httpServer;
 }

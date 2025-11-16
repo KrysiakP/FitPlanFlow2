@@ -308,6 +308,25 @@ export const dietSupplements = pgTable("diet_supplements", {
   dietPlanIdx: index("diet_supplements_diet_plan_idx").on(table.dietPlanId),
 }));
 
+// Messages - chat messages between trainer and client
+export const messages = pgTable("messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  trainerId: varchar("trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  senderId: varchar("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  recipientId: varchar("recipient_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  trainerIdx: index("messages_trainer_idx").on(table.trainerId),
+  clientIdx: index("messages_client_idx").on(table.clientId),
+  senderIdx: index("messages_sender_idx").on(table.senderId),
+  recipientIdx: index("messages_recipient_idx").on(table.recipientId),
+  createdAtIdx: index("messages_created_at_idx").on(table.createdAt),
+  conversationIdx: index("messages_conversation_idx").on(table.trainerId, table.clientId),
+}));
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   createdPlans: many(trainingPlans),
@@ -324,6 +343,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   medicalTestsAsTrainer: many(medicalTests, { relationName: "trainerMedicalTests" }),
   paymentsAsClient: many(clientPayments, { relationName: "clientPayments" }),
   paymentsAsTrainer: many(clientPayments, { relationName: "trainerPayments" }),
+  sentMessages: many(messages, { relationName: "sentMessages" }),
+  receivedMessages: many(messages, { relationName: "receivedMessages" }),
 }));
 
 export const trainingPlansRelations = relations(trainingPlans, ({ one, many }) => ({
@@ -503,6 +524,29 @@ export const dietSupplementsRelations = relations(dietSupplements, ({ one }) => 
   }),
 }));
 
+export const messagesRelations = relations(messages, ({ one }) => ({
+  trainer: one(users, {
+    fields: [messages.trainerId],
+    references: [users.id],
+    relationName: "trainerMessages",
+  }),
+  client: one(users, {
+    fields: [messages.clientId],
+    references: [users.id],
+    relationName: "clientMessages",
+  }),
+  sender: one(users, {
+    fields: [messages.senderId],
+    references: [users.id],
+    relationName: "sentMessages",
+  }),
+  recipient: one(users, {
+    fields: [messages.recipientId],
+    references: [users.id],
+    relationName: "receivedMessages",
+  }),
+}));
+
 // Types for Replit Auth
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -578,6 +622,10 @@ export type InsertClientPayment = typeof clientPayments.$inferInsert;
 // Types for diet supplements
 export type DietSupplement = typeof dietSupplements.$inferSelect;
 export type InsertDietSupplement = typeof dietSupplements.$inferInsert;
+
+// Types for messages
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = typeof messages.$inferInsert;
 
 // Zod schemas
 export const insertTrainingPlanSchema = createInsertSchema(trainingPlans).omit({
@@ -731,6 +779,14 @@ export const insertDietSupplementSchema = createInsertSchema(dietSupplements).om
   frequency: z.string().min(1, "Częstotliwość jest wymagana"),
 });
 
+export const insertMessageSchema = createInsertSchema(messages).omit({
+  id: true,
+  createdAt: true,
+  readAt: true,
+}).extend({
+  body: z.string().min(1, "Wiadomość nie może być pusta").max(5000, "Wiadomość może mieć maksymalnie 5000 znaków"),
+});
+
 export const updateUserRoleSchema = z.object({
   role: z.enum(["trainer", "client"]),
 });
@@ -770,5 +826,6 @@ export type InsertDailyHabitLogInput = z.infer<typeof insertDailyHabitLogSchema>
 export type InsertMealCheckmarkInput = z.infer<typeof insertMealCheckmarkSchema>;
 export type InsertClientPaymentInput = z.infer<typeof insertClientPaymentSchema>;
 export type InsertDietSupplementInput = z.infer<typeof insertDietSupplementSchema>;
+export type InsertMessageInput = z.infer<typeof insertMessageSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
