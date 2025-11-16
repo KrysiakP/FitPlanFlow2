@@ -16,6 +16,10 @@ export default function Register() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
+  // Read referral code from URL query parameter
+  const searchParams = new URLSearchParams(window.location.search);
+  const refCode = searchParams.get('ref');
+
   const form = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -29,7 +33,9 @@ export default function Register() {
 
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterInput) => {
-      const response = await apiRequest("POST", "/api/register", data);
+      // Append ?ref to URL if present
+      const url = refCode ? `/api/register?ref=${encodeURIComponent(refCode)}` : "/api/register";
+      const response = await apiRequest("POST", url, data);
       return response;
     },
     onSuccess: () => {
