@@ -2018,6 +2018,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko podopieczni mogą tworzyć raporty" });
       }
 
+      // Check if client has an active trainer
+      const hasTrainer = await storage.hasActiveTrainer(userId);
+      if (!hasTrainer) {
+        return res.status(403).json({ 
+          message: "Aby tworzyć raporty, musisz mieć przypisanego trenera. Poproś swojego trenera o zaproszenie." 
+        });
+      }
+
       const validationResult = insertWeeklyReportSchema.safeParse(req.body);
 
       if (!validationResult.success) {
