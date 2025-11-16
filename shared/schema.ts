@@ -353,7 +353,7 @@ export const referralEvents = pgTable("referral_events", {
   referralCodeId: varchar("referral_code_id").notNull().references(() => referralCodes.id, { onDelete: "cascade" }),
   referrerTrainerId: varchar("referrer_trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   referredUserId: varchar("referred_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  referredRole: userRoleEnum("referred_role"), // Enum: 'trainer' or 'client'
+  referredRole: userRoleEnum("referred_role").notNull(), // Enum: 'trainer' or 'client' - REQUIRED
   status: referralStatusEnum("status").default("pending").notNull(), // Enum: 'pending', 'qualified', 'bonus_granted'
   qualifiedAt: timestamp("qualified_at"), // When referral became qualified (trainer confirmed)
   bonusGrantedAt: timestamp("bonus_granted_at"), // When bonus was applied
@@ -384,10 +384,6 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   paymentsAsTrainer: many(clientPayments, { relationName: "trainerPayments" }),
   sentMessages: many(messages, { relationName: "sentMessages" }),
   receivedMessages: many(messages, { relationName: "receivedMessages" }),
-  referralCode: one(referralCodes, {
-    fields: [users.id],
-    references: [referralCodes.trainerId],
-  }),
   referredByTrainer: one(users, {
     fields: [users.referredByTrainerId],
     references: [users.id],
@@ -890,7 +886,7 @@ export const insertReferralEventSchema = createInsertSchema(referralEvents).omit
   bonusGrantedAt: true,
 }).extend({
   status: z.enum(["pending", "qualified", "bonus_granted"]).default("pending"),
-  referredRole: z.enum(["trainer", "client"]).optional(),
+  referredRole: z.enum(["trainer", "client"]), // Required - matches DB constraint
 });
 
 export const updateUserRoleSchema = z.object({
