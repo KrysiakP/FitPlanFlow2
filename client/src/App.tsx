@@ -35,6 +35,7 @@ import PaymentSchedule from "@/pages/payment-schedule";
 import Pomagamy from "@/pages/pomagamy";
 import Pricing from "@/pages/pricing";
 import Chat from "@/pages/chat";
+import Referrals from "@/pages/referrals";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -95,6 +96,7 @@ function Router() {
             )}
             <Route path="/pomagamy" component={Pomagamy} />
             <Route path="/pricing" component={Pricing} />
+            <Route path="/referrals" component={Referrals} />
             <Route path="/profile" component={TrainerProfile} />
           </>
         ) : (
