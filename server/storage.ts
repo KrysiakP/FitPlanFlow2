@@ -133,6 +133,8 @@ export interface IStorage {
   getClientWeeklyReports(clientId: string): Promise<WeeklyReport[]>;
   getLatestWeeklyReport(clientId: string): Promise<WeeklyReport | undefined>;
   getClientWeeklyReportsForTrainer(clientId: string, trainerId: string): Promise<WeeklyReport[]>;
+  getWeeklyReport(reportId: string): Promise<WeeklyReport | undefined>;
+  updateWeeklyReport(reportId: string, data: Partial<InsertWeeklyReport>): Promise<WeeklyReport>;
   
   // Client search - find any client by email
   searchClientByEmail(email: string): Promise<User | undefined>;
@@ -867,6 +869,24 @@ export class DatabaseStorage implements IStorage {
       .from(weeklyReports)
       .where(eq(weeklyReports.clientId, clientId))
       .orderBy(desc(weeklyReports.reportDate));
+  }
+
+  async getWeeklyReport(reportId: string): Promise<WeeklyReport | undefined> {
+    const [report] = await db
+      .select()
+      .from(weeklyReports)
+      .where(eq(weeklyReports.id, reportId))
+      .limit(1);
+    return report;
+  }
+
+  async updateWeeklyReport(reportId: string, data: Partial<InsertWeeklyReport>): Promise<WeeklyReport> {
+    const [report] = await db
+      .update(weeklyReports)
+      .set(data)
+      .where(eq(weeklyReports.id, reportId))
+      .returning();
+    return report;
   }
 
   // Client search - find any client by email

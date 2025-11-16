@@ -3,6 +3,32 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import path from "path";
 
+// FIX: Validate required environment variables at startup
+function validateObjectStorageEnvVars() {
+  const requiredVars = {
+    PUBLIC_OBJECT_SEARCH_PATHS: process.env.PUBLIC_OBJECT_SEARCH_PATHS,
+    PRIVATE_OBJECT_DIR: process.env.PRIVATE_OBJECT_DIR,
+  };
+
+  const missing = Object.entries(requiredVars)
+    .filter(([_, value]) => !value)
+    .map(([key, _]) => key);
+
+  if (missing.length > 0) {
+    const errorMsg = `CRITICAL: Missing required Object Storage environment variables: ${missing.join(', ')}. ` +
+      `Please configure these in the 'Object Storage' tool.`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
+
+  console.log('✓ Object Storage environment variables validated');
+  console.log(`  - PUBLIC_OBJECT_SEARCH_PATHS: ${process.env.PUBLIC_OBJECT_SEARCH_PATHS}`);
+  console.log(`  - PRIVATE_OBJECT_DIR: ${process.env.PRIVATE_OBJECT_DIR}`);
+}
+
+// Validate env vars before starting the app
+validateObjectStorageEnvVars();
+
 const app = express();
 
 // CRITICAL: Stripe webhook needs raw body for signature verification

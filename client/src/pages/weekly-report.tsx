@@ -15,12 +15,15 @@ import { Calendar as CalendarIcon, Upload, FileImage, TrendingUp, Activity } fro
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { useState, useRef } from "react";
+import { useState } from "react";
+// Object Storage uploader - code adapted from javascript_object_storage blueprint
+import { ObjectUploader } from "@/components/ObjectUploader";
+import type { UploadResult } from "@uppy/core";
 
 export default function WeeklyReport() {
   const { toast } = useToast();
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState<string>("");
+  const [currentReportId, setCurrentReportId] = useState<string | null>(null);
 
   const form = useForm<InsertWeeklyReportInput>({
     resolver: zodResolver(insertWeeklyReportSchema),
@@ -47,7 +50,22 @@ export default function WeeklyReport() {
 
   const createReportMutation = useMutation({
     mutationFn: async (data: InsertWeeklyReportInput) => {
-      return await apiRequest("POST", "/api/reports", data);
+      // First create the report without photo
+      const report: any = await apiRequest("POST", "/api/reports", {
+        ...data,
+        photoUrl: "", // Will be updated separately if there's an uploaded photo
+      });
+      
+      // If there's an uploaded photo, update the report with it
+      if (uploadedPhotoUrl && report.id) {
+        const photoResponse: any = await apiRequest("PUT", `/api/weekly-reports/${report.id}/photos`, {
+          photoUrl: uploadedPhotoUrl,
+        });
+        // Update the report with the normalized object path
+        report.photoUrl = photoResponse.objectPath;
+      }
+      
+      return report;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
@@ -56,9 +74,8 @@ export default function WeeklyReport() {
         description: "Twój cotygodniowy raport został pomyślnie zapisany.",
       });
       form.reset();
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      setUploadedPhotoUrl("");
+      setCurrentReportId(null);
     },
     onError: (error: any) => {
       toast({
@@ -69,48 +86,39 @@ export default function WeeklyReport() {
     },
   });
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast({
-        title: "Błąd",
-        description: "Proszę wybrać plik obrazu.",
-        variant: "destructive",
-      });
-      return;
+  // Object Storage upload handlers - code adapted from javascript_object_storage blueprint
+  const handleGetUploadParameters = async () => {
+    const response = await fetch("/api/objects/upload", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error("Failed to get upload URL");
     }
+    
+    const data = await response.json();
+    return {
+      method: "PUT" as const,
+      url: data.uploadURL,
+    };
+  };
 
-    const formData = new FormData();
-    formData.append("file", file);
-
-    setIsUploading(true);
-    try {
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Upload failed");
+  const handleUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    if (result.successful && result.successful.length > 0) {
+      const uploadedFile = result.successful[0];
+      const uploadURL = uploadedFile.uploadURL;
+      
+      if (uploadURL) {
+        setUploadedPhotoUrl(uploadURL);
+        form.setValue("photoUrl", uploadURL);
+        toast({
+          title: "Zdjęcie przesłane!",
+          description: "Zdjęcie zostało pomyślnie przesłane.",
+        });
       }
-
-      const data = await response.json();
-      form.setValue("photoUrl", data.url);
-      toast({
-        title: "Zdjęcie przesłane!",
-        description: "Zdjęcie zostało pomyślnie przesłane.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Błąd uploadu",
-        description: error.message || "Nie udało się przesłać zdjęcia.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploading(false);
     }
   };
 
@@ -418,39 +426,22 @@ export default function WeeklyReport() {
                     <FormLabel>Zdjęcie raportowe sylwetki</FormLabel>
                     <FormControl>
                       <div className="space-y-4">
-                        <div className="flex items-center gap-4">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isUploading}
-                            data-testid="button-upload-photo"
-                          >
-                            {isUploading ? (
-                              <>
-                                <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full" />
-                                <span>Przesyłanie...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Upload className="w-4 h-4" />
-                                <span>Wybierz zdjęcie</span>
-                              </>
-                            )}
-                          </Button>
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleFileUpload}
-                            className="hidden"
-                            data-testid="input-photo-file"
-                          />
-                        </div>
-                        {field.value && (
+                        <ObjectUploader
+                          maxNumberOfFiles={1}
+                          maxFileSize={10485760}
+                          onGetUploadParameters={handleGetUploadParameters}
+                          onComplete={handleUploadComplete}
+                          buttonClassName="w-full md:w-auto"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Upload className="w-4 h-4" />
+                            <span>Wybierz zdjęcie</span>
+                          </div>
+                        </ObjectUploader>
+                        {uploadedPhotoUrl && (
                           <div className="relative w-full max-w-md">
                             <img
-                              src={field.value}
+                              src={uploadedPhotoUrl}
                               alt="Zdjęcie raportowe"
                               className="rounded-md border w-full h-auto"
                               data-testid="img-uploaded-photo"

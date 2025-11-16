@@ -2,6 +2,9 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, hashPassword, comparePassword } from "./auth";
+// Object Storage - code adapted from javascript_object_storage blueprint
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { ObjectPermission } from "./objectAcl";
 import {
   insertTrainingPlanSchema,
   insertWorkoutSchema,
@@ -264,6 +267,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Auth middleware
   await setupAuth(app);
+
+  // Object Storage endpoints - code adapted from javascript_object_storage blueprint
+  // Serves objects with ACL check
+  app.get("/objects/:objectPath(*)", isAuthenticated, async (req, res) => {
+    // Gets the authenticated user id from session (custom email/password auth)
+    const userId = req.session.userId;
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(
+        req.path,
+      );
+      
+      // FIX: Check ACL policy first to allow public objects without ownership check
+      // This allows trainers to see client photos when visibility is "public"
+      const aclPolicy = await objectStorageService.getObjectAclPolicy(objectFile);
+      
+      // If the object has public visibility, allow READ access without additional checks
+      // This enables trainers to view client photos marked as public
+      if (aclPolicy?.visibility === "public") {
+        return objectStorageService.downloadObject(objectFile, res);
+      }
+      
+      // For private objects, perform full ACL check including ownership
+      const canAccess = await objectStorageService.canAccessObjectEntity({
+        objectFile,
+        userId: userId,
+        requestedPermission: ObjectPermission.READ,
+      });
+      if (!canAccess) {
+        return res.sendStatus(401);
+      }
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error checking object access:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
+  });
+
+  // Returns presigned URL for object upload
+  app.post("/api/objects/upload", isAuthenticated, async (req, res) => {
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ error: "Błąd podczas generowania URL uploadu" });
+    }
+  });
+
+  // Updates photo paths in weekly report and sets ACL policy
+  app.put("/api/weekly-reports/:id/photos", isAuthenticated, async (req, res) => {
+    if (!req.body.photoUrl) {
+      return res.status(400).json({ error: "photoUrl jest wymagane" });
+    }
+
+    // Gets the authenticated user id from session (custom email/password auth)
+    const userId = req.session.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Wymagane uwierzytelnienie" });
+    }
+
+    try {
+      // SECURITY FIX: Fetch report and verify authorization BEFORE setting ACL policy
+      // This prevents IDOR where attacker could set themselves as photo owner
+      const reportId = req.params.id;
+      const report = await storage.getWeeklyReport(reportId);
+      
+      if (!report) {
+        return res.status(404).json({ error: "Raport nie znaleziony" });
+      }
+
+      // AUTHORIZATION CHECK: Verify user has permission to modify this report
+      // Allowed users: report owner (client) OR assigned trainer
+      const user = await storage.getUser(userId);
+      
+      // Check 1: Is the user the owner of this report (client)?
+      const isOwner = report.clientId === userId;
+      
+      // Check 2: Is the user a trainer CURRENTLY assigned to this client?
+      // Use getClientAssignment instead of getTrainerClients to avoid stale data
+      let isAssignedTrainer = false;
+      if (user?.role === 'trainer') {
+        // Verify CURRENT assignment through active plan
+        const clientAssignment = await storage.getClientAssignment(report.clientId);
+        if (clientAssignment?.plan) {
+          const plan = await storage.getTrainingPlan(clientAssignment.plan.id);
+          isAssignedTrainer = plan?.trainerId === userId;
+        }
+      }
+      
+      // Deny access if user is neither owner nor assigned trainer
+      if (!isOwner && !isAssignedTrainer) {
+        return res.status(403).json({ error: "Nie masz uprawnień do modyfikacji tego raportu" });
+      }
+
+      // CRITICAL: Set owner to report.clientId (not userId!) to prevent IDOR
+      // This ensures photo ownership matches the report owner regardless of who uploads it
+      // (trainer or client can upload, but owner is always the client)
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
+        req.body.photoUrl,
+        {
+          owner: report.clientId, // ALWAYS use report.clientId, never userId
+          visibility: "public", // Public so trainer can view
+        },
+      );
+
+      // Update the report with the new photo path
+      await storage.updateWeeklyReport(reportId, { photoUrl: objectPath });
+
+      res.status(200).json({
+        objectPath: objectPath,
+      });
+    } catch (error) {
+      console.error("Error setting weekly report photo:", error);
+      res.status(500).json({ error: "Błąd podczas zapisywania zdjęcia" });
+    }
+  });
 
   // File upload endpoint
   app.post("/api/upload", isAuthenticated, (req, res) => {
