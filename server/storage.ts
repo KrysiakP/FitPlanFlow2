@@ -147,6 +147,7 @@ export interface IStorage {
   getTrainerInvitations(trainerId: string): Promise<PlanInvitation[]>;
   
   // Client relationship operations
+  getClientRelationship(trainerId: string, clientId: string): Promise<ClientRelationship | null>;
   archiveClientRelationship(trainerId: string, clientId: string): Promise<void>;
   
   // Charity donation operations
@@ -1111,6 +1112,21 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Client relationship operations
+  async getClientRelationship(trainerId: string, clientId: string): Promise<ClientRelationship | null> {
+    const [relationship] = await db
+      .select()
+      .from(clientRelationships)
+      .where(
+        and(
+          eq(clientRelationships.trainerId, trainerId),
+          eq(clientRelationships.clientId, clientId),
+          eq(clientRelationships.status, 'active') // CRITICAL: Only active relationships
+        )
+      )
+      .limit(1);
+    return relationship || null;
+  }
+
   async archiveClientRelationship(trainerId: string, clientId: string): Promise<void> {
     await db.transaction(async (tx) => {
       // 1. Znajdź aktywną relację

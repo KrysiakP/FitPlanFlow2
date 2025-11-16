@@ -323,13 +323,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Updates photo paths in weekly report and sets ACL policy
   app.put("/api/weekly-reports/:id/photos", isAuthenticated, async (req, res) => {
     if (!req.body.photoUrl) {
-      return res.status(400).json({ error: "photoUrl jest wymagane" });
+      return res.status(400).json({ message: "photoUrl jest wymagane" });
     }
 
     // Gets the authenticated user id from session (custom email/password auth)
     const userId = req.session.userId;
     if (!userId) {
-      return res.status(401).json({ error: "Wymagane uwierzytelnienie" });
+      return res.status(401).json({ message: "Wymagane uwierzytelnienie" });
     }
 
     try {
@@ -339,7 +339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const report = await storage.getWeeklyReport(reportId);
       
       if (!report) {
-        return res.status(404).json({ error: "Raport nie znaleziony" });
+        return res.status(404).json({ message: "Raport nie znaleziony" });
       }
 
       // AUTHORIZATION CHECK: Verify user has permission to modify this report
@@ -349,34 +349,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check 1: Is the user the owner of this report (client)?
       const isOwner = report.clientId === userId;
       
-      // Check 2: Is the user a trainer CURRENTLY assigned to this client?
-      // Use getClientAssignment instead of getTrainerClients to avoid stale data
+      // Check 2: Is the user a trainer with an ACTIVE relationship to this client?
+      // CRITICAL: Verify ACTIVE trainer-client relationship to prevent stale assignment IDOR
+      // This ensures archived trainers cannot modify their former clients' reports
       let isAssignedTrainer = false;
       if (user?.role === 'trainer') {
-        // Verify CURRENT assignment through active plan
-        const clientAssignment = await storage.getClientAssignment(report.clientId);
-        if (clientAssignment?.plan) {
-          const plan = await storage.getTrainingPlan(clientAssignment.plan.id);
-          isAssignedTrainer = plan?.trainerId === userId;
-        }
+        const relationship = await storage.getClientRelationship(userId, report.clientId);
+        isAssignedTrainer = relationship?.status === 'active';
       }
       
       // Deny access if user is neither owner nor assigned trainer
       if (!isOwner && !isAssignedTrainer) {
-        return res.status(403).json({ error: "Nie masz uprawnień do modyfikacji tego raportu" });
+        return res.status(403).json({ message: "Nie masz uprawnień do modyfikacji tego raportu" });
       }
 
-      // CRITICAL: Set owner to report.clientId (not userId!) to prevent IDOR
-      // This ensures photo ownership matches the report owner regardless of who uploads it
-      // (trainer or client can upload, but owner is always the client)
       const objectStorageService = new ObjectStorageService();
+      
+      // CRITICAL: Normalize and validate URL
+      const normalizedPath = objectStorageService.normalizeObjectEntityPath(req.body.photoUrl);
+      
+      // Reject if normalization failed (null returned)
+      if (!normalizedPath) {
+        console.warn(`Invalid object URL rejected: ${req.body.photoUrl}`);
+        return res.status(400).json({ message: "Nieprawidłowy URL zdjęcia" });
+      }
+      
+      // CRITICAL: Get existing object file to verify owner
+      try {
+        const objectFile = await objectStorageService.getObjectEntityFile(normalizedPath);
+        const existingAcl = await objectStorageService.getObjectAclPolicy(objectFile);
+        
+        // CRITICAL: Verify object owner matches report client
+        if (existingAcl && existingAcl.owner !== report.clientId) {
+          console.error(`Object owner mismatch: ${existingAcl.owner} !== ${report.clientId}`);
+          return res.status(403).json({ message: "Nie możesz użyć zdjęcia innego użytkownika" });
+        }
+      } catch (error) {
+        // Object doesn't exist yet - this is OK for new uploads
+        console.info(`New object upload: ${normalizedPath}`);
+      }
+      
+      // Set ACL policy
       const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
         req.body.photoUrl,
         {
-          owner: report.clientId, // ALWAYS use report.clientId, never userId
-          visibility: "public", // Public so trainer can view
-        },
+          owner: report.clientId, // CRITICAL: Always use report.clientId
+          visibility: "public",
+        }
       );
+      
+      // Reject if ACL policy setting failed
+      if (!objectPath) {
+        console.error(`Failed to set ACL policy for: ${req.body.photoUrl}`);
+        return res.status(400).json({ message: "Nie udało się ustawić uprawnień do zdjęcia" });
+      }
 
       // Update the report with the new photo path
       await storage.updateWeeklyReport(reportId, { photoUrl: objectPath });
@@ -386,7 +412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error setting weekly report photo:", error);
-      res.status(500).json({ error: "Błąd podczas zapisywania zdjęcia" });
+      res.status(500).json({ message: "Błąd podczas zapisywania zdjęcia" });
     }
   });
 

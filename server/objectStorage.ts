@@ -185,50 +185,45 @@ export class ObjectStorageService {
 
   normalizeObjectEntityPath(
     rawPath: string,
-  ): string {
-    // FIX: Add better validation and error logging
-    
-    // If not a Google Storage URL, return as-is
-    if (!rawPath.startsWith("https://storage.googleapis.com/")) {
-      console.log(`[normalizeObjectEntityPath] Path is not a GCS URL, returning as-is: ${rawPath}`);
-      return rawPath;
-    }
-  
+  ): string | null {
     try {
-      // Extract the path from the URL by removing query parameters and domain
+      // Reject empty/invalid paths
+      if (!rawPath || rawPath.trim() === '') {
+        console.warn('Empty path rejected');
+        return null;
+      }
+
+      // Only accept Google Storage URLs
+      if (!rawPath.startsWith('https://storage.googleapis.com/')) {
+        console.warn(`Invalid URL format: ${rawPath}`);
+        return null;
+      }
+
       const url = new URL(rawPath);
       const rawObjectPath = url.pathname;
-      
-      if (!rawObjectPath || rawObjectPath === '/') {
-        console.error(`[normalizeObjectEntityPath] Invalid object path in URL: ${rawPath}`);
-        return rawPath;
-      }
-  
+
       let objectEntityDir = this.getPrivateObjectDir();
-      if (!objectEntityDir.endsWith("/")) {
+      if (!objectEntityDir.endsWith('/')) {
         objectEntityDir = `${objectEntityDir}/`;
       }
-  
-      // Check if the path starts with the expected private object directory
+
       if (!rawObjectPath.startsWith(objectEntityDir)) {
-        console.warn(`[normalizeObjectEntityPath] Path does not start with expected directory. Expected: ${objectEntityDir}, Got: ${rawObjectPath}`);
-        return rawObjectPath;
+        console.warn(`Path not in PRIVATE_OBJECT_DIR: ${rawObjectPath}`);
+        return null;
       }
-  
-      // Extract the entity ID from the path
+
       const entityId = rawObjectPath.slice(objectEntityDir.length);
       
-      if (!entityId) {
-        console.error(`[normalizeObjectEntityPath] Empty entity ID after normalization from path: ${rawPath}`);
-        return rawPath;
+      // CRITICAL: Reject path traversal attempts
+      if (entityId.includes('..') || entityId.includes('//')) {
+        console.error(`Path traversal attempt detected: ${entityId}`);
+        return null;
       }
-      
-      const normalizedPath = `/objects/${entityId}`;
-      console.log(`[normalizeObjectEntityPath] Successfully normalized: ${rawPath} -> ${normalizedPath}`);
-      return normalizedPath;
+
+      return `/objects/${entityId}`;
     } catch (error) {
-      console.error(`[normalizeObjectEntityPath] Error normalizing path: ${rawPath}`, error);
-      return rawPath;
+      console.error(`Path normalization error:`, error);
+      return null;
     }
   }
 
@@ -236,10 +231,10 @@ export class ObjectStorageService {
   async trySetObjectEntityAclPolicy(
     rawPath: string,
     aclPolicy: ObjectAclPolicy
-  ): Promise<string> {
+  ): Promise<string | null> {
     const normalizedPath = this.normalizeObjectEntityPath(rawPath);
-    if (!normalizedPath.startsWith("/")) {
-      return normalizedPath;
+    if (!normalizedPath) {
+      return null;
     }
 
     const objectFile = await this.getObjectEntityFile(normalizedPath);
