@@ -787,6 +787,12 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
   body: z.string().min(1, "Wiadomość nie może być pusta").max(5000, "Wiadomość może mieć maksymalnie 5000 znaków"),
 });
 
+// SECURITY: Client should only send recipientId and body - server derives all other IDs from session
+export const sendMessageSchema = z.object({
+  recipientId: z.string().uuid("Nieprawidłowy ID odbiorcy"),
+  body: z.string().min(1, "Wiadomość nie może być pusta").max(5000, "Wiadomość może mieć maksymalnie 5000 znaków"),
+});
+
 export const updateUserRoleSchema = z.object({
   role: z.enum(["trainer", "client"]),
 });
@@ -827,5 +833,6 @@ export type InsertMealCheckmarkInput = z.infer<typeof insertMealCheckmarkSchema>
 export type InsertClientPaymentInput = z.infer<typeof insertClientPaymentSchema>;
 export type InsertDietSupplementInput = z.infer<typeof insertDietSupplementSchema>;
 export type InsertMessageInput = z.infer<typeof insertMessageSchema>;
+export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

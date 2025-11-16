@@ -3292,6 +3292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/chat/messages", isAuthenticated, async (req, res) => {
     try {
+      // SECURITY: Derive userId from session - NEVER trust client-provided IDs
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       
@@ -3299,48 +3300,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Użytkownik nie ma przypisanej roli" });
       }
 
-      const parsed = insertMessageSchema.parse(req.body);
+      // SECURITY: Only accept recipientId and body from client - derive everything else
+      const { recipientId, body } = z.object({
+        recipientId: z.string().uuid("Nieprawidłowy ID odbiorcy"),
+        body: z.string().min(1, "Wiadomość nie może być pusta").max(5000, "Wiadomość może mieć maksymalnie 5000 znaków"),
+      }).parse(req.body);
       
-      // Validate sender is current user
-      if (parsed.senderId !== userId) {
-        return res.status(403).json({ message: "Nie możesz wysyłać wiadomości w imieniu innej osoby" });
+      // SECURITY: senderId is ALWAYS the authenticated user - never accept from client
+      const senderId = userId;
+      
+      // Validate that recipient exists and get their role
+      const recipient = await storage.getUser(recipientId);
+      if (!recipient || !recipient.role) {
+        return res.status(404).json({ message: "Odbiorca nie istnieje lub nie ma przypisanej roli" });
       }
-
-      // Validate access based on role
-      if (user.role === "trainer") {
-        if (parsed.trainerId !== userId) {
-          return res.status(403).json({ message: "Nie możesz wysyłać wiadomości jako inny trener" });
-        }
-        // Verify client belongs to trainer
-        const clients = await storage.getTrainerClients(userId);
-        if (!clients.some(c => c.id === parsed.clientId)) {
+      
+      // SECURITY: Validate trainer-client relationship and derive trainerId/clientId
+      let trainerId: string;
+      let clientId: string;
+      
+      if (user.role === "trainer" && recipient.role === "client") {
+        // Trainer sending to client - verify relationship
+        trainerId = userId;
+        clientId = recipientId;
+        
+        const clients = await storage.getTrainerClients(trainerId);
+        if (!clients.some(c => c.id === clientId)) {
           return res.status(403).json({ message: "Ten podopieczny nie należy do Ciebie" });
         }
-        // Recipient must be the client
-        if (parsed.recipientId !== parsed.clientId) {
-          return res.status(400).json({ message: "Nieprawidłowy odbiorca" });
-        }
-      } else {
-        // Client
-        if (parsed.clientId !== userId) {
-          return res.status(403).json({ message: "Nie możesz wysyłać wiadomości jako inny klient" });
-        }
-        // Verify trainer is their trainer
-        const trainer = await storage.getTrainerForClient(userId);
-        if (!trainer || trainer.id !== parsed.trainerId) {
+      } else if (user.role === "client" && recipient.role === "trainer") {
+        // Client sending to trainer - verify relationship
+        clientId = userId;
+        trainerId = recipientId;
+        
+        const userTrainer = await storage.getTrainerForClient(clientId);
+        if (!userTrainer || userTrainer.id !== trainerId) {
           return res.status(403).json({ message: "To nie jest Twój trener" });
         }
-        // Recipient must be the trainer
-        if (parsed.recipientId !== parsed.trainerId) {
-          return res.status(400).json({ message: "Nieprawidłowy odbiorca" });
-        }
+      } else {
+        // Invalid conversation - trainers can only message clients, clients can only message trainers
+        return res.status(403).json({ message: "Możesz wysyłać wiadomości tylko między trenerem a podopiecznym" });
       }
 
-      const message = await storage.createMessage(parsed);
+      // Build message with all validated/derived IDs
+      const messageData = {
+        trainerId,
+        clientId,
+        senderId,
+        recipientId,
+        body,
+      };
+
+      const message = await storage.createMessage(messageData);
       
       // Broadcast to recipient via WebSocket if available
       if (broadcastMessageFn) {
-        broadcastMessageFn(parsed.recipientId, message);
+        broadcastMessageFn(recipientId, message);
       }
       
       res.json(message);
@@ -3355,13 +3370,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/chat/mark-read", isAuthenticated, async (req, res) => {
     try {
+      // SECURITY: Derive userId from session - NEVER trust client
       const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (!user?.role) {
+        return res.status(400).json({ message: "Użytkownik nie ma przypisanej roli" });
+      }
+      
       const { partnerId } = req.body;
       
       if (!partnerId) {
         return res.status(400).json({ message: "Brak ID rozmówcy" });
       }
+      
+      // Validate partner exists and has a role
+      const partner = await storage.getUser(partnerId);
+      if (!partner || !partner.role) {
+        return res.status(404).json({ message: "Rozmówca nie istnieje" });
+      }
+      
+      // SECURITY: Validate only trainer-client conversations are allowed
+      // Reject any trainer↔trainer or client↔client attempts
+      if (user.role === "trainer" && partner.role === "client") {
+        // Trainer marking conversation with client - verify relationship
+        const clients = await storage.getTrainerClients(userId);
+        if (!clients.some(c => c.id === partnerId)) {
+          return res.status(403).json({ message: "Ten podopieczny nie należy do Ciebie" });
+        }
+      } else if (user.role === "client" && partner.role === "trainer") {
+        // Client marking conversation with trainer - verify relationship
+        const userTrainer = await storage.getTrainerForClient(userId);
+        if (!userTrainer || userTrainer.id !== partnerId) {
+          return res.status(403).json({ message: "To nie jest Twój trener" });
+        }
+      } else {
+        // Reject any other role combination (trainer↔trainer, client↔client, etc.)
+        return res.status(403).json({ message: "Możesz oznaczać tylko wiadomości między trenerem a podopiecznym" });
+      }
 
+      // Mark conversation as read (relationship already validated above)
       await storage.markConversationAsRead(userId, partnerId);
       res.json({ message: "Konwersacja oznaczona jako przeczytana" });
     } catch (error) {

@@ -34,13 +34,16 @@ export function useMessages(trainerId: string | null, clientId: string | null) {
 export function useSendMessage() {
   return useMutation({
     mutationFn: async (data: {
-      trainerId: string;
-      clientId: string;
-      senderId: string;
       recipientId: string;
       body: string;
+      trainerId: string; // Only for cache invalidation, not sent to server
+      clientId: string;  // Only for cache invalidation, not sent to server
     }) => {
-      const res = await apiRequest("POST", "/api/chat/messages", data);
+      // SECURITY: Only send recipientId and body - server derives all other IDs from session
+      const res = await apiRequest("POST", "/api/chat/messages", {
+        recipientId: data.recipientId,
+        body: data.body,
+      });
       return res.json();
     },
     onSuccess: (_, variables) => {

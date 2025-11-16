@@ -93,12 +93,13 @@ export default function ChatPage() {
   const handleSendMessage = (body: string) => {
     if (!selectedConversation || !user) return;
 
+    // SECURITY: Only send recipientId and body - server derives senderId, trainerId, clientId from session
     const messageData = {
-      trainerId: selectedConversation.trainerId,
-      clientId: selectedConversation.clientId,
-      senderId: user.id,
       recipientId: selectedConversation.partnerId,
       body,
+      // These are only for cache invalidation, not sent to server
+      trainerId: selectedConversation.trainerId,
+      clientId: selectedConversation.clientId,
     };
 
     sendMessageMutation.mutate(messageData);

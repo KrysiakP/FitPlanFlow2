@@ -46,7 +46,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
-import ObjectUploader from "@/components/ObjectUploader";
+import { ObjectUploader } from "@/components/ObjectUploader";
 import type { User as UserType, PlanAssignment, TrainingPlan, ClientProgress, WeeklyReport, UserProfile, MedicalTest } from "@shared/schema";
 
 type ClientWithAssignment = UserType & {
@@ -496,10 +496,31 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
                 <div className="space-y-2">
                   <Label>Plik z wynikami (opcjonalnie)</Label>
                   <ObjectUploader
-                    path=".private/medical-tests"
-                    onUploadComplete={(url) => setTestFileUrl(url)}
+                    maxNumberOfFiles={1}
+                    maxFileSize={10485760}
+                    onGetUploadParameters={async () => {
+                      const response = await fetch("/api/objects/upload", {
+                        method: "POST",
+                        credentials: "include",
+                      });
+                      if (!response.ok) {
+                        throw new Error("Nie udało się uzyskać URL uploadu");
+                      }
+                      const { url, method } = await response.json();
+                      return { url, method };
+                    }}
+                    onComplete={(result) => {
+                      const uploadedFile = result.successful?.[0];
+                      if (uploadedFile && uploadedFile.uploadURL) {
+                        const fileUrl = uploadedFile.uploadURL.split('?')[0];
+                        setTestFileUrl(fileUrl);
+                      }
+                    }}
                     data-testid={`uploader-test-file-${client.id}`}
-                  />
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Prześlij plik
+                  </ObjectUploader>
                   {testFileUrl && (
                     <p className="text-sm text-muted-foreground" data-testid={`text-file-uploaded-${client.id}`}>
                       Plik został przesłany
