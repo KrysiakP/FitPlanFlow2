@@ -18,6 +18,7 @@ import {
   mealCheckmarks,
   medicalTests,
   clientPayments,
+  dietSupplements,
   type User,
   type UpsertUser,
   type TrainingPlan,
@@ -57,6 +58,8 @@ import {
   type InsertMedicalTest,
   type ClientPayment,
   type InsertClientPayment,
+  type DietSupplement,
+  type InsertDietSupplement,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, isNull, sql, gte, lte, asc } from "drizzle-orm";
@@ -179,6 +182,12 @@ export interface IStorage {
   getDietPlanMeals(planId: string): Promise<DietMeal[]>;
   updateDietMeal(id: string, updates: Partial<InsertDietMeal>): Promise<DietMeal>;
   deleteDietMeal(id: string): Promise<void>;
+  
+  // Diet Supplements
+  getDietSupplements(dietPlanId: string): Promise<DietSupplement[]>;
+  createDietSupplement(data: InsertDietSupplement): Promise<DietSupplement>;
+  updateDietSupplement(id: string, data: Partial<InsertDietSupplement>): Promise<DietSupplement>;
+  deleteDietSupplement(id: string): Promise<void>;
   
   // Daily Habit Logs
   upsertDailyHabitLog(log: InsertDailyHabitLog): Promise<DailyHabitLog>;
@@ -1393,6 +1402,38 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(dietMeals)
       .where(eq(dietMeals.id, id));
+  }
+  
+  // Diet Supplements
+  async getDietSupplements(dietPlanId: string): Promise<DietSupplement[]> {
+    return await db
+      .select()
+      .from(dietSupplements)
+      .where(eq(dietSupplements.dietPlanId, dietPlanId))
+      .orderBy(asc(dietSupplements.orderIndex));
+  }
+  
+  async createDietSupplement(data: InsertDietSupplement): Promise<DietSupplement> {
+    const [supplement] = await db
+      .insert(dietSupplements)
+      .values(data)
+      .returning();
+    return supplement;
+  }
+  
+  async updateDietSupplement(id: string, data: Partial<InsertDietSupplement>): Promise<DietSupplement> {
+    const [supplement] = await db
+      .update(dietSupplements)
+      .set(data)
+      .where(eq(dietSupplements.id, id))
+      .returning();
+    return supplement;
+  }
+  
+  async deleteDietSupplement(id: string): Promise<void> {
+    await db
+      .delete(dietSupplements)
+      .where(eq(dietSupplements.id, id));
   }
   
   // Daily Habit Logs

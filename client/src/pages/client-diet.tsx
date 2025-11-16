@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
-import { Calendar as CalendarIcon, Droplet, Loader2 } from "lucide-react";
+import { Calendar as CalendarIcon, Droplet, Loader2, Pill } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -17,7 +17,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { DietPlan, DietMeal, DailyHabitLog, MealCheckmark } from "@shared/schema";
+import type { DietPlan, DietMeal, DailyHabitLog, MealCheckmark, DietSupplement } from "@shared/schema";
+import { cn } from "@/lib/utils";
 
 type DietPlanWithMeals = DietPlan & {
   meals: DietMeal[];
@@ -47,6 +48,11 @@ export default function ClientDiet() {
 
   const { data: dietPlan, isLoading: isPlanLoading, error: planError } = useQuery<DietPlanWithMeals>({
     queryKey: ["/api/client/diet"],
+  });
+
+  const { data: supplements, isLoading: isSupplementsLoading } = useQuery<DietSupplement[]>({
+    queryKey: ["/api/diet-plans", dietPlan?.id, "supplements"],
+    enabled: !!dietPlan?.id && (dietPlan.mode === 'macro_with_meals' || dietPlan.mode === 'full_plan'),
   });
 
   const { data: existingLogs, isLoading: isLogLoading } = useQuery<DailyHabitLogWithCheckmarks[]>({
@@ -214,12 +220,14 @@ export default function ClientDiet() {
                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Liczba posiłków dziennie</p>
-                    <p className="font-medium" data-testid="text-meals-per-day">
-                      {dietPlan.mealsPerDay}
-                    </p>
-                  </div>
+                  {(dietPlan.mode === 'macro_with_meals' || dietPlan.mode === 'full_plan' ) && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Liczba posiłków dziennie</p>
+                      <p className="font-medium" data-testid="text-meals-per-day">
+                        {dietPlan.mealsPerDay}
+                      </p>
+                    </div>
+                  )}
 
                   {(dietPlan.startDate || dietPlan.endDate) && (
                     <div className="grid grid-cols-2 gap-4">
@@ -242,28 +250,81 @@ export default function ClientDiet() {
                     </div>
                   )}
 
-                  <div className="space-y-3">
-                    <h4 className="font-heading font-semibold">Posiłki</h4>
-                    <div className="space-y-2">
-                      {dietPlan.meals
-                        .sort((a, b) => a.orderIndex - b.orderIndex)
-                        .map((meal) => (
-                          <Card key={meal.id} data-testid={`meal-item-${meal.id}`}>
-                            <CardContent className="p-4">
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-medium text-muted-foreground">
-                                    #{meal.orderIndex}
-                                  </span>
-                                  <h5 className="font-medium">{meal.name}</h5>
+                  {(dietPlan.mode === 'full_plan' ) && (
+                    <div className="space-y-3">
+                      <h4 className="font-heading font-semibold">Posiłki</h4>
+                      <div className="space-y-2">
+                        {dietPlan.meals
+                          .sort((a, b) => a.orderIndex - b.orderIndex)
+                          .map((meal) => (
+                            <Card key={meal.id} data-testid={`meal-item-${meal.id}`}>
+                              <CardContent className="p-4">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-muted-foreground">
+                                      #{meal.orderIndex}
+                                    </span>
+                                    <h5 className="font-medium">{meal.name}</h5>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">{meal.description}</p>
                                 </div>
-                                <p className="text-sm text-muted-foreground">{meal.description}</p>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
+                              </CardContent>
+                            </Card>
+                          ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {(dietPlan.mode === 'macro_with_meals' || dietPlan.mode === 'full_plan') && supplements && supplements.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Pill className="w-4 h-4" />
+                        <h4 className="font-heading font-semibold">Suplementacja</h4>
+                      </div>
+                      <div className="space-y-2">
+                        {supplements
+                          .sort((a, b) => a.orderIndex - b.orderIndex)
+                          .map((supplement, index) => (
+                            <Card key={supplement.id} data-testid={`supplement-item-${index}`}>
+                              <CardContent className="p-4">
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-medium" data-testid={`text-supplement-name-${index}`}>
+                                      {supplement.name}
+                                    </span>
+                                    <span className="text-sm text-muted-foreground" data-testid={`text-supplement-dose-${index}`}>
+                                      {supplement.dose} {supplement.unit}
+                                    </span>
+                                    <span className={cn(
+                                      "text-xs px-2 py-0.5 rounded-full",
+                                      supplement.frequency === "daily" && "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+                                      supplement.frequency === "e2d" && "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
+                                      supplement.frequency === "e3d" && "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+                                      supplement.frequency === "weekly" && "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100"
+                                    )} data-testid={`badge-supplement-frequency-${index}`}>
+                                      {supplement.frequency === "daily" && "Codziennie"}
+                                      {supplement.frequency === "e2d" && "Co 2 dni"}
+                                      {supplement.frequency === "e3d" && "Co 3 dni"}
+                                      {supplement.frequency === "weekly" && "Raz w tygodniu"}
+                                    </span>
+                                  </div>
+                                  {supplement.timing && (
+                                    <p className="text-sm text-muted-foreground" data-testid={`text-supplement-timing-${index}`}>
+                                      Pora: {supplement.timing}
+                                    </p>
+                                  )}
+                                  {supplement.notes && (
+                                    <p className="text-sm text-muted-foreground" data-testid={`text-supplement-notes-${index}`}>
+                                      {supplement.notes}
+                                    </p>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -312,43 +373,45 @@ export default function ClientDiet() {
                 </Alert>
               ) : (
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  {/* Meals Section */}
-                  <div className="space-y-4">
-                    <h4 className="font-heading font-semibold">Posiłki</h4>
-                    {isLogLoading ? (
-                      <div className="space-y-3">
-                        <Skeleton className="h-8 w-full" />
-                        <Skeleton className="h-8 w-full" />
-                        <Skeleton className="h-8 w-full" />
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {dietPlan.meals
-                          .sort((a, b) => a.orderIndex - b.orderIndex)
-                          .map((meal, index) => (
-                            <div key={meal.id} className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`meal-${meal.id}`}
-                                checked={form.watch(`mealCheckmarks.${index}.completed`) || false}
-                                onCheckedChange={(checked) => {
-                                  form.setValue(`mealCheckmarks.${index}`, {
-                                    mealId: meal.id,
-                                    completed: checked as boolean,
-                                  });
-                                }}
-                                data-testid={`checkbox-meal-${meal.id}`}
-                              />
-                              <Label
-                                htmlFor={`meal-${meal.id}`}
-                                className="text-sm font-normal cursor-pointer"
-                              >
-                                {meal.name}
-                              </Label>
-                            </div>
-                          ))}
-                      </div>
-                    )}
-                  </div>
+                  {/* Meals Section - only for full_plan mode */}
+                  {(dietPlan.mode === 'full_plan' ) && (
+                    <div className="space-y-4">
+                      <h4 className="font-heading font-semibold">Posiłki</h4>
+                      {isLogLoading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="h-8 w-full" />
+                          <Skeleton className="h-8 w-full" />
+                          <Skeleton className="h-8 w-full" />
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {dietPlan.meals
+                            .sort((a, b) => a.orderIndex - b.orderIndex)
+                            .map((meal, index) => (
+                              <div key={meal.id} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`meal-${meal.id}`}
+                                  checked={form.watch(`mealCheckmarks.${index}.completed`) || false}
+                                  onCheckedChange={(checked) => {
+                                    form.setValue(`mealCheckmarks.${index}`, {
+                                      mealId: meal.id,
+                                      completed: checked as boolean,
+                                    });
+                                  }}
+                                  data-testid={`checkbox-meal-${meal.id}`}
+                                />
+                                <Label
+                                  htmlFor={`meal-${meal.id}`}
+                                  className="text-sm font-normal cursor-pointer"
+                                >
+                                  {meal.name}
+                                </Label>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Water Section */}
                   <div className="space-y-2">

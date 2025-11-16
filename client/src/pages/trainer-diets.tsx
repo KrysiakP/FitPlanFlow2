@@ -2,11 +2,11 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, User } from "lucide-react";
+import { Plus, Pencil, Trash2, User, Apple, UtensilsCrossed, ChefHat, Pill } from "lucide-react";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { DietPlan, User as UserType } from "@shared/schema";
+import type { DietPlan, User as UserType, DietSupplement } from "@shared/schema";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +23,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 type DietPlanWithClient = DietPlan & {
   client?: UserType | null;
 };
+
+function SupplementCountBadge({ planId, mode }: { planId: string; mode: string | null }) {
+  const { data: supplements } = useQuery<DietSupplement[]>({
+    queryKey: ["/api/diet-plans", planId, "supplements"],
+    enabled: mode === 'macro_with_meals' || mode === 'full_plan',
+  });
+
+  if (!supplements || supplements.length === 0) {
+    return null;
+  }
+
+  return (
+    <Badge variant="outline" className="flex items-center gap-1" data-testid={`badge-supplements-${planId}`}>
+      <Pill className="w-3 h-3" />
+      {supplements.length}
+    </Badge>
+  );
+}
 
 export default function TrainerDiets() {
   const { toast } = useToast();
@@ -63,6 +81,13 @@ export default function TrainerDiets() {
     if (status === "active") return "Aktywny";
     if (status === "completed") return "Zakończony";
     return status;
+  };
+
+  const getModeLabel = (mode?: string | null) => {
+    if (mode === "macro_only") return "Tylko makro";
+    if (mode === "macro_with_meals") return "Makro z posiłkami";
+    if (mode === "full_plan") return "Pełna rozpiska";
+    return "Tylko makro"; // default for backward compatibility
   };
 
   if (isLoading) {
@@ -141,9 +166,19 @@ export default function TrainerDiets() {
                   <CardTitle className="font-heading" data-testid={`text-plan-name-${plan.id}`}>
                     {plan.name}
                   </CardTitle>
-                  <Badge variant={getStatusBadgeVariant(plan.status)} data-testid={`badge-status-${plan.id}`}>
-                    {getStatusLabel(plan.status)}
-                  </Badge>
+                  <div className="flex gap-2 flex-wrap">
+                    <Badge variant="outline" data-testid={`badge-mode-${plan.id}`} className="flex items-center gap-1">
+                      {plan.mode === 'macro_only' && <Apple className="w-3 h-3" />}
+                      {plan.mode === 'macro_with_meals' && <UtensilsCrossed className="w-3 h-3" />}
+                      {plan.mode === 'full_plan' && <ChefHat className="w-3 h-3" />}
+                      {!plan.mode && <Apple className="w-3 h-3" />}
+                      {getModeLabel(plan.mode)}
+                    </Badge>
+                    <Badge variant={getStatusBadgeVariant(plan.status)} data-testid={`badge-status-${plan.id}`}>
+                      {getStatusLabel(plan.status)}
+                    </Badge>
+                    <SupplementCountBadge planId={plan.id} mode={plan.mode} />
+                  </div>
                 </div>
                 {plan.description && (
                   <CardDescription>{plan.description}</CardDescription>

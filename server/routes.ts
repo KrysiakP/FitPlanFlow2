@@ -25,6 +25,7 @@ import {
   insertCharityDonationSchema,
   insertDietPlanSchema,
   insertDietMealSchema,
+  insertDietSupplementSchema,
   insertDailyHabitLogSchema,
   insertMealCheckmarkSchema,
   insertMedicalTestSchema,
@@ -2564,6 +2565,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting diet meal:", error);
       res.status(500).json({ message: "Nie udało się usunąć posiłku" });
+    }
+  });
+
+  // Diet supplements endpoints
+  app.get("/api/diet-plans/:planId/supplements", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { planId } = req.params;
+      
+      const plan = await storage.getDietPlanById(planId);
+      
+      if (!plan) {
+        return res.status(404).json({ message: "Plan dietetyczny nie został znaleziony" });
+      }
+      
+      // Allow both trainer and assigned client to view supplements
+      if (user?.role === "trainer" && plan.trainerId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego planu" });
+      }
+      
+      if (user?.role === "client" && plan.clientId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego planu" });
+      }
+
+      const supplements = await storage.getDietSupplements(planId);
+      res.json(supplements);
+    } catch (error) {
+      console.error("Error fetching diet supplements:", error);
+      res.status(500).json({ message: "Nie udało się pobrać suplementów" });
+    }
+  });
+
+  app.post("/api/diet-plans/:planId/supplements", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { planId } = req.params;
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą dodawać suplementy" });
+      }
+
+      const plan = await storage.getDietPlanById(planId);
+      
+      if (!plan || plan.trainerId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego planu" });
+      }
+
+      const validationResult = insertDietSupplementSchema.safeParse({
+        ...req.body,
+        dietPlanId: planId,
+      });
+
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const supplement = await storage.createDietSupplement(validationResult.data);
+      res.status(201).json(supplement);
+    } catch (error) {
+      console.error("Error creating diet supplement:", error);
+      res.status(500).json({ message: "Nie udało się utworzyć suplementu" });
+    }
+  });
+
+  app.patch("/api/diet-supplements/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { id } = req.params;
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą edytować suplementy" });
+      }
+
+      // Get the supplement to check ownership
+      const supplements = await storage.getDietSupplements(req.body.dietPlanId || '');
+      const supplement = supplements.find(s => s.id === id);
+      
+      if (supplement) {
+        const plan = await storage.getDietPlanById(supplement.dietPlanId);
+        
+        if (!plan || plan.trainerId !== userId) {
+          return res.status(403).json({ message: "Nie masz uprawnień do tego suplementu" });
+        }
+      }
+
+      const validationResult = insertDietSupplementSchema.partial().safeParse(req.body);
+
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const updatedSupplement = await storage.updateDietSupplement(id, validationResult.data);
+      res.json(updatedSupplement);
+    } catch (error) {
+      console.error("Error updating diet supplement:", error);
+      res.status(500).json({ message: "Nie udało się zaktualizować suplementu" });
+    }
+  });
+
+  app.delete("/api/diet-supplements/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { id } = req.params;
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą usuwać suplementy" });
+      }
+
+      const supplements = await storage.getDietSupplements(req.body.dietPlanId || '');
+      const supplement = supplements.find(s => s.id === id);
+      
+      if (supplement) {
+        const plan = await storage.getDietPlanById(supplement.dietPlanId);
+        
+        if (!plan || plan.trainerId !== userId) {
+          return res.status(403).json({ message: "Nie masz uprawnień do tego suplementu" });
+        }
+      }
+
+      await storage.deleteDietSupplement(id);
+      res.json({ message: "Suplement został usunięty" });
+    } catch (error) {
+      console.error("Error deleting diet supplement:", error);
+      res.status(500).json({ message: "Nie udało się usunąć suplementu" });
     }
   });
 

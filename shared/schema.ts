@@ -207,6 +207,7 @@ export const dietPlans = pgTable("diet_plans", {
   targetFat: integer("target_fat").notNull(), // gramy
   targetCarbs: integer("target_carbs").notNull(), // gramy
   mealsPerDay: integer("meals_per_day").notNull(), // 3-6
+  mode: varchar("mode", { length: 50 }).notNull().default('macro_only'), // 'macro_only', 'macro_with_meals', 'full_plan'
   status: varchar("status", { length: 20 }).notNull().default("draft"), // draft/active/completed
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),
@@ -290,6 +291,21 @@ export const clientPayments = pgTable("client_payments", {
   clientIdx: index("client_payments_client_idx").on(table.clientId),
   trainerIdx: index("client_payments_trainer_idx").on(table.trainerId),
   dueDateIdx: index("client_payments_due_date_idx").on(table.dueDate),
+}));
+
+// Diet supplements - supplements assigned to diet plans
+export const dietSupplements = pgTable("diet_supplements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  dietPlanId: varchar("diet_plan_id").notNull().references(() => dietPlans.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(),
+  dose: varchar("dose", { length: 50 }).notNull(),
+  unit: varchar("unit", { length: 20 }).notNull(),
+  timing: varchar("timing", { length: 100 }),
+  frequency: varchar("frequency", { length: 50 }).notNull(),
+  notes: text("notes"),
+  orderIndex: integer("order_index").notNull().default(0),
+}, (table) => ({
+  dietPlanIdx: index("diet_supplements_diet_plan_idx").on(table.dietPlanId),
 }));
 
 // Relations
@@ -420,6 +436,7 @@ export const dietPlansRelations = relations(dietPlans, ({ one, many }) => ({
   }),
   meals: many(dietMeals),
   habitLogs: many(dailyHabitLogs),
+  supplements: many(dietSupplements),
 }));
 
 export const dietMealsRelations = relations(dietMeals, ({ one, many }) => ({
@@ -476,6 +493,13 @@ export const clientPaymentsRelations = relations(clientPayments, ({ one }) => ({
     fields: [clientPayments.trainerId],
     references: [users.id],
     relationName: "trainerPayments",
+  }),
+}));
+
+export const dietSupplementsRelations = relations(dietSupplements, ({ one }) => ({
+  dietPlan: one(dietPlans, {
+    fields: [dietSupplements.dietPlanId],
+    references: [dietPlans.id],
   }),
 }));
 
@@ -550,6 +574,10 @@ export type InsertMedicalTest = typeof medicalTests.$inferInsert;
 // Types for client payments
 export type ClientPayment = typeof clientPayments.$inferSelect;
 export type InsertClientPayment = typeof clientPayments.$inferInsert;
+
+// Types for diet supplements
+export type DietSupplement = typeof dietSupplements.$inferSelect;
+export type InsertDietSupplement = typeof dietSupplements.$inferInsert;
 
 // Zod schemas
 export const insertTrainingPlanSchema = createInsertSchema(trainingPlans).omit({
@@ -656,7 +684,10 @@ export const insertDietPlanSchema = createInsertSchema(dietPlans).omit({
   trainerId: true,
   createdAt: true,
 }).extend({
-  mealsPerDay: z.coerce.number().int().min(3, "Liczba posiłków musi być między 3 a 6").max(6, "Liczba posiłków musi być między 3 a 6"),
+  mode: z.enum(['macro_only', 'macro_with_meals', 'full_plan'], { 
+    errorMap: () => ({ message: "Tryb diety musi być: macro_only, macro_with_meals lub full_plan" }) 
+  }).default('macro_only'),
+  mealsPerDay: z.coerce.number().int().min(3, "Liczba posiłków musi być między 3 a 6").max(6, "Liczba posiłków musi być między 3 a 6").optional(),
 });
 
 export const insertDietMealSchema = createInsertSchema(dietMeals).omit({
@@ -689,6 +720,15 @@ export const insertClientPaymentSchema = createInsertSchema(clientPayments).omit
 }).extend({
   amount: z.coerce.number().int().min(1, "Kwota musi być większa niż 0"),
   dueDate: z.coerce.date(),
+});
+
+export const insertDietSupplementSchema = createInsertSchema(dietSupplements).omit({
+  id: true,
+}).extend({
+  name: z.string().min(1, "Nazwa suplementu jest wymagana").max(255, "Nazwa suplementu może mieć maksymalnie 255 znaków"),
+  dose: z.string().min(1, "Dawka jest wymagana"),
+  unit: z.string().min(1, "Jednostka jest wymagana"),
+  frequency: z.string().min(1, "Częstotliwość jest wymagana"),
 });
 
 export const updateUserRoleSchema = z.object({
@@ -729,5 +769,6 @@ export type InsertDietMealInput = z.infer<typeof insertDietMealSchema>;
 export type InsertDailyHabitLogInput = z.infer<typeof insertDailyHabitLogSchema>;
 export type InsertMealCheckmarkInput = z.infer<typeof insertMealCheckmarkSchema>;
 export type InsertClientPaymentInput = z.infer<typeof insertClientPaymentSchema>;
+export type InsertDietSupplementInput = z.infer<typeof insertDietSupplementSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
