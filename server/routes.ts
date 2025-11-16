@@ -258,6 +258,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.updateUserSubscription(userId, {
               subscriptionStatus: 'active',
             });
+
+            // T6: Check for referral bonus eligibility (trainer qualifies on first paid invoice)
+            try {
+              const referralEvent = await storage.getPendingReferralEventByUser(userId);
+              if (referralEvent) {
+                console.log(`[REFERRAL] Found pending referral event for user ${userId}, processing bonus...`);
+                
+                // ATOMIC: Process bonus in transaction (mark + apply bonus together)
+                const success = await storage.processReferralBonus(referralEvent.id, 30);
+                if (success) {
+                  // Notify referrer (outside transaction - non-critical)
+                  try {
+                    const referredUser = await storage.getUser(userId);
+                    if (referredUser) {
+                      storage.notifyReferralBonus(
+                        referralEvent.referrerTrainerId,
+                        30,
+                        `${referredUser.firstName} ${referredUser.lastName}`
+                      );
+                    }
+                  } catch (notifyError) {
+                    console.error('[REFERRAL] Error sending notification (bonus already granted):', notifyError);
+                  }
+                } else {
+                  console.log(`[REFERRAL] Event ${referralEvent.id} was already processed, skipping bonus (race condition avoided)`);
+                }
+              }
+            } catch (error) {
+              console.error('[REFERRAL] Error processing referral bonus on invoice.paid:', error);
+            }
           }
           break;
         }

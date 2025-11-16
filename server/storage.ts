@@ -248,6 +248,9 @@ export interface IStorage {
   }>;
   listTrainerReferrals(trainerId: string): Promise<Array<ReferralEvent & { referredUser: User }>>;
   applyReferralBonus(userId: string, bonusDays: number): Promise<void>;
+  getPendingReferralEventByUser(userId: string): Promise<ReferralEvent | null>;
+  markReferralQualified(eventId: string, bonusDays: number): Promise<boolean>;
+  processReferralBonus(eventId: string, bonusDays: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1152,6 +1155,7 @@ export class DatabaseStorage implements IStorage {
         )
         .limit(1);
       
+      let newRelationshipCreated = false;
       if (existingRelationship) {
         // Jeśli relacja istnieje ale jest archived, reaktywuj ją
         if (existingRelationship.status === 'archived') {
@@ -1159,6 +1163,7 @@ export class DatabaseStorage implements IStorage {
             .update(clientRelationships)
             .set({ status: 'active', archivedAt: null })
             .where(eq(clientRelationships.id, existingRelationship.id));
+          newRelationshipCreated = true;
         }
       } else {
         // Utwórz nową relację
@@ -1169,6 +1174,7 @@ export class DatabaseStorage implements IStorage {
             clientId: clientId,
             status: 'active',
           });
+        newRelationshipCreated = true;
       }
       
       // 2. Jeśli zaproszenie zawiera planId, przypisz plan
@@ -1217,6 +1223,35 @@ export class DatabaseStorage implements IStorage {
             eq(planInvitations.status, "pending")
           )
         );
+
+      // T6: Check for referral bonus eligibility (client qualifies when accepting invitation)
+      if (newRelationshipCreated) {
+        try {
+          const referralEvent = await this.getPendingReferralEventByUser(clientId);
+          if (referralEvent) {
+            console.log(`[REFERRAL] Found pending referral event for client ${clientId}, processing bonus...`);
+            
+            // ATOMIC: Process bonus in transaction (mark + apply bonus together)
+            const success = await this.processReferralBonus(referralEvent.id, 30);
+            if (success) {
+              // Notify referrer (outside transaction - non-critical)
+              try {
+                this.notifyReferralBonus(
+                  referralEvent.referrerTrainerId,
+                  30,
+                  `${client.firstName} ${client.lastName}`
+                );
+              } catch (notifyError) {
+                console.error('[REFERRAL] Error sending notification (bonus already granted):', notifyError);
+              }
+            } else {
+              console.log(`[REFERRAL] Event ${referralEvent.id} was already processed, skipping bonus (race condition avoided)`);
+            }
+          }
+        } catch (error) {
+          console.error('[REFERRAL] Error processing referral bonus on invitation acceptance:', error);
+        }
+      }
     });
   }
   
@@ -1959,6 +1994,105 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId));
+  }
+
+  async getPendingReferralEventByUser(userId: string): Promise<ReferralEvent | null> {
+    const [event] = await db
+      .select()
+      .from(referralEvents)
+      .where(
+        and(
+          eq(referralEvents.referredUserId, userId),
+          eq(referralEvents.status, 'pending')
+        )
+      )
+      .limit(1);
+    
+    return event || null;
+  }
+
+  async markReferralQualified(eventId: string, bonusDays: number): Promise<boolean> {
+    const now = new Date();
+    const result = await db
+      .update(referralEvents)
+      .set({
+        status: 'bonus_granted',
+        bonusDaysGranted: bonusDays,
+        qualifiedAt: now,
+        bonusGrantedAt: now,
+      })
+      .where(
+        and(
+          eq(referralEvents.id, eventId),
+          eq(referralEvents.status, 'pending')
+        )
+      )
+      .returning({ id: referralEvents.id, referrerTrainerId: referralEvents.referrerTrainerId });
+
+    const wasMarked = result.length > 0;
+    
+    if (wasMarked) {
+      console.log(`[REFERRAL] Marked event ${eventId} as bonus_granted, granting ${bonusDays} days to trainer ${result[0].referrerTrainerId}`);
+    } else {
+      console.log(`[REFERRAL] Event ${eventId} was already processed or not pending, skipping (idempotent)`);
+    }
+    
+    return wasMarked;
+  }
+
+  async processReferralBonus(eventId: string, bonusDays: number): Promise<boolean> {
+    if (bonusDays <= 0) {
+      throw new Error('Bonus days must be positive');
+    }
+
+    const result = await db.transaction(async (tx) => {
+      const now = new Date();
+      
+      // Step 1: Atomic mark (only if pending)
+      const [event] = await tx
+        .update(referralEvents)
+        .set({
+          status: 'bonus_granted',
+          bonusDaysGranted: bonusDays,
+          qualifiedAt: now,
+          bonusGrantedAt: now,
+        })
+        .where(
+          and(
+            eq(referralEvents.id, eventId),
+            eq(referralEvents.status, 'pending')
+          )
+        )
+        .returning();
+
+      if (!event) {
+        console.log(`[REFERRAL] Event ${eventId} was already processed or not pending, skipping (idempotent)`);
+        return { success: false, event: null };
+      }
+
+      // Step 2: Apply bonus (in same transaction)
+      await tx
+        .update(users)
+        .set({
+          referralBonusDays: sql`COALESCE(${users.referralBonusDays}, 0) + ${bonusDays}`,
+          trialEndsAt: sql`CASE 
+            WHEN ${users.trialEndsAt} IS NULL THEN NOW() + INTERVAL '${sql.raw(bonusDays.toString())} days'
+            WHEN ${users.trialEndsAt} > NOW() THEN ${users.trialEndsAt} + INTERVAL '${sql.raw(bonusDays.toString())} days'
+            ELSE NOW() + INTERVAL '${sql.raw(bonusDays.toString())} days'
+          END`,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, event.referrerTrainerId));
+
+      console.log(`[REFERRAL] Successfully processed bonus for event ${eventId}, granting ${bonusDays} days to trainer ${event.referrerTrainerId}`);
+      return { success: true, event };
+    });
+
+    return result.success;
+  }
+
+  notifyReferralBonus(trainerId: string, bonusDays: number, referredUserName: string): void {
+    console.log(`[REFERRAL BONUS] Trainer ${trainerId} earned ${bonusDays} bonus days from referral: ${referredUserName}`);
   }
 }
 
