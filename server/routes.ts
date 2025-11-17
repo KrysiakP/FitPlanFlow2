@@ -259,31 +259,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
               subscriptionStatus: 'active',
             });
 
-            // T6: Check for referral bonus eligibility (trainer qualifies on first paid invoice)
+            // ISSUE 4 FIX: Check for referral bonus eligibility (trainer qualifies on FIRST paid invoice only)
             try {
+              // GUARD 1: Check if user has pending referral event
               const referralEvent = await storage.getPendingReferralEventByUser(userId);
-              if (referralEvent) {
-                console.log(`[REFERRAL] Found pending referral event for user ${userId}, processing bonus...`);
-                
-                // ATOMIC: Process bonus in transaction (mark + apply bonus together)
-                const success = await storage.processReferralBonus(referralEvent.id, 30);
-                if (success) {
-                  // Notify referrer (outside transaction - non-critical)
-                  try {
-                    const referredUser = await storage.getUser(userId);
-                    if (referredUser) {
-                      storage.notifyReferralBonus(
-                        referralEvent.referrerTrainerId,
-                        30,
-                        `${referredUser.firstName} ${referredUser.lastName}`
-                      );
-                    }
-                  } catch (notifyError) {
-                    console.error('[REFERRAL] Error sending notification (bonus already granted):', notifyError);
+              if (!referralEvent) {
+                console.log(`[REFERRAL] No pending referral event for user ${userId}, skipping bonus`);
+                break;
+              }
+
+              // GUARD 2: Check if this is the FIRST paid invoice for this customer
+              // We check by counting paid invoices for this customer in Stripe
+              const customerId = invoice.customer;
+              const paidInvoices = await stripe.invoices.list({
+                customer: customerId,
+                status: 'paid',
+                limit: 10, // We only need to check if there's more than 1
+              });
+
+              const paidInvoiceCount = paidInvoices.data.length;
+              
+              if (paidInvoiceCount > 1) {
+                console.log(`[REFERRAL] User ${userId} has ${paidInvoiceCount} paid invoices, not first payment - skipping referral bonus`);
+                break;
+              }
+
+              console.log(`[REFERRAL] Found pending referral event for user ${userId} with FIRST payment, processing bonus...`);
+              
+              // ANTI-FRAUD: Capture payment fingerprint from Stripe
+              let paymentFingerprint: string | undefined;
+              try {
+                if (invoice.payment_intent) {
+                  const paymentIntent = await stripe.paymentIntents.retrieve(invoice.payment_intent as string);
+                  paymentFingerprint = paymentIntent.charges?.data[0]?.payment_method_details?.card?.fingerprint;
+                  
+                  if (paymentFingerprint) {
+                    console.log(`[REFERRAL] Captured payment fingerprint for event ${referralEvent.id}: ${paymentFingerprint}`);
+                    
+                    // Update referral event metadata with payment fingerprint
+                    await storage.updateReferralEventMetadata(referralEvent.id, {
+                      ...referralEvent.metadata,
+                      paymentFingerprint
+                    });
+                  } else {
+                    console.warn(`[REFERRAL] No payment fingerprint found for invoice ${invoice.id} (may be non-card payment)`);
                   }
-                } else {
-                  console.log(`[REFERRAL] Event ${referralEvent.id} was already processed, skipping bonus (race condition avoided)`);
                 }
+              } catch (fingerprintError) {
+                console.error('[REFERRAL] Error capturing payment fingerprint:', fingerprintError);
+              }
+              
+              // GUARD 3: ATOMIC process bonus (idempotent - won't double-process)
+              const success = await storage.processReferralBonus(referralEvent.id, 30);
+              if (success) {
+                // Notify referrer (outside transaction - non-critical)
+                try {
+                  const referredUser = await storage.getUser(userId);
+                  if (referredUser) {
+                    storage.notifyReferralBonus(
+                      referralEvent.referrerTrainerId,
+                      30,
+                      `${referredUser.firstName} ${referredUser.lastName}`
+                    );
+                  }
+                } catch (notifyError) {
+                  console.error('[REFERRAL] Error sending notification (bonus already granted):', notifyError);
+                }
+              } else {
+                console.log(`[REFERRAL] Event ${referralEvent.id} was already processed, skipping bonus (race condition avoided)`);
               }
             } catch (error) {
               console.error('[REFERRAL] Error processing referral bonus on invoice.paid:', error);
@@ -560,13 +603,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (referralCode) {
-        await storage.createReferralEvent({
-          referralCodeId: referralCode.id,
-          referrerTrainerId: referralCode.trainerId,
-          referredUserId: user.id,
-          referredRole: role as 'trainer' | 'client',
-          status: 'pending',
-        });
+        // SECURITY: Validate referral event before creation
+        const ipAddress = req.ip || req.headers['x-forwarded-for'] as string || req.socket.remoteAddress;
+        const validation = await storage.validateReferralEvent(
+          referralCode.trainerId,
+          user.id,
+          email,
+          ipAddress
+        );
+
+        if (!validation.valid) {
+          console.warn(`[SECURITY] Referral validation failed for user ${user.id}: ${validation.reason}`);
+          // Continue registration but don't create referral event
+        } else {
+          // Create referral event with security metadata
+          const emailHash = require('crypto').createHash('sha256').update(email.toLowerCase()).digest('hex');
+          await storage.createReferralEvent({
+            referralCodeId: referralCode.id,
+            referrerTrainerId: referralCode.trainerId,
+            referredUserId: user.id,
+            referredRole: role as 'trainer' | 'client',
+            status: 'pending',
+            metadata: {
+              ipAddress,
+              emailHash,
+              registeredAt: new Date().toISOString(),
+            },
+          });
+          
+          // Update lastUsedAt timestamp on referral code
+          await storage.updateReferralCodeLastUsed(referralCode.id);
+        }
       }
 
       req.session.regenerate((err) => {

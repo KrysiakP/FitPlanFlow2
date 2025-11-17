@@ -244,7 +244,9 @@ export interface IStorage {
   ensureReferralCode(trainerId: string): Promise<ReferralCode>;
   getReferralCodeByCode(code: string): Promise<ReferralCode | null>;
   getReferralCodeByTrainerId(trainerId: string): Promise<ReferralCode | null>;
+  updateReferralCodeLastUsed(codeId: string): Promise<void>;
   createReferralEvent(event: InsertReferralEvent): Promise<ReferralEvent>;
+  updateReferralEventMetadata(eventId: string, metadata: any): Promise<void>;
   getTrainerReferralStats(trainerId: string): Promise<{
     totalReferrals: number;
     qualifiedReferrals: number;
@@ -256,6 +258,9 @@ export interface IStorage {
   getPendingReferralEventByUser(userId: string): Promise<ReferralEvent | null>;
   markReferralQualified(eventId: string, bonusDays: number): Promise<boolean>;
   processReferralBonus(eventId: string, bonusDays: number): Promise<boolean>;
+  validateReferralEvent(referrerTrainerId: string, referredUserId: string, referredEmail: string, ipAddress?: string, metadata?: any): Promise<{ valid: boolean; reason?: string }>;
+  getTrainerBonusesThisYear(trainerId: string): Promise<number>;
+  countStripePaymentsByCustomer(stripeCustomerId: string): Promise<number>;
 
   // Notifications
   createNotification(data: InsertNotification): Promise<Notification>;
@@ -1923,12 +1928,26 @@ export class DatabaseStorage implements IStorage {
     return referralCode || null;
   }
 
+  async updateReferralCodeLastUsed(codeId: string): Promise<void> {
+    await db
+      .update(referralCodes)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(referralCodes.id, codeId));
+  }
+
   async createReferralEvent(event: InsertReferralEvent): Promise<ReferralEvent> {
     const [newEvent] = await db
       .insert(referralEvents)
       .values(event)
       .returning();
     return newEvent;
+  }
+
+  async updateReferralEventMetadata(eventId: string, metadata: any): Promise<void> {
+    await db
+      .update(referralEvents)
+      .set({ metadata })
+      .where(eq(referralEvents.id, eventId));
   }
 
   async getTrainerReferralStats(trainerId: string): Promise<{
@@ -1979,11 +1998,12 @@ export class DatabaseStorage implements IStorage {
       referralCodeId: row.referral_events.referralCodeId,
       referrerTrainerId: row.referral_events.referrerTrainerId,
       referredUserId: row.referral_events.referredUserId,
-      referredUserRole: row.referral_events.referredUserRole,
+      referredRole: row.referral_events.referredRole,
       status: row.referral_events.status,
-      qualificationDate: row.referral_events.qualificationDate,
-      bonusGrantedDate: row.referral_events.bonusGrantedDate,
+      qualifiedAt: row.referral_events.qualifiedAt,
+      bonusGrantedAt: row.referral_events.bonusGrantedAt,
       createdAt: row.referral_events.createdAt,
+      metadata: row.referral_events.metadata,
       referredUser: row.users,
     }));
   }
@@ -2092,6 +2112,28 @@ export class DatabaseStorage implements IStorage {
         return { success: false, event: null };
       }
 
+      // Step 1.5: SECURITY - Re-validate event before granting bonus (defense in depth)
+      const [referredUser] = await tx.select().from(users).where(eq(users.id, event.referredUserId));
+      if (referredUser) {
+        const validation = await this.validateReferralEvent(
+          event.referrerTrainerId,
+          event.referredUserId,
+          referredUser.email,
+          (event.metadata as any)?.ipAddress,
+          event.metadata
+        );
+
+        if (!validation.valid) {
+          console.error(`[SECURITY] Referral validation failed for event ${eventId} during bonus processing: ${validation.reason}`);
+          // Rollback the status change
+          await tx
+            .update(referralEvents)
+            .set({ status: 'pending' })
+            .where(eq(referralEvents.id, eventId));
+          throw new Error(`Referral validation failed: ${validation.reason}`);
+        }
+      }
+
       // Step 2: Apply bonus to REFERRER (polecający trener - zawsze dostaje bonus)
       await tx
         .update(users)
@@ -2137,6 +2179,123 @@ export class DatabaseStorage implements IStorage {
 
   notifyReferralBonus(trainerId: string, bonusDays: number, referredUserName: string): void {
     console.log(`[REFERRAL BONUS] Trainer ${trainerId} earned ${bonusDays} bonus days from referral: ${referredUserName}`);
+  }
+
+  async validateReferralEvent(referrerTrainerId: string, referredUserId: string, referredEmail: string, ipAddress?: string, metadata?: any): Promise<{ valid: boolean; reason?: string }> {
+    // SECURITY CHECK 1: Prevent self-referral
+    if (referrerTrainerId === referredUserId) {
+      return { valid: false, reason: 'Nie możesz polecić sam siebie' };
+    }
+
+    // SECURITY CHECK 2: Check annual limit (5 bonuses per year)
+    const bonusesThisYear = await this.getTrainerBonusesThisYear(referrerTrainerId);
+    if (bonusesThisYear >= 5) {
+      return { valid: false, reason: 'Przekroczono roczny limit bonusów (5 bonusów rocznie)' };
+    }
+
+    // SECURITY CHECK 3: Check for duplicate IP address
+    if (ipAddress) {
+      const existingEventsWithSameIP = await db
+        .select()
+        .from(referralEvents)
+        .where(
+          and(
+            eq(referralEvents.referrerTrainerId, referrerTrainerId),
+            sql`${referralEvents.metadata}->>'ipAddress' = ${ipAddress}`
+          )
+        );
+
+      if (existingEventsWithSameIP.length > 0) {
+        console.warn(`[SECURITY] Duplicate IP address detected for referral: ${ipAddress}`);
+        return { valid: false, reason: 'Wykryto podejrzaną aktywność - duplikat adresu IP' };
+      }
+    }
+
+    // SECURITY CHECK 4: Check for duplicate email hash
+    const emailHash = require('crypto').createHash('sha256').update(referredEmail.toLowerCase()).digest('hex');
+    const existingEventsWithSameEmail = await db
+      .select()
+      .from(referralEvents)
+      .where(
+        and(
+          eq(referralEvents.referrerTrainerId, referrerTrainerId),
+          sql`${referralEvents.metadata}->>'emailHash' = ${emailHash}`
+        )
+      );
+
+    if (existingEventsWithSameEmail.length > 0) {
+      console.warn(`[SECURITY] Duplicate email hash detected for referral: ${emailHash.substring(0, 8)}...`);
+      return { valid: false, reason: 'Wykryto podejrzaną aktywność - duplikat konta' };
+    }
+
+    // SECURITY CHECK 5: Check for duplicate payment fingerprint (anti-fraud for card reuse)
+    if (metadata?.paymentFingerprint) {
+      const existingEventsWithSameFingerprint = await db
+        .select()
+        .from(referralEvents)
+        .where(
+          and(
+            eq(referralEvents.referrerTrainerId, referrerTrainerId),
+            sql`${referralEvents.metadata}->>'paymentFingerprint' = ${metadata.paymentFingerprint}`
+          )
+        );
+
+      if (existingEventsWithSameFingerprint.length > 0) {
+        console.warn(`[SECURITY] Duplicate payment fingerprint detected for referral: ${metadata.paymentFingerprint}`);
+        return { valid: false, reason: 'Wykryto podejrzaną aktywność - karta już użyta' };
+      }
+    }
+
+    return { valid: true };
+  }
+
+  async getTrainerBonusesThisYear(trainerId: string): Promise<number> {
+    const currentYear = new Date().getFullYear();
+    const yearStart = new Date(currentYear, 0, 1);
+    const yearEnd = new Date(currentYear, 11, 31, 23, 59, 59);
+
+    const bonusEvents = await db
+      .select()
+      .from(referralEvents)
+      .where(
+        and(
+          eq(referralEvents.referrerTrainerId, trainerId),
+          eq(referralEvents.status, 'bonus_granted'),
+          gte(referralEvents.bonusGrantedAt, yearStart),
+          lte(referralEvents.bonusGrantedAt, yearEnd)
+        )
+      );
+
+    return bonusEvents.length;
+  }
+
+  async countStripePaymentsByCustomer(stripeCustomerId: string): Promise<number> {
+    if (!stripeCustomerId) {
+      return 0;
+    }
+
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.stripeCustomerId, stripeCustomerId));
+
+    if (!user) {
+      return 0;
+    }
+
+    return await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(clientPayments)
+      .where(
+        and(
+          or(
+            eq(clientPayments.clientId, user.id),
+            eq(clientPayments.trainerId, user.id)
+          ),
+          eq(clientPayments.isPaid, true)
+        )
+      )
+      .then(result => result[0]?.count || 0);
   }
 
   // Notifications
