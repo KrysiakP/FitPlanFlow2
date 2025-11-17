@@ -7,6 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
@@ -59,6 +70,7 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
   const [testDate, setTestDate] = useState<string>("");
   const [testNotes, setTestNotes] = useState<string>("");
   const [testFileUrl, setTestFileUrl] = useState<string>("");
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const { toast } = useToast();
 
   const { data: clientProgress, isLoading: isLoadingProgress } = useQuery<ClientProgress | null>({
@@ -614,26 +626,51 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
         <Separator />
 
         <div className="flex justify-end">
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="gap-2 text-destructive hover:bg-destructive/10"
-            onClick={() => archiveClientMutation.mutate(client.id)}
-            disabled={archiveClientMutation.isPending}
-            data-testid={`button-archive-${client.id}`}
-          >
-            {archiveClientMutation.isPending ? (
-              <>
-                <div className="w-4 h-4 border-2 border-destructive border-t-transparent rounded-full animate-spin" />
-                Kończenie...
-              </>
-            ) : (
-              <>
-                <X className="w-4 h-4" />
-                Zakończ współpracę
-              </>
-            )}
-          </Button>
+          <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+            <AlertDialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="gap-2 text-destructive hover:bg-destructive/10"
+                disabled={archiveClientMutation.isPending}
+                data-testid={`button-archive-${client.id}`}
+              >
+                {archiveClientMutation.isPending ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-destructive border-t-transparent rounded-full animate-spin" />
+                    Kończenie...
+                  </>
+                ) : (
+                  <>
+                    <X className="w-4 h-4" />
+                    Zakończ współpracę
+                  </>
+                )}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Czy na pewno chcesz zakończyć współpracę?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Ta akcja zarchiwizuje relację z {client.firstName} {client.lastName}. 
+                  Będziesz mógł nadal przeglądać historię współpracy, ale nie będziesz mógł dodawać nowych planów treningowych ani dietetycznych.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel data-testid="button-cancel-archive">Anuluj</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    archiveClientMutation.mutate(client.id);
+                    setShowArchiveDialog(false);
+                  }}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  data-testid="button-confirm-archive"
+                >
+                  Zakończ współpracę
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </CardContent>
     </Card>
