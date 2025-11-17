@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Video, Link as LinkIcon, AlertCircle, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, Video, AlertCircle } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -38,20 +38,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState } from "react";
-import { ObjectUploader } from "@/components/ObjectUploader";
 
-const exerciseFormSchema = insertExerciseLibrarySchema.extend({
-  videoType: z.enum(["upload", "url"]).optional(),
-  videoFile: z.any().optional(),
-});
-
-type ExerciseFormValues = z.infer<typeof exerciseFormSchema>;
+type ExerciseFormValues = z.infer<typeof insertExerciseLibrarySchema>;
 
 function ExerciseDialog({
   exercise,
@@ -64,12 +57,10 @@ function ExerciseDialog({
 }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [videoType, setVideoType] = useState<"upload" | "url">("url");
   const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(exercise?.id || null);
-  const [videoObjectPath, setVideoObjectPath] = useState<string | null>(null);
 
   const form = useForm<ExerciseFormValues>({
-    resolver: zodResolver(exerciseFormSchema),
+    resolver: zodResolver(insertExerciseLibrarySchema),
     defaultValues: {
       name: exercise?.name || "",
       description: exercise?.description || "",
@@ -83,10 +74,23 @@ function ExerciseDialog({
 
   const createMutation = useMutation({
     mutationFn: async (data: ExerciseFormValues) => {
+      let normalizedVideoUrl = data.videoUrl || null;
+      
+      if (normalizedVideoUrl && normalizedVideoUrl.includes('instagram.com')) {
+        const urlWithoutQuery = normalizedVideoUrl.split('?')[0].split('#')[0];
+        const cleanUrl = urlWithoutQuery.replace(/\/+$/, '');
+        
+        if (!cleanUrl.endsWith('/embed')) {
+          normalizedVideoUrl = cleanUrl + '/embed/';
+        } else {
+          normalizedVideoUrl = cleanUrl + '/';
+        }
+      }
+      
       const exerciseData = {
         name: data.name,
         description: data.description || null,
-        videoUrl: data.videoUrl || null,
+        videoUrl: normalizedVideoUrl,
         defaultSets: data.defaultSets || null,
         defaultReps: data.defaultReps || null,
         defaultLoad: data.defaultLoad || null,
@@ -95,10 +99,10 @@ function ExerciseDialog({
 
       if (exercise) {
         await apiRequest("PUT", `/api/exercises/library/${exercise.id}`, exerciseData);
-        return { exerciseId: exercise.id, videoUrl: data.videoUrl };
+        return { exerciseId: exercise.id, videoUrl: normalizedVideoUrl };
       } else {
         const response: any = await apiRequest("POST", "/api/exercises/library", exerciseData);
-        return { exerciseId: response.id, videoUrl: data.videoUrl };
+        return { exerciseId: response.id, videoUrl: normalizedVideoUrl };
       }
     },
     onSuccess: ({ exerciseId, videoUrl }) => {
@@ -272,102 +276,27 @@ function ExerciseDialog({
               )}
             />
 
-            <div className="space-y-4">
-              <FormLabel>Wideo</FormLabel>
-              <Tabs value={videoType} onValueChange={(v) => setVideoType(v as "upload" | "url")}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="url" data-testid="tab-video-url">
-                    <LinkIcon className="w-4 h-4 mr-2" />
-                    Link URL
-                  </TabsTrigger>
-                  <TabsTrigger value="upload" data-testid="tab-video-upload">
-                    <Video className="w-4 h-4 mr-2" />
-                    Prześlij plik
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="url" className="space-y-2">
-                  <FormField
-                    control={form.control}
-                    name="videoUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <Input
-                            placeholder="https://youtube.com/... lub https://vimeo.com/..."
-                            {...field}
-                            value={field.value || ""}
-                            data-testid="input-video-url"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Wklej link do wideo z YouTube lub Vimeo
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </TabsContent>
-
-                <TabsContent value="upload" className="space-y-2">
-                  <div className="space-y-4">
-                    <ObjectUploader
-                          maxNumberOfFiles={1}
-                          maxFileSize={52428800}
-                          onGetUploadParameters={async () => {
-                            const response = await fetch("/api/objects/upload", {
-                              method: "POST",
-                              credentials: "include",
-                            });
-                            
-                            if (!response.ok) {
-                              throw new Error("Nie udało się uzyskać URL uploadu");
-                            }
-                            
-                            const data = await response.json();
-                            
-                            // Store objectPath in state to use in onComplete
-                            // This is the permanent path (e.g., /objects/uploads/uuid)
-                            // NOT the temporary presigned URL
-                            setVideoObjectPath(data.objectPath);
-                            
-                            return {
-                              method: "PUT" as const,
-                              url: data.uploadURL,
-                            };
-                          }}
-                          onComplete={async (result) => {
-                            const uploadedFile = result.successful?.[0];
-                            if (!uploadedFile) return;
-                            
-                            // Use the objectPath stored during upload, NOT the presigned uploadURL
-                            // The presigned URL expires, but objectPath is permanent
-                            if (videoObjectPath) {
-                              form.setValue("videoUrl", videoObjectPath);
-                              toast({
-                                title: "Film przesłany",
-                                description: "Kliknij 'Dodaj ćwiczenie' aby zapisać",
-                              });
-                            } else {
-                              toast({
-                                title: "Błąd",
-                                description: "Nie udało się uzyskać ścieżki filmu",
-                                variant: "destructive",
-                              });
-                            }
-                          }}
-                          buttonClassName="w-full"
-                        >
-                          <Upload className="w-4 h-4 mr-2" />
-                          Prześlij film
-                        </ObjectUploader>
-                        <p className="text-sm text-muted-foreground">
-                          Maksymalny rozmiar pliku: 50MB (mp4, mov, avi, webm)
-                        </p>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </div>
+            <FormField
+              control={form.control}
+              name="videoUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Link do filmu</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="https://youtube.com/... lub https://vimeo.com/... lub https://instagram.com/..."
+                      {...field}
+                      value={field.value || ""}
+                      data-testid="input-video-url"
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Wklej link do filmu z YouTube, Vimeo lub Instagram
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button
@@ -402,6 +331,7 @@ function VideoPreview({ videoUrl }: { videoUrl: string | null }) {
 
   const isYouTube = videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be");
   const isVimeo = videoUrl.includes("vimeo.com");
+  const isInstagram = videoUrl.includes("instagram.com");
 
   if (isYouTube) {
     let embedUrl = videoUrl;
@@ -441,6 +371,28 @@ function VideoPreview({ videoUrl }: { videoUrl: string | null }) {
           allow="autoplay; fullscreen; picture-in-picture"
           allowFullScreen
           title="Vimeo video"
+        />
+      </div>
+    );
+  }
+
+  if (isInstagram) {
+    let embedUrl = videoUrl;
+    if (!videoUrl.includes("/embed")) {
+      const urlWithoutQuery = videoUrl.split('?')[0];
+      embedUrl = urlWithoutQuery.replace(/\/$/, '') + '/embed/';
+    }
+
+    return (
+      <div className="aspect-square w-full max-w-md mx-auto rounded-md overflow-hidden bg-muted">
+        <iframe
+          src={embedUrl}
+          className="w-full h-full"
+          frameBorder="0"
+          scrolling="no"
+          allowTransparency
+          allow="encrypted-media"
+          title="Instagram post"
         />
       </div>
     );
