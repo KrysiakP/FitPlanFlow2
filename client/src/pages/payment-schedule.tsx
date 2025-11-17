@@ -73,7 +73,13 @@ export default function PaymentSchedule() {
         description: "Płatność została pomyślnie dodana",
       });
       setIsDialogOpen(false);
-      form.reset();
+      form.reset({
+        clientId: "",
+        amount: 0,
+        dueDate: new Date(),
+        isPaid: false,
+        notes: "",
+      });
     },
     onError: (error: any) => {
       toast({
@@ -255,7 +261,7 @@ export default function PaymentSchedule() {
                           <Input
                             type="date"
                             data-testid="input-due-date"
-                            value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : ''}
+                            value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : field.value}
                             onChange={(e) => field.onChange(new Date(e.target.value))}
                           />
                         </FormControl>
