@@ -175,7 +175,7 @@ export default function DietPlanForm() {
           meals: data.meals,
         });
       } else {
-        const result = await apiRequest("POST", "/api/diets/plans", {
+        const res = await apiRequest("POST", "/api/diets/plans", {
           name: data.name,
           description: data.description,
           clientId: data.clientId,
@@ -190,6 +190,7 @@ export default function DietPlanForm() {
           endDate: data.endDate,
           meals: data.meals,
         });
+        const result = await res.json();
         planId = result.id;
       }
 
@@ -260,8 +261,8 @@ export default function DietPlanForm() {
   });
 
   const addMeal = () => {
-    const currentMeals = form.getValues("meals");
-    const mealsPerDay = form.getValues("mealsPerDay");
+    const currentMeals = form.getValues("meals") || [];
+    const mealsPerDay = form.getValues("mealsPerDay") || 5;
     
     if (currentMeals.length >= mealsPerDay) {
       toast({
@@ -279,7 +280,7 @@ export default function DietPlanForm() {
   };
 
   const removeMeal = (mealIndex: number) => {
-    const currentMeals = form.getValues("meals");
+    const currentMeals = form.getValues("meals") || [];
     form.setValue(
       "meals",
       currentMeals.filter((_, i) => i !== mealIndex).map((meal, i) => ({ ...meal, orderIndex: i }))
