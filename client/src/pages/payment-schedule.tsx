@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertClientPaymentSchema } from "@shared/schema";
 import { z } from "zod";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { ClientPayment, User } from "@shared/schema";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
@@ -38,7 +39,7 @@ type FormData = z.infer<typeof formSchema>;
 export default function PaymentSchedule() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const dialogCloseRef = useRef<HTMLButtonElement>(null);
   const isTrainer = user?.role === "trainer";
 
   const { data: payments = [], isLoading } = useQuery<ClientPayment[]>({
@@ -72,7 +73,6 @@ export default function PaymentSchedule() {
         title: "Płatność dodana",
         description: "Płatność została pomyślnie dodana",
       });
-      setIsDialogOpen(false);
       form.reset({
         clientId: "",
         amount: 0,
@@ -80,6 +80,8 @@ export default function PaymentSchedule() {
         isPaid: false,
         notes: "",
       });
+      // Close dialog programmatically after successful submission
+      dialogCloseRef.current?.click();
     },
     onError: (error: any) => {
       toast({
@@ -183,7 +185,7 @@ export default function PaymentSchedule() {
         </div>
         
         {isTrainer && (
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog>
             <DialogTrigger asChild>
               <Button data-testid="button-add-payment">
                 <Plus className="w-4 h-4 mr-2" />
@@ -290,14 +292,15 @@ export default function PaymentSchedule() {
                   />
 
                   <div className="flex justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsDialogOpen(false)}
-                      data-testid="button-cancel"
-                    >
-                      Anuluj
-                    </Button>
+                    <DialogClose asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        data-testid="button-cancel"
+                      >
+                        Anuluj
+                      </Button>
+                    </DialogClose>
                     <Button
                       type="submit"
                       disabled={createPaymentMutation.isPending}
@@ -306,6 +309,9 @@ export default function PaymentSchedule() {
                       {createPaymentMutation.isPending ? "Dodawanie..." : "Dodaj płatność"}
                     </Button>
                   </div>
+                  
+                  {/* Hidden DialogClose button for programmatic close after successful submission */}
+                  <DialogClose ref={dialogCloseRef} type="button" className="hidden" />
                 </form>
               </Form>
             </DialogContent>
