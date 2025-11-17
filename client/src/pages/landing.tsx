@@ -6,6 +6,7 @@ import { Link } from "wouter";
 import { PublicHeader } from "@/components/public-header";
 import { TrainerSection } from "@/components/landing/TrainerSection";
 import { PricingSection } from "@/components/landing/PricingSection";
+import { CharitySection } from "@/components/landing/CharitySection";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function Landing() {
@@ -98,6 +99,7 @@ export default function Landing() {
 
         <TrainerSection />
         <PricingSection />
+        <CharitySection />
 
         <section className="py-16 px-4">
           <div className="container mx-auto max-w-4xl">
