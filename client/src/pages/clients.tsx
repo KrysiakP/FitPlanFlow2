@@ -66,10 +66,6 @@ type ClientWithAssignment = UserType & {
 
 function ClientCard({ client }: { client: ClientWithAssignment }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [testType, setTestType] = useState<string>("krew");
-  const [testDate, setTestDate] = useState<string>("");
-  const [testNotes, setTestNotes] = useState<string>("");
-  const [testFileUrl, setTestFileUrl] = useState<string>("");
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const { toast } = useToast();
 
@@ -113,55 +109,6 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
       toast({
         title: "Błąd",
         description: error.message || "Nie udało się zakończyć współpracy",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const createMedicalTestMutation = useMutation({
-    mutationFn: async (data: { testType: string; testDate: string; notes: string; fileUrl: string }) => {
-      return await apiRequest("POST", `/api/clients/${client.id}/medical-tests`, {
-        testType: data.testType,
-        testDate: new Date(data.testDate).toISOString(),
-        notes: data.notes || null,
-        fileUrl: data.fileUrl || null,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", client.id, "medical-tests"] });
-      toast({
-        title: "Badanie dodane",
-        description: "Badanie medyczne zostało pomyślnie dodane",
-      });
-      setTestType("krew");
-      setTestDate("");
-      setTestNotes("");
-      setTestFileUrl("");
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Błąd",
-        description: error.message || "Nie udało się dodać badania",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deleteMedicalTestMutation = useMutation({
-    mutationFn: async (testId: string) => {
-      return await apiRequest("DELETE", `/api/medical-tests/${testId}`, {});
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", client.id, "medical-tests"] });
-      toast({
-        title: "Badanie usunięte",
-        description: "Badanie medyczne zostało usunięte",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Błąd",
-        description: error.message || "Nie udało się usunąć badania",
         variant: "destructive",
       });
     },
@@ -460,165 +407,106 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-3/4" />
             </div>
+          ) : !medicalTests || medicalTests.length === 0 ? (
+            <p className="text-muted-foreground text-sm" data-testid={`text-no-tests-${client.id}`}>
+              Podopieczny nie dodał jeszcze żadnych badań medycznych.
+            </p>
           ) : (
-            <div className="space-y-4">
-              <div className="p-4 border rounded-lg space-y-4" data-testid={`form-add-medical-test-${client.id}`}>
-                <h4 className="font-medium text-sm">Dodaj nowe badanie</h4>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor={`test-type-${client.id}`}>Typ badania</Label>
-                    <Select value={testType} onValueChange={setTestType}>
-                      <SelectTrigger id={`test-type-${client.id}`} data-testid={`select-test-type-${client.id}`}>
-                        <SelectValue placeholder="Wybierz typ badania" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="krew">Krew</SelectItem>
-                        <SelectItem value="echo">Echo serca</SelectItem>
-                        <SelectItem value="usg">USG</SelectItem>
-                        <SelectItem value="inne">Inne</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor={`test-date-${client.id}`}>Data badania</Label>
-                    <Input
-                      id={`test-date-${client.id}`}
-                      type="date"
-                      value={testDate}
-                      onChange={(e) => setTestDate(e.target.value)}
-                      max={new Date().toISOString().split('T')[0]}
-                      data-testid={`input-test-date-${client.id}`}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor={`test-notes-${client.id}`}>Notatki (opcjonalne)</Label>
-                  <Textarea
-                    id={`test-notes-${client.id}`}
-                    value={testNotes}
-                    onChange={(e) => setTestNotes(e.target.value)}
-                    placeholder="Dodaj notatki dotyczące badania..."
-                    data-testid={`textarea-test-notes-${client.id}`}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Plik z wynikami (opcjonalnie)</Label>
-                  <ObjectUploader
-                    maxNumberOfFiles={1}
-                    maxFileSize={10485760}
-                    onGetUploadParameters={async () => {
-                      const response = await fetch("/api/objects/upload", {
-                        method: "POST",
-                        credentials: "include",
-                      });
-                      if (!response.ok) {
-                        throw new Error("Nie udało się uzyskać URL uploadu");
-                      }
-                      const { url, method } = await response.json();
-                      return { url, method };
-                    }}
-                    onComplete={(result) => {
-                      const uploadedFile = result.successful?.[0];
-                      if (uploadedFile && uploadedFile.uploadURL) {
-                        const fileUrl = uploadedFile.uploadURL.split('?')[0];
-                        setTestFileUrl(fileUrl);
-                      }
-                    }}
-                    data-testid={`uploader-test-file-${client.id}`}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Prześlij plik
-                  </ObjectUploader>
-                  {testFileUrl && (
-                    <p className="text-sm text-muted-foreground" data-testid={`text-file-uploaded-${client.id}`}>
-                      Plik został przesłany
-                    </p>
-                  )}
-                </div>
-
-                <Button
-                  onClick={() => createMedicalTestMutation.mutate({ testType, testDate, notes: testNotes, fileUrl: testFileUrl })}
-                  disabled={!testDate || createMedicalTestMutation.isPending}
-                  size="sm"
-                  data-testid={`button-add-test-${client.id}`}
+            <div className="space-y-3">
+              {medicalTests.map((test) => (
+                <Card
+                  key={test.id}
+                  className="hover-elevate"
+                  data-testid={`card-medical-test-${test.id}`}
                 >
-                  {createMedicalTestMutation.isPending ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      Dodawanie...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Dodaj badanie
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              {medicalTests && medicalTests.length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="font-medium text-sm">Istniejące badania ({medicalTests.length})</h4>
-                  <div className="space-y-2">
-                    {medicalTests.map((test) => (
-                      <div
-                        key={test.id}
-                        className="p-3 border rounded-lg space-y-2"
-                        data-testid={`card-medical-test-${test.id}`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                              <Badge variant="outline" data-testid={`badge-test-type-${test.id}`}>
-                                {test.testType === "krew" && "Krew"}
-                                {test.testType === "echo" && "Echo serca"}
-                                {test.testType === "usg" && "USG"}
-                                {test.testType === "inne" && "Inne"}
-                              </Badge>
-                              <span className="text-sm text-muted-foreground" data-testid={`text-test-date-${test.id}`}>
-                                {format(new Date(test.testDate), "d MMM yyyy", { locale: pl })}
-                              </span>
-                            </div>
-                            {test.notes && (
-                              <p className="text-sm" data-testid={`text-test-notes-${test.id}`}>
-                                {test.notes}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            {test.fileUrl && (
-                              <Button
-                                asChild
-                                variant="outline"
-                                size="sm"
-                                data-testid={`button-download-test-${test.id}`}
-                              >
-                                <a href={test.fileUrl} target="_blank" rel="noopener noreferrer">
-                                  <Download className="w-4 h-4" />
-                                </a>
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => deleteMedicalTestMutation.mutate(test.id)}
-                              disabled={deleteMedicalTestMutation.isPending}
-                              className="text-destructive hover:bg-destructive/10"
-                              data-testid={`button-delete-test-${test.id}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <Badge 
+                            variant={
+                              test.testType === "blood" ? "default" :
+                              test.testType === "hormone" ? "secondary" : 
+                              "outline"
+                            }
+                            data-testid={`badge-test-type-${test.id}`}
+                          >
+                            {test.testType === "blood" && "Badanie krwi"}
+                            {test.testType === "hormone" && "Badanie hormonalne"}
+                            {test.testType === "cardio" && "Badanie kardiologiczne"}
+                            {test.testType === "other" && "Inne"}
+                            {!test.testType && "Nie określono"}
+                          </Badge>
+                        </div>
+                        <CardTitle className="text-lg mb-1" data-testid={`text-test-name-${test.id}`}>
+                          {test.testName}
+                        </CardTitle>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Calendar className="w-4 h-4" />
+                          <span data-testid={`text-test-date-${test.id}`}>
+                            {format(new Date(test.testDate), "d MMMM yyyy", { locale: pl })}
+                          </span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {test.resultValue && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-1">Wynik:</p>
+                        <p className="text-base" data-testid={`text-result-${test.id}`}>
+                          {test.resultValue} {test.unit || ""}
+                        </p>
+                      </div>
+                    )}
+                    {test.referenceRange && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-1">Zakres referencyjny:</p>
+                        <p className="text-base" data-testid={`text-range-${test.id}`}>
+                          {test.referenceRange}
+                        </p>
+                      </div>
+                    )}
+                    {test.orderingProvider && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-1">Lekarz zlecający:</p>
+                        <p className="text-base" data-testid={`text-provider-${test.id}`}>
+                          {test.orderingProvider}
+                        </p>
+                      </div>
+                    )}
+                    {test.notes && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-1">Notatki:</p>
+                        <p className="text-base" data-testid={`text-notes-${test.id}`}>
+                          {test.notes}
+                        </p>
+                      </div>
+                    )}
+                    {test.attachments && Array.isArray(test.attachments) && test.attachments.length > 0 ? (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-2">Załączniki:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {(test.attachments as Array<{ id: string; name: string; url: string; size: number; uploadedAt: Date }>).map((attachment, idx) => (
+                            <Button
+                              key={idx}
+                              asChild
+                              variant="outline"
+                              size="sm"
+                              data-testid={`button-download-attachment-${test.id}-${idx}`}
+                            >
+                              <a href={attachment.url} target="_blank" rel="noopener noreferrer">
+                                <Download className="w-4 h-4 mr-2" />
+                                {attachment.name}
+                              </a>
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
         </div>

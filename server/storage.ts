@@ -211,10 +211,12 @@ export interface IStorage {
   getHabitLogCheckmarks(habitLogId: string): Promise<MealCheckmark[]>;
   
   // Medical Tests
-  getMedicalTestsByClient(clientId: string): Promise<MedicalTest[]>;
-  getMedicalTestById(testId: string): Promise<MedicalTest | undefined>;
-  createMedicalTest(data: InsertMedicalTest): Promise<MedicalTest>;
-  deleteMedicalTest(testId: string): Promise<void>;
+  createMedicalTest(clientId: string, test: InsertMedicalTest): Promise<MedicalTest>;
+  updateMedicalTest(id: string, clientId: string, updates: Partial<InsertMedicalTest>): Promise<MedicalTest>;
+  deleteMedicalTest(id: string, clientId: string): Promise<void>;
+  getClientMedicalTests(clientId: string): Promise<MedicalTest[]>;
+  getMedicalTestById(id: string): Promise<MedicalTest | null>;
+  canTrainerAccessClientTests(trainerId: string, clientId: string): Promise<boolean>;
   
   // Client Payments
   getClientPayments(userId: string, role: string): Promise<ClientPayment[]>;
@@ -1605,7 +1607,47 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Medical Tests
-  async getMedicalTestsByClient(clientId: string): Promise<MedicalTest[]> {
+  async createMedicalTest(clientId: string, test: InsertMedicalTest): Promise<MedicalTest> {
+    const [newTest] = await db
+      .insert(medicalTests)
+      .values({
+        ...test,
+        clientId,
+      })
+      .returning();
+    return newTest;
+  }
+  
+  async updateMedicalTest(id: string, clientId: string, updates: Partial<InsertMedicalTest>): Promise<MedicalTest> {
+    const [updatedTest] = await db
+      .update(medicalTests)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(medicalTests.id, id),
+        eq(medicalTests.clientId, clientId)
+      ))
+      .returning();
+    
+    if (!updatedTest) {
+      throw new Error("Test not found or unauthorized");
+    }
+    
+    return updatedTest;
+  }
+  
+  async deleteMedicalTest(id: string, clientId: string): Promise<void> {
+    await db
+      .delete(medicalTests)
+      .where(and(
+        eq(medicalTests.id, id),
+        eq(medicalTests.clientId, clientId)
+      ));
+  }
+  
+  async getClientMedicalTests(clientId: string): Promise<MedicalTest[]> {
     return await db
       .select()
       .from(medicalTests)
@@ -1613,27 +1655,26 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(medicalTests.testDate));
   }
   
-  async getMedicalTestById(testId: string): Promise<MedicalTest | undefined> {
+  async getMedicalTestById(id: string): Promise<MedicalTest | null> {
     const [test] = await db
       .select()
       .from(medicalTests)
-      .where(eq(medicalTests.id, testId))
+      .where(eq(medicalTests.id, id))
       .limit(1);
-    return test;
+    return test || null;
   }
   
-  async createMedicalTest(data: InsertMedicalTest): Promise<MedicalTest> {
-    const [test] = await db
-      .insert(medicalTests)
-      .values(data)
-      .returning();
-    return test;
-  }
-  
-  async deleteMedicalTest(testId: string): Promise<void> {
-    await db
-      .delete(medicalTests)
-      .where(eq(medicalTests.id, testId));
+  async canTrainerAccessClientTests(trainerId: string, clientId: string): Promise<boolean> {
+    const [relationship] = await db
+      .select()
+      .from(clientRelationships)
+      .where(and(
+        eq(clientRelationships.trainerId, trainerId),
+        eq(clientRelationships.clientId, clientId),
+        eq(clientRelationships.status, "active")
+      ))
+      .limit(1);
+    return !!relationship;
   }
   
   // Client Payments

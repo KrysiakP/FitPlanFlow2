@@ -265,19 +265,23 @@ export const mealCheckmarks = pgTable("meal_checkmarks", {
   uniqueHabitLogMeal: uniqueIndex("unique_habit_log_meal").on(table.habitLogId, table.mealId),
 }));
 
-// Medical tests - trainer assigns medical tests to clients with dates and files
+// Medical tests - client's medical test results and documentation
 export const medicalTests = pgTable("medical_tests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  trainerId: varchar("trainer_id").notNull().references(() => users.id),
-  testType: varchar("test_type", { length: 50 }).notNull(), // 'krew', 'echo', 'usg', 'inne'
+  testName: text("test_name").notNull(), // np. "Morfologia", "Cholesterol"
+  testType: text("test_type"), // kategoria: blood, hormone, cardio, other
   testDate: timestamp("test_date").notNull(),
-  fileUrl: text("file_url"), // link do pliku w Object Storage
+  orderingProvider: text("ordering_provider"), // np. "Dr. Jan Kowalski"
+  resultValue: text("result_value"), // np. "45 mg/dl"
+  unit: text("unit"), // np. "mg/dl", "mmol/L"
+  referenceRange: text("reference_range"), // np. "30-50 mg/dl"
   notes: text("notes"),
+  attachments: jsonb("attachments"), // array of {id, name, url, size, uploadedAt}
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
   clientIdx: index("medical_tests_client_idx").on(table.clientId),
-  trainerIdx: index("medical_tests_trainer_idx").on(table.trainerId),
 }));
 
 // Client payments - payment schedule between trainer and client
@@ -563,11 +567,6 @@ export const medicalTestsRelations = relations(medicalTests, ({ one }) => ({
     fields: [medicalTests.clientId],
     references: [users.id],
     relationName: "clientMedicalTests",
-  }),
-  trainer: one(users, {
-    fields: [medicalTests.trainerId],
-    references: [users.id],
-    relationName: "trainerMedicalTests",
   }),
 }));
 
@@ -878,10 +877,21 @@ export const insertMealCheckmarkSchema = createInsertSchema(mealCheckmarks).omit
 
 export const insertMedicalTestSchema = createInsertSchema(medicalTests).omit({
   id: true,
+  clientId: true,
   createdAt: true,
+  updatedAt: true,
 }).extend({
   testDate: z.coerce.date(),
 });
+
+// Helper type dla attachments
+export type MedicalTestAttachment = {
+  id: string;
+  name: string;
+  url: string;
+  size: number;
+  uploadedAt: Date;
+};
 
 export const insertClientPaymentSchema = createInsertSchema(clientPayments).omit({
   id: true,

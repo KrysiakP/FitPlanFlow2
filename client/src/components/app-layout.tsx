@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, UserCircle, Crown, CreditCard, UserPlus, ShieldCheck, Heart, UtensilsCrossed, Apple, GraduationCap, TrendingUp, DollarSign, Clock, MessageSquare, Bell } from "lucide-react";
+import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, UserCircle, Crown, CreditCard, UserPlus, ShieldCheck, Heart, UtensilsCrossed, Apple, GraduationCap, TrendingUp, DollarSign, Clock, MessageSquare, Bell, Activity } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -136,6 +136,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/client/diet", icon: Apple, label: "Dieta" },
     { href: "/weekly-report", icon: FileText, label: "Raport tygodniowy" },
     { href: "/my-progress", icon: TrendingUp, label: "Mój progres" },
+    { href: "/my-medical-tests", icon: Activity, label: "Badania medyczne" },
     { href: "/chat", icon: MessageSquare, label: "Wiadomości" },
     { href: "/payment-schedule", icon: DollarSign, label: "Płatności" },
     { href: "/pomagamy", icon: Heart, label: "PomagaMY" },

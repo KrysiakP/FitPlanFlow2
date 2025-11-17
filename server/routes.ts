@@ -3242,66 +3242,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Medical Tests endpoints
-  app.get("/api/clients/:clientId/medical-tests", isAuthenticated, async (req, res) => {
+  
+  // POST /api/medical-tests (client only - create new test)
+  app.post("/api/medical-tests", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { clientId } = req.params;
 
-      // Clients can only view their own tests, trainers can view their clients' tests
-      if (user?.role === "client") {
-        if (userId !== clientId) {
-          return res.status(403).json({ message: "Możesz przeglądać tylko swoje badania" });
-        }
-      } else if (user?.role === "trainer") {
-        // Verify the client belongs to this trainer
-        const relationship = await storage.getClientRelationship(userId, clientId);
-        if (!relationship || relationship.status !== 'active') {
-          return res.status(403).json({ message: "Ten podopieczny nie należy do Twoich klientów" });
-        }
-      } else {
-        return res.status(403).json({ message: "Nieautoryzowany dostęp" });
-      }
-
-      const tests = await storage.getMedicalTestsByClient(clientId);
-      
-      // Generate presigned URLs for files
-      const objectStorageService = new ObjectStorageService();
-      const testsWithUrls = await Promise.all(
-        tests.map(async (test) => {
-          if (test.fileUrl) {
-            const presignedUrl = await objectStorageService.getObjectReadUrl(test.fileUrl);
-            return { ...test, fileUrl: presignedUrl || test.fileUrl };
-          }
-          return test;
-        })
-      );
-      
-      res.json(testsWithUrls);
-    } catch (error) {
-      console.error("Error fetching medical tests:", error);
-      res.status(500).json({ message: "Nie udało się pobrać badań medycznych" });
-    }
-  });
-
-  app.post("/api/clients/:clientId/medical-tests", isAuthenticated, async (req, res) => {
-    try {
-      const userId = req.session.userId!;
-      const user = await storage.getUser(userId);
-      const { clientId } = req.params;
-
-      // Only clients can add their own medical tests
       if (user?.role !== "client") {
-        return res.status(403).json({ message: "Tylko podopieczni mogą dodawać swoje badania medyczne" });
+        return res.status(403).json({ message: "Tylko podopieczni mogą dodawać badania" });
       }
-
-      // Client can only add their own tests
-      if (userId !== clientId) {
-        return res.status(403).json({ message: "Możesz dodawać tylko swoje badania medyczne" });
-      }
-
-      // Get the client's trainer (if any)
-      const trainer = await storage.getTrainerForClient(clientId);
 
       const validationResult = insertMedicalTestSchema.safeParse(req.body);
 
@@ -3312,19 +3262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Validate date is not in the future
-      const testDate = new Date(validationResult.data.testDate);
-      if (testDate > new Date()) {
-        return res.status(400).json({ 
-          message: "Data badania nie może być w przyszłości" 
-        });
-      }
-
-      const test = await storage.createMedicalTest({
-        ...validationResult.data,
-        clientId,
-        trainerId: trainer?.id || clientId, // Use trainer ID if exists, otherwise client ID
-      });
+      const test = await storage.createMedicalTest(userId, validationResult.data);
 
       res.status(201).json(test);
     } catch (error) {
@@ -3333,29 +3271,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/medical-tests/:testId", isAuthenticated, async (req, res) => {
+  // GET /api/medical-tests (client - own tests)
+  app.get("/api/medical-tests", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { testId } = req.params;
 
-      // Only clients can delete their own medical tests
       if (user?.role !== "client") {
-        return res.status(403).json({ message: "Tylko podopieczni mogą usuwać swoje badania medyczne" });
+        return res.status(403).json({ message: "Tylko podopieczni mogą przeglądać swoje badania" });
       }
 
-      // Get the test to verify it belongs to this client
-      const test = await storage.getMedicalTestById(testId);
-      if (!test) {
-        return res.status(404).json({ message: "Badanie nie znalezione" });
+      const tests = await storage.getClientMedicalTests(userId);
+      res.json(tests);
+    } catch (error) {
+      console.error("Error fetching medical tests:", error);
+      res.status(500).json({ message: "Nie udało się pobrać badań medycznych" });
+    }
+  });
+
+  // GET /api/clients/:clientId/medical-tests (trainer - read only)
+  app.get("/api/clients/:clientId/medical-tests", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { clientId } = req.params;
+
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Nieautoryzowany dostęp" });
       }
 
-      if (test.clientId !== userId) {
-        return res.status(403).json({ message: "Możesz usuwać tylko swoje badania medyczne" });
+      const canAccess = await storage.canTrainerAccessClientTests(userId, clientId);
+      if (!canAccess) {
+        return res.status(403).json({ message: "Brak dostępu do tego podopiecznego" });
       }
-      
-      await storage.deleteMedicalTest(testId);
-      res.json({ message: "Badanie zostało usunięte" });
+
+      const tests = await storage.getClientMedicalTests(clientId);
+      res.json(tests);
+    } catch (error) {
+      console.error("Error fetching medical tests:", error);
+      res.status(500).json({ message: "Nie udało się pobrać badań medycznych" });
+    }
+  });
+
+  // PUT /api/medical-tests/:id (client only - update own test)
+  app.put("/api/medical-tests/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { id } = req.params;
+
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko podopieczni mogą edytować badania" });
+      }
+
+      const validationResult = insertMedicalTestSchema.partial().safeParse(req.body);
+
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const updatedTest = await storage.updateMedicalTest(id, userId, validationResult.data);
+      res.json(updatedTest);
+    } catch (error: any) {
+      console.error("Error updating medical test:", error);
+      if (error.message === "Test not found or unauthorized") {
+        return res.status(404).json({ message: "Badanie nie znalezione lub brak uprawnień" });
+      }
+      res.status(500).json({ message: "Nie udało się zaktualizować badania" });
+    }
+  });
+
+  // DELETE /api/medical-tests/:id (client only)
+  app.delete("/api/medical-tests/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { id } = req.params;
+
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko podopieczni mogą usuwać badania" });
+      }
+
+      await storage.deleteMedicalTest(id, userId);
+      res.sendStatus(204);
     } catch (error) {
       console.error("Error deleting medical test:", error);
       res.status(500).json({ message: "Nie udało się usunąć badania" });
