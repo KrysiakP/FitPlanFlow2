@@ -61,7 +61,7 @@ export default function PlanForm() {
     enabled: isEdit,
   });
 
-  const { data: exerciseLibrary, isLoading: isLoadingLibrary } = useQuery<ExerciseLibrary[]>({
+  const { data: exerciseLibrary = [], isLoading: isLoadingLibrary } = useQuery<ExerciseLibrary[]>({
     queryKey: ["/api/exercises/library"],
   });
 
