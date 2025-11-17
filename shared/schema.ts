@@ -656,7 +656,9 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
 
 // Types for Replit Auth
 export type UpsertUser = typeof users.$inferInsert;
-export type User = typeof users.$inferSelect;
+export type User = typeof users.$inferSelect & {
+  profileImageDisplayUrl?: string | null; // Presigned URL for avatar display (7 days validity)
+};
 
 // Types for training plans
 export type TrainingPlan = typeof trainingPlans.$inferSelect;

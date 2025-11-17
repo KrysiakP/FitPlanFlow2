@@ -11,6 +11,7 @@ interface TrainerInfo {
   lastName: string;
   email: string;
   profileImageUrl?: string | null;
+  profileImageDisplayUrl?: string | null;
 }
 
 export default function MyTrainer() {
@@ -112,7 +113,7 @@ export default function MyTrainer() {
         <CardContent>
           <div className="flex items-start gap-6">
             <Avatar className="h-24 w-24" data-testid="avatar-trainer">
-              <AvatarImage src={trainer.profileImageUrl || undefined} />
+              <AvatarImage src={trainer.profileImageDisplayUrl || trainer.profileImageUrl || undefined} />
               <AvatarFallback className="text-2xl">
                 {getInitials(trainer.firstName, trainer.lastName)}
               </AvatarFallback>

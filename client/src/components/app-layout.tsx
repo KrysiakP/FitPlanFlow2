@@ -317,7 +317,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2" data-testid="button-user-menu">
                 <Avatar className="w-8 h-8">
-                  <AvatarImage src={user?.profileImageUrl || undefined} />
+                  <AvatarImage src={user?.profileImageDisplayUrl || user?.profileImageUrl || undefined} />
                   <AvatarFallback className="bg-primary/10 text-primary text-sm">
                     {getInitials(user?.firstName, user?.lastName)}
                   </AvatarFallback>

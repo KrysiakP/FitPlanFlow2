@@ -130,7 +130,7 @@ export default function TrainerReports() {
             {selectedClient && (
               <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
                 <Avatar className="w-12 h-12">
-                  <AvatarImage src={selectedClient.profileImageUrl || undefined} />
+                  <AvatarImage src={selectedClient.profileImageDisplayUrl || selectedClient.profileImageUrl || undefined} />
                   <AvatarFallback className="bg-primary/10 text-primary font-medium">
                     {getInitials(selectedClient.firstName, selectedClient.lastName)}
                   </AvatarFallback>

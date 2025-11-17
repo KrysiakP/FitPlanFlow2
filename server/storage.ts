@@ -1750,7 +1750,7 @@ export class DatabaseStorage implements IStorage {
           return {
             partnerId: client.id,
             partnerName: `${client.firstName} ${client.lastName}`,
-            partnerAvatar: client.profileImageUrl,
+            partnerAvatar: (client as any).profileImageDisplayUrl || client.profileImageUrl,
             trainerId: userId,
             clientId: client.id,
             lastMessage: lastMsg?.body || null,
@@ -1798,7 +1798,7 @@ export class DatabaseStorage implements IStorage {
       return [{
         partnerId: trainer.id,
         partnerName: `${trainer.firstName} ${trainer.lastName}`,
-        partnerAvatar: trainer.profileImageUrl,
+        partnerAvatar: (trainer as any).profileImageDisplayUrl || trainer.profileImageUrl,
         trainerId: trainer.id,
         clientId: userId,
         lastMessage: lastMsg?.body || null,

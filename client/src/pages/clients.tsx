@@ -178,7 +178,7 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
       <CardHeader>
         <div className="flex items-start gap-4">
           <Avatar className="w-16 h-16">
-            <AvatarImage src={client.profileImageUrl || undefined} />
+            <AvatarImage src={client.profileImageDisplayUrl || client.profileImageUrl || undefined} />
             <AvatarFallback className="bg-primary/10 text-primary font-medium text-lg">
               {getInitials(client.firstName, client.lastName)}
             </AvatarFallback>

@@ -25,6 +25,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState, useEffect } from "react";
+import { ObjectUploader } from "@/components/ObjectUploader";
+import type { UploadResult } from "@uppy/core";
 
 const profileSchema = z.object({
   bio: z.string().optional(),
@@ -45,6 +47,9 @@ export default function ClientProfile() {
   const [imageType, setImageType] = useState<"upload" | "url">("url");
   const [uploadProgress, setUploadProgress] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState<string>("");
+  const [objectPath, setObjectPath] = useState<string>("");
+  const [previewUrl, setPreviewUrl] = useState<string>("");
 
   const {
     data: profile,
@@ -84,24 +89,13 @@ export default function ClientProfile() {
     mutationFn: async (data: ProfileFormValues) => {
       let imageUrl = data.profileImageUrl;
 
-      if (imageType === "upload" && data.imageFile && data.imageFile[0]) {
-        setUploadProgress(true);
-        const formData = new FormData();
-        formData.append("file", data.imageFile[0]);
-
-        const uploadResponse = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
+      if (uploadedPhotoUrl) {
+        const photoResponse: any = await apiRequest("PUT", "/api/profile/photo", {
+          photoUrl: uploadedPhotoUrl,
         });
-
-        if (!uploadResponse.ok) {
-          const errorData = await uploadResponse.json();
-          throw new Error(errorData.message || "Nie udało się przesłać pliku");
-        }
-
-        const uploadData = await uploadResponse.json();
-        imageUrl = uploadData.url;
-        setUploadProgress(false);
+        data.profileImageUrl = photoResponse.objectPath;
+        setPreviewImage(photoResponse.publicUrl);
+        imageUrl = photoResponse.objectPath;
       }
 
       const profileData = {
@@ -119,11 +113,12 @@ export default function ClientProfile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/profile"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      setUploadedPhotoUrl("");
+      setImageType("url");
       toast({
-        title: "Profil zaktualizowany",
-        description: "Twój profil został pomyślnie zaktualizowany",
+        title: "Profil zaktualizowany!",
+        description: "Twoje zmiany zostały zapisane.",
       });
-      setPreviewImage(null);
     },
     onError: (error: Error) => {
       setUploadProgress(false);
@@ -135,13 +130,54 @@ export default function ClientProfile() {
     },
   });
 
+  const handleGetUploadParameters = async () => {
+    const response = await fetch("/api/objects/upload", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error("Failed to get upload URL");
+    }
+    
+    const data = await response.json();
+    
+    setObjectPath(data.objectPath);
+    setPreviewUrl(data.previewUrl);
+    
+    return {
+      method: "PUT" as const,
+      url: data.uploadURL,
+    };
+  };
+
+  const handleUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    if (result.successful && result.successful.length > 0 && objectPath) {
+      setUploadedPhotoUrl(objectPath);
+      setPreviewImage(previewUrl);
+      toast({
+        title: "Zdjęcie przesłane!",
+        description: "Zapisz profil aby dodać zdjęcie.",
+      });
+    }
+  };
+
   const onSubmitProfile = (data: ProfileFormValues) => {
     updateProfileMutation.mutate(data);
   };
 
   const handleCancelProfile = () => {
     profileForm.reset();
-    setPreviewImage(null);
+    setUploadedPhotoUrl("");
+    setObjectPath("");
+    setPreviewUrl("");
+    setImageType("url");
+    // Use USER auth state (stable) not PROFILE query (stale)
+    setPreviewImage(user?.profileImageDisplayUrl || user?.profileImageUrl || null);
+    // Trigger profile refetch to sync
+    queryClient.invalidateQueries({ queryKey: ["/api/profile"] });
   };
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,7 +210,7 @@ export default function ClientProfile() {
     if (imageType === "url" && profileForm.watch("profileImageUrl")) {
       return profileForm.watch("profileImageUrl");
     }
-    return profile?.profileImageUrl || user?.profileImageUrl || null;
+    return (profile as any)?.profileImageDisplayUrl || profile?.profileImageUrl || user?.profileImageUrl || null;
   };
 
   if (isLoadingProfile) {
@@ -301,33 +337,25 @@ export default function ClientProfile() {
                       />
                     </TabsContent>
                     <TabsContent value="upload" className="space-y-4">
-                      <FormField
-                        control={profileForm.control}
-                        name="imageFile"
-                        render={({ field: { onChange, value, ...field } }) => (
-                          <FormItem>
-                            <FormControl>
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) => {
-                                    onChange(e.target.files);
-                                    handleImageFileChange(e);
-                                  }}
-                                  {...field}
-                                  data-testid="input-profile-image-upload"
-                                />
-                                <Upload className="w-4 h-4 text-muted-foreground" />
-                              </div>
-                            </FormControl>
-                            <FormDescription>
-                              Maksymalny rozmiar: 5MB. Dozwolone formaty: JPG, PNG, WEBP
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <FormItem>
+                        <FormControl>
+                          <ObjectUploader
+                            maxNumberOfFiles={1}
+                            maxFileSize={5242880}
+                            onGetUploadParameters={handleGetUploadParameters}
+                            onComplete={handleUploadComplete}
+                            buttonClassName="w-full md:w-auto"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Upload className="w-4 h-4" />
+                              <span>Wybierz zdjęcie</span>
+                            </div>
+                          </ObjectUploader>
+                        </FormControl>
+                        <FormDescription>
+                          Maksymalny rozmiar: 5MB. Dozwolone formaty: JPG, PNG, WEBP
+                        </FormDescription>
+                      </FormItem>
                     </TabsContent>
                   </Tabs>
                 </div>

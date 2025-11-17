@@ -368,9 +368,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const entityId = pathParts.slice(privateDirParts.length).join('/'); // e.g., "uploads/uuid"
       const objectPath = `/objects/${entityId}`;
       
+      // Generate preview URL for immediate preview after upload
+      const previewUrl = await objectStorageService.getObjectReadUrl(objectPath);
+      
       res.json({ 
         uploadURL,
-        objectPath 
+        objectPath,
+        previewUrl
       });
     } catch (error) {
       console.error("Error getting upload URL:", error);
@@ -649,8 +653,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
+      
+      let profileImageDisplayUrl = null;
+      if (user.profileImageUrl) {
+        const objectStorageService = new ObjectStorageService();
+        profileImageDisplayUrl = await objectStorageService.getObjectReadUrl(user.profileImageUrl);
+      }
+      
       const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+      res.json({
+        ...userWithoutPassword,
+        profileImageDisplayUrl,
+      });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -1626,7 +1640,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const profile = await storage.getUserProfile(userId);
-      res.json(profile || null);
+      
+      // Generate presigned URL for profileImageUrl if it exists
+      let profileImageDisplayUrl = null;
+      if (profile?.profileImageUrl) {
+        const objectStorageService = new ObjectStorageService();
+        profileImageDisplayUrl = await objectStorageService.getObjectReadUrl(profile.profileImageUrl);
+      }
+      
+      res.json(profile ? {
+        ...profile,
+        profileImageDisplayUrl,
+      } : null);
     } catch (error) {
       console.error("Error fetching profile:", error);
       res.status(500).json({ message: "Failed to fetch profile" });
@@ -1675,6 +1700,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating profile:", error);
       res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  app.put("/api/profile/photo", isAuthenticated, async (req, res) => {
+    if (!req.body.photoUrl) {
+      return res.status(400).json({ message: "photoUrl jest wymagane" });
+    }
+
+    const userId = req.session.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Wymagane uwierzytelnienie" });
+    }
+
+    try {
+      const objectStorageService = new ObjectStorageService();
+      
+      const normalizedPath = objectStorageService.normalizeObjectEntityPath(req.body.photoUrl);
+      
+      if (!normalizedPath) {
+        console.warn(`Invalid object URL rejected: ${req.body.photoUrl}`);
+        return res.status(400).json({ message: "Nieprawidłowy URL zdjęcia" });
+      }
+      
+      try {
+        const objectFile = await objectStorageService.getObjectEntityFile(normalizedPath);
+        const existingAcl = await objectStorageService.getObjectAclPolicy(objectFile);
+        
+        if (existingAcl && existingAcl.owner !== userId) {
+          console.error(`Object owner mismatch: ${existingAcl.owner} !== ${userId}`);
+          return res.status(403).json({ message: "Nie możesz użyć zdjęcia innego użytkownika" });
+        }
+      } catch (error) {
+        console.info(`New object upload: ${normalizedPath}`);
+      }
+      
+      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
+        req.body.photoUrl,
+        {
+          owner: userId,
+          visibility: "public",
+        }
+      );
+      
+      if (!objectPath) {
+        console.error(`Failed to set ACL policy for: ${req.body.photoUrl}`);
+        return res.status(400).json({ message: "Nie udało się ustawić uprawnień do zdjęcia" });
+      }
+
+      const publicUrl = await objectStorageService.getObjectReadUrl(objectPath);
+      
+      if (!publicUrl) {
+        console.error(`Failed to generate public URL for: ${objectPath}`);
+        return res.status(500).json({ message: "Nie udało się wygenerować publicznego URL" });
+      }
+
+      await storage.updateUserProfile(userId, { profileImageUrl: objectPath });
+
+      res.status(200).json({
+        objectPath: objectPath,
+        publicUrl: publicUrl,
+      });
+    } catch (error) {
+      console.error("Error setting profile photo:", error);
+      res.status(500).json({ message: "Błąd podczas zapisywania zdjęcia" });
     }
   });
 
