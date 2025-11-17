@@ -194,8 +194,8 @@ export default function DietPlanForm() {
         planId = result.id;
       }
 
-      // Save supplements for macro_with_meals and full_plan modes
-      if ((data.mode === 'macro_with_meals' || data.mode === 'full_plan') && planId) {
+      // Save supplements for all diet modes
+      if (planId) {
         // Get existing supplements if editing
         const existingSups = isEdit ? existingSupplements || [] : [];
         
@@ -732,15 +732,14 @@ export default function DietPlanForm() {
             </CardContent>
           </Card>
 
-          {(form.watch("mode") === 'macro_with_meals' || form.watch("mode") === 'full_plan') && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Pill className="w-5 h-5" />
-                  <CardTitle className="font-heading">Suplementacja</CardTitle>
-                </div>
-                <CardDescription>Dodaj suplementy z dawkowaniem i częstotliwością</CardDescription>
-              </CardHeader>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Pill className="w-5 h-5" />
+                <CardTitle className="font-heading">Suplementacja</CardTitle>
+              </div>
+              <CardDescription>Dodaj suplementy z dawkowaniem i częstotliwością</CardDescription>
+            </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="space-y-2">
@@ -914,7 +913,6 @@ export default function DietPlanForm() {
                 )}
               </CardContent>
             </Card>
-          )}
 
           {form.watch("mode") === 'full_plan' && (
             <Card>
