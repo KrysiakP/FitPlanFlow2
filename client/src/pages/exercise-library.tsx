@@ -66,6 +66,7 @@ function ExerciseDialog({
   const [open, setOpen] = useState(false);
   const [videoType, setVideoType] = useState<"upload" | "url">("url");
   const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(exercise?.id || null);
+  const [videoObjectPath, setVideoObjectPath] = useState<string | null>(null);
 
   const form = useForm<ExerciseFormValues>({
     resolver: zodResolver(exerciseFormSchema),
@@ -107,15 +108,12 @@ function ExerciseDialog({
         title: exercise ? "Ćwiczenie zaktualizowane" : "Ćwiczenie dodane",
         description: exercise
           ? "Ćwiczenie zostało pomyślnie zaktualizowane"
-          : "Ćwiczenie zostało pomyślnie dodane do biblioteki. Możesz teraz dodać film.",
+          : "Ćwiczenie zostało pomyślnie dodane do biblioteki",
       });
       
-      // Only close if no video upload is needed
-      if (videoType === "url" || videoUrl) {
-        setOpen(false);
-        form.reset();
-        onSuccess?.();
-      }
+      setOpen(false);
+      form.reset();
+      onSuccess?.();
     },
     onError: () => {
       toast({
@@ -313,18 +311,7 @@ function ExerciseDialog({
 
                 <TabsContent value="upload" className="space-y-2">
                   <div className="space-y-4">
-                    {!currentExerciseId ? (
-                      <Alert>
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>Informacja</AlertTitle>
-                        <AlertDescription>
-                          Aby przesłać film, najpierw zapisz ćwiczenie klikając "Dodaj ćwiczenie" poniżej.
-                          Następnie będziesz mógł przesłać film.
-                        </AlertDescription>
-                      </Alert>
-                    ) : (
-                      <>
-                        <ObjectUploader
+                    <ObjectUploader
                           maxNumberOfFiles={1}
                           maxFileSize={52428800}
                           onGetUploadParameters={async () => {
@@ -338,39 +325,33 @@ function ExerciseDialog({
                             }
                             
                             const data = await response.json();
+                            
+                            // Store objectPath in state to use in onComplete
+                            // This is the permanent path (e.g., /objects/uploads/uuid)
+                            // NOT the temporary presigned URL
+                            setVideoObjectPath(data.objectPath);
+                            
                             return {
                               method: "PUT" as const,
                               url: data.uploadURL,
                             };
                           }}
                           onComplete={async (result) => {
-                            if (!currentExerciseId) return;
-                            
                             const uploadedFile = result.successful?.[0];
                             if (!uploadedFile) return;
                             
-                            try {
-                              const response: any = await apiRequest(
-                                "PUT",
-                                `/api/exercises/library/${currentExerciseId}/video`,
-                                { videoUrl: uploadedFile.uploadURL }
-                              );
-                              
-                              form.setValue("videoUrl", response.objectPath);
-                              queryClient.invalidateQueries({ queryKey: ["/api/exercises/library"] });
-                              
+                            // Use the objectPath stored during upload, NOT the presigned uploadURL
+                            // The presigned URL expires, but objectPath is permanent
+                            if (videoObjectPath) {
+                              form.setValue("videoUrl", videoObjectPath);
                               toast({
-                                title: "Film dodany",
-                                description: "Film został pomyślnie przesłany i dodany do ćwiczenia",
+                                title: "Film przesłany",
+                                description: "Kliknij 'Dodaj ćwiczenie' aby zapisać",
                               });
-                              
-                              setOpen(false);
-                              form.reset();
-                              onSuccess?.();
-                            } catch (error) {
+                            } else {
                               toast({
                                 title: "Błąd",
-                                description: "Nie udało się zapisać filmu",
+                                description: "Nie udało się uzyskać ścieżki filmu",
                                 variant: "destructive",
                               });
                             }
@@ -383,8 +364,6 @@ function ExerciseDialog({
                         <p className="text-sm text-muted-foreground">
                           Maksymalny rozmiar pliku: 50MB (mp4, mov, avi, webm)
                         </p>
-                      </>
-                    )}
                   </div>
                 </TabsContent>
               </Tabs>

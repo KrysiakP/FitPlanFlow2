@@ -351,7 +351,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const objectStorageService = new ObjectStorageService();
     try {
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-      res.json({ uploadURL });
+      
+      // Extract object path from upload URL
+      // uploadURL format: https://storage.googleapis.com/<bucket>/<path>?signature=...
+      // We need to convert this to /objects/<entityId> format for ACL checks
+      const url = new URL(uploadURL);
+      const pathParts = url.pathname.split('/').filter(p => p); // Remove empty strings
+      
+      // pathname format: /<bucket>/.private/uploads/<uuid>
+      // We need to extract just "uploads/<uuid>" part (everything after PRIVATE_OBJECT_DIR)
+      // PRIVATE_OBJECT_DIR format: /<bucket>/.private
+      const privateDir = objectStorageService.getPrivateObjectDir();
+      const privateDirParts = privateDir.split('/').filter(p => p); // e.g., ["bucket-name", ".private"]
+      
+      // Skip the bucket and .private parts to get the entity ID
+      const entityId = pathParts.slice(privateDirParts.length).join('/'); // e.g., "uploads/uuid"
+      const objectPath = `/objects/${entityId}`;
+      
+      res.json({ 
+        uploadURL,
+        objectPath 
+      });
     } catch (error) {
       console.error("Error getting upload URL:", error);
       res.status(500).json({ error: "Błąd podczas generowania URL uploadu" });
@@ -1374,6 +1394,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const exercise = await storage.createExerciseLibrary({ ...validationResult.data, trainerId: userId }, userId);
+
+      // If videoUrl is object storage path, set ACL policy
+      if (exercise.videoUrl && exercise.videoUrl.startsWith('/objects/')) {
+        const objectStorageService = new ObjectStorageService();
+        try {
+          await objectStorageService.trySetObjectEntityAclPolicy(
+            exercise.videoUrl,
+            {
+              owner: userId,
+              visibility: "public",
+            }
+          );
+        } catch (error) {
+          console.error("Failed to set ACL for exercise video:", error);
+          // Continue - video URL is saved, ACL can be set later if needed
+        }
+      }
+
       res.json(exercise);
     } catch (error) {
       console.error("Error creating exercise:", error);
