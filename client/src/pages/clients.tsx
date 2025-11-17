@@ -66,7 +66,6 @@ type ClientWithAssignment = UserType & {
 
 function ClientCard({ client }: { client: ClientWithAssignment }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const { toast } = useToast();
 
   const { data: clientProgress, isLoading: isLoadingProgress } = useQuery<ClientProgress | null>({
@@ -514,7 +513,7 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
         <Separator />
 
         <div className="flex justify-end">
-          <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+          <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button 
                 variant="outline" 
@@ -547,10 +546,7 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
               <AlertDialogFooter>
                 <AlertDialogCancel data-testid="button-cancel-archive">Anuluj</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={() => {
-                    archiveClientMutation.mutate(client.id);
-                    setShowArchiveDialog(false);
-                  }}
+                  onClick={() => archiveClientMutation.mutate(client.id)}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   data-testid="button-confirm-archive"
                 >
