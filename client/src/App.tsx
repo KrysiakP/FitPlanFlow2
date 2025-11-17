@@ -83,9 +83,9 @@ function Router() {
             <Route path="/clients" component={Clients} />
             <Route path="/trainer/clients/:clientId/progress" component={TrainerClientProgress} />
             <Route path="/trainer/clients/:clientId/diet" component={TrainerClientDietStats} />
-            <Route path="/trainer/diets" component={TrainerDiets} />
             <Route path="/trainer/diets/new" component={DietPlanForm} />
             <Route path="/trainer/diets/:id/edit" component={DietPlanForm} />
+            <Route path="/trainer/diets" component={TrainerDiets} />
             <Route path="/invite" component={InviteClient} />
             <Route path="/trainer/reports" component={TrainerReports} />
             <Route path="/chat/:clientId" component={Chat} />
