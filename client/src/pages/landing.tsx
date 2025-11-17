@@ -6,11 +6,14 @@ import { Link } from "wouter";
 import { PublicHeader } from "@/components/public-header";
 import { TrainerSection } from "@/components/landing/TrainerSection";
 import { PricingSection } from "@/components/landing/PricingSection";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Landing() {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen bg-background">
-      <PublicHeader />
+      {!user && <PublicHeader />}
 
       <main>
         <section className="py-20 px-4">
