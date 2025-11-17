@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
-import { Calendar as CalendarIcon, Droplet, Loader2, Pill } from "lucide-react";
+import { Calendar as CalendarIcon, Droplet, Loader2, Pill, Apple } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -247,6 +247,22 @@ export default function ClientDiet() {
                           </p>
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {dietPlan.mode === 'macro_with_meals' && dietPlan.recommendedProducts && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Apple className="w-4 h-4" />
+                        <h4 className="font-heading font-semibold">Polecane produkty</h4>
+                      </div>
+                      <Card>
+                        <CardContent className="p-4">
+                          <p className="text-sm whitespace-pre-wrap" data-testid="text-recommended-products">
+                            {dietPlan.recommendedProducts}
+                          </p>
+                        </CardContent>
+                      </Card>
                     </div>
                   )}
 

@@ -38,6 +38,7 @@ const planSchema = z.object({
   targetFat: z.coerce.number().min(1, "Tłuszcze muszą być większe od 0"),
   targetCarbs: z.coerce.number().min(1, "Węglowodany muszą być większe od 0"),
   mealsPerDay: z.coerce.number().int().min(3, "Minimum 3 posiłki").max(6, "Maksimum 6 posiłków").optional(),
+  recommendedProducts: z.string().optional(),
   status: z.enum(["draft", "active", "completed"]),
   startDate: z.date().optional().nullable(),
   endDate: z.date().optional().nullable(),
@@ -122,6 +123,7 @@ export default function DietPlanForm() {
       targetFat: 65,
       targetCarbs: 200,
       mealsPerDay: 5,
+      recommendedProducts: "",
       status: "draft",
       startDate: null,
       endDate: null,
@@ -143,6 +145,7 @@ export default function DietPlanForm() {
       targetFat: existingPlan.targetFat,
       targetCarbs: existingPlan.targetCarbs,
       mealsPerDay: existingPlan.mealsPerDay,
+      recommendedProducts: existingPlan.recommendedProducts || "",
       status: existingPlan.status as "draft" | "active" | "completed",
       startDate: existingPlan.startDate ? new Date(existingPlan.startDate) : null,
       endDate: existingPlan.endDate ? new Date(existingPlan.endDate) : null,
@@ -169,6 +172,7 @@ export default function DietPlanForm() {
           targetFat: data.targetFat,
           targetCarbs: data.targetCarbs,
           mealsPerDay: data.mealsPerDay,
+          recommendedProducts: data.recommendedProducts,
           status: data.status,
           startDate: data.startDate,
           endDate: data.endDate,
@@ -185,6 +189,7 @@ export default function DietPlanForm() {
           targetFat: data.targetFat,
           targetCarbs: data.targetCarbs,
           mealsPerDay: data.mealsPerDay,
+          recommendedProducts: data.recommendedProducts,
           status: data.status,
           startDate: data.startDate,
           endDate: data.endDate,
@@ -633,6 +638,30 @@ export default function DietPlanForm() {
                           ? "Liczba posiłków bez szczegółowych przepisów"
                           : "Liczba posiłków w szczegółowym planie"
                         }
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {form.watch("mode") === 'macro_with_meals' && (
+                <FormField
+                  control={form.control}
+                  name="recommendedProducts"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Lista polecanych produktów</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="np. kurczak, ryż, brokuły, jajka, owoce, orzechy, jogurt naturalny, awokado..."
+                          className="resize-none min-h-[120px]"
+                          {...field}
+                          data-testid="textarea-recommended-products"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Wpisz polecane produkty oddzielone przecinkami
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

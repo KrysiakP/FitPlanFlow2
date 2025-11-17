@@ -229,6 +229,14 @@ export default function TrainerDiets() {
                       {plan.mealsPerDay}
                     </span>
                   </div>
+                  {plan.mode === 'macro_with_meals' && plan.recommendedProducts && (
+                    <div className="text-sm pt-2">
+                      <p className="text-muted-foreground mb-1">Polecane produkty:</p>
+                      <p className="text-sm" data-testid={`text-recommended-products-${plan.id}`}>
+                        {plan.recommendedProducts}
+                      </p>
+                    </div>
+                  )}
                   {(plan.startDate || plan.endDate) && (
                     <div className="text-xs text-muted-foreground pt-1">
                       {plan.startDate && (

@@ -211,6 +211,7 @@ export const dietPlans = pgTable("diet_plans", {
   targetCarbs: integer("target_carbs").notNull(), // gramy
   mealsPerDay: integer("meals_per_day").notNull(), // 3-6
   mode: varchar("mode", { length: 50 }).notNull().default('macro_only'), // 'macro_only', 'macro_with_meals', 'full_plan'
+  recommendedProducts: text("recommended_products"), // Lista polecanych produktów dla macro_with_meals (opcjonalne)
   status: varchar("status", { length: 20 }).notNull().default("draft"), // draft/active/completed
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),
@@ -814,6 +815,7 @@ export const insertDietPlanSchema = createInsertSchema(dietPlans).omit({
     errorMap: () => ({ message: "Tryb diety musi być: macro_only, macro_with_meals lub full_plan" }) 
   }).default('macro_only'),
   mealsPerDay: z.coerce.number().int().min(3, "Liczba posiłków musi być między 3 a 6").max(6, "Liczba posiłków musi być między 3 a 6").optional(),
+  recommendedProducts: z.string().optional(),
 });
 
 export const insertDietMealSchema = createInsertSchema(dietMeals).omit({
