@@ -209,6 +209,7 @@ export interface IStorage {
   
   // Medical Tests
   getMedicalTestsByClient(clientId: string): Promise<MedicalTest[]>;
+  getMedicalTestById(testId: string): Promise<MedicalTest | undefined>;
   createMedicalTest(data: InsertMedicalTest): Promise<MedicalTest>;
   deleteMedicalTest(testId: string): Promise<void>;
   
@@ -1595,6 +1596,15 @@ export class DatabaseStorage implements IStorage {
       .from(medicalTests)
       .where(eq(medicalTests.clientId, clientId))
       .orderBy(desc(medicalTests.testDate));
+  }
+  
+  async getMedicalTestById(testId: string): Promise<MedicalTest | undefined> {
+    const [test] = await db
+      .select()
+      .from(medicalTests)
+      .where(eq(medicalTests.id, testId))
+      .limit(1);
+    return test;
   }
   
   async createMedicalTest(data: InsertMedicalTest): Promise<MedicalTest> {

@@ -3134,16 +3134,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
       const { clientId } = req.params;
 
-      // Only trainers can add medical tests
-      if (user?.role !== "trainer") {
-        return res.status(403).json({ message: "Tylko trenerzy mogą dodawać badania medyczne" });
+      // Only clients can add their own medical tests
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko podopieczni mogą dodawać swoje badania medyczne" });
       }
 
-      // Verify the client belongs to this trainer
-      const relationship = await storage.getClientRelationship(userId, clientId);
-      if (!relationship || relationship.status !== 'active') {
-        return res.status(403).json({ message: "Ten podopieczny nie należy do Twoich klientów" });
+      // Client can only add their own tests
+      if (userId !== clientId) {
+        return res.status(403).json({ message: "Możesz dodawać tylko swoje badania medyczne" });
       }
+
+      // Get the client's trainer (if any)
+      const trainer = await storage.getTrainerForClient(clientId);
 
       const validationResult = insertMedicalTestSchema.safeParse(req.body);
 
@@ -3165,7 +3167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const test = await storage.createMedicalTest({
         ...validationResult.data,
         clientId,
-        trainerId: userId,
+        trainerId: trainer?.id || clientId, // Use trainer ID if exists, otherwise client ID
       });
 
       res.status(201).json(test);
@@ -3181,14 +3183,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
       const { testId } = req.params;
 
-      // Only trainers can delete medical tests
-      if (user?.role !== "trainer") {
-        return res.status(403).json({ message: "Tylko trenerzy mogą usuwać badania medyczne" });
+      // Only clients can delete their own medical tests
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko podopieczni mogą usuwać swoje badania medyczne" });
       }
 
-      // Get the test to verify ownership
-      const tests = await storage.getMedicalTestsByClient(""); // We'll need to get the test first
-      // For now, we'll just delete it - in production you'd verify trainer owns this client
+      // Get the test to verify it belongs to this client
+      const test = await storage.getMedicalTestById(testId);
+      if (!test) {
+        return res.status(404).json({ message: "Badanie nie znalezione" });
+      }
+
+      if (test.clientId !== userId) {
+        return res.status(403).json({ message: "Możesz usuwać tylko swoje badania medyczne" });
+      }
       
       await storage.deleteMedicalTest(testId);
       res.json({ message: "Badanie zostało usunięte" });
