@@ -2021,7 +2021,6 @@ export class DatabaseStorage implements IStorage {
       .update(referralEvents)
       .set({
         status: 'bonus_granted',
-        bonusDaysGranted: bonusDays,
         qualifiedAt: now,
         bonusGrantedAt: now,
       })
@@ -2057,7 +2056,6 @@ export class DatabaseStorage implements IStorage {
         .update(referralEvents)
         .set({
           status: 'bonus_granted',
-          bonusDaysGranted: bonusDays,
           qualifiedAt: now,
           bonusGrantedAt: now,
         })
@@ -2074,7 +2072,7 @@ export class DatabaseStorage implements IStorage {
         return { success: false, event: null };
       }
 
-      // Step 2: Apply bonus (in same transaction)
+      // Step 2: Apply bonus to REFERRER (polecający trener - zawsze dostaje bonus)
       await tx
         .update(users)
         .set({
@@ -2088,7 +2086,29 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(users.id, event.referrerTrainerId));
 
-      console.log(`[REFERRAL] Successfully processed bonus for event ${eventId}, granting ${bonusDays} days to trainer ${event.referrerTrainerId}`);
+      // Step 3: Apply bonus to REFERRED user ONLY if they are a trainer (klienci nie płacą więc bonus nie ma dla nich sensu)
+      await tx
+        .update(users)
+        .set({
+          referralBonusDays: sql`COALESCE(${users.referralBonusDays}, 0) + ${bonusDays}`,
+          trialEndsAt: sql`CASE 
+            WHEN ${users.trialEndsAt} IS NULL THEN NOW() + INTERVAL '${sql.raw(bonusDays.toString())} days'
+            WHEN ${users.trialEndsAt} > NOW() THEN ${users.trialEndsAt} + INTERVAL '${sql.raw(bonusDays.toString())} days'
+            ELSE NOW() + INTERVAL '${sql.raw(bonusDays.toString())} days'
+          END`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(users.id, event.referredUserId),
+            eq(users.role, 'trainer')
+          )
+        );
+
+      const logMessage = event.referredRole === 'trainer' 
+        ? `[REFERRAL] Successfully processed bonus for event ${eventId}, granting ${bonusDays} days to BOTH referrer ${event.referrerTrainerId} AND referred trainer ${event.referredUserId}`
+        : `[REFERRAL] Successfully processed bonus for event ${eventId}, granting ${bonusDays} days to referrer ${event.referrerTrainerId} (referred user is client, no bonus)`;
+      console.log(logMessage);
       return { success: true, event };
     });
 
