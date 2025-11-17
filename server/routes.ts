@@ -544,6 +544,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName,
         lastName,
         role,
+        trialEndsAt: null,
+        referredByTrainerId: referralCode ? referralCode.trainerId : null,
+        referralBonusDays: 0,
       });
 
       if (role === 'trainer') {
@@ -2402,6 +2405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const plan = await storage.createDietPlan({
         ...validationResult.data,
         trainerId: userId,
+        mealsPerDay: validationResult.data.mealsPerDay ?? 3,
       });
       res.status(201).json(plan);
     } catch (error) {
@@ -3303,7 +3307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       
-      if (!user?.role) {
+      if (!user?.role || (user.role !== 'trainer' && user.role !== 'client')) {
         return res.status(400).json({ message: "Użytkownik nie ma przypisanej roli" });
       }
 
@@ -3321,7 +3325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       
-      if (!user?.role) {
+      if (!user?.role || (user.role !== 'trainer' && user.role !== 'client')) {
         return res.status(400).json({ message: "Użytkownik nie ma przypisanej roli" });
       }
 
@@ -3339,7 +3343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
       const { trainerId, clientId } = req.params;
       
-      if (!user?.role) {
+      if (!user?.role || (user.role !== 'trainer' && user.role !== 'client')) {
         return res.status(400).json({ message: "Użytkownik nie ma przypisanej roli" });
       }
 

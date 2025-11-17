@@ -222,9 +222,10 @@ export interface IStorage {
   // Chat Messages
   getConversations(userId: string, role: 'trainer' | 'client'): Promise<Array<{
     partnerId: string;
-    partnerFirstName: string;
-    partnerLastName: string;
-    partnerProfileImageUrl: string | null;
+    partnerName: string;
+    partnerAvatar: string | null;
+    trainerId: string;
+    clientId: string;
     lastMessage: string | null;
     lastMessageAt: Date | null;
     unreadCount: number;
@@ -1686,9 +1687,10 @@ export class DatabaseStorage implements IStorage {
   // Chat Messages
   async getConversations(userId: string, role: 'trainer' | 'client'): Promise<Array<{
     partnerId: string;
-    partnerFirstName: string;
-    partnerLastName: string;
-    partnerProfileImageUrl: string | null;
+    partnerName: string;
+    partnerAvatar: string | null;
+    trainerId: string;
+    clientId: string;
     lastMessage: string | null;
     lastMessageAt: Date | null;
     unreadCount: number;
@@ -1727,9 +1729,10 @@ export class DatabaseStorage implements IStorage {
 
           return {
             partnerId: client.id,
-            partnerFirstName: client.firstName,
-            partnerLastName: client.lastName,
-            partnerProfileImageUrl: client.profileImageUrl,
+            partnerName: `${client.firstName} ${client.lastName}`,
+            partnerAvatar: client.profileImageUrl,
+            trainerId: userId,
+            clientId: client.id,
             lastMessage: lastMsg?.body || null,
             lastMessageAt: lastMsg?.createdAt || null,
             unreadCount: unreadResult[0]?.count || 0,
@@ -1774,9 +1777,10 @@ export class DatabaseStorage implements IStorage {
 
       return [{
         partnerId: trainer.id,
-        partnerFirstName: trainer.firstName,
-        partnerLastName: trainer.lastName,
-        partnerProfileImageUrl: trainer.profileImageUrl,
+        partnerName: `${trainer.firstName} ${trainer.lastName}`,
+        partnerAvatar: trainer.profileImageUrl,
+        trainerId: trainer.id,
+        clientId: userId,
         lastMessage: lastMsg?.body || null,
         lastMessageAt: lastMsg?.createdAt || null,
         unreadCount: unreadResult[0]?.count || 0,
