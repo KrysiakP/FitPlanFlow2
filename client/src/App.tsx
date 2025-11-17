@@ -97,6 +97,7 @@ function Router() {
             <Route path="/pomagamy" component={Pomagamy} />
             <Route path="/pricing" component={Pricing} />
             <Route path="/referrals" component={Referrals} />
+            <Route path="/profile/:userId" component={TrainerProfile} />
             <Route path="/profile" component={TrainerProfile} />
           </>
         ) : (
@@ -112,6 +113,7 @@ function Router() {
             <Route path="/payment-schedule" component={PaymentSchedule} />
             <Route path="/pomagamy" component={Pomagamy} />
             <Route path="/pricing" component={Pricing} />
+            <Route path="/profile/:userId" component={ClientProfile} />
             <Route path="/profile" component={ClientProfile} />
           </>
         )}

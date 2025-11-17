@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Upload, Pill, Heart } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { AlertCircle, Upload, Pill, Heart, ArrowLeft, Mail, Phone, User } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Link, useParams, useLocation } from "wouter";
 import type { UserProfile } from "@shared/schema";
 import {
   Form,
@@ -41,9 +44,24 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
+type ProfileData = {
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string | null;
+    profileImageUrl: string | null;
+    profileImageDisplayUrl: string | null;
+  };
+  profile: UserProfile | null;
+};
+
 export default function ClientProfile() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const params = useParams<{ userId?: string }>();
+  const [, navigate] = useLocation();
   const [imageType, setImageType] = useState<"upload" | "url">("url");
   const [uploadProgress, setUploadProgress] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -51,13 +69,41 @@ export default function ClientProfile() {
   const [objectPath, setObjectPath] = useState<string>("");
   const [previewUrl, setPreviewUrl] = useState<string>("");
 
+  const viewingOtherProfile = !!params.userId;
+  const isOwnProfile = !params.userId || params.userId === user?.id;
+
+  // FIX: ALWAYS fetch profile data (even for own profile)
+  // Use single unified query that works for both own and other profiles
   const {
-    data: profile,
-    isLoading: isLoadingProfile,
-    error: profileError,
-    refetch: refetchProfile,
-  } = useQuery<UserProfile | null>({
-    queryKey: ["/api/profile"],
+    data: profileData,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery<ProfileData>({
+    queryKey: params.userId ? ["/api/profile", params.userId] : ["/api/profile", user?.id],
+    queryFn: async () => {
+      // When viewing own profile (no params.userId), fetch using own user ID
+      // When viewing other profile, fetch using params.userId
+      const targetUserId = params.userId || user?.id;
+      
+      if (!targetUserId) {
+        throw new Error("Brak ID użytkownika");
+      }
+
+      const response = await fetch(`/api/profile/${targetUserId}`, {
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error("Brak dostępu do tego profilu");
+        }
+        throw new Error("Nie udało się pobrać profilu");
+      }
+      
+      return await response.json();
+    },
+    enabled: !!user?.id, // Only fetch when we have a user ID
   });
 
   const profileForm = useForm<ProfileFormValues>({
@@ -72,18 +118,23 @@ export default function ClientProfile() {
     },
   });
 
+  // FIX: Use complete profile data from unified query
+  const displayUser = profileData?.user;
+  const displayProfile = profileData?.profile;
+
   useEffect(() => {
-    if (profile) {
+    // Populate form when viewing own profile
+    if (isOwnProfile && displayProfile) {
       profileForm.reset({
-        bio: profile.bio || "",
-        profileImageUrl: profile.profileImageUrl || "",
-        phone: profile.phone || "",
-        pharmacologicalSupport: profile.pharmacologicalSupport || "",
-        injuries: profile.injuries || "",
-        healthIssues: profile.healthIssues || "",
+        bio: displayProfile.bio || "",
+        profileImageUrl: displayProfile.profileImageUrl || "",
+        phone: displayProfile.phone || "",
+        pharmacologicalSupport: displayProfile.pharmacologicalSupport || "",
+        injuries: displayProfile.injuries || "",
+        healthIssues: displayProfile.healthIssues || "",
       });
     }
-  }, [profile, profileForm]);
+  }, [displayProfile, profileForm, isOwnProfile]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: ProfileFormValues) => {
@@ -202,307 +253,408 @@ export default function ClientProfile() {
   const getInitials = (firstName?: string | null, lastName?: string | null) => {
     const first = firstName?.charAt(0) || "";
     const last = lastName?.charAt(0) || "";
-    return (first + last).toUpperCase() || "U";
+    return (first + last).toUpperCase() || "?";
   };
 
-  const getCurrentImageUrl = () => {
-    if (previewImage) return previewImage;
-    if (imageType === "url" && profileForm.watch("profileImageUrl")) {
-      return profileForm.watch("profileImageUrl");
-    }
-    return (profile as any)?.profileImageDisplayUrl || profile?.profileImageUrl || user?.profileImageUrl || null;
+  const getRoleBadgeVariant = (role: string | null) => {
+    if (role === "trainer") return "default";
+    if (role === "client") return "secondary";
+    return "outline";
   };
 
-  if (isLoadingProfile) {
+  const getRoleLabel = (role: string | null) => {
+    if (role === "trainer") return "Trener";
+    if (role === "client") return "Podopieczny";
+    return "Użytkownik";
+  };
+
+  if (isLoading || isLoadingOwn) {
     return (
-      <div className="space-y-8">
-        <div>
-          <Skeleton className="h-10 w-64 mb-2" />
-          <Skeleton className="h-5 w-96" />
-        </div>
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
+        <Skeleton className="h-12 w-64" />
         <Card>
           <CardHeader>
-            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-8 w-48" />
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center gap-6">
-              <Skeleton className="h-24 w-24 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-48" />
-                <Skeleton className="h-10 w-32" />
-              </div>
-            </div>
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-32" />
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-24 w-full" />
+          <CardContent className="space-y-4">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-5/6" />
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  if (profileError) {
+  if (error) {
     return (
-      <div className="space-y-8">
-        <div>
-          <h1 className="font-heading font-bold text-4xl mb-2">Mój profil</h1>
-          <p className="text-muted-foreground">
-            Zarządzaj swoim profilem osobistym
-          </p>
-        </div>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Błąd</AlertTitle>
-          <AlertDescription className="flex items-center justify-between">
-            <span>Nie udało się załadować profilu</span>
-            <Button variant="outline" size="sm" onClick={() => refetchProfile()}>
-              Spróbuj ponownie
-            </Button>
+      <div className="max-w-4xl mx-auto p-6">
+        <Alert variant="destructive" data-testid="alert-profile-error">
+          <AlertCircle className="w-4 h-4" />
+          <AlertTitle>Błąd dostępu</AlertTitle>
+          <AlertDescription>
+            {error.message || "Nie udało się załadować profilu"}
           </AlertDescription>
         </Alert>
+        <Button 
+          asChild 
+          variant="outline" 
+          className="mt-4"
+          data-testid="button-back-to-dashboard"
+        >
+          <Link href="/">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Powrót do panelu
+          </Link>
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="font-heading font-bold text-4xl mb-2" data-testid="text-profile-title">
-          Mój profil
-        </h1>
-        <p className="text-muted-foreground">
-          Zarządzaj swoim profilem osobistym
-        </p>
-      </div>
+    <div className="max-w-4xl mx-auto p-6 space-y-8">
+      {/* Back navigation when viewing another user's profile */}
+      {viewingOtherProfile && (
+        <Button 
+          asChild 
+          variant="ghost" 
+          className="gap-2"
+          data-testid="button-back-navigation"
+        >
+          <Link href="/">
+            <ArrowLeft className="w-4 h-4" />
+            Powrót do panelu
+          </Link>
+        </Button>
+      )}
 
-      {/* Profile Section */}
-      <Card>
+      {/* TOP SECTION - READONLY PROFILE INFO */}
+      <Card data-testid="card-profile-readonly">
         <CardHeader>
-          <CardTitle>Dane osobowe</CardTitle>
-          <CardDescription>
-            Zaktualizuj swoje informacje kontaktowe i opis profilu
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...profileForm}>
-            <form onSubmit={profileForm.handleSubmit(onSubmitProfile)} className="space-y-6">
-              <div className="flex items-start gap-6">
-                <div className="flex flex-col items-center gap-4">
-                  <Avatar className="h-24 w-24">
-                    <AvatarImage src={getCurrentImageUrl() || undefined} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-2xl">
-                      {getInitials(user?.firstName, user?.lastName)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <p className="text-sm text-muted-foreground text-center">
-                    Podgląd zdjęcia profilowego
+          <div className="flex items-start gap-6 flex-wrap">
+            <Avatar className="w-24 h-24">
+              <AvatarImage 
+                src={displayData?.user.profileImageDisplayUrl || displayUser?.profileImageDisplayUrl || displayUser?.profileImageUrl || undefined} 
+                alt={`${displayUser?.firstName} ${displayUser?.lastName}`}
+              />
+              <AvatarFallback className="bg-primary/10 text-primary font-medium text-2xl">
+                {getInitials(displayUser?.firstName, displayUser?.lastName)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0 space-y-3">
+              <div>
+                <div className="flex items-center gap-3 flex-wrap mb-2">
+                  <h1 className="font-heading font-bold text-3xl" data-testid="text-profile-name">
+                    {displayUser?.firstName} {displayUser?.lastName}
+                  </h1>
+                  <Badge variant={getRoleBadgeVariant(displayUser?.role || null)} data-testid="badge-role">
+                    {getRoleLabel(displayUser?.role || null)}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Mail className="w-4 h-4" />
+                  <span data-testid="text-profile-email">{displayUser?.email}</span>
+                </div>
+              </div>
+
+              {displayProfile?.phone && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Phone className="w-4 h-4" />
+                  <span data-testid="text-profile-phone">{displayProfile.phone}</span>
+                </div>
+              )}
+
+              {displayProfile?.bio && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">O mnie</p>
+                  <p className="text-base whitespace-pre-wrap" data-testid="text-profile-bio">
+                    {displayProfile.bio}
                   </p>
                 </div>
+              )}
 
-                <div className="flex-1 space-y-4">
-                  <FormLabel>Zdjęcie profilowe</FormLabel>
-                  <Tabs value={imageType} onValueChange={(v) => setImageType(v as "upload" | "url")}>
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="url">URL</TabsTrigger>
-                      <TabsTrigger value="upload">Upload</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="url" className="space-y-4">
+              {displayProfile?.pharmacologicalSupport && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Pill className="w-4 h-4 text-muted-foreground" />
+                    <p className="text-sm font-medium text-muted-foreground">Wsparcie farmakologiczne</p>
+                  </div>
+                  <p className="text-base whitespace-pre-wrap" data-testid="text-profile-pharma">
+                    {displayProfile.pharmacologicalSupport}
+                  </p>
+                </div>
+              )}
+
+              {displayProfile?.injuries && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Heart className="w-4 h-4 text-muted-foreground" />
+                    <p className="text-sm font-medium text-muted-foreground">Kontuzje</p>
+                  </div>
+                  <p className="text-base whitespace-pre-wrap" data-testid="text-profile-injuries">
+                    {displayProfile.injuries}
+                  </p>
+                </div>
+              )}
+
+              {displayProfile?.healthIssues && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Heart className="w-4 h-4 text-muted-foreground" />
+                    <p className="text-sm font-medium text-muted-foreground">Problemy zdrowotne</p>
+                  </div>
+                  <p className="text-base whitespace-pre-wrap" data-testid="text-profile-health">
+                    {displayProfile.healthIssues}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* BOTTOM SECTION - EDITABLE (ONLY FOR OWN PROFILE) */}
+      {isOwnProfile && (
+        <>
+          <Separator />
+          
+          <div className="space-y-6">
+            <div>
+              <h2 className="font-heading font-bold text-2xl mb-2" data-testid="text-edit-profile-title">
+                Edytuj profil
+              </h2>
+              <p className="text-muted-foreground">
+                Zarządzaj swoimi danymi osobowymi i informacjami zdrowotnymi
+              </p>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Dane profilowe</CardTitle>
+                <CardDescription>Zaktualizuj swoje informacje kontaktowe i medyczne</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...profileForm}>
+                  <form onSubmit={profileForm.handleSubmit(onSubmitProfile)} className="space-y-6">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Zdjęcie profilowe</label>
+                        <div className="space-y-4">
+                          <div className="flex gap-2 flex-wrap">
+                            <Button
+                              type="button"
+                              variant={imageType === "upload" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setImageType("upload")}
+                              data-testid="button-upload-option"
+                            >
+                              <Upload className="w-4 h-4 mr-2" />
+                              Prześlij plik
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={imageType === "url" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setImageType("url")}
+                              data-testid="button-url-option"
+                            >
+                              Link URL
+                            </Button>
+                          </div>
+
+                          {imageType === "upload" ? (
+                            <ObjectUploader
+                              maxNumberOfFiles={1}
+                              maxFileSize={5242880}
+                              onGetUploadParameters={handleGetUploadParameters}
+                              onComplete={handleUploadComplete}
+                              buttonClassName="w-full md:w-auto"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Upload className="w-4 h-4" />
+                                <span>Wybierz zdjęcie</span>
+                              </div>
+                            </ObjectUploader>
+                          ) : (
+                            <FormField
+                              control={profileForm.control}
+                              name="profileImageUrl"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input
+                                      placeholder="https://example.com/image.jpg"
+                                      {...field}
+                                      data-testid="input-profile-image-url"
+                                    />
+                                  </FormControl>
+                                  <FormDescription>
+                                    Wprowadź adres URL zdjęcia profilowego
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+
+                          {(previewUrl || profileForm.watch("profileImageUrl")) && (
+                            <div className="flex items-center gap-4">
+                              <Avatar className="w-20 h-20">
+                                <AvatarImage src={previewUrl || profileForm.watch("profileImageUrl")} alt="Podgląd" />
+                                <AvatarFallback>
+                                  <User className="w-10 h-10" />
+                                </AvatarFallback>
+                              </Avatar>
+                              <p className="text-sm text-muted-foreground">Podgląd zdjęcia profilowego</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
                       <FormField
                         control={profileForm.control}
-                        name="profileImageUrl"
+                        name="bio"
                         render={({ field }) => (
                           <FormItem>
+                            <FormLabel>O mnie</FormLabel>
                             <FormControl>
-                              <Input
-                                placeholder="https://example.com/image.jpg"
+                              <Textarea
+                                placeholder="Napisz coś o sobie, swoich celach treningowych..."
+                                className="resize-none min-h-32"
                                 {...field}
-                                data-testid="input-profile-image-url"
+                                data-testid="textarea-bio"
                               />
                             </FormControl>
                             <FormDescription>
-                              Wklej URL zdjęcia profilowego
+                              Ta informacja będzie widoczna dla Twojego trenera
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                    </TabsContent>
-                    <TabsContent value="upload" className="space-y-4">
-                      <FormItem>
-                        <FormControl>
-                          <ObjectUploader
-                            maxNumberOfFiles={1}
-                            maxFileSize={5242880}
-                            onGetUploadParameters={handleGetUploadParameters}
-                            onComplete={handleUploadComplete}
-                            buttonClassName="w-full md:w-auto"
-                          >
-                            <div className="flex items-center gap-2">
-                              <Upload className="w-4 h-4" />
-                              <span>Wybierz zdjęcie</span>
-                            </div>
-                          </ObjectUploader>
-                        </FormControl>
-                        <FormDescription>
-                          Maksymalny rozmiar: 5MB. Dozwolone formaty: JPG, PNG, WEBP
-                        </FormDescription>
-                      </FormItem>
-                    </TabsContent>
-                  </Tabs>
-                </div>
-              </div>
 
-              <FormField
-                control={profileForm.control}
-                name="bio"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>O mnie</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Napisz coś o sobie, swoich celach treningowych..."
-                        rows={5}
-                        {...field}
-                        data-testid="input-bio"
+                      <FormField
+                        control={profileForm.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Telefon</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="+48 123 456 789"
+                                {...field}
+                                data-testid="input-phone"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Numer telefonu kontaktowego
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                    </FormControl>
-                    <FormDescription>
-                      Opis będzie widoczny dla Twojego trenera
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
-              <FormField
-                control={profileForm.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Telefon kontaktowy</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="+48 123 456 789"
-                        {...field}
-                        data-testid="input-phone"
+                      <FormField
+                        control={profileForm.control}
+                        name="pharmacologicalSupport"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                              <Pill className="w-4 h-4" />
+                              Wsparcie farmakologiczne/Suplementacja
+                            </FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Wymień przyjmowane leki, suplementy, ich dawkowanie i częstotliwość..."
+                                className="resize-none min-h-32"
+                                {...field}
+                                data-testid="textarea-pharmacological-support"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Informacje o przyjmowanych lekach i suplementach (opcjonalnie, max 2000 znaków)
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                    </FormControl>
-                    <FormDescription>
-                      Numer telefonu kontaktowego (opcjonalnie)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
-              <FormField
-                control={profileForm.control}
-                name="pharmacologicalSupport"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <Pill className="w-4 h-4" />
-                      Wsparcie farmakologiczne/Suplementacja
-                    </FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Wymień przyjmowane leki, suplementy, ich dawkowanie i częstotliwość..."
-                        rows={4}
-                        {...field}
-                        data-testid="textarea-pharmacological-support"
+                      <FormField
+                        control={profileForm.control}
+                        name="injuries"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                              <Heart className="w-4 h-4" />
+                              Kontuzje i urazy
+                            </FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Wymień przebyte kontuzje, urazy, dolegliwości kostno-stawowe..."
+                                className="resize-none min-h-32"
+                                {...field}
+                                data-testid="textarea-injuries"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Informacje o kontuzjach i urazach (opcjonalnie, max 2000 znaków)
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                    </FormControl>
-                    <FormDescription>
-                      Informacje o przyjmowanych lekach i suplementach (opcjonalnie, max 2000 znaków)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
-              <FormField
-                control={profileForm.control}
-                name="injuries"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <Heart className="w-4 h-4" />
-                      Kontuzje i urazy
-                    </FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Wymień przebyte kontuzje, urazy, dolegliwości kostno-stawowe..."
-                        rows={4}
-                        {...field}
-                        data-testid="textarea-injuries"
+                      <FormField
+                        control={profileForm.control}
+                        name="healthIssues"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                              <Heart className="w-4 h-4" />
+                              Problemy zdrowotne
+                            </FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Alergie, choroby przewlekłe, problemy zdrowotne..."
+                                className="resize-none min-h-32"
+                                {...field}
+                                data-testid="textarea-health-issues"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Informacje o problemach zdrowotnych, alergiach, chorobach przewlekłych (opcjonalnie, max 2000 znaków)
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                    </FormControl>
-                    <FormDescription>
-                      Informacje o kontuzjach i urazach (opcjonalnie, max 2000 znaków)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                    </div>
 
-              <FormField
-                control={profileForm.control}
-                name="healthIssues"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <Heart className="w-4 h-4" />
-                      Problemy zdrowotne
-                    </FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Alergie, choroby przewlekłe, problemy zdrowotne..."
-                        rows={4}
-                        {...field}
-                        data-testid="textarea-health-issues"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Informacje o problemach zdrowotnych, alergiach, chorobach przewlekłych (opcjonalnie, max 2000 znaków)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="flex gap-4 pt-4">
-                <Button
-                  type="submit"
-                  disabled={updateProfileMutation.isPending || uploadProgress}
-                  data-testid="button-save-profile"
-                >
-                  {updateProfileMutation.isPending || uploadProgress
-                    ? "Zapisywanie..."
-                    : "Zapisz zmiany"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCancelProfile}
-                  disabled={updateProfileMutation.isPending || uploadProgress}
-                  data-testid="button-cancel"
-                >
-                  Anuluj
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+                    <div className="flex gap-4">
+                      <Button
+                        type="submit"
+                        disabled={updateProfileMutation.isPending}
+                        data-testid="button-save-profile"
+                      >
+                        {updateProfileMutation.isPending ? "Zapisywanie..." : "Zapisz zmiany"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => profileForm.reset()}
+                        disabled={updateProfileMutation.isPending}
+                        data-testid="button-cancel"
+                      >
+                        Anuluj
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   );
 }

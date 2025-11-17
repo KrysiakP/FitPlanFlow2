@@ -1834,6 +1834,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // View another user's profile (with authorization)
+  app.get("/api/profile/:userId", isAuthenticated, async (req, res) => {
+    try {
+      const requesterId = req.session.userId!;
+      const targetUserId = req.params.userId;
+
+      // Can always view own profile
+      if (targetUserId === requesterId) {
+        const profile = await storage.getUserProfile(targetUserId);
+        const user = await storage.getUser(targetUserId);
+        
+        if (!user) {
+          return res.status(404).json({ message: "Użytkownik nie został znaleziony" });
+        }
+
+        let profileImageDisplayUrl = null;
+        if (profile?.profileImageUrl) {
+          const objectStorageService = new ObjectStorageService();
+          profileImageDisplayUrl = await objectStorageService.getObjectReadUrl(profile.profileImageUrl);
+        }
+
+        return res.json({
+          user: {
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            role: user.role,
+            profileImageUrl: user.profileImageUrl,
+            profileImageDisplayUrl,
+          },
+          profile: profile ? {
+            ...profile,
+            profileImageDisplayUrl,
+          } : null,
+        });
+      }
+
+      // SECURITY FIX: Explicit relationship verification for cross-user profile access
+      const requester = await storage.getUser(requesterId);
+      if (!requester) {
+        return res.status(401).json({ message: "Użytkownik nie został znaleziony" });
+      }
+
+      // Trainer viewing client profile - COMPLETE validation: verify relationship pairs THIS trainer with THIS client
+      if (requester.role === 'trainer') {
+        const relationship = await storage.getClientRelationship(requesterId, targetUserId);
+        
+        // CRITICAL: Validate ALL three conditions explicitly
+        // Don't rely solely on getClientRelationship filtering - defense in depth
+        if (!relationship ||
+            relationship.clientId !== targetUserId ||      // Target IS the client in this relationship
+            relationship.trainerId !== requesterId ||      // Requester IS the trainer in this relationship
+            relationship.status !== 'active') {            // Relationship is currently active
+          return res.status(403).json({ message: "Brak dostępu do tego profilu" });
+        }
+      }
+      // Client viewing trainer profile - COMPLETE validation: verify relationship pairs THIS client with THIS trainer
+      else if (requester.role === 'client') {
+        const relationship = await storage.getClientRelationship(targetUserId, requesterId);
+        
+        // CRITICAL: Validate ALL three conditions explicitly
+        // Don't rely solely on getClientRelationship filtering - defense in depth
+        if (!relationship ||
+            relationship.trainerId !== targetUserId ||     // Target IS the trainer in this relationship
+            relationship.clientId !== requesterId ||       // Requester IS the client in this relationship
+            relationship.status !== 'active') {            // Relationship is currently active
+          return res.status(403).json({ message: "Brak dostępu do tego profilu" });
+        }
+      }
+      // Neither trainer nor client - deny access
+      else {
+        return res.status(403).json({ message: "Brak dostępu do tego profilu" });
+      }
+
+      // Fetch and return authorized profile
+      const targetUser = await storage.getUser(targetUserId);
+      const targetProfile = await storage.getUserProfile(targetUserId);
+
+      if (!targetUser) {
+        return res.status(404).json({ message: "Użytkownik nie został znaleziony" });
+      }
+
+      let profileImageDisplayUrl = null;
+      if (targetProfile?.profileImageUrl) {
+        const objectStorageService = new ObjectStorageService();
+        profileImageDisplayUrl = await objectStorageService.getObjectReadUrl(targetProfile.profileImageUrl);
+      }
+
+      res.json({
+        user: {
+          id: targetUser.id,
+          firstName: targetUser.firstName,
+          lastName: targetUser.lastName,
+          email: targetUser.email,
+          role: targetUser.role,
+          profileImageUrl: targetUser.profileImageUrl,
+          profileImageDisplayUrl,
+        },
+        profile: targetProfile ? {
+          ...targetProfile,
+          profileImageDisplayUrl,
+        } : null,
+      });
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      res.status(500).json({ message: "Nie udało się pobrać profilu użytkownika" });
+    }
+  });
+
   // Client progress routes
   app.get("/api/client/progress", isAuthenticated, async (req, res) => {
     try {

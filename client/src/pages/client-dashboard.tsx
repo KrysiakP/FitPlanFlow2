@@ -3,12 +3,13 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Calendar, AlertCircle, Bell, Mail, UserCheck, X } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ClipboardList, Calendar, AlertCircle, Bell, Mail, UserCheck, X, User as UserIcon } from "lucide-react";
 import { Link } from "wouter";
 import { startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { PlanAssignment, TrainingPlan, Workout, Exercise, WeeklyReport, PlanInvitation, User } from "@shared/schema";
+import type { PlanAssignment, TrainingPlan, Workout, Exercise, WeeklyReport, PlanInvitation, User, ClientRelationship } from "@shared/schema";
 
 type AssignmentWithPlan = PlanAssignment & {
   plan: TrainingPlan & { 
@@ -36,6 +37,16 @@ export default function ClientDashboard() {
   const { data: invitations } = useQuery<InvitationWithDetails[]>({
     queryKey: ["/api/invitations"],
   });
+
+  const { data: relationship } = useQuery<ClientRelationship & { trainer: User }>({
+    queryKey: ["/api/client/relationship"],
+  });
+
+  const getInitials = (firstName?: string | null, lastName?: string | null) => {
+    const first = firstName?.charAt(0) || "";
+    const last = lastName?.charAt(0) || "";
+    return (first + last).toUpperCase() || "?";
+  };
 
   const acceptMutation = useMutation({
     mutationFn: async (invitationId: string) => {
@@ -223,6 +234,49 @@ export default function ClientDashboard() {
                   </div>
                 </div>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {relationship && relationship.trainer && relationship.status === "active" && (
+        <Card data-testid="card-trainer-info" className="hover-elevate">
+          <CardHeader>
+            <CardTitle className="font-heading flex items-center gap-2">
+              <UserIcon className="w-5 h-5" />
+              Twój trener
+            </CardTitle>
+            <CardDescription>
+              Sprawdź profil swojego trenera i skontaktuj się z nim
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-4">
+                <Avatar className="w-14 h-14">
+                  <AvatarImage 
+                    src={relationship.trainer.profileImageDisplayUrl || relationship.trainer.profileImageUrl || undefined} 
+                    alt={`${relationship.trainer.firstName} ${relationship.trainer.lastName}`}
+                  />
+                  <AvatarFallback className="bg-primary/10 text-primary font-medium text-lg">
+                    {getInitials(relationship.trainer.firstName, relationship.trainer.lastName)}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-heading font-semibold text-lg" data-testid="text-trainer-name">
+                    {relationship.trainer.firstName} {relationship.trainer.lastName}
+                  </p>
+                  <p className="text-sm text-muted-foreground" data-testid="text-trainer-email">
+                    {relationship.trainer.email}
+                  </p>
+                </div>
+              </div>
+              <Button asChild variant="outline" size="sm" data-testid="button-view-trainer-profile">
+                <Link href={`/profile/${relationship.trainerId}`}>
+                  <UserIcon className="w-4 h-4 mr-2" />
+                  Zobacz profil
+                </Link>
+              </Button>
             </div>
           </CardContent>
         </Card>

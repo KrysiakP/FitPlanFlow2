@@ -6,10 +6,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Upload, User, Crown, CreditCard, Gift } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { AlertCircle, Upload, User, Crown, CreditCard, Gift, ArrowLeft, Mail, Phone, Briefcase } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Link } from "wouter";
+import { Link, useParams, useLocation } from "wouter";
 import type { UserProfile } from "@shared/schema";
 import {
   Form,
@@ -41,9 +42,24 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
+type ProfileData = {
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string | null;
+    profileImageUrl: string | null;
+    profileImageDisplayUrl: string | null;
+  };
+  profile: UserProfile | null;
+};
+
 export default function TrainerProfile() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const params = useParams<{ userId?: string }>();
+  const [, navigate] = useLocation();
   const [imageType, setImageType] = useState<"upload" | "url">("url");
   const [uploadProgress, setUploadProgress] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -51,13 +67,41 @@ export default function TrainerProfile() {
   const [objectPath, setObjectPath] = useState<string>("");
   const [previewUrl, setPreviewUrl] = useState<string>("");
 
+  const viewingOtherProfile = !!params.userId;
+  const isOwnProfile = !params.userId || params.userId === user?.id;
+
+  // FIX: ALWAYS fetch profile data (even for own profile)
+  // Use single unified query that works for both own and other profiles
   const {
-    data: profile,
+    data: profileData,
     isLoading,
     error,
     refetch,
-  } = useQuery<UserProfile | null>({
-    queryKey: ["/api/profile"],
+  } = useQuery<ProfileData>({
+    queryKey: params.userId ? ["/api/profile", params.userId] : ["/api/profile", user?.id],
+    queryFn: async () => {
+      // When viewing own profile (no params.userId), fetch using own user ID
+      // When viewing other profile, fetch using params.userId
+      const targetUserId = params.userId || user?.id;
+      
+      if (!targetUserId) {
+        throw new Error("Brak ID użytkownika");
+      }
+
+      const response = await fetch(`/api/profile/${targetUserId}`, {
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error("Brak dostępu do tego profilu");
+        }
+        throw new Error("Nie udało się pobrać profilu");
+      }
+      
+      return await response.json();
+    },
+    enabled: !!user?.id, // Only fetch when we have a user ID
   });
 
   const form = useForm<ProfileFormValues>({
@@ -70,16 +114,21 @@ export default function TrainerProfile() {
     },
   });
 
+  // FIX: Use complete profile data from unified query
+  const displayUser = profileData?.user;
+  const displayProfile = profileData?.profile;
+
   useEffect(() => {
-    if (profile) {
+    // Populate form when viewing own profile
+    if (isOwnProfile && displayProfile) {
       form.reset({
-        bio: profile.bio || "",
-        profileImageUrl: profile.profileImageUrl || "",
-        phone: profile.phone || "",
-        specialization: profile.specialization || "",
+        bio: displayProfile.bio || "",
+        profileImageUrl: displayProfile.profileImageUrl || "",
+        phone: displayProfile.phone || "",
+        specialization: displayProfile.specialization || "",
       });
     }
-  }, [profile, form]);
+  }, [displayProfile, form, isOwnProfile]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: ProfileFormValues) => {
@@ -213,39 +262,33 @@ export default function TrainerProfile() {
   const getInitials = (firstName?: string | null, lastName?: string | null) => {
     const first = firstName?.charAt(0) || "";
     const last = lastName?.charAt(0) || "";
-    return (first + last).toUpperCase() || "U";
+    return (first + last).toUpperCase() || "?";
   };
 
-  const getCurrentImageUrl = () => {
-    if (previewImage) return previewImage;
-    if (imageType === "url" && form.watch("profileImageUrl")) {
-      return form.watch("profileImageUrl");
-    }
-    return (profile as any)?.profileImageDisplayUrl || profile?.profileImageUrl || user?.profileImageUrl || null;
+  const getRoleBadgeVariant = (role: string | null) => {
+    if (role === "trainer") return "default";
+    if (role === "client") return "secondary";
+    return "outline";
   };
 
-  if (isLoading) {
+  const getRoleLabel = (role: string | null) => {
+    if (role === "trainer") return "Trener";
+    if (role === "client") return "Podopieczny";
+    return "Użytkownik";
+  };
+
+  if (isLoading || isLoadingOwn) {
     return (
-      <div className="space-y-8">
-        <div>
-          <Skeleton className="h-10 w-64 mb-2" />
-          <Skeleton className="h-5 w-96" />
-        </div>
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
+        <Skeleton className="h-12 w-64" />
         <Card>
           <CardHeader>
-            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-8 w-48" />
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center gap-6">
-              <Skeleton className="h-24 w-24 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-48" />
-                <Skeleton className="h-10 w-32" />
-              </div>
-            </div>
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
+          <CardContent className="space-y-4">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-5/6" />
           </CardContent>
         </Card>
       </div>
@@ -254,273 +297,347 @@ export default function TrainerProfile() {
 
   if (error) {
     return (
-      <div className="space-y-8">
-        <div>
-          <h1 className="font-heading font-bold text-4xl mb-2">Mój profil</h1>
-          <p className="text-muted-foreground">
-            Zarządzaj swoimi danymi kontaktowymi i informacjami o sobie
-          </p>
-        </div>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Błąd</AlertTitle>
-          <AlertDescription className="flex items-center justify-between">
-            <span>Nie udało się załadować profilu</span>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              Spróbuj ponownie
-            </Button>
+      <div className="max-w-4xl mx-auto p-6">
+        <Alert variant="destructive" data-testid="alert-profile-error">
+          <AlertCircle className="w-4 h-4" />
+          <AlertTitle>Błąd dostępu</AlertTitle>
+          <AlertDescription>
+            {error.message || "Nie udało się załadować profilu"}
           </AlertDescription>
         </Alert>
+        <Button 
+          asChild 
+          variant="outline" 
+          className="mt-4"
+          data-testid="button-back-to-clients"
+        >
+          <Link href="/clients">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Powrót do listy podopiecznych
+          </Link>
+        </Button>
       </div>
     );
   }
 
-  const isPremium = user?.subscriptionTier === "premium" && user?.subscriptionStatus === "active";
-
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="font-heading font-bold text-4xl mb-2" data-testid="text-profile-title">
-          Mój profil
-        </h1>
-        <p className="text-muted-foreground">
-          Zarządzaj swoimi danymi kontaktowymi i informacjami o sobie
-        </p>
-      </div>
-
-      {user?.role === "trainer" && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Crown className="w-5 h-5 text-primary" />
-                  Subskrypcja
-                </CardTitle>
-                <CardDescription>Zarządzaj swoim planem i płatnościami</CardDescription>
-              </div>
-              <Badge variant={isPremium ? "default" : "secondary"} data-testid="badge-subscription-tier">
-                {isPremium ? "Premium" : "START"}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 rounded-lg border">
-              <div className="space-y-1">
-                <p className="text-sm font-medium">
-                  {isPremium ? "Plan Premium" : "Plan START"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {isPremium 
-                    ? "Nieograniczona liczba podopiecznych" 
-                    : "Limit: 3 podopiecznych"}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold">
-                  {isPremium ? "49 zł" : "0 zł"}
-                </p>
-                <p className="text-xs text-muted-foreground">/miesiąc</p>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              {!isPremium ? (
-                <Link href="/pricing">
-                  <Button className="flex-1" data-testid="button-upgrade-to-premium">
-                    <Crown className="w-4 h-4 mr-2" />
-                    Ulepsz do Premium
-                  </Button>
-                </Link>
-              ) : (
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => subscriptionMutation.mutate()}
-                  disabled={subscriptionMutation.isPending}
-                  data-testid="button-manage-subscription"
-                >
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  {subscriptionMutation.isPending ? "Ładowanie..." : "Zarządzaj subskrypcją"}
-                </Button>
-              )}
-              <Link href="/referrals">
-                <Button variant="outline" className="flex-1" data-testid="button-referrals">
-                  <Gift className="w-4 h-4 mr-2" />
-                  System poleceń
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="max-w-4xl mx-auto p-6 space-y-8">
+      {/* Back navigation when viewing another user's profile */}
+      {viewingOtherProfile && (
+        <Button 
+          asChild 
+          variant="ghost" 
+          className="gap-2"
+          data-testid="button-back-navigation"
+        >
+          <Link href="/clients">
+            <ArrowLeft className="w-4 h-4" />
+            Powrót do listy podopiecznych
+          </Link>
+        </Button>
       )}
 
-      <Card>
+      {/* TOP SECTION - READONLY PROFILE INFO */}
+      <Card data-testid="card-profile-readonly">
         <CardHeader>
-          <CardTitle>Dane profilu</CardTitle>
-          <CardDescription>
-            Zaktualizuj swoje informacje kontaktowe i opis profilu
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="flex items-start gap-6">
-                <div className="flex flex-col items-center gap-4">
-                  <Avatar className="h-24 w-24">
-                    <AvatarImage src={getCurrentImageUrl() || undefined} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-2xl">
-                      {getInitials(user?.firstName, user?.lastName)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <p className="text-sm text-muted-foreground text-center">
-                    Podgląd zdjęcia profilowego
-                  </p>
+          <div className="flex items-start gap-6 flex-wrap">
+            <Avatar className="w-24 h-24">
+              <AvatarImage 
+                src={displayData?.user.profileImageDisplayUrl || displayUser?.profileImageDisplayUrl || displayUser?.profileImageUrl || undefined} 
+                alt={`${displayUser?.firstName} ${displayUser?.lastName}`}
+              />
+              <AvatarFallback className="bg-primary/10 text-primary font-medium text-2xl">
+                {getInitials(displayUser?.firstName, displayUser?.lastName)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0 space-y-3">
+              <div>
+                <div className="flex items-center gap-3 flex-wrap mb-2">
+                  <h1 className="font-heading font-bold text-3xl" data-testid="text-profile-name">
+                    {displayUser?.firstName} {displayUser?.lastName}
+                  </h1>
+                  <Badge variant={getRoleBadgeVariant(displayUser?.role || null)} data-testid="badge-role">
+                    {getRoleLabel(displayUser?.role || null)}
+                  </Badge>
                 </div>
-
-                <div className="flex-1 space-y-4">
-                  <FormLabel>Zdjęcie profilowe</FormLabel>
-                  <Tabs value={imageType} onValueChange={(v) => setImageType(v as "upload" | "url")}>
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="url">URL</TabsTrigger>
-                      <TabsTrigger value="upload">Upload</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="url" className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="profileImageUrl"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input
-                                placeholder="https://example.com/image.jpg"
-                                {...field}
-                                data-testid="input-profile-image-url"
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Wklej URL zdjęcia profilowego
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </TabsContent>
-                    <TabsContent value="upload" className="space-y-4">
-                      <FormItem>
-                        <FormControl>
-                          <ObjectUploader
-                            maxNumberOfFiles={1}
-                            maxFileSize={5242880}
-                            onGetUploadParameters={handleGetUploadParameters}
-                            onComplete={handleUploadComplete}
-                            buttonClassName="w-full md:w-auto"
-                          >
-                            <div className="flex items-center gap-2">
-                              <Upload className="w-4 h-4" />
-                              <span>Wybierz zdjęcie</span>
-                            </div>
-                          </ObjectUploader>
-                        </FormControl>
-                        <FormDescription>
-                          Maksymalny rozmiar: 5MB. Dozwolone formaty: JPG, PNG, WEBP
-                        </FormDescription>
-                      </FormItem>
-                    </TabsContent>
-                  </Tabs>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Mail className="w-4 h-4" />
+                  <span data-testid="text-profile-email">{displayUser?.email}</span>
                 </div>
               </div>
 
-              <FormField
-                control={form.control}
-                name="bio"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>O mnie</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Napisz coś o sobie, swoim doświadczeniu i podejściu do treningu..."
-                        rows={5}
-                        {...field}
-                        data-testid="input-bio"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Opis będzie widoczny dla Twoich podopiecznych
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Telefon kontaktowy</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="+48 123 456 789"
-                        {...field}
-                        data-testid="input-phone"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Numer telefonu kontaktowego (opcjonalnie)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {user?.role === "trainer" && (
-                <FormField
-                  control={form.control}
-                  name="specialization"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Specjalizacja</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="np. Trening siłowy, CrossFit, Yoga"
-                          {...field}
-                          data-testid="input-specialization"
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Twoja specjalizacja treningowa
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              {displayProfile?.phone && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Phone className="w-4 h-4" />
+                  <span data-testid="text-profile-phone">{displayProfile.phone}</span>
+                </div>
               )}
 
-              <div className="flex gap-4 pt-4">
-                <Button
-                  type="submit"
-                  disabled={updateProfileMutation.isPending || uploadProgress}
-                  data-testid="button-save-profile"
-                >
-                  {updateProfileMutation.isPending || uploadProgress
-                    ? "Zapisywanie..."
-                    : "Zapisz zmiany"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCancel}
-                  disabled={updateProfileMutation.isPending || uploadProgress}
-                  data-testid="button-cancel"
-                >
-                  Anuluj
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
+              {displayProfile?.specialization && (
+                <div className="flex items-start gap-2">
+                  <Briefcase className="w-4 h-4 mt-1 text-muted-foreground" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground">Specjalizacja</p>
+                    <p className="text-base" data-testid="text-profile-specialization">{displayProfile.specialization}</p>
+                  </div>
+                </div>
+              )}
+
+              {displayProfile?.bio && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">O mnie</p>
+                  <p className="text-base whitespace-pre-wrap" data-testid="text-profile-bio">
+                    {displayProfile.bio}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardHeader>
       </Card>
+
+      {/* BOTTOM SECTION - EDITABLE (ONLY FOR OWN PROFILE) */}
+      {isOwnProfile && (
+        <>
+          <Separator />
+          
+          <div className="space-y-6">
+            <div>
+              <h2 className="font-heading font-bold text-2xl mb-2" data-testid="text-edit-profile-title">
+                Edytuj profil
+              </h2>
+              <p className="text-muted-foreground">
+                Zarządzaj swoimi danymi osobowymi i informacjami profilowymi
+              </p>
+            </div>
+
+            <Tabs defaultValue="info" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="info" data-testid="tab-info">Informacje</TabsTrigger>
+                <TabsTrigger value="subscription" data-testid="tab-subscription">Subskrypcja</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="info" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Dane profilowe</CardTitle>
+                    <CardDescription>Zaktualizuj swoje dane osobowe i informacje kontaktowe</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Form {...form}>
+                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-sm font-medium mb-2 block">Zdjęcie profilowe</label>
+                            <div className="space-y-4">
+                              <div className="flex gap-2 flex-wrap">
+                                <Button
+                                  type="button"
+                                  variant={imageType === "upload" ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => setImageType("upload")}
+                                  data-testid="button-upload-option"
+                                >
+                                  <Upload className="w-4 h-4 mr-2" />
+                                  Prześlij plik
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant={imageType === "url" ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => setImageType("url")}
+                                  data-testid="button-url-option"
+                                >
+                                  Link URL
+                                </Button>
+                              </div>
+
+                              {imageType === "upload" ? (
+                                <ObjectUploader
+                                  maxNumberOfFiles={1}
+                                  maxFileSize={5242880}
+                                  onGetUploadParameters={handleGetUploadParameters}
+                                  onComplete={handleUploadComplete}
+                                  buttonClassName="w-full md:w-auto"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Upload className="w-4 h-4" />
+                                    <span>Wybierz zdjęcie</span>
+                                  </div>
+                                </ObjectUploader>
+                              ) : (
+                                <FormField
+                                  control={form.control}
+                                  name="profileImageUrl"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormControl>
+                                        <Input
+                                          placeholder="https://example.com/image.jpg"
+                                          {...field}
+                                          data-testid="input-profile-image-url"
+                                        />
+                                      </FormControl>
+                                      <FormDescription>
+                                        Wprowadź adres URL zdjęcia profilowego
+                                      </FormDescription>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              )}
+
+                              {(previewUrl || form.watch("profileImageUrl")) && (
+                                <div className="flex items-center gap-4">
+                                  <Avatar className="w-20 h-20">
+                                    <AvatarImage src={previewUrl || form.watch("profileImageUrl")} alt="Podgląd" />
+                                    <AvatarFallback>
+                                      <User className="w-10 h-10" />
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <p className="text-sm text-muted-foreground">Podgląd zdjęcia profilowego</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <FormField
+                            control={form.control}
+                            name="bio"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>O mnie</FormLabel>
+                                <FormControl>
+                                  <Textarea
+                                    placeholder="Opowiedz o sobie, swoim doświadczeniu i osiągnięciach..."
+                                    className="resize-none min-h-32"
+                                    {...field}
+                                    data-testid="textarea-bio"
+                                  />
+                                </FormControl>
+                                <FormDescription>
+                                  Ta informacja będzie widoczna dla Twoich podopiecznych
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="phone"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Telefon</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="+48 123 456 789"
+                                    {...field}
+                                    data-testid="input-phone"
+                                  />
+                                </FormControl>
+                                <FormDescription>
+                                  Numer telefonu kontaktowego
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="specialization"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Specjalizacja</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="np. Trening siłowy, kulturystyka, fitness"
+                                    {...field}
+                                    data-testid="input-specialization"
+                                  />
+                                </FormControl>
+                                <FormDescription>
+                                  Twoja specjalizacja treningowa
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <div className="flex gap-4">
+                          <Button
+                            type="submit"
+                            disabled={updateProfileMutation.isPending}
+                            data-testid="button-save-profile"
+                          >
+                            {updateProfileMutation.isPending ? "Zapisywanie..." : "Zapisz zmiany"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => form.reset()}
+                            disabled={updateProfileMutation.isPending}
+                            data-testid="button-cancel"
+                          >
+                            Anuluj
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="subscription" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Crown className="w-5 h-5 text-primary" />
+                      Status subskrypcji
+                    </CardTitle>
+                    <CardDescription>Zarządzaj swoją subskrypcją i płatnościami</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between gap-4 p-4 border rounded-lg">
+                      <div className="space-y-1">
+                        <p className="font-medium" data-testid="text-subscription-tier">
+                          Plan: {user?.subscriptionTier?.toUpperCase() || "START"}
+                        </p>
+                        <p className="text-sm text-muted-foreground" data-testid="text-subscription-status">
+                          Status: {user?.subscriptionStatus === "active" ? "Aktywny" : user?.subscriptionStatus || "Brak subskrypcji"}
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => subscriptionMutation.mutate()}
+                        disabled={subscriptionMutation.isPending}
+                        data-testid="button-manage-subscription"
+                      >
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        {subscriptionMutation.isPending ? "Ładowanie..." : "Zarządzaj subskrypcją"}
+                      </Button>
+                    </div>
+
+                    <Alert>
+                      <Gift className="w-4 h-4" />
+                      <AlertTitle>Program poleceń</AlertTitle>
+                      <AlertDescription>
+                        Poleć swoim znajomym i otrzymaj darmowy miesiąc subskrypcji!
+                        <Button asChild variant="link" className="p-0 h-auto ml-1" data-testid="link-referrals">
+                          <Link href="/referrals">
+                            Zobacz szczegóły
+                          </Link>
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </>
+      )}
     </div>
   );
 }

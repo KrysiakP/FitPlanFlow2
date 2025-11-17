@@ -362,6 +362,12 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
                             Zobacz wszystkie raporty ({reports?.length || 0})
                           </Link>
                         </Button>
+                        <Button asChild variant="outline" size="sm" className="flex-1" data-testid={`button-view-profile-${client.id}`}>
+                          <Link href={`/profile/${client.id}`}>
+                            <User className="w-4 h-4 mr-2" />
+                            Zobacz profil
+                          </Link>
+                        </Button>
                         <Button asChild size="sm" className="flex-1" data-testid={`button-view-progress-${client.id}`}>
                           <Link href={`/trainer/clients/${client.id}/progress`}>
                             <TrendingUp className="w-4 h-4 mr-2" />
