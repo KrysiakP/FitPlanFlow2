@@ -845,6 +845,7 @@ export const insertClientPaymentSchema = createInsertSchema(clientPayments).omit
   id: true,
   createdAt: true,
   paidAt: true,
+  trainerId: true,
 }).extend({
   amount: z.coerce.number().int().min(1, "Kwota musi być większa niż 0"),
   dueDate: z.coerce.date(),

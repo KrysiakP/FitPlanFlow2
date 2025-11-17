@@ -275,6 +275,7 @@ export default function PaymentSchedule() {
                             placeholder="Dodatkowe informacje o płatności..."
                             data-testid="input-notes"
                             {...field}
+                            value={field.value ?? ""}
                           />
                         </FormControl>
                         <FormMessage />
