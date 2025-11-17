@@ -69,6 +69,9 @@ import {
   type InsertReferralCode,
   type ReferralEvent,
   type InsertReferralEvent,
+  notifications,
+  type Notification,
+  type InsertNotification,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, isNull, sql, gte, lte, asc } from "drizzle-orm";
@@ -253,6 +256,13 @@ export interface IStorage {
   getPendingReferralEventByUser(userId: string): Promise<ReferralEvent | null>;
   markReferralQualified(eventId: string, bonusDays: number): Promise<boolean>;
   processReferralBonus(eventId: string, bonusDays: number): Promise<boolean>;
+
+  // Notifications
+  createNotification(data: InsertNotification): Promise<Notification>;
+  listNotificationsByTrainer(trainerId: string, limit?: number): Promise<Notification[]>;
+  markNotificationRead(id: number, trainerId: string): Promise<Notification>;
+  markAllNotificationsRead(trainerId: string): Promise<void>;
+  getUnreadPayments(): Promise<ClientPayment[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2127,6 +2137,71 @@ export class DatabaseStorage implements IStorage {
 
   notifyReferralBonus(trainerId: string, bonusDays: number, referredUserName: string): void {
     console.log(`[REFERRAL BONUS] Trainer ${trainerId} earned ${bonusDays} bonus days from referral: ${referredUserName}`);
+  }
+
+  // Notifications
+  async createNotification(data: InsertNotification): Promise<Notification> {
+    const [notification] = await db
+      .insert(notifications)
+      .values(data)
+      .returning();
+    return notification;
+  }
+
+  async listNotificationsByTrainer(trainerId: string, limit: number = 50): Promise<Notification[]> {
+    const results = await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.trainerId, trainerId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(limit);
+    return results;
+  }
+
+  async markNotificationRead(id: number, trainerId: string): Promise<Notification> {
+    const [notification] = await db
+      .update(notifications)
+      .set({
+        isRead: true,
+        readAt: new Date(),
+      })
+      .where(
+        and(
+          eq(notifications.id, id),
+          eq(notifications.trainerId, trainerId)
+        )
+      )
+      .returning();
+    
+    if (!notification) {
+      throw new Error("Powiadomienie nie znalezione lub nie należy do tego trenera");
+    }
+    
+    return notification;
+  }
+
+  async markAllNotificationsRead(trainerId: string): Promise<void> {
+    await db
+      .update(notifications)
+      .set({
+        isRead: true,
+        readAt: new Date(),
+      })
+      .where(
+        and(
+          eq(notifications.trainerId, trainerId),
+          eq(notifications.isRead, false)
+        )
+      );
+  }
+
+  async getUnreadPayments(): Promise<ClientPayment[]> {
+    const results = await db
+      .select()
+      .from(clientPayments)
+      .where(eq(clientPayments.isPaid, false))
+      .orderBy(asc(clientPayments.dueDate));
+    return results;
   }
 }
 

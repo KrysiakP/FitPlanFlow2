@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, UserCircle, Crown, CreditCard, UserPlus, ShieldCheck, Heart, UtensilsCrossed, Apple, GraduationCap, TrendingUp, DollarSign, Clock, MessageSquare } from "lucide-react";
+import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, UserCircle, Crown, CreditCard, UserPlus, ShieldCheck, Heart, UtensilsCrossed, Apple, GraduationCap, TrendingUp, DollarSign, Clock, MessageSquare, Bell } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -54,6 +54,48 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const { data: unreadMessagesData } = useUnreadCount();
   const unreadMessagesCount = unreadMessagesData?.count || 0;
+
+  // Notification queries (trainer only)
+  const { data: notifications = [] } = useQuery<any[]>({
+    queryKey: ["/api/notifications"],
+    enabled: isTrainer,
+    refetchInterval: 60000,
+  });
+
+  const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
+
+  const markNotificationReadMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("PATCH", `/api/notifications/${id}/read`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+    },
+  });
+
+  const markAllNotificationsReadMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("PATCH", "/api/notifications/mark-all-read");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+    },
+  });
+
+  const formatRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) return "teraz";
+    if (diffMins < 60) return `${diffMins} min temu`;
+    if (diffHours < 24) return `${diffHours} godz. temu`;
+    if (diffDays < 7) return `${diffDays} dni temu`;
+    return date.toLocaleDateString('pl-PL');
+  };
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -189,9 +231,91 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="gap-2" data-testid="button-user-menu">
+          <div className="flex items-center gap-2">
+            {isTrainer && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="relative"
+                    data-testid="button-notifications"
+                  >
+                    <Bell className="w-5 h-5" />
+                    {unreadNotificationsCount > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                        data-testid="badge-notification-count"
+                      >
+                        {unreadNotificationsCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80" data-testid="dropdown-notifications">
+                  <DropdownMenuLabel className="flex items-center justify-between">
+                    <span>Powiadomienia</span>
+                    {unreadNotificationsCount > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => markAllNotificationsReadMutation.mutate()}
+                        disabled={markAllNotificationsReadMutation.isPending}
+                        className="h-auto p-1 text-xs"
+                        data-testid="button-mark-all-read"
+                      >
+                        Oznacz wszystkie
+                      </Button>
+                    )}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <div className="max-h-[400px] overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-sm text-muted-foreground" data-testid="text-no-notifications">
+                        Brak powiadomień
+                      </div>
+                    ) : (
+                      notifications.map((notification: any) => (
+                        <DropdownMenuItem
+                          key={notification.id}
+                          className={`flex flex-col items-start gap-1 p-3 cursor-pointer ${
+                            !notification.isRead ? "bg-primary/5" : ""
+                          }`}
+                          onClick={() => {
+                            if (!notification.isRead) {
+                              markNotificationReadMutation.mutate(notification.id);
+                            }
+                          }}
+                          data-testid={`notification-${notification.id}`}
+                        >
+                          <div className="flex items-start justify-between w-full gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium leading-none mb-1" data-testid={`notification-title-${notification.id}`}>
+                                {notification.title}
+                              </p>
+                              <p className="text-xs text-muted-foreground line-clamp-2" data-testid={`notification-body-${notification.id}`}>
+                                {notification.body}
+                              </p>
+                            </div>
+                            {!notification.isRead && (
+                              <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-1" data-testid={`notification-unread-dot-${notification.id}`} />
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground" data-testid={`notification-time-${notification.id}`}>
+                            {formatRelativeTime(notification.createdAt)}
+                          </p>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="gap-2" data-testid="button-user-menu">
                 <Avatar className="w-8 h-8">
                   <AvatarImage src={user?.profileImageUrl || undefined} />
                   <AvatarFallback className="bg-primary/10 text-primary text-sm">
@@ -244,6 +368,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+        </div>
         </div>
       </header>
 

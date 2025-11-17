@@ -337,6 +337,9 @@ export const userRoleEnum = pgEnum("user_role", ["trainer", "client"]);
 // Referral status enum
 export const referralStatusEnum = pgEnum("referral_status", ["pending", "qualified", "bonus_granted"]);
 
+// Notification type enum
+export const notificationTypeEnum = pgEnum("notification_type", ["upcoming", "due_today", "overdue"]);
+
 // Referral codes - unique codes for trainers to share (one-to-one with trainers)
 export const referralCodes = pgTable("referral_codes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -365,6 +368,24 @@ export const referralEvents = pgTable("referral_events", {
   referrerIdx: index("referral_events_referrer_idx").on(table.referrerTrainerId),
   referredIdx: index("referral_events_referred_idx").on(table.referredUserId),
   statusIdx: index("referral_events_status_idx").on(table.status),
+}));
+
+// Notifications - payment notifications for trainers
+export const notifications = pgTable("notifications", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  trainerId: varchar("trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  clientId: varchar("client_id").references(() => users.id, { onDelete: "cascade" }),
+  paymentId: varchar("payment_id").references(() => clientPayments.id, { onDelete: "cascade" }),
+  type: notificationTypeEnum("type").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  metadata: jsonb("metadata"),
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  readAt: timestamp("read_at"),
+}, (table) => ({
+  trainerIdx: index("notifications_trainer_idx").on(table.trainerId),
+  uniqueNotification: uniqueIndex("unique_trainer_payment_type").on(table.trainerId, table.paymentId, table.type),
 }));
 
 // Relations
@@ -618,6 +639,21 @@ export const referralEventsRelations = relations(referralEvents, ({ one }) => ({
   }),
 }));
 
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  trainer: one(users, {
+    fields: [notifications.trainerId],
+    references: [users.id],
+  }),
+  client: one(users, {
+    fields: [notifications.clientId],
+    references: [users.id],
+  }),
+  payment: one(clientPayments, {
+    fields: [notifications.paymentId],
+    references: [clientPayments.id],
+  }),
+}));
+
 // Types for Replit Auth
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -705,6 +741,10 @@ export type InsertReferralCode = typeof referralCodes.$inferInsert;
 // Types for referral events
 export type ReferralEvent = typeof referralEvents.$inferSelect;
 export type InsertReferralEvent = typeof referralEvents.$inferInsert;
+
+// Types for notifications
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;
 
 // Zod schemas
 export const insertTrainingPlanSchema = createInsertSchema(trainingPlans).omit({
@@ -892,6 +932,12 @@ export const insertReferralEventSchema = createInsertSchema(referralEvents).omit
   referredRole: z.enum(["trainer", "client"]), // Required - matches DB constraint
 });
 
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+  readAt: true,
+});
+
 export const updateUserRoleSchema = z.object({
   role: z.enum(["trainer", "client"]),
 });
@@ -935,5 +981,6 @@ export type InsertMessageInput = z.infer<typeof insertMessageSchema>;
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 export type InsertReferralCodeInput = z.infer<typeof insertReferralCodeSchema>;
 export type InsertReferralEventInput = z.infer<typeof insertReferralEventSchema>;
+export type InsertNotificationInput = z.infer<typeof insertNotificationSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

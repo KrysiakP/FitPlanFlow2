@@ -3579,6 +3579,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Notification endpoints (TRAINER ONLY)
+  app.get("/api/notifications", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'trainer') {
+        return res.status(403).json({ message: "Tylko trenerzy mają dostęp do powiadomień" });
+      }
+
+      const notifications = await storage.listNotificationsByTrainer(userId);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Nie udało się pobrać powiadomień" });
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'trainer') {
+        return res.status(403).json({ message: "Tylko trenerzy mają dostęp do powiadomień" });
+      }
+
+      const notificationId = parseInt(req.params.id, 10);
+      
+      if (isNaN(notificationId)) {
+        return res.status(400).json({ message: "Nieprawidłowy ID powiadomienia" });
+      }
+
+      const notification = await storage.markNotificationRead(notificationId, userId);
+      res.json(notification);
+    } catch (error: any) {
+      console.error("Error marking notification as read:", error);
+      if (error.message === "Powiadomienie nie znalezione lub nie należy do tego trenera") {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Nie udało się oznaczyć powiadomienia jako przeczytane" });
+    }
+  });
+
+  app.patch("/api/notifications/mark-all-read", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'trainer') {
+        return res.status(403).json({ message: "Tylko trenerzy mają dostęp do powiadomień" });
+      }
+
+      await storage.markAllNotificationsRead(userId);
+      res.json({ message: "Wszystkie powiadomienia oznaczone jako przeczytane" });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: "Nie udało się oznaczyć powiadomień jako przeczytane" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   // WebSocket setup for real-time chat
