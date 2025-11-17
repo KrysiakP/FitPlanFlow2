@@ -1,0 +1,200 @@
+Do ulepszenia:
+
+
+
+ - System polecania - 1 miesiąc dla obu bezpłatny 
+
+- Badania medyczne - badania medyczne ma dodawać podpoieczny i trener ma je widzieć, trener nie moze dodawac badan ani ich edytować. 
+
+- Przycisk zakończ współprace - dodaj powiadomienie czy na pewno trener chce zakończyc współprace - takie bezpieczenstow 
+
+
+Typ diety - popraw przyciski. Aktualnie trzeba przycisnąć na górną część przycisku, żeby wybrać daną dietę. Zrób tak, żeby cały prostokąt był klikalny
+
+
+
+
+Przycisk - utwórz plan dietetyczny nie działa 
+
+
+
+
+
+Podczas wybierania diety - w diecie TYLKO MAKRO - dodaj suplementację 
+
+
+
+
+
+“Makro z posiłkami” ma mieć możliwość wpisania różnych produktów i posiłków polecancyh przez trenera, ale nie jest to pełna rozpiska z 5 daniami. Bardziej taka lista. 
+
+
+
+Nie działa przycisk dodawania zdjęć w raportach. 
+
+
+
+
+Nie działa przycisk “dodaj płatność” przez co nie dodaje się.
+Dodaj powiadomienie dla podopiecznego, który 3 dni przed terminem płatności ma dostać powiadomienie, oraz w dzeiń płatności po raz kolejny. Po terminie ma widzieć powiadomienie, że termin płatności już miną i ma zapłacic jesli tego nie zrobił. Podopieczny ma miec mozliwosc klikniecia , że zaplacil juz. 
+
+
+
+
+Po zalogowaniu w zakładce pomagamy jest nawarstwiona górna belka z napisem “panel trenera, dla ternera, cennik, jak pomagamy” po zalogowaniu ma byc to niewidoczne. Widoczne ma byc tylko na landing page. 
+
+
+
+
+
+Zakładka Subksyrpcja: Dodaj na dole opcje z polecaniem.Jeśli polecisz nasza aplikacje innemu trenerowi to on i ty dostaniecie po jednym miesiacu kozystania gratis.  - tworzyliśmy to wczoraj. 
+21) System polecania1. 
+Zasada działania
+Każdy trener z aktywną płatną subskrypcją otrzymuje unikalny kod lub link polecający (np. app.com/r/trener123).
+Gdy nowy trener zarejestruje się przez ten link i aktywuje subskrypcję, obie strony otrzymują:
+1 miesiąc darmowego dostępu (dodany do istniejącej lub nowej subskrypcji).
+
+2. 
+Warunki aktywacji bonusu
+Polecony użytkownik musi:
+być nowym użytkownikiem,
+aktywować płatną subskrypcję (nie wystarczy samo konto).
+Bonus nalicza się automatycznie po pierwszej płatności poleconego.
+
+3. 
+Panel użytkownika – sekcja „Poleć aplikację”
+Wyświetla:
+Twój unikalny link lub przycisk „Kopiuj link”.
+Status poleceń:
+„Liczba zaproszonych trenerów: 3”
+„Darmowe miesiące przyznane: 2 / oczekujące: 1”
+Krótki opis zasad („Za każde skuteczne polecenie otrzymasz miesiąc za darmo!”)
+
+4. 
+Proces od strony technicznej
+Backend:
+Tabela referrals z polami:
+id, referrer_id, referred_id, status (pending, completed), reward_granted_at
+Endpointy:
+POST /referrals/create – tworzy relację, gdy ktoś zarejestruje się z linku.
+POST /referrals/confirm – wywoływany po pierwszej płatności nowego użytkownika.
+Logika przyznawania darmowego miesiąca:
+W momencie aktywacji subskrypcji nowego trenera → system dodaje +30 dni obu użytkownikom w bazie subscriptions.
+Frontend:
+W profilu użytkownika sekcja „Poleć aplikację”.
+Pokazanie linku i statystyk (pobieranych przez /referrals/status).
+
+5. 
+Bezpieczeństwo i nadużycia
+Nie przyznawaj bonusu, jeśli polecony i polecający:
+korzystają z tego samego urządzenia lub IP przy rejestracji,
+mają ten sam adres e-mail / dane płatności.
+Limit np. 5 darmowych miesięcy rocznie na użytkownika (opcjonalnie).
+
+6. 
+Powiadomienia
+Po udanym poleceniu:
+E-mail / push: „Gratulacje! Ty i [imię] otrzymaliście miesiąc darmowego dostępu 🎉”
+W aplikacji można dodać badge: „+1 miesiąc gratis (za polecenie)”.
+
+
+
+
+
+
+
+Na landing page dodaj któtką informację o PomagaMY: 
+
+PomagaMY
+Pomagamy dzieciom dorastać silnym. W ciele i w życiu.
+Wierzymy, że ruch i zdrowie nie powinny być luksusem. Dlatego 1% przychodu z tej aplikacjiprzeznaczamy na wsparcie dzieci, które potrzebują dostępu do sportu, posiłków i bezpiecznego rozwoju.
+Każdy trener i podopieczny, który korzysta z naszej aplikacji, dokłada swoją cegiełkę do czegoś większego. Każdy trening to wyciągnięcie ręki do tych, którzy potrzebują pomocy.
+Na co przeznaczamy wsparcie:
+Zakup sprzętu sportowego dla dzieci i klubów szkolnych
+Dofinansowanie zajęć sportowych dla dzieci z domów dziecka
+Programy zapewniające posiłki w szkołach
+
+Twoja praca zmienia więcej niż jedną osobę. Zmienia pokolenia.
+Dziękujemy, że jesteś częścią tego ruchu. 💚
+
+
+
+
+
+
+
+Po wgraniu zdjęcia profilowego - ono się nie wyświetla - pozostaje srate - tak jakby sie nie wgrało - opis profilu się też nie zmienia.  Aktualnie cała zakładka Dane fililu jest w takim trybie edycji. Dodaj na górze wszystkie iformacje które już podopieczny jak i trener dali o sobie. Trener widzi info o sobie, a podopiecnzy o sobie. A dopiero niżej na dole możliwość aktualizowania ifmorjacji. Trener ma mieć wgląd w profil podpiecznego i odwrotnie. Podopieczny w swojego trenera. 
+
+
+
+
+3) Zdjęcie z raportu nie wyświetla się poprawnie - u trenera i podopiecznego - raporty. Po 1dniu zdjęcie przestaje się wyswietlać
+
+
+
+
+
+
+
+
+
+2) przy zakładaniu konta popraw polszczyznę:
+podopieczny - darmowe 
+trener - profesjonalne
+
+
+
+Popraw tutaj plan free - LIMIT 3 podopiecznych 
+
+
+
+
+
+Suplementacja ma się układać w kolejności względem pory zażywania. Jeśli trener doda suplementy, rano, wieczór, rano. To mają się one wyświetlać rano, rano, wieczór, Zgodnie z porami dnia/treningu
+
+
+
+
+
+
+Dodaj opcję edytowania raportów przed podopiecznego
+
+
+
+
+
+
+HISTORIA:
+1) Usunąć z landing page część z raportami pomagamy 1% 
+
+
+2) przy zakładaniu konta popraw polszczyznę:
+podopieczny - darmowe 
+trener - profesjonalne
+
+
+3) Zdjęcie z raportu nie wyświetla się poprawnie - u trenera i podopiecznego - raporty. Po 1dniu zdjęcie przestaje się wyswietlać
+
+
+
+
+
+
+13)  Powiadomienia i widoczność raportów
+Dobrym rozwiązaniem byłoby dodanie komunikatu lub alertu informującego o nowych raportach oraz ich ilości — przyspieszy to pracę i organizację. Trener dostaje powiadomienie ze podopieczny uzupelnil raport. Np w postaci czerowengo powiadomienia w lewej belce “raporty” tak jak jest na iphone - wyswietla sie licza powiadomien danej aplikacji. Ma być powiadomienie w postaci okrągłej czerwonej kropki w lewym menu obok napisy “raporty tygodniowe” 
+
+
+
+
+
+
+
+4) w zakładce Mój profil
+Zarządzaj swoimi danymi kontaktowymi i informacjami o sobie
+
+Plan Free
+Limit: 10 podopiecznych
+ZMIEN TO NA 3 podpieczncyh 
+
+
+
