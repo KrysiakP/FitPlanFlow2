@@ -23,6 +23,8 @@ import type { UploadResult } from "@uppy/core";
 export default function WeeklyReport() {
   const { toast } = useToast();
   const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState<string>("");
+  const [tempObjectPath, setTempObjectPath] = useState<string>("");
+  const [tempPreviewUrl, setTempPreviewUrl] = useState<string>("");
   const [currentReportId, setCurrentReportId] = useState<string | null>(null);
 
   const form = useForm<InsertWeeklyReportInput>({
@@ -57,9 +59,11 @@ export default function WeeklyReport() {
       });
       
       // If there's an uploaded photo, update the report with it
-      if (uploadedPhotoUrl && report.id) {
+      // CRITICAL: Use cached tempObjectPath instead of data.photoUrl
+      // This ensures objectPath survives even if form is reset during mutation
+      if (tempObjectPath && report.id) {
         const photoResponse: any = await apiRequest("PUT", `/api/weekly-reports/${report.id}/photos`, {
-          photoUrl: uploadedPhotoUrl,
+          photoUrl: tempObjectPath,
         });
         // Update the report with the normalized object path
         report.photoUrl = photoResponse.objectPath;
@@ -75,6 +79,8 @@ export default function WeeklyReport() {
       });
       form.reset();
       setUploadedPhotoUrl("");
+      setTempObjectPath("");
+      setTempPreviewUrl("");
       setCurrentReportId(null);
     },
     onError: (error: any) => {
@@ -100,6 +106,12 @@ export default function WeeklyReport() {
     }
     
     const data = await response.json();
+    
+    // Store objectPath for backend submission (persistent)
+    // Store previewUrl for UI preview (temporary, expires in 7 days)
+    setTempObjectPath(data.objectPath);
+    setTempPreviewUrl(data.previewUrl);
+    
     return {
       method: "PUT" as const,
       url: data.uploadURL,
@@ -108,17 +120,27 @@ export default function WeeklyReport() {
 
   const handleUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
     if (result.successful && result.successful.length > 0) {
-      const uploadedFile = result.successful[0];
-      const uploadURL = uploadedFile.uploadURL;
-      
-      if (uploadURL) {
-        setUploadedPhotoUrl(uploadURL);
-        form.setValue("photoUrl", uploadURL);
+      // Verify both objectPath and previewUrl are available
+      if (!tempObjectPath || !tempPreviewUrl) {
         toast({
-          title: "Zdjęcie przesłane!",
-          description: "Zdjęcie zostało pomyślnie przesłane.",
+          title: "Błąd",
+          description: "Brak danych zdjęcia. Spróbuj ponownie.",
+          variant: "destructive",
         });
+        return;
       }
+      
+      // Use previewUrl for UI display (temporary GET URL)
+      setUploadedPhotoUrl(tempPreviewUrl);
+      
+      // Use objectPath for backend submission (persistent identifier)
+      // CRITICAL: Backend normalizeObjectEntityPath() requires objectPath, NOT presigned URLs
+      form.setValue("photoUrl", tempObjectPath);
+      
+      toast({
+        title: "Zdjęcie przesłane!",
+        description: "Zdjęcie zostało pomyślnie przesłane.",
+      });
     }
   };
 
