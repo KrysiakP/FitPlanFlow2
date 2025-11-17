@@ -85,7 +85,7 @@ export function ObjectUploader({
     if (showModal && dashboardRef.current) {
       uppy.use(Dashboard, {
         target: dashboardRef.current,
-        inline: false,
+        inline: true,
         proudlyDisplayPoweredByUppy: false,
       });
     }
