@@ -39,48 +39,94 @@ export function CharitySection() {
               
               <div className="space-y-4 text-lg text-muted-foreground">
                 <p data-testid="text-mission-1">
-                  Wierzymy, że ruch i zdrowie nie powinny być luksusem. Dlatego <strong>1% przychodu z tej aplikacji</strong> przeznaczamy na wsparcie dzieci, które potrzebują dostępu do sportu, posiłków i bezpiecznego rozwoju.
+                  <strong>Wierzymy, że ruch i zdrowie nie powinny być luksusem.</strong> Każde dziecko zasługuje na szansę rozwijania się poprzez sport, dobre odżywianie i bezpieczne środowisko. Dlatego <strong>1% przychodu z tej aplikacji</strong> przeznaczamy na wsparcie dzieci, które potrzebują dostępu do sportu, posiłków i bezpiecznego rozwoju.
                 </p>
                 <p data-testid="text-mission-2">
-                  Każdy trener i podopieczny, który korzysta z naszej aplikacji, dokłada swoją cegiełkę do czegoś większego. <strong>Każdy trening to wyciągnięcie ręki</strong> do tych, którzy potrzebują pomocy.
+                  Każdy trener i podopieczny, który korzysta z naszej aplikacji, dokłada swoją cegiełkę do czegoś większego. <strong>Każdy trening to wyciągnięcie ręki</strong> do tych, którzy potrzebują pomocy. Razem tworzymy ruch, który wykracza poza siłownię.
+                </p>
+                <p data-testid="text-mission-3">
+                  Wierzymy w transparentność i realny wpływ. Każdy wpłacony grosz jest dokumentowany, a raporty są publicznie dostępne dla wszystkich użytkowników platformy. To nie jest marketing — to nasza misja.
                 </p>
               </div>
 
               <Card className="bg-primary/5 border-primary/20 text-left">
                 <CardHeader>
                   <CardTitle className="font-heading text-xl">Na co przeznaczamy wsparcie:</CardTitle>
+                  <CardDescription>
+                    1% przychodu trafia do organizacji i programów, które realnie pomagają dzieciom rozwijać się poprzez sport i zdrowe odżywianie
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent className="space-y-3">
                   <div className="flex items-start gap-2">
                     <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Zakup sprzętu sportowego dla dzieci i klubów szkolnych</span>
+                    <div className="space-y-1">
+                      <div className="font-medium">Zakup sprzętu sportowego</div>
+                      <div className="text-sm text-muted-foreground">
+                        Wyposażamy kluby szkolne, świetlice i domy dziecka w piłki, hantle, maty, skakanki i inny sprzęt treningowy
+                      </div>
+                    </div>
                   </div>
                   <div className="flex items-start gap-2">
                     <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Dofinansowanie zajęć sportowych dla dzieci z domów dziecka</span>
+                    <div className="space-y-1">
+                      <div className="font-medium">Dofinansowanie zajęć sportowych</div>
+                      <div className="text-sm text-muted-foreground">
+                        Pokrywamy koszty treningów dla dzieci z domów dziecka i rodzin w trudnej sytuacji materialnej
+                      </div>
+                    </div>
                   </div>
                   <div className="flex items-start gap-2">
                     <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Programy zapewniające posiłki w szkołach</span>
+                    <div className="space-y-1">
+                      <div className="font-medium">Programy żywieniowe</div>
+                      <div className="text-sm text-muted-foreground">
+                        Wspieramy programy zapewniające zdrowe posiłki w szkołach i świetlicach środowiskowych
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <div className="font-medium">Edukacja zdrowotna</div>
+                      <div className="text-sm text-muted-foreground">
+                        Finansujemy warsztaty o zdrowym odżywianiu, higienie i bezpieczeństwie dla dzieci i młodzieży
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="bg-muted/50 text-left">
                 <CardHeader>
-                  <CardTitle className="font-heading text-xl">Jak działamy:</CardTitle>
+                  <CardTitle className="font-heading text-xl">Jak dokładnie działamy:</CardTitle>
+                  <CardDescription>
+                    Przejrzystość to podstawa zaufania — każdy grosz jest udokumentowany i raportowany
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <p>
-                    Co miesiąc przekazujemy 1% przychodów na wybrane inicjatywy i publikujemy raport, aby każdy mógł zobaczyć realny wpływ.
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">👉 Raporty miesięczne:</span>
-                    <span className="text-primary">Poniżej na tej stronie</span>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="font-medium text-primary">📊 1% przychodu miesięcznie</div>
+                    <p className="text-sm">
+                      Każdego miesiąca liczymy całkowity przychód ze wszystkich subskrypcji i przekazujemy dokładnie 1% na wybrane organizacje i programy pomocowe.
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">👉 Głosowanie społeczności:</span>
-                    <span>Raz na kwartał trenerzy wybierają cel wsparcia</span>
+                  <div className="space-y-2">
+                    <div className="font-medium text-primary">📄 Publiczne raporty</div>
+                    <p className="text-sm">
+                      Do końca każdego miesiąca publikujemy raport z potwierdzeniem przelewu, nazwą organizacji i kwotą wsparcia. Wszystkie dokumenty są dostępne poniżej na tej stronie.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="font-medium text-primary">🗳️ Głosowanie społeczności</div>
+                    <p className="text-sm">
+                      Raz na kwartał trenerzy korzystający z platformy głosują na organizację lub program, który ma otrzymać wsparcie. To Wy decydujecie, komu pomagamy.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="font-medium text-primary">✅ Weryfikacja wpływu</div>
+                    <p className="text-sm">
+                      Współpracujemy tylko z zweryfikowanymi organizacjami. Po każdej dotacji otrzymujemy potwierdzenie wykorzystania środków wraz z relacją o realnym wpływie.
+                    </p>
                   </div>
                 </CardContent>
               </Card>
