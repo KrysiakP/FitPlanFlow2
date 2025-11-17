@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Upload, User, Crown, CreditCard } from "lucide-react";
+import { AlertCircle, Upload, User, Crown, CreditCard, Gift } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -308,6 +308,12 @@ export default function TrainerProfile() {
                   {subscriptionMutation.isPending ? "Ładowanie..." : "Zarządzaj subskrypcją"}
                 </Button>
               )}
+              <Link href="/referrals">
+                <Button variant="outline" className="flex-1" data-testid="button-referrals">
+                  <Gift className="w-4 h-4 mr-2" />
+                  System poleceń
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
