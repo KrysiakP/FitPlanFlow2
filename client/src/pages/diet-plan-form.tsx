@@ -469,7 +469,11 @@ export default function DietPlanForm() {
                         className="grid grid-cols-1 md:grid-cols-3 gap-4"
                         data-testid="radio-diet-mode"
                       >
-                        <label htmlFor="macro_only" className="flex items-start space-x-3 border rounded-md p-4 hover-elevate cursor-pointer">
+                        <label 
+                          htmlFor="macro_only" 
+                          onClick={() => field.onChange("macro_only")}
+                          className="flex items-start space-x-3 border rounded-md p-4 hover-elevate cursor-pointer"
+                        >
                           <RadioGroupItem value="macro_only" id="macro_only" data-testid="radio-mode-macro-only" className="mt-1" />
                           <span className="flex-1 flex flex-col">
                             <span className="font-medium flex items-center gap-2">
@@ -481,7 +485,11 @@ export default function DietPlanForm() {
                             </span>
                           </span>
                         </label>
-                        <label htmlFor="macro_with_meals" className="flex items-start space-x-3 border rounded-md p-4 hover-elevate cursor-pointer">
+                        <label 
+                          htmlFor="macro_with_meals" 
+                          onClick={() => field.onChange("macro_with_meals")}
+                          className="flex items-start space-x-3 border rounded-md p-4 hover-elevate cursor-pointer"
+                        >
                           <RadioGroupItem value="macro_with_meals" id="macro_with_meals" data-testid="radio-mode-macro-with-meals" className="mt-1" />
                           <span className="flex-1 flex flex-col">
                             <span className="font-medium flex items-center gap-2">
@@ -493,7 +501,11 @@ export default function DietPlanForm() {
                             </span>
                           </span>
                         </label>
-                        <label htmlFor="full_plan" className="flex items-start space-x-3 border rounded-md p-4 hover-elevate cursor-pointer">
+                        <label 
+                          htmlFor="full_plan" 
+                          onClick={() => field.onChange("full_plan")}
+                          className="flex items-start space-x-3 border rounded-md p-4 hover-elevate cursor-pointer"
+                        >
                           <RadioGroupItem value="full_plan" id="full_plan" data-testid="radio-mode-full-plan" className="mt-1" />
                           <span className="flex-1 flex flex-col">
                             <span className="font-medium flex items-center gap-2">
