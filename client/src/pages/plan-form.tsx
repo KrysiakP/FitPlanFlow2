@@ -507,7 +507,7 @@ export default function PlanForm() {
                                     <FormLabel>Technika treningowa (opcjonalnie)</FormLabel>
                                     <Select 
                                       onValueChange={field.onChange} 
-                                      value={field.value || ""}
+                                      value={field.value || undefined}
                                     >
                                       <FormControl>
                                         <SelectTrigger data-testid={`select-exercise-technique-${workoutIndex}-${exerciseIndex}`}>
@@ -515,7 +515,7 @@ export default function PlanForm() {
                                         </SelectTrigger>
                                       </FormControl>
                                       <SelectContent>
-                                        <SelectItem value="">Brak</SelectItem>
+                                        <SelectItem value="none">Brak</SelectItem>
                                         <SelectItem value="dropset">Dropset</SelectItem>
                                         <SelectItem value="cluster_set">Cluster Set</SelectItem>
                                         <SelectItem value="rest_pause">Rest-Pause</SelectItem>
