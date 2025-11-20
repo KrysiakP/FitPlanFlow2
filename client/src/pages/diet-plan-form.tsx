@@ -106,6 +106,21 @@ export default function DietPlanForm() {
   });
   const [editingSupplementId, setEditingSupplementId] = useState<string | null>(null);
 
+  // Sort supplements by timing (time of day)
+  const sortedSupplements = [...supplements].sort((a, b) => {
+    const timingOrder: Record<string, number> = {
+      'rano': 1,
+      'przed treningiem': 2,
+      'z posiłkiem': 3,
+      'pomiędzy posiłkami': 4,
+      'po treningu': 5,
+      'wieczór': 6,
+    };
+    const orderA = a.timing ? (timingOrder[a.timing] || 999) : 999;
+    const orderB = b.timing ? (timingOrder[b.timing] || 999) : 999;
+    return orderA - orderB;
+  });
+
   const { data: existingSupplements, isLoading: isLoadingSupplements } = useQuery<DietSupplement[]>({
     queryKey: ["/api/diet-plans", id, "supplements"],
     enabled: isEdit && !!id,
@@ -213,8 +228,24 @@ export default function DietPlanForm() {
           await apiRequest("DELETE", `/api/diet-supplements/${suppId}`, { dietPlanId: planId });
         }
         
-        // Create or update supplements
-        for (const supplement of supplements) {
+        // Sort supplements by timing and reassign orderIndex
+        const timingOrder: Record<string, number> = {
+          'rano': 1,
+          'przed treningiem': 2,
+          'z posiłkiem': 3,
+          'pomiędzy posiłkami': 4,
+          'po treningu': 5,
+          'wieczór': 6,
+        };
+        const sortedForSave = [...supplements].sort((a, b) => {
+          const orderA = a.timing ? (timingOrder[a.timing] || 999) : 999;
+          const orderB = b.timing ? (timingOrder[b.timing] || 999) : 999;
+          return orderA - orderB;
+        });
+        
+        // Create or update supplements with correct orderIndex
+        for (let i = 0; i < sortedForSave.length; i++) {
+          const supplement = sortedForSave[i];
           if (supplement.id.startsWith('temp-')) {
             // Create new supplement
             await apiRequest("POST", `/api/diet-plans/${planId}/supplements`, {
@@ -224,7 +255,7 @@ export default function DietPlanForm() {
               timing: supplement.timing,
               frequency: supplement.frequency,
               notes: supplement.notes,
-              orderIndex: supplement.orderIndex,
+              orderIndex: i,
             });
           } else {
             // Update existing supplement
@@ -236,7 +267,7 @@ export default function DietPlanForm() {
               timing: supplement.timing,
               frequency: supplement.frequency,
               notes: supplement.notes,
-              orderIndex: supplement.orderIndex,
+              orderIndex: i,
             });
           }
         }
@@ -891,7 +922,7 @@ export default function DietPlanForm() {
                   <div className="space-y-3">
                     <h4 className="font-medium">Dodane suplementy ({supplements.length})</h4>
                     <div className="space-y-2">
-                      {supplements.map((supplement, index) => (
+                      {sortedSupplements.map((supplement, index) => (
                         <Card key={supplement.id} data-testid={`card-supplement-${index}`}>
                           <CardContent className="p-4">
                             <div className="flex items-start justify-between gap-4">
