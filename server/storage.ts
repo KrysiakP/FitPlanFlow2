@@ -155,8 +155,9 @@ export interface IStorage {
   getClientWeeklyReports(clientId: string): Promise<WeeklyReport[]>;
   getLatestWeeklyReport(clientId: string): Promise<WeeklyReport | undefined>;
   getClientWeeklyReportsForTrainer(clientId: string, trainerId: string): Promise<WeeklyReport[]>;
-  getWeeklyReport(reportId: string): Promise<WeeklyReport | undefined>;
-  updateWeeklyReport(reportId: string, data: Partial<InsertWeeklyReport>): Promise<WeeklyReport>;
+  getWeeklyReport(reportId: string, clientId?: string): Promise<WeeklyReport | undefined>;
+  getWeeklyReportById(reportId: string): Promise<WeeklyReport | null>;
+  updateWeeklyReport(reportId: string, clientIdOrData: string | Partial<InsertWeeklyReport>, data?: Partial<InsertWeeklyReport>): Promise<WeeklyReport>;
   getUnreadReportsCount(trainerId: string): Promise<number>;
   markReportAsViewed(reportId: string): Promise<void>;
   
@@ -992,22 +993,85 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(weeklyReports.reportDate));
   }
 
-  async getWeeklyReport(reportId: string): Promise<WeeklyReport | undefined> {
+  async getWeeklyReport(reportId: string, clientId?: string): Promise<WeeklyReport | undefined> {
+    if (clientId) {
+      // With ownership check - only return report if it belongs to this client
+      const [report] = await db
+        .select()
+        .from(weeklyReports)
+        .where(and(
+          eq(weeklyReports.id, reportId),
+          eq(weeklyReports.clientId, clientId)
+        ))
+        .limit(1);
+      return report;
+    } else {
+      // Without ownership check (for internal use)
+      const [report] = await db
+        .select()
+        .from(weeklyReports)
+        .where(eq(weeklyReports.id, reportId))
+        .limit(1);
+      return report;
+    }
+  }
+
+  async getWeeklyReportById(reportId: string): Promise<WeeklyReport | null> {
     const [report] = await db
       .select()
       .from(weeklyReports)
       .where(eq(weeklyReports.id, reportId))
       .limit(1);
-    return report;
+    return report || null;
   }
 
-  async updateWeeklyReport(reportId: string, data: Partial<InsertWeeklyReport>): Promise<WeeklyReport> {
-    const [report] = await db
-      .update(weeklyReports)
-      .set(data)
-      .where(eq(weeklyReports.id, reportId))
-      .returning();
-    return report;
+  async updateWeeklyReport(
+    reportId: string,
+    clientIdOrData: string | Partial<InsertWeeklyReport>,
+    data?: Partial<InsertWeeklyReport>
+  ): Promise<WeeklyReport> {
+    let actualClientId: string | undefined;
+    let actualData: Partial<InsertWeeklyReport>;
+    
+    if (typeof clientIdOrData === 'string') {
+      // New signature: updateWeeklyReport(id, clientId, data)
+      actualClientId = clientIdOrData;
+      actualData = data!;
+    } else {
+      // Old signature: updateWeeklyReport(id, data)
+      actualData = clientIdOrData;
+    }
+    
+    if (actualClientId) {
+      // With ownership check
+      const [report] = await db
+        .update(weeklyReports)
+        .set({ ...actualData, updatedAt: new Date() })
+        .where(and(
+          eq(weeklyReports.id, reportId),
+          eq(weeklyReports.clientId, actualClientId)
+        ))
+        .returning();
+      
+      if (!report) {
+        throw new Error("Report not found or not owned by client");
+      }
+      
+      return report;
+    } else {
+      // Without ownership check (for internal use)
+      const [report] = await db
+        .update(weeklyReports)
+        .set({ ...actualData, updatedAt: new Date() })
+        .where(eq(weeklyReports.id, reportId))
+        .returning();
+      
+      if (!report) {
+        throw new Error("Report not found");
+      }
+      
+      return report;
+    }
   }
 
   async getUnreadReportsCount(trainerId: string): Promise<number> {

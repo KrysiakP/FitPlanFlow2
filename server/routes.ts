@@ -510,7 +510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Update the report with the new photo path
-      await storage.updateWeeklyReport(reportId, { photoUrl: objectPath });
+      await storage.updateWeeklyReport(reportId, report.clientId, { photoUrl: objectPath });
 
       res.status(200).json({
         objectPath: objectPath,
@@ -2551,13 +2551,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const reports = await storage.getClientWeeklyReports(userId);
       
-      // Generate presigned URLs for photos
+      // CRITICAL FIX: Generate presigned URLs for photos but preserve original paths
+      // This prevents photo loss when editing reports without changing the photo
       const objectStorageService = new ObjectStorageService();
       const reportsWithUrls = await Promise.all(
         reports.map(async (report) => {
           if (report.photoUrl) {
             const presignedUrl = await objectStorageService.getObjectReadUrl(report.photoUrl);
-            return { ...report, photoUrl: presignedUrl || report.photoUrl };
+            return { 
+              ...report, 
+              photoUrl: presignedUrl || report.photoUrl,  // Presigned URL for display
+              photoOriginalPath: report.photoUrl  // Original object path for saving
+            };
           }
           return report;
         })
@@ -2567,6 +2572,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching weekly reports:", error);
       res.status(500).json({ message: "Nie udało się pobrać raportów" });
+    }
+  });
+
+  // GET /api/reports/:id - Fetch single report with ownership check
+  app.get("/api/reports/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko podopieczni mogą pobierać raporty" });
+      }
+      
+      const reportId = req.params.id;
+      const report = await storage.getWeeklyReportById(reportId);
+      
+      if (!report) {
+        return res.status(404).json({ message: "Raport nie znaleziony" });
+      }
+      
+      // CRITICAL: Verify ownership before returning data
+      if (report.clientId !== userId) {
+        return res.status(403).json({ message: "Brak dostępu do tego raportu" });
+      }
+      
+      // Generate presigned URL AND preserve original path
+      if (report.photoUrl) {
+        const objectStorageService = new ObjectStorageService();
+        const presignedUrl = await objectStorageService.getObjectReadUrl(report.photoUrl);
+        return res.json({
+          ...report,
+          photoUrl: presignedUrl || report.photoUrl,
+          photoOriginalPath: report.photoUrl
+        });
+      }
+      
+      res.json(report);
+    } catch (error) {
+      console.error("Error fetching weekly report:", error);
+      res.status(500).json({ message: "Nie udało się pobrać raportu" });
+    }
+  });
+
+  // PATCH /api/reports/:id - Update report with ownership check
+  app.patch("/api/reports/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko podopieczni mogą edytować raporty" });
+      }
+
+      const validationResult = insertWeeklyReportSchema.partial().safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const report = await storage.updateWeeklyReport(req.params.id, userId, validationResult.data);
+      res.json(report);
+    } catch (error: any) {
+      console.error("Error updating weekly report:", error);
+      if (error.message?.includes("not found") || error.message?.includes("not owned")) {
+        return res.status(404).json({ message: "Raport nie znaleziony" });
+      }
+      res.status(500).json({ message: "Nie udało się zaktualizować raportu" });
     }
   });
 
@@ -2582,13 +2656,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { clientId } = req.params;
       const reports = await storage.getClientWeeklyReportsForTrainer(clientId, userId);
       
-      // Generate presigned URLs for photos
+      // CRITICAL FIX: Generate presigned URLs for photos but preserve original paths
+      // This prevents photo loss when editing reports without changing the photo
       const objectStorageService = new ObjectStorageService();
       const reportsWithUrls = await Promise.all(
         reports.map(async (report) => {
           if (report.photoUrl) {
             const presignedUrl = await objectStorageService.getObjectReadUrl(report.photoUrl);
-            return { ...report, photoUrl: presignedUrl || report.photoUrl };
+            return { 
+              ...report, 
+              photoUrl: presignedUrl || report.photoUrl,  // Presigned URL for display
+              photoOriginalPath: report.photoUrl  // Original object path for saving
+            };
           }
           return report;
         })

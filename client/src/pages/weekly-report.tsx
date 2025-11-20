@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertWeeklyReportSchema, type WeeklyReport, type InsertWeeklyReportInput } from "@shared/schema";
-import { Calendar as CalendarIcon, Upload, FileImage, TrendingUp, Activity } from "lucide-react";
+import { Calendar as CalendarIcon, Upload, FileImage, TrendingUp, Activity, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,8 @@ export default function WeeklyReport() {
   const [tempObjectPath, setTempObjectPath] = useState<string>("");
   const [tempPreviewUrl, setTempPreviewUrl] = useState<string>("");
   const [currentReportId, setCurrentReportId] = useState<string | null>(null);
+  const [editingReportId, setEditingReportId] = useState<string | null>(null);
+  const [hasNewUpload, setHasNewUpload] = useState<boolean>(false);
 
   const form = useForm<InsertWeeklyReportInput>({
     resolver: zodResolver(insertWeeklyReportSchema),
@@ -50,23 +52,46 @@ export default function WeeklyReport() {
     queryKey: ["/api/reports"],
   });
 
-  const createReportMutation = useMutation({
+  const saveReportMutation = useMutation({
     mutationFn: async (data: InsertWeeklyReportInput) => {
-      // First create the report without photo
-      const report: any = await apiRequest("POST", "/api/reports", {
-        ...data,
-        photoUrl: "", // Will be updated separately if there's an uploaded photo
-      });
+      const method = editingReportId ? "PATCH" : "POST";
+      const url = editingReportId ? `/api/reports/${editingReportId}` : "/api/reports";
       
-      // If there's an uploaded photo, update the report with it
-      // CRITICAL: Use cached tempObjectPath instead of data.photoUrl
-      // This ensures objectPath survives even if form is reset during mutation
-      if (tempObjectPath && report.id) {
+      // CRITICAL FIX: Don't send photoUrl in the PATCH/POST request at all
+      // The photo will be updated separately via PUT /photos endpoint
+      // This prevents the PATCH from erasing the existing photo with an empty string
+      const { photoUrl, ...dataWithoutPhoto } = data;
+      
+      const report: any = await apiRequest(method, url, dataWithoutPhoto);
+      
+      // CRITICAL FIX: Only call PUT /photos when there's a NEW upload
+      // Skip PUT when editing without changing photo to prevent photo loss
+      if (hasNewUpload && tempObjectPath && report.id) {
+        // DEFENSIVE CHECK: Detect if we're accidentally sending a presigned URL
+        // Presigned URLs contain Google Cloud Storage signatures and should never be saved
+        if (tempObjectPath.includes('x-goog-signature') || 
+            tempObjectPath.includes('googleapis.com/storage') ||
+            tempObjectPath.includes('storage.googleapis.com')) {
+          console.error('[BUG] Attempting to save presigned URL!', tempObjectPath);
+          toast({
+            title: "Błąd",
+            description: "Wykryto nieprawidłowy URL zdjęcia. Prosimy odświeżyć stronę i spróbować ponownie.",
+            variant: "destructive",
+          });
+          // Skip photo update to prevent corruption
+          return report;
+        }
+        
+        console.log('[DEBUG] Saving photo with NEW upload tempObjectPath:', tempObjectPath);
+        console.log('[DEBUG] Is presigned?:', tempObjectPath.includes('x-goog-signature'));
+        
         const photoResponse: any = await apiRequest("PUT", `/api/weekly-reports/${report.id}/photos`, {
           photoUrl: tempObjectPath,
         });
         // Update the report with the normalized object path
         report.photoUrl = photoResponse.objectPath;
+      } else if (editingReportId && !hasNewUpload) {
+        console.log('[DEBUG] Skipping PUT /photos - editing without new upload');
       }
       
       return report;
@@ -74,14 +99,16 @@ export default function WeeklyReport() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
       toast({
-        title: "Raport zapisany!",
-        description: "Twój cotygodniowy raport został pomyślnie zapisany.",
+        title: editingReportId ? "Raport zaktualizowany!" : "Raport zapisany!",
+        description: editingReportId 
+          ? "Twój raport został pomyślnie zaktualizowany."
+          : "Twój cotygodniowy raport został pomyślnie zapisany.",
       });
-      form.reset();
-      setUploadedPhotoUrl("");
-      setTempObjectPath("");
-      setTempPreviewUrl("");
-      setCurrentReportId(null);
+      
+      // Reset hasNewUpload flag after successful save
+      setHasNewUpload(false);
+      
+      cancelEdit();
     },
     onError: (error: any) => {
       toast({
@@ -137,6 +164,9 @@ export default function WeeklyReport() {
       // CRITICAL: Backend normalizeObjectEntityPath() requires objectPath, NOT presigned URLs
       form.setValue("photoUrl", tempObjectPath);
       
+      // Mark that we have a NEW upload (not editing existing photo)
+      setHasNewUpload(true);
+      
       toast({
         title: "Zdjęcie przesłane!",
         description: "Zdjęcie zostało pomyślnie przesłane.",
@@ -144,8 +174,76 @@ export default function WeeklyReport() {
     }
   };
 
+  const startEdit = (report: WeeklyReport & { photoOriginalPath?: string }) => {
+    setEditingReportId(report.id);
+    
+    // CRITICAL FIX: Don't put presigned photoUrl in form data!
+    // The form field is only for validation, actual photo saving uses tempObjectPath
+    form.reset({
+      reportDate: new Date(report.reportDate),
+      weight: report.weight || "",
+      saturation: report.saturation || "",
+      chest: report.chest || "",
+      waist: report.waist || "",
+      hips: report.hips || "",
+      arm: report.arm || "",
+      leg: report.leg || "",
+      cardio: report.cardio || "",
+      supplements: report.supplements || "",
+      mood: report.mood || "",
+      thoughts: report.thoughts || "",
+      photoUrl: "",  // Keep empty - photo state managed separately
+    });
+    
+    // Set photo state separately (not in form data)
+    // This prevents presigned URLs from contaminating the form submission
+    if (report.photoOriginalPath || report.photoUrl) {
+      console.log('[DEBUG] startEdit() - photoOriginalPath:', report.photoOriginalPath);
+      console.log('[DEBUG] startEdit() - photoUrl:', report.photoUrl);
+      
+      // Use presigned URL for display only
+      setUploadedPhotoUrl(report.photoUrl || "");
+      setTempPreviewUrl(report.photoUrl || "");
+      
+      // CRITICAL: Use photoOriginalPath for saving
+      // Only fall back to photoUrl if photoOriginalPath is missing (shouldn't happen)
+      const pathForSaving = report.photoOriginalPath || report.photoUrl || "";
+      setTempObjectPath(pathForSaving);
+      
+      console.log('[DEBUG] startEdit() - tempObjectPath set to:', pathForSaving);
+      console.log('[DEBUG] startEdit() - Is presigned?:', pathForSaving.includes('x-goog-signature'));
+      
+      if (pathForSaving.includes('x-goog-signature')) {
+        console.warn('[WARNING] tempObjectPath contains presigned URL - photo may be lost on save!');
+      }
+      
+      // CRITICAL: Mark as NOT a new upload (editing existing photo)
+      // This prevents PUT /photos from being called when editing without changing photo
+      setHasNewUpload(false);
+    } else {
+      // No photo - clear state
+      setUploadedPhotoUrl("");
+      setTempObjectPath("");
+      setTempPreviewUrl("");
+      setHasNewUpload(false);
+    }
+    
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
+    setEditingReportId(null);
+    form.reset();
+    setUploadedPhotoUrl("");
+    setTempObjectPath("");
+    setTempPreviewUrl("");
+    setCurrentReportId(null);
+    setHasNewUpload(false);
+  };
+
   const onSubmit = (data: InsertWeeklyReportInput) => {
-    createReportMutation.mutate(data);
+    saveReportMutation.mutate(data);
   };
 
   const sortedReports = reports
@@ -165,10 +263,12 @@ export default function WeeklyReport() {
         <CardHeader>
           <CardTitle className="font-heading flex items-center gap-2">
             <TrendingUp className="w-5 h-5" />
-            Nowy Raport
+            {editingReportId ? "Edytuj raport tygodniowy" : "Nowy Raport"}
           </CardTitle>
           <CardDescription>
-            Wypełnij wszystkie pola, aby stworzyć kompletny raport tygodniowy
+            {editingReportId 
+              ? "Zaktualizuj dane w swoim raporcie tygodniowym" 
+              : "Wypełnij wszystkie pola, aby stworzyć kompletny raport tygodniowy"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -481,14 +581,26 @@ export default function WeeklyReport() {
                 )}
               />
 
-              <Button
-                type="submit"
-                disabled={createReportMutation.isPending}
-                className="w-full md:w-auto"
-                data-testid="button-submit-report"
-              >
-                {createReportMutation.isPending ? "Zapisywanie..." : "Zapisz raport"}
-              </Button>
+              <div className="flex gap-4">
+                <Button
+                  type="submit"
+                  disabled={saveReportMutation.isPending}
+                  className="w-full md:w-auto"
+                  data-testid="button-save-report"
+                >
+                  {saveReportMutation.isPending ? "Zapisywanie..." : (editingReportId ? "Zaktualizuj raport" : "Zapisz raport")}
+                </Button>
+                {editingReportId && (
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={cancelEdit}
+                    data-testid="button-cancel-edit"
+                  >
+                    Anuluj edycję
+                  </Button>
+                )}
+              </div>
             </form>
           </Form>
         </CardContent>
@@ -507,11 +619,21 @@ export default function WeeklyReport() {
                 <CardHeader>
                   <CardTitle className="font-heading flex items-center justify-between">
                     <span>Raport z {format(new Date(report.reportDate), "d MMMM yyyy", { locale: pl })}</span>
-                    {report.weight && (
-                      <span className="text-lg text-primary" data-testid={`text-report-weight-${report.id}`}>
-                        {report.weight}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {report.weight && (
+                        <span className="text-lg text-primary" data-testid={`text-report-weight-${report.id}`}>
+                          {report.weight}
+                        </span>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => startEdit(report)}
+                        data-testid={`button-edit-report-${report.id}`}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
