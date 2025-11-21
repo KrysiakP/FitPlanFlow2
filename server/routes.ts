@@ -41,6 +41,7 @@ import fs from "fs";
 import { randomUUID } from "crypto";
 import Stripe from "stripe";
 import express from "express";
+import { checkPaymentNotifications } from "./services/paymentNotifications";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { 
   apiVersion: '2024-11-20.acacia' as any 
@@ -3983,6 +3984,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
       res.status(500).json({ message: "Nie udało się oznaczyć powiadomień jako przeczytane" });
+    }
+  });
+
+  // Cron Jobs - Scheduled tasks triggered externally (e.g., Replit Scheduled Deployment)
+  // These endpoints should NOT run on server startup to comply with Autoscale best practices
+  
+  /**
+   * POST /api/cron/payment-notifications
+   * 
+   * Checks unpaid payments and creates notifications for overdue/upcoming payments.
+   * 
+   * Security: Requires CRON_JOB_TOKEN in Authorization header.
+   * Usage: Call this endpoint from a Replit Scheduled Deployment hourly.
+   * 
+   * Example:
+   *   curl -X POST https://your-app.replit.app/api/cron/payment-notifications \
+   *     -H "Authorization: Bearer YOUR_CRON_JOB_TOKEN"
+   */
+  app.post("/api/cron/payment-notifications", async (req, res) => {
+    try {
+      // Verify cron job token
+      const authHeader = req.headers.authorization;
+      const expectedToken = process.env.CRON_JOB_TOKEN;
+      
+      if (!expectedToken) {
+        console.error("[CRON] CRON_JOB_TOKEN not configured in environment");
+        return res.status(500).json({ 
+          error: "Cron job token not configured" 
+        });
+      }
+      
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ 
+          error: "Missing or invalid Authorization header. Use: Authorization: Bearer <token>" 
+        });
+      }
+      
+      const token = authHeader.substring(7); // Remove "Bearer " prefix
+      
+      if (token !== expectedToken) {
+        console.warn("[CRON] Invalid cron job token attempt");
+        return res.status(401).json({ 
+          error: "Invalid cron job token" 
+        });
+      }
+      
+      // Token valid - run payment notification check
+      console.log("[CRON] Running payment notifications check...");
+      const stats = await checkPaymentNotifications(storage);
+      
+      res.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        stats,
+      });
+    } catch (error) {
+      console.error("[CRON] Error running payment notifications:", error);
+      res.status(500).json({ 
+        error: "Failed to run payment notifications",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 
