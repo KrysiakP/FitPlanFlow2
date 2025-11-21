@@ -277,7 +277,7 @@ export default function TrainerProfile() {
     return "Użytkownik";
   };
 
-  if (isLoading || isLoadingOwn) {
+  if (isLoading) {
     return (
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         <Skeleton className="h-12 w-64" />
@@ -343,7 +343,7 @@ export default function TrainerProfile() {
           <div className="flex items-start gap-6 flex-wrap">
             <Avatar className="w-24 h-24">
               <AvatarImage 
-                src={displayData?.user.profileImageDisplayUrl || displayUser?.profileImageDisplayUrl || displayUser?.profileImageUrl || undefined} 
+                src={displayUser?.profileImageDisplayUrl || displayUser?.profileImageUrl || undefined} 
                 alt={`${displayUser?.firstName} ${displayUser?.lastName}`}
               />
               <AvatarFallback className="bg-primary/10 text-primary font-medium text-2xl">
@@ -624,7 +624,7 @@ export default function TrainerProfile() {
                       <AlertTitle>Program poleceń</AlertTitle>
                       <AlertDescription>
                         Poleć swoim znajomym i otrzymaj darmowy miesiąc subskrypcji!
-                        <Button asChild variant="link" className="p-0 h-auto ml-1" data-testid="link-referrals">
+                        <Button asChild variant="ghost" className="p-0 h-auto ml-1 text-primary underline-offset-4 hover:underline" data-testid="link-referrals">
                           <Link href="/referrals">
                             Zobacz szczegóły
                           </Link>
