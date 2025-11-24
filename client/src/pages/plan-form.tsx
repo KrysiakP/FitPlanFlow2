@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, GripVertical, Library } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Plus, Trash2, GripVertical, Library, Dumbbell, Circle, Copy, ChevronDown, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -55,6 +56,9 @@ export default function PlanForm() {
   const [libraryDialogOpen, setLibraryDialogOpen] = useState(false);
   const [selectedWorkoutIndex, setSelectedWorkoutIndex] = useState<number | null>(null);
   const [selectedExerciseIndex, setSelectedExerciseIndex] = useState<number | null>(null);
+  const [expandedWorkouts, setExpandedWorkouts] = useState<Set<number>>(new Set([0]));
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [newPlanId, setNewPlanId] = useState<number | null>(null);
 
   const { data: existingPlan, isLoading } = useQuery<PlanWithWorkouts>({
     queryKey: ["/api/plans", id],
@@ -103,19 +107,27 @@ export default function PlanForm() {
     mutationFn: async (data: PlanFormData) => {
       if (isEdit) {
         await apiRequest("PUT", `/api/plans/${id}/bulk`, data);
+        return null;
       } else {
-        await apiRequest("POST", "/api/plans/bulk", data);
+        const res = await apiRequest("POST", "/api/plans/bulk", data) as { id?: number };
+        return res.id || null;
       }
     },
-    onSuccess: () => {
+    onSuccess: (planId) => {
       queryClient.invalidateQueries({ queryKey: ["/api/plans"] });
       queryClient.invalidateQueries({ queryKey: ["/api/plans", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/trainer/stats"] });
-      toast({
-        title: isEdit ? "Plan zaktualizowany" : "Plan utworzony",
-        description: isEdit ? "Plan treningowy został zaktualizowany" : "Nowy plan treningowy został utworzony",
-      });
-      setLocation("/plans");
+      
+      if (isEdit) {
+        toast({
+          title: "Plan zaktualizowany",
+          description: "Plan treningowy został zaktualizowany",
+        });
+        setLocation("/plans");
+      } else {
+        setNewPlanId(planId as number);
+        setSuccessDialogOpen(true);
+      }
     },
     onError: () => {
       toast({
@@ -177,6 +189,45 @@ export default function PlanForm() {
       `workouts.${workoutIndex}.exercises`,
       currentExercises.filter((_, i) => i !== exerciseIndex).map((ex, i) => ({ ...ex, orderIndex: i }))
     );
+  };
+
+  const duplicateExercise = (workoutIndex: number, exerciseIndex: number) => {
+    const currentExercises = form.getValues(`workouts.${workoutIndex}.exercises`);
+    const exerciseToDuplicate = currentExercises[exerciseIndex];
+    const newExercise = {
+      ...exerciseToDuplicate,
+      orderIndex: currentExercises.length,
+    };
+    form.setValue(
+      `workouts.${workoutIndex}.exercises`,
+      [...currentExercises, newExercise]
+    );
+  };
+
+  const toggleWorkoutExpanded = (workoutIndex: number) => {
+    const newExpanded = new Set(expandedWorkouts);
+    if (newExpanded.has(workoutIndex)) {
+      newExpanded.delete(workoutIndex);
+    } else {
+      newExpanded.add(workoutIndex);
+    }
+    setExpandedWorkouts(newExpanded);
+  };
+
+  const getWorkoutSummary = (workoutIndex: number) => {
+    const exercises = form.getValues(`workouts.${workoutIndex}.exercises`);
+    if (!exercises || exercises.length === 0) return null;
+    
+    const totalSets = exercises.reduce((sum, ex) => sum + (ex.sets || 0), 0);
+    const avgReps = exercises.length > 0 
+      ? Math.round(exercises.reduce((sum, ex) => sum + (ex.reps || 0), 0) / exercises.length)
+      : 0;
+    
+    return {
+      exerciseCount: exercises.length,
+      totalSets,
+      avgReps,
+    };
   };
 
   const handleSelectFromLibrary = (workoutIndex: number, exerciseIndex: number) => {
@@ -263,9 +314,12 @@ export default function PlanForm() {
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <div>
-                <CardTitle className="font-heading">Treningi</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <Dumbbell className="w-5 h-5 text-primary" />
+                  <CardTitle className="font-heading">Treningi</CardTitle>
+                </div>
                 <CardDescription>Dodaj treningi do planu</CardDescription>
               </div>
               <Button
@@ -278,52 +332,45 @@ export default function PlanForm() {
                 Dodaj trening
               </Button>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {form.watch("workouts").map((_, workoutIndex) => (
-                <Card key={workoutIndex} data-testid={`card-workout-${workoutIndex}`}>
-                  <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-4">
-                    <div className="flex-1 space-y-4">
-                      <FormField
-                        control={form.control}
-                        name={`workouts.${workoutIndex}.name`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nazwa treningu</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="np. Trening górnej partii" 
-                                {...field} 
-                                data-testid={`input-workout-name-${workoutIndex}`} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`workouts.${workoutIndex}.description`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Opis treningu (opcjonalnie)</FormLabel>
-                            <FormControl>
-                              <Textarea
-                                placeholder="Opisz cel i zakres tego treningu"
-                                {...field}
-                                data-testid={`input-workout-description-${workoutIndex}`}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+            <CardContent className="space-y-4">
+              {form.watch("workouts").map((_, workoutIndex) => {
+                const summary = getWorkoutSummary(workoutIndex);
+                const isExpanded = expandedWorkouts.has(workoutIndex);
+                return (
+                <Card key={workoutIndex} className="border-l-4 border-l-primary/50" data-testid={`card-workout-${workoutIndex}`}>
+                  <CardHeader 
+                    className="flex flex-row items-start justify-between space-y-0 gap-4 cursor-pointer hover-elevate"
+                    onClick={() => toggleWorkoutExpanded(workoutIndex)}
+                  >
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${isExpanded ? '' : '-rotate-90'}`} />
+                        <h3 className="font-semibold text-lg" data-testid={`text-workout-name-${workoutIndex}`}>
+                          {form.watch(`workouts.${workoutIndex}.name`)}
+                        </h3>
+                      </div>
+                      {summary && (
+                        <div className="flex gap-4 text-xs text-muted-foreground ml-7">
+                          <span data-testid={`text-workout-summary-exercises-${workoutIndex}`}>
+                            {summary.exerciseCount} {summary.exerciseCount === 1 ? 'ćwiczenie' : 'ćwiczeń'}
+                          </span>
+                          <span data-testid={`text-workout-summary-sets-${workoutIndex}`}>
+                            {summary.totalSets} {summary.totalSets === 1 ? 'seria' : 'serii'}
+                          </span>
+                          <span data-testid={`text-workout-summary-reps-${workoutIndex}`}>
+                            Śr. {summary.avgReps} powtórzeń
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
-                      onClick={() => removeWorkout(workoutIndex)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeWorkout(workoutIndex);
+                      }}
                       disabled={form.watch("workouts").length === 1}
                       data-testid={`button-remove-workout-${workoutIndex}`}
                     >
@@ -331,129 +378,198 @@ export default function PlanForm() {
                     </Button>
                   </CardHeader>
 
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-medium">Ćwiczenia</h4>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addExercise(workoutIndex)}
-                        data-testid={`button-add-exercise-${workoutIndex}`}
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Dodaj ćwiczenie
-                      </Button>
-                    </div>
+                  {isExpanded && (
+                    <CardContent className="space-y-6 border-t pt-6">
+                      <div className="space-y-4">
+                        <FormField
+                          control={form.control}
+                          name={`workouts.${workoutIndex}.name`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Nazwa treningu</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="np. Trening górnej partii" 
+                                  {...field} 
+                                  data-testid={`input-workout-name-${workoutIndex}`} 
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                    {form.watch(`workouts.${workoutIndex}.exercises`).map((_, exerciseIndex) => (
-                      <Card key={exerciseIndex} data-testid={`card-exercise-${workoutIndex}-${exerciseIndex}`}>
-                        <CardContent className="p-6 space-y-4">
-                          <div className="flex items-start gap-4">
-                            <div className="pt-2">
-                              <GripVertical className="w-5 h-5 text-muted-foreground" />
-                            </div>
-                            <div className="flex-1 space-y-4">
-                              <div className="flex items-center gap-2">
+                        <FormField
+                          control={form.control}
+                          name={`workouts.${workoutIndex}.description`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Opis treningu (opcjonalnie)</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  placeholder="Opisz cel i zakres tego treningu"
+                                  {...field}
+                                  data-testid={`input-workout-description-${workoutIndex}`}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <div className="border-t pt-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-2">
+                            <Circle className="w-4 h-4 text-primary" />
+                            <h4 className="font-semibold">Ćwiczenia</h4>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addExercise(workoutIndex)}
+                            data-testid={`button-add-exercise-${workoutIndex}`}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Dodaj ćwiczenie
+                          </Button>
+                        </div>
+
+                        <div className="space-y-3">
+                          {form.watch(`workouts.${workoutIndex}.exercises`).map((_, exerciseIndex) => (
+                            <Card key={exerciseIndex} className="bg-muted/30" data-testid={`card-exercise-${workoutIndex}-${exerciseIndex}`}>
+                              <CardContent className="p-4 space-y-4">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex items-start gap-3 flex-1">
+                                    <GripVertical className="w-4 h-4 text-muted-foreground mt-1 flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <FormField
+                                        control={form.control}
+                                        name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.name`}
+                                        render={({ field }) => (
+                                          <FormItem>
+                                            <FormLabel className="text-xs">Nazwa ćwiczenia</FormLabel>
+                                            <FormControl>
+                                              <Input 
+                                                placeholder="np. Wyciskanie sztangi" 
+                                                {...field} 
+                                                data-testid={`input-exercise-name-${workoutIndex}-${exerciseIndex}`} 
+                                              />
+                                            </FormControl>
+                                            <FormMessage />
+                                          </FormItem>
+                                        )}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2 flex-shrink-0">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => duplicateExercise(workoutIndex, exerciseIndex)}
+                                      data-testid={`button-duplicate-exercise-${workoutIndex}-${exerciseIndex}`}
+                                      title="Duplikuj ćwiczenie"
+                                    >
+                                      <Copy className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      onClick={() => removeExercise(workoutIndex, exerciseIndex)}
+                                      disabled={form.watch(`workouts.${workoutIndex}.exercises`).length === 1}
+                                      data-testid={`button-remove-exercise-${workoutIndex}-${exerciseIndex}`}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+
                                 <Button
                                   type="button"
                                   variant="outline"
                                   size="sm"
+                                  className="w-full"
                                   onClick={() => handleSelectFromLibrary(workoutIndex, exerciseIndex)}
                                   data-testid={`button-select-from-library-${workoutIndex}-${exerciseIndex}`}
                                 >
                                   <Library className="w-4 h-4 mr-2" />
                                   Wybierz z biblioteki
                                 </Button>
-                              </div>
 
-                              <FormField
-                                control={form.control}
-                                name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.name`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Nazwa ćwiczenia</FormLabel>
-                                    <FormControl>
-                                      <Input 
-                                        placeholder="np. Wyciskanie sztangi" 
-                                        {...field} 
-                                        data-testid={`input-exercise-name-${workoutIndex}-${exerciseIndex}`} 
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
+                                <div className="grid grid-cols-3 gap-3">
+                                  <FormField
+                                    control={form.control}
+                                    name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.sets`}
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel className="text-xs">Serie</FormLabel>
+                                        <FormControl>
+                                          <Input 
+                                            type="number" 
+                                            min="1" 
+                                            {...field} 
+                                            data-testid={`input-exercise-sets-${workoutIndex}-${exerciseIndex}`} 
+                                          />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
 
-                              <FormField
-                                control={form.control}
-                                name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.description`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Opis (opcjonalnie)</FormLabel>
-                                    <FormControl>
-                                      <Textarea
-                                        placeholder="Dodatkowe wskazówki dotyczące techniki wykonania"
-                                        {...field}
-                                        data-testid={`input-exercise-description-${workoutIndex}-${exerciseIndex}`}
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
+                                  <FormField
+                                    control={form.control}
+                                    name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.reps`}
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel className="text-xs">Powtórzenia</FormLabel>
+                                        <FormControl>
+                                          <Input 
+                                            type="number" 
+                                            min="1" 
+                                            {...field} 
+                                            data-testid={`input-exercise-reps-${workoutIndex}-${exerciseIndex}`} 
+                                          />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
 
-                              <FormField
-                                control={form.control}
-                                name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.videoUrl`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Link do filmu (opcjonalnie)</FormLabel>
-                                    <FormControl>
-                                      <Input 
-                                        type="url"
-                                        placeholder="https://youtube.com/watch?v=..." 
-                                        {...field} 
-                                        data-testid={`input-exercise-video-${workoutIndex}-${exerciseIndex}`} 
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-
-                              <div className="grid grid-cols-2 gap-4">
-                                <FormField
-                                  control={form.control}
-                                  name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.sets`}
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormLabel>Serie</FormLabel>
-                                      <FormControl>
-                                        <Input 
-                                          type="number" 
-                                          min="1" 
-                                          {...field} 
-                                          data-testid={`input-exercise-sets-${workoutIndex}-${exerciseIndex}`} 
-                                        />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
+                                  <FormField
+                                    control={form.control}
+                                    name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.restTime`}
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel className="text-xs">Odpoczynek (s)</FormLabel>
+                                        <FormControl>
+                                          <Input 
+                                            type="number" 
+                                            min="0" 
+                                            {...field} 
+                                            data-testid={`input-exercise-rest-${workoutIndex}-${exerciseIndex}`} 
+                                          />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                </div>
 
                                 <FormField
                                   control={form.control}
-                                  name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.reps`}
+                                  name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.description`}
                                   render={({ field }) => (
                                     <FormItem>
-                                      <FormLabel>Powtórzenia</FormLabel>
+                                      <FormLabel className="text-xs">Opis (opcjonalnie)</FormLabel>
                                       <FormControl>
-                                        <Input 
-                                          type="number" 
-                                          min="1" 
-                                          {...field} 
-                                          data-testid={`input-exercise-reps-${workoutIndex}-${exerciseIndex}`} 
+                                        <Textarea
+                                          placeholder="Dodatkowe wskazówki"
+                                          {...field}
+                                          className="text-xs"
+                                          data-testid={`input-exercise-description-${workoutIndex}-${exerciseIndex}`}
                                         />
                                       </FormControl>
                                       <FormMessage />
@@ -466,7 +582,7 @@ export default function PlanForm() {
                                   name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.load`}
                                   render={({ field }) => (
                                     <FormItem>
-                                      <FormLabel>Obciążenie (opcjonalnie)</FormLabel>
+                                      <FormLabel className="text-xs">Obciążenie (opcjonalnie)</FormLabel>
                                       <FormControl>
                                         <Input 
                                           placeholder="np. 20kg, bodyweight" 
@@ -481,69 +597,60 @@ export default function PlanForm() {
 
                                 <FormField
                                   control={form.control}
-                                  name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.restTime`}
+                                  name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.videoUrl`}
                                   render={({ field }) => (
                                     <FormItem>
-                                      <FormLabel>Odpoczynek (s)</FormLabel>
+                                      <FormLabel className="text-xs">Link do filmu (opcjonalnie)</FormLabel>
                                       <FormControl>
                                         <Input 
-                                          type="number" 
-                                          min="0" 
+                                          type="url"
+                                          placeholder="https://youtube.com/watch?v=..." 
                                           {...field} 
-                                          data-testid={`input-exercise-rest-${workoutIndex}-${exerciseIndex}`} 
+                                          data-testid={`input-exercise-video-${workoutIndex}-${exerciseIndex}`} 
                                         />
                                       </FormControl>
                                       <FormMessage />
                                     </FormItem>
                                   )}
                                 />
-                              </div>
 
-                              <FormField
-                                control={form.control}
-                                name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.technique`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Technika treningowa (opcjonalnie)</FormLabel>
-                                    <Select 
-                                      onValueChange={field.onChange} 
-                                      value={field.value || undefined}
-                                    >
-                                      <FormControl>
-                                        <SelectTrigger data-testid={`select-exercise-technique-${workoutIndex}-${exerciseIndex}`}>
-                                          <SelectValue placeholder="Wybierz technikę" />
-                                        </SelectTrigger>
-                                      </FormControl>
-                                      <SelectContent>
-                                        <SelectItem value="none">Brak</SelectItem>
-                                        <SelectItem value="dropset">Dropset</SelectItem>
-                                        <SelectItem value="cluster_set">Cluster Set</SelectItem>
-                                        <SelectItem value="rest_pause">Rest-Pause</SelectItem>
-                                        <SelectItem value="piramida">Piramida</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </div>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              onClick={() => removeExercise(workoutIndex, exerciseIndex)}
-                              disabled={form.watch(`workouts.${workoutIndex}.exercises`).length === 1}
-                              data-testid={`button-remove-exercise-${workoutIndex}-${exerciseIndex}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </CardContent>
+                                <FormField
+                                  control={form.control}
+                                  name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.technique`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel className="text-xs">Technika treningowa (opcjonalnie)</FormLabel>
+                                      <Select 
+                                        onValueChange={field.onChange} 
+                                        value={field.value || "none"}
+                                      >
+                                        <FormControl>
+                                          <SelectTrigger data-testid={`select-exercise-technique-${workoutIndex}-${exerciseIndex}`}>
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                          <SelectItem value="none">Brak</SelectItem>
+                                          <SelectItem value="dropset">Dropset</SelectItem>
+                                          <SelectItem value="cluster_set">Cluster Set</SelectItem>
+                                          <SelectItem value="rest_pause">Rest-Pause</SelectItem>
+                                          <SelectItem value="piramida">Piramida</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  )}
                 </Card>
-              ))}
+              );
+              })}
             </CardContent>
           </Card>
 
@@ -630,6 +737,59 @@ export default function PlanForm() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
+        <DialogContent data-testid="dialog-success">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-4">
+              <CheckCircle className="w-8 h-8 text-green-500" />
+              <DialogTitle className="font-heading">Plan utworzony!</DialogTitle>
+            </div>
+            <DialogDescription>
+              Twój nowy plan treningowy został pomyślnie utworzony. Teraz możesz go przypisać do swoich podopiecznych.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 justify-end mt-6">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSuccessDialogOpen(false);
+                setLocation("/plans");
+              }}
+              data-testid="button-back-to-plans"
+            >
+              Wróć do planów
+            </Button>
+            <Button
+              onClick={() => {
+                setSuccessDialogOpen(false);
+                if (newPlanId) {
+                  setLocation(`/plans/${newPlanId}`);
+                }
+              }}
+              data-testid="button-view-plan"
+            >
+              Przejdź do planu
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Button
+        type="button"
+        size="lg"
+        className="fixed bottom-8 right-8 rounded-full shadow-lg"
+        onClick={() => {
+          const form_element = document.querySelector('form');
+          if (form_element) {
+            form_element.scrollIntoView({ behavior: 'smooth', block: 'end' });
+          }
+        }}
+        data-testid="button-floating-add"
+        title="Dodaj ćwiczenie"
+      >
+        <Plus className="w-5 h-5" />
+      </Button>
     </div>
   );
 }
