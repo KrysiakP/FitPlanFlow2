@@ -32,6 +32,9 @@ import { pl } from "date-fns/locale";
 const formSchema = insertClientPaymentSchema.extend({
   clientId: z.string().min(1, "Wybierz klienta"),
   amount: z.coerce.number().min(1, "Kwota musi być większa niż 0"),
+  isRecurring: z.boolean().default(false),
+  recurringAmount: z.coerce.number().optional(),
+  recurringDayOfMonth: z.coerce.number().min(1).max(28).optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -59,6 +62,9 @@ export default function PaymentSchedule() {
       dueDate: new Date(),
       isPaid: false,
       notes: "",
+      isRecurring: false,
+      recurringAmount: 0,
+      recurringDayOfMonth: 1,
     },
   });
 
@@ -79,6 +85,9 @@ export default function PaymentSchedule() {
         dueDate: new Date(),
         isPaid: false,
         notes: "",
+        isRecurring: false,
+        recurringAmount: 0,
+        recurringDayOfMonth: 1,
       });
       // Close dialog programmatically after successful submission
       dialogCloseRef.current?.click();
@@ -291,6 +300,77 @@ export default function PaymentSchedule() {
                     )}
                   />
 
+                  <FormField
+                    control={form.control}
+                    name="isRecurring"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <input
+                            type="checkbox"
+                            checked={field.value}
+                            onChange={field.onChange}
+                            data-testid="checkbox-recurring"
+                            className="rounded border-input"
+                          />
+                        </FormControl>
+                        <FormLabel className="cursor-pointer">
+                          Płatność powtarzająca się co miesiąc
+                        </FormLabel>
+                      </FormItem>
+                    )}
+                  />
+
+                  {form.watch("isRecurring") && (
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="recurringAmount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Kwota cykliczna (w groszach)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                placeholder="20000 (= 200,00 zł)"
+                                data-testid="input-recurring-amount"
+                                {...field}
+                              />
+                            </FormControl>
+                            <p className="text-sm text-muted-foreground">
+                              Kwota, która będzie się powtarzać co miesiąc
+                            </p>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="recurringDayOfMonth"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Dzień miesiąca (1-28)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min="1"
+                                max="28"
+                                placeholder="15"
+                                data-testid="input-recurring-day"
+                                {...field}
+                              />
+                            </FormControl>
+                            <p className="text-sm text-muted-foreground">
+                              Płatność będzie się powtarzać na ten dzień każdego miesiąca
+                            </p>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </>
+                  )}
+
                   <div className="flex justify-end gap-2">
                     <DialogClose asChild>
                       <Button
@@ -375,19 +455,28 @@ export default function PaymentSchedule() {
                         {formatDate(payment.dueDate)}
                       </TableCell>
                       <TableCell data-testid={`cell-status-${payment.id}`}>
-                        {payment.isPaid ? (
-                          <Badge variant="default" className="bg-green-500" data-testid={`badge-paid-${payment.id}`}>
-                            Zapłacono
-                          </Badge>
-                        ) : isOverdue(payment) ? (
-                          <Badge variant="destructive" data-testid={`badge-overdue-${payment.id}`}>
-                            Zaległość
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" data-testid={`badge-pending-${payment.id}`}>
-                            Oczekuje
-                          </Badge>
-                        )}
+                        <div className="flex flex-col gap-2">
+                          <div>
+                            {payment.isPaid ? (
+                              <Badge variant="default" className="bg-green-500" data-testid={`badge-paid-${payment.id}`}>
+                                Zapłacono
+                              </Badge>
+                            ) : isOverdue(payment) ? (
+                              <Badge variant="destructive" data-testid={`badge-overdue-${payment.id}`}>
+                                Zaległość
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" data-testid={`badge-pending-${payment.id}`}>
+                                Oczekuje
+                              </Badge>
+                            )}
+                          </div>
+                          {payment.isRecurring && (
+                            <Badge variant="outline" data-testid={`badge-recurring-${payment.id}`}>
+                              🔄 Cykliczna
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       {payments.some(p => p.notes) && (
                         <TableCell className="text-sm text-muted-foreground" data-testid={`cell-notes-${payment.id}`}>

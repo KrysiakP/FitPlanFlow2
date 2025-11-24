@@ -1767,13 +1767,48 @@ export class DatabaseStorage implements IStorage {
   }
   
   async markPaymentAsPaid(paymentId: string): Promise<void> {
+    // Get the payment to check if it's recurring
+    const [payment] = await db
+      .select()
+      .from(clientPayments)
+      .where(eq(clientPayments.id, paymentId))
+      .limit(1);
+
+    if (!payment) {
+      throw new Error("Payment not found");
+    }
+
+    // Mark current payment as paid
     await db
       .update(clientPayments)
       .set({ 
         isPaid: true, 
-        paidAt: new Date() 
+        paidAt: new Date(),
+        lastRecurringCreatedAt: payment.isRecurring ? new Date() : null,
       })
       .where(eq(clientPayments.id, paymentId));
+
+    // If recurring, create next month's payment
+    if (payment.isRecurring && payment.recurringAmount && payment.recurringDayOfMonth) {
+      const nextDueDate = new Date();
+      nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+      nextDueDate.setDate(payment.recurringDayOfMonth);
+      nextDueDate.setHours(0, 0, 0, 0);
+
+      await db
+        .insert(clientPayments)
+        .values({
+          clientId: payment.clientId,
+          trainerId: payment.trainerId,
+          amount: payment.recurringAmount,
+          dueDate: nextDueDate,
+          isPaid: false,
+          notes: payment.notes ? `${payment.notes} (powtórzone)` : "(powtórzone)",
+          isRecurring: true,
+          recurringAmount: payment.recurringAmount,
+          recurringDayOfMonth: payment.recurringDayOfMonth,
+        });
+    }
   }
   
   async deletePayment(paymentId: string): Promise<void> {

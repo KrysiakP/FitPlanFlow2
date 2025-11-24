@@ -294,6 +294,11 @@ export const clientPayments = pgTable("client_payments", {
   isPaid: boolean("is_paid").default(false).notNull(),
   paidAt: timestamp("paid_at"),
   notes: text("notes"),
+  // Recurring payment fields
+  isRecurring: boolean("is_recurring").default(false).notNull(), // czy płatność powtarza się co miesiąc
+  recurringAmount: integer("recurring_amount"), // kwota cykliczna w groszach (np. 20000 = 200.00 PLN)
+  recurringDayOfMonth: integer("recurring_day_of_month"), // dzień miesiąca (1-28) kiedy płatność ma się powtarzać
+  lastRecurringCreatedAt: timestamp("last_recurring_created_at"), // kiedy ostatnio została stworzona nowa płatność cykliczna
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
   clientIdx: index("client_payments_client_idx").on(table.clientId),
@@ -898,6 +903,7 @@ export const insertClientPaymentSchema = createInsertSchema(clientPayments).omit
   createdAt: true,
   paidAt: true,
   trainerId: true,
+  lastRecurringCreatedAt: true,
 }).extend({
   amount: z.coerce.number().int().min(1, "Kwota musi być większa niż 0"),
   dueDate: z.coerce.date(),
