@@ -18,11 +18,11 @@ export function getSession() {
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
     cookie: {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      httpOnly: false,
+      secure: false,
+      sameSite: process.env.NODE_ENV === "production" ? "lax" : "none",
       maxAge: sessionTtl,
     },
   });

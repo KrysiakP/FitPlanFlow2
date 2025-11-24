@@ -638,14 +638,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       req.session.userId = user.id;
-      req.session.save((err) => {
-        if (err) {
-          console.error("Session save error:", err);
-          return res.status(500).json({ message: "Nie udało się zapisać sesji" });
-        }
-        const { password: _, ...userWithoutPassword } = user;
-        res.json(userWithoutPassword);
-      });
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
     } catch (error) {
       console.error("Error registering user:", error);
       res.status(500).json({ message: "Nie udało się zarejestrować użytkownika" });
@@ -675,14 +669,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       req.session.userId = user.id;
-      req.session.save((err) => {
-        if (err) {
-          console.error("Session save error:", err);
-          return res.status(500).json({ message: "Nie udało się zapisać sesji" });
-        }
-        const { password: _, ...userWithoutPassword } = user;
-        res.json(userWithoutPassword);
-      });
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
     } catch (error) {
       console.error("Error logging in:", error);
       res.status(500).json({ message: "Nie udało się zalogować" });
