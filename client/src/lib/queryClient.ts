@@ -7,12 +7,27 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+function getApiUrl(path: string): string {
+  // On DEV with separate frontend/backend domains, use explicit localhost
+  if (!path.startsWith("http")) {
+    const isDev = !import.meta.env.PROD;
+    const isCrossDomain = window.location.hostname !== "localhost" && 
+                          window.location.hostname !== "127.0.0.1";
+    
+    if (isDev && isCrossDomain) {
+      return `http://localhost:5000${path}`;
+    }
+  }
+  return path;
+}
+
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<any> {
-  const res = await fetch(url, {
+  const fullUrl = getApiUrl(url);
+  const res = await fetch(fullUrl, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
@@ -29,7 +44,9 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const url = queryKey.join("/") as string;
+    const fullUrl = getApiUrl(url);
+    const res = await fetch(fullUrl, {
       credentials: "include",
     });
 
