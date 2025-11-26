@@ -8,16 +8,7 @@ async function throwIfResNotOk(res: Response) {
 }
 
 function getApiUrl(path: string): string {
-  // On DEV with separate frontend/backend domains, use explicit localhost
-  if (!path.startsWith("http")) {
-    const isDev = !import.meta.env.PROD;
-    const isCrossDomain = window.location.hostname !== "localhost" && 
-                          window.location.hostname !== "127.0.0.1";
-    
-    if (isDev && isCrossDomain) {
-      return `http://localhost:5000${path}`;
-    }
-  }
+  // Always use relative paths - Replit proxy handles routing to the backend
   return path;
 }
 
