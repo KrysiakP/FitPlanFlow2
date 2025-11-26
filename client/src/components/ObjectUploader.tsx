@@ -69,37 +69,48 @@ export function ObjectUploader({
     const uppy = uppyRef.current;
     if (!uppy) return;
 
-    if (showModal && dashboardRef.current && !dashboardInitialized.current) {
-      uppy.use(Dashboard, {
-        target: dashboardRef.current,
-        inline: true,
-        proudlyDisplayPoweredByUppy: false,
-        locale: {
-          strings: {
-            dropPasteFiles: 'Upuść pliki tutaj lub %{browseFiles}',
-            browseFiles: 'wybierz z dysku',
-            uploadComplete: 'Przesyłanie zakończone',
-            uploadPaused: 'Przesyłanie wstrzymane',
-            resumeUpload: 'Wznów przesyłanie',
-            pauseUpload: 'Wstrzymaj przesyłanie',
-            retryUpload: 'Ponów przesyłanie',
-            cancelUpload: 'Anuluj przesyłanie',
-            xFilesSelected: {
-              0: '%{smart_count} plik wybrany',
-              1: '%{smart_count} plików wybranych',
+    if (showModal && !dashboardInitialized.current) {
+      const initDashboard = () => {
+        if (dashboardRef.current && uppyRef.current && !dashboardInitialized.current) {
+          uppyRef.current.use(Dashboard, {
+            target: dashboardRef.current,
+            inline: true,
+            proudlyDisplayPoweredByUppy: false,
+            height: 350,
+            width: '100%',
+            locale: {
+              strings: {
+                dropPasteFiles: 'Upuść pliki tutaj lub %{browseFiles}',
+                browseFiles: 'wybierz z dysku',
+                uploadComplete: 'Przesyłanie zakończone',
+                uploadPaused: 'Przesyłanie wstrzymane',
+                resumeUpload: 'Wznów przesyłanie',
+                pauseUpload: 'Wstrzymaj przesyłanie',
+                retryUpload: 'Ponów przesyłanie',
+                cancelUpload: 'Anuluj przesyłanie',
+                xFilesSelected: {
+                  0: '%{smart_count} plik wybrany',
+                  1: '%{smart_count} plików wybranych',
+                },
+                uploadingXFiles: {
+                  0: 'Przesyłanie %{smart_count} pliku',
+                  1: 'Przesyłanie %{smart_count} plików',
+                },
+                processingXFiles: {
+                  0: 'Przetwarzanie %{smart_count} pliku',
+                  1: 'Przetwarzanie %{smart_count} plików',
+                },
+              },
             },
-            uploadingXFiles: {
-              0: 'Przesyłanie %{smart_count} pliku',
-              1: 'Przesyłanie %{smart_count} plików',
-            },
-            processingXFiles: {
-              0: 'Przetwarzanie %{smart_count} pliku',
-              1: 'Przetwarzanie %{smart_count} plików',
-            },
-          },
-        },
+          });
+          dashboardInitialized.current = true;
+        }
+      };
+      
+      // Use requestAnimationFrame to wait for DOM to be ready
+      requestAnimationFrame(() => {
+        requestAnimationFrame(initDashboard);
       });
-      dashboardInitialized.current = true;
     }
 
     if (!showModal && dashboardInitialized.current) {
