@@ -331,6 +331,7 @@ export default function PaymentSchedule() {
                                 placeholder="20000 (= 200,00 zł)"
                                 data-testid="input-recurring-amount"
                                 {...field}
+                                value={field.value ?? ""}
                               />
                             </FormControl>
                             <p className="text-sm text-muted-foreground">
@@ -355,6 +356,7 @@ export default function PaymentSchedule() {
                                 placeholder="15"
                                 data-testid="input-recurring-day"
                                 {...field}
+                                value={field.value ?? ""}
                               />
                             </FormControl>
                             <p className="text-sm text-muted-foreground">
