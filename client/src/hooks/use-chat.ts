@@ -92,8 +92,23 @@ export function useWebSocket(user: User | null) {
 
     const connect = () => {
       try {
+        // Validate host is available
+        if (!window.location.host || window.location.host.includes("undefined")) {
+          console.warn("Cannot connect to WebSocket: invalid host");
+          setIsConnected(false);
+          return;
+        }
+
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         const wsUrl = `${protocol}//${window.location.host}/ws/chat`;
+        
+        // Extra validation
+        if (!wsUrl || wsUrl.includes("undefined")) {
+          console.warn("Cannot connect to WebSocket: invalid URL", wsUrl);
+          setIsConnected(false);
+          return;
+        }
+
         const ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
@@ -147,6 +162,7 @@ export function useWebSocket(user: User | null) {
         wsRef.current = ws;
       } catch (error) {
         console.error("Error creating WebSocket:", error);
+        setIsConnected(false);
       }
     };
 

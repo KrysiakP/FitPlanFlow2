@@ -31,10 +31,6 @@ import { pl } from "date-fns/locale";
 
 const formSchema = insertClientPaymentSchema.extend({
   clientId: z.string().min(1, "Wybierz klienta"),
-  amount: z.coerce.number().min(1, "Kwota musi być większa niż 0"),
-  isRecurring: z.boolean().default(false),
-  recurringAmount: z.coerce.number().optional(),
-  recurringDayOfMonth: z.coerce.number().min(1).max(28).optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;

@@ -907,6 +907,9 @@ export const insertClientPaymentSchema = createInsertSchema(clientPayments).omit
 }).extend({
   amount: z.coerce.number().int().min(1, "Kwota musi być większa niż 0"),
   dueDate: z.coerce.date(),
+  isRecurring: z.boolean().default(false),
+  recurringAmount: z.coerce.number().int().nullable().optional(),
+  recurringDayOfMonth: z.number().int().min(1).max(28).nullable().optional(),
 });
 
 export const insertDietSupplementSchema = createInsertSchema(dietSupplements).omit({
