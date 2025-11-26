@@ -691,7 +691,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        // User was deleted, destroy session
+        req.session.destroy((err) => {
+          if (err) {
+            console.error("Error destroying session:", err);
+          }
+          return res.status(401).json({ user: null, message: "Użytkownik nie istnieje" });
+        });
+        return;
       }
       
       let profileImageDisplayUrl = null;
