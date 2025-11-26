@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, DollarSign, Trash2, Check, Plus } from "lucide-react";
+import { Calendar, DollarSign, Trash2, Check, Plus, Repeat } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -470,8 +470,9 @@ export default function PaymentSchedule() {
                             )}
                           </div>
                           {payment.isRecurring && (
-                            <Badge variant="outline" data-testid={`badge-recurring-${payment.id}`}>
-                              🔄 Cykliczna
+                            <Badge variant="outline" className="gap-1" data-testid={`badge-recurring-${payment.id}`}>
+                              <Repeat className="w-3 h-3" />
+                              Cykliczna
                             </Badge>
                           )}
                         </div>

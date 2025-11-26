@@ -1803,7 +1803,7 @@ export class DatabaseStorage implements IStorage {
           amount: payment.recurringAmount,
           dueDate: nextDueDate,
           isPaid: false,
-          notes: payment.notes ? `${payment.notes} (powtórzone)` : "(powtórzone)",
+          notes: null,
           isRecurring: true,
           recurringAmount: payment.recurringAmount,
           recurringDayOfMonth: payment.recurringDayOfMonth,
