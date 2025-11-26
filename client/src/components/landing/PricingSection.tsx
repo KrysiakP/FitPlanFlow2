@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Crown, Dumbbell, Zap, Building2, Star } from "lucide-react";
+import { Check, Crown, Dumbbell, Zap, Building2, Star, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -352,8 +352,11 @@ export function PricingSection() {
                 <p className="text-sm text-muted-foreground">
                   Plan STUDIO/KLUB jest dedykowany dla większych organizacji. Skontaktuj się z nami, aby omówić szczegóły i dopasować rozwiązanie do Twoich potrzeb.
                 </p>
-                <Button variant="outline" size="sm" data-testid="button-contact-studio">
-                  Skontaktuj się
+                <Button variant="outline" size="sm" asChild data-testid="button-contact-studio">
+                  <a href="mailto:kontakt@paneltrenera.pl" className="inline-flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    kontakt@paneltrenera.pl
+                  </a>
                 </Button>
               </CardContent>
             </Card>

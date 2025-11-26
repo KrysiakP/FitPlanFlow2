@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dumbbell, Users, ClipboardList, TrendingUp, MapPin, Heart } from "lucide-react";
+import { Dumbbell, Users, ClipboardList, TrendingUp, MapPin, Heart, Mail } from "lucide-react";
 import { Link } from "wouter";
 import { PublicHeader } from "@/components/public-header";
 import { TrainerSection } from "@/components/landing/TrainerSection";
@@ -149,9 +149,17 @@ export default function Landing() {
 
             <div className="space-y-4">
               <h3 className="font-heading font-semibold">Kontakt</h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground mb-3">
                 Masz pytania? Skontaktuj się z nami i dowiedz się więcej o możliwościach platformy.
               </p>
+              <a 
+                href="mailto:kontakt@paneltrenera.pl" 
+                className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                data-testid="link-contact-email"
+              >
+                <Mail className="w-4 h-4" />
+                kontakt@paneltrenera.pl
+              </a>
             </div>
           </div>
 
