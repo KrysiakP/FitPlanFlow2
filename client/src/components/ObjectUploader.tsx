@@ -1,6 +1,6 @@
 // Code adapted from javascript_object_storage blueprint
 // Component for uploading files to object storage with Uppy v4
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { ReactNode } from "react";
 import Uppy from "@uppy/core";
 import Dashboard from "@uppy/dashboard";
@@ -25,34 +25,6 @@ interface ObjectUploaderProps {
   children: ReactNode;
 }
 
-/**
- * A file upload component that renders as a button and provides a modal interface for
- * file management.
- * 
- * Features:
- * - Renders as a customizable button that opens a file upload modal
- * - Provides a modal interface for:
- *   - File selection
- *   - File preview
- *   - Upload progress tracking
- *   - Upload status display
- * 
- * The component uses Uppy under the hood to handle all file upload functionality.
- * All file management features are automatically handled by the Uppy dashboard modal.
- * 
- * @param props - Component props
- * @param props.maxNumberOfFiles - Maximum number of files allowed to be uploaded
- *   (default: 1)
- * @param props.maxFileSize - Maximum file size in bytes (default: 10MB)
- * @param props.onGetUploadParameters - Function to get upload parameters (method and URL).
- *   Typically used to fetch a presigned URL from the backend server for direct-to-S3
- *   uploads.
- * @param props.onComplete - Callback function called when upload is complete. Typically
- *   used to make post-upload API calls to update server state and set object ACL
- *   policies.
- * @param props.buttonClassName - Optional CSS class name for the button
- * @param props.children - Content to be rendered inside the button
- */
 export function ObjectUploader({
   maxNumberOfFiles = 1,
   maxFileSize = 10485760, // 10MB default
@@ -63,39 +35,91 @@ export function ObjectUploader({
 }: ObjectUploaderProps) {
   const [showModal, setShowModal] = useState(false);
   const dashboardRef = useRef<HTMLDivElement>(null);
-  const [uppy] = useState(() =>
-    new Uppy({
-      restrictions: {
-        maxNumberOfFiles,
-        maxFileSize,
-      },
-      autoProceed: false,
-    })
-      .use(AwsS3, {
-        shouldUseMultipart: false,
-        getUploadParameters: onGetUploadParameters,
-      })
-      .on("complete", (result) => {
-        onComplete?.(result);
-        setShowModal(false);
-      })
-  );
+  const uppyRef = useRef<Uppy | null>(null);
+  const dashboardInitialized = useRef(false);
+
+  const handleComplete = useCallback((result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    onComplete?.(result);
+    setShowModal(false);
+  }, [onComplete]);
 
   useEffect(() => {
-    if (showModal && dashboardRef.current) {
+    if (!uppyRef.current) {
+      uppyRef.current = new Uppy({
+        restrictions: {
+          maxNumberOfFiles,
+          maxFileSize,
+        },
+        autoProceed: false,
+      }).use(AwsS3, {
+        shouldUseMultipart: false,
+        getUploadParameters: onGetUploadParameters,
+      });
+    }
+
+    const uppy = uppyRef.current;
+    uppy.on("complete", handleComplete);
+
+    return () => {
+      uppy.off("complete", handleComplete);
+    };
+  }, [maxNumberOfFiles, maxFileSize, onGetUploadParameters, handleComplete]);
+
+  useEffect(() => {
+    const uppy = uppyRef.current;
+    if (!uppy) return;
+
+    if (showModal && dashboardRef.current && !dashboardInitialized.current) {
       uppy.use(Dashboard, {
         target: dashboardRef.current,
         inline: true,
         proudlyDisplayPoweredByUppy: false,
+        locale: {
+          strings: {
+            dropPasteFiles: 'Upuść pliki tutaj lub %{browseFiles}',
+            browseFiles: 'wybierz z dysku',
+            uploadComplete: 'Przesyłanie zakończone',
+            uploadPaused: 'Przesyłanie wstrzymane',
+            resumeUpload: 'Wznów przesyłanie',
+            pauseUpload: 'Wstrzymaj przesyłanie',
+            retryUpload: 'Ponów przesyłanie',
+            cancelUpload: 'Anuluj przesyłanie',
+            xFilesSelected: {
+              0: '%{smart_count} plik wybrany',
+              1: '%{smart_count} plików wybranych',
+            },
+            uploadingXFiles: {
+              0: 'Przesyłanie %{smart_count} pliku',
+              1: 'Przesyłanie %{smart_count} plików',
+            },
+            processingXFiles: {
+              0: 'Przetwarzanie %{smart_count} pliku',
+              1: 'Przetwarzanie %{smart_count} plików',
+            },
+          },
+        },
       });
+      dashboardInitialized.current = true;
     }
 
+    if (!showModal && dashboardInitialized.current) {
+      const dashboardPlugin = uppy.getPlugin('Dashboard');
+      if (dashboardPlugin) {
+        uppy.removePlugin(dashboardPlugin);
+      }
+      uppy.cancelAll();
+      dashboardInitialized.current = false;
+    }
+  }, [showModal]);
+
+  useEffect(() => {
     return () => {
-      if (uppy.getPlugin('Dashboard')) {
-        uppy.removePlugin(uppy.getPlugin('Dashboard')!);
+      if (uppyRef.current) {
+        uppyRef.current.destroy();
+        uppyRef.current = null;
       }
     };
-  }, [showModal, uppy]);
+  }, []);
 
   return (
     <div>
@@ -105,7 +129,7 @@ export function ObjectUploader({
 
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="max-w-3xl">
-          <div ref={dashboardRef}></div>
+          <div ref={dashboardRef} className="min-h-[300px]"></div>
         </DialogContent>
       </Dialog>
     </div>
