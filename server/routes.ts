@@ -412,8 +412,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const entityId = pathParts.slice(privateDirParts.length).join('/'); // e.g., "uploads/uuid"
       const objectPath = `/objects/${entityId}`;
       
-      // Generate preview URL for immediate preview after upload
-      const previewUrl = await objectStorageService.getObjectReadUrl(objectPath);
+      // Generate preview URL for immediate preview after upload (without checking file existence)
+      const previewUrl = await objectStorageService.generateReadUrlFromPath(objectPath);
       
       res.json({ 
         uploadURL,

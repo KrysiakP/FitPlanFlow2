@@ -285,6 +285,40 @@ export class ObjectStorageService {
       return null;
     }
   }
+
+  // Generates a presigned URL for reading WITHOUT checking file existence
+  // Used for generating preview URLs before file is uploaded
+  async generateReadUrlFromPath(objectPath: string): Promise<string | null> {
+    try {
+      if (!objectPath.startsWith("/objects/")) {
+        return null;
+      }
+
+      const parts = objectPath.slice(1).split("/");
+      if (parts.length < 2) {
+        return null;
+      }
+
+      const entityId = parts.slice(1).join("/");
+      let entityDir = this.getPrivateObjectDir();
+      if (!entityDir.endsWith("/")) {
+        entityDir = `${entityDir}/`;
+      }
+      const objectEntityPath = `${entityDir}${entityId}`;
+      const { bucketName, objectName } = parseObjectPath(objectEntityPath);
+
+      // Generate presigned URL valid for 7 days
+      return await signObjectURL({
+        bucketName,
+        objectName,
+        method: "GET",
+        ttlSec: 604800, // 7 days
+      });
+    } catch (error) {
+      console.error(`Error generating read URL for ${objectPath}:`, error);
+      return null;
+    }
+  }
 }
 
 function parseObjectPath(path: string): {
