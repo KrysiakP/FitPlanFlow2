@@ -215,8 +215,8 @@ export default function TrainerProfile() {
   };
 
   const handleUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    if (result.successful && result.successful.length > 0 && objectPath) {
-      setUploadedPhotoUrl(objectPath);
+    if (result.successful && result.successful.length > 0 && previewUrl) {
+      setUploadedPhotoUrl(previewUrl);
       setPreviewImage(previewUrl);
       toast({
         title: "Zdjęcie przesłane!",
