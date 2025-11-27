@@ -33,7 +33,7 @@ import type { UploadResult } from "@uppy/core";
 
 const profileSchema = z.object({
   bio: z.string().optional(),
-  profileImageUrl: z.string().url().optional().or(z.literal("")),
+  profileImageUrl: z.string().optional().or(z.literal("")),
   phone: z.string().optional(),
   specialization: z.string().optional(),
   imageType: z.enum(["upload", "url"]).optional(),

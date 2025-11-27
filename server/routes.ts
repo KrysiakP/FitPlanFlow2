@@ -1783,7 +1783,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
-        normalizedPath,
+        req.body.photoUrl,
         {
           owner: userId,
           visibility: "public",
