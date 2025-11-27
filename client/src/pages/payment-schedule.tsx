@@ -140,7 +140,13 @@ export default function PaymentSchedule() {
   });
 
   const onSubmit = (data: FormData) => {
-    createPaymentMutation.mutate(data);
+    const amountInGrosze = Math.round(data.amount * 100);
+    const paymentData = {
+      ...data,
+      amount: amountInGrosze,
+      recurringAmount: data.isRecurring ? amountInGrosze : 0,
+    };
+    createPaymentMutation.mutate(paymentData);
   };
 
   const formatAmount = (amountInCents: number): string => {
@@ -241,17 +247,19 @@ export default function PaymentSchedule() {
                     name="amount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Kwota (w groszach)</FormLabel>
+                        <FormLabel>Kwota (zł)</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
-                            placeholder="20000 (= 200,00 zł)"
+                            step="1"
+                            min="0"
+                            placeholder="200"
                             data-testid="input-amount"
                             {...field}
                           />
                         </FormControl>
                         <p className="text-sm text-muted-foreground">
-                          Podaj kwotę w groszach (np. 20000 = 200,00 zł)
+                          Podaj kwotę w złotówkach (np. 200 = 200 zł)
                         </p>
                         <FormMessage />
                       </FormItem>
@@ -318,55 +326,30 @@ export default function PaymentSchedule() {
                   />
 
                   {form.watch("isRecurring") && (
-                    <>
-                      <FormField
-                        control={form.control}
-                        name="recurringAmount"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Kwota cykliczna (w groszach)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                placeholder="20000 (= 200,00 zł)"
-                                data-testid="input-recurring-amount"
-                                {...field}
-                                value={field.value ?? ""}
-                              />
-                            </FormControl>
-                            <p className="text-sm text-muted-foreground">
-                              Kwota, która będzie się powtarzać co miesiąc
-                            </p>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="recurringDayOfMonth"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Dzień miesiąca (1-28)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min="1"
-                                max="28"
-                                placeholder="15"
-                                data-testid="input-recurring-day"
-                                {...field}
-                                value={field.value ?? ""}
-                              />
-                            </FormControl>
-                            <p className="text-sm text-muted-foreground">
-                              Płatność będzie się powtarzać na ten dzień każdego miesiąca
-                            </p>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </>
+                    <FormField
+                      control={form.control}
+                      name="recurringDayOfMonth"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Dzień miesiąca (1-28)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="1"
+                              max="28"
+                              placeholder="15"
+                              data-testid="input-recurring-day"
+                              {...field}
+                              value={field.value ?? ""}
+                            />
+                          </FormControl>
+                          <p className="text-sm text-muted-foreground">
+                            Płatność będzie się powtarzać na ten dzień każdego miesiąca
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   )}
 
                   <div className="flex justify-end gap-2">
