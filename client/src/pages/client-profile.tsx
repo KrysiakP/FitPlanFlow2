@@ -187,6 +187,7 @@ export default function ClientProfile() {
       headers: {
         "Content-Type": "application/json",
       },
+      credentials: "include",
     });
     
     if (!response.ok) {
