@@ -7,7 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, Upload, User, Crown, CreditCard, Gift, ArrowLeft, Mail, Phone, Briefcase } from "lucide-react";
+import { AlertCircle, User, Crown, CreditCard, Gift, ArrowLeft, Mail, Phone, Briefcase } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link, useParams, useLocation } from "wouter";
@@ -28,7 +28,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState, useEffect } from "react";
-import { SimplePhotoUploader } from "@/components/SimplePhotoUploader";
 
 const profileSchema = z.object({
   bio: z.string().optional(),
@@ -59,10 +58,6 @@ export default function TrainerProfile() {
   const { toast } = useToast();
   const params = useParams<{ userId?: string }>();
   const [, navigate] = useLocation();
-  const [imageType, setImageType] = useState<"upload" | "url">("url");
-  const [uploadProgress, setUploadProgress] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState<string>("");
 
   const viewingOtherProfile = !!params.userId;
   const isOwnProfile = !params.userId || params.userId === user?.id;
@@ -129,20 +124,9 @@ export default function TrainerProfile() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: ProfileFormValues) => {
-      let imageUrl = data.profileImageUrl;
-
-      if (uploadedPhotoUrl) {
-        const photoResponse: any = await apiRequest("PUT", "/api/profile/photo", {
-          photoUrl: uploadedPhotoUrl,
-        });
-        data.profileImageUrl = photoResponse.objectPath;
-        setPreviewImage(photoResponse.publicUrl);
-        imageUrl = photoResponse.objectPath;
-      }
-
       const profileData = {
         bio: data.bio || null,
-        profileImageUrl: imageUrl || null,
+        profileImageUrl: data.profileImageUrl || null,
         phone: data.phone || null,
         specialization: data.specialization || null,
       };
@@ -153,15 +137,12 @@ export default function TrainerProfile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/profile"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      setUploadedPhotoUrl("");
-      setImageType("url");
       toast({
         title: "Profil zaktualizowany!",
         description: "Twoje zmiany zostały zapisane.",
       });
     },
     onError: (error: Error) => {
-      setUploadProgress(false);
       toast({
         title: "Błąd",
         description: error.message || "Nie udało się zaktualizować profilu",
@@ -187,52 +168,13 @@ export default function TrainerProfile() {
     },
   });
 
-  const handlePhotoUploadComplete = (objectPath: string, previewUrl: string) => {
-    setUploadedPhotoUrl(objectPath);
-    setPreviewImage(previewUrl);
-    toast({
-      title: "Zdjęcie przesłane!",
-      description: "Zapisz profil aby dodać zdjęcie.",
-    });
-  };
-
-  const handlePhotoUploadError = (error: string) => {
-    toast({
-      title: "Błąd przesyłania",
-      description: error,
-      variant: "destructive",
-    });
-  };
-
   const onSubmit = (data: ProfileFormValues) => {
     updateProfileMutation.mutate(data);
   };
 
   const handleCancel = () => {
     form.reset();
-    setUploadedPhotoUrl("");
-    setImageType("url");
-    setPreviewImage(user?.profileImageDisplayUrl || user?.profileImageUrl || null);
     queryClient.invalidateQueries({ queryKey: ["/api/profile"] });
-  };
-
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast({
-          title: "Plik za duży",
-          description: "Maksymalny rozmiar pliku to 5MB",
-          variant: "destructive",
-        });
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
   };
 
   const getInitials = (firstName?: string | null, lastName?: string | null) => {
@@ -404,74 +346,6 @@ export default function TrainerProfile() {
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                         <div className="space-y-4">
-                          <div>
-                            <label className="text-sm font-medium mb-2 block">Zdjęcie profilowe</label>
-                            <div className="space-y-4">
-                              <div className="flex gap-2 flex-wrap">
-                                <Button
-                                  type="button"
-                                  variant={imageType === "upload" ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => setImageType("upload")}
-                                  data-testid="button-upload-option"
-                                >
-                                  <Upload className="w-4 h-4 mr-2" />
-                                  Prześlij plik
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant={imageType === "url" ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => setImageType("url")}
-                                  data-testid="button-url-option"
-                                >
-                                  Link URL
-                                </Button>
-                              </div>
-
-                              {imageType === "upload" ? (
-                                <SimplePhotoUploader
-                                  onUploadComplete={handlePhotoUploadComplete}
-                                  onUploadError={handlePhotoUploadError}
-                                  maxSizeMB={5}
-                                  buttonText="Wybierz zdjęcie"
-                                />
-                              ) : (
-                                <FormField
-                                  control={form.control}
-                                  name="profileImageUrl"
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormControl>
-                                        <Input
-                                          placeholder="https://example.com/image.jpg"
-                                          {...field}
-                                          data-testid="input-profile-image-url"
-                                        />
-                                      </FormControl>
-                                      <FormDescription>
-                                        Wprowadź adres URL zdjęcia profilowego
-                                      </FormDescription>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                              )}
-
-                              {(previewImage || form.watch("profileImageUrl")) && (
-                                <div className="flex items-center gap-4">
-                                  <Avatar className="w-20 h-20">
-                                    <AvatarImage src={previewImage || form.watch("profileImageUrl")} alt="Podgląd" />
-                                    <AvatarFallback>
-                                      <User className="w-10 h-10" />
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <p className="text-sm text-muted-foreground">Podgląd zdjęcia profilowego</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
                           <FormField
                             control={form.control}
                             name="bio"
