@@ -27,9 +27,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState, useEffect, useRef } from "react";
-import { ObjectUploader } from "@/components/ObjectUploader";
-import type { UploadResult } from "@uppy/core";
+import { useState, useEffect } from "react";
+import { SimplePhotoUploader } from "@/components/SimplePhotoUploader";
 
 const profileSchema = z.object({
   bio: z.string().optional(),
@@ -66,11 +65,6 @@ export default function ClientProfile() {
   const [uploadProgress, setUploadProgress] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState<string>("");
-  const [objectPath, setObjectPath] = useState<string>("");
-  const [previewUrl, setPreviewUrl] = useState<string>("");
-  
-  const objectPathRef = useRef<string>("");
-  const previewUrlRef = useRef<string>("");
 
   const viewingOtherProfile = !!params.userId;
   const isOwnProfile = !params.userId || params.userId === user?.id;
@@ -184,41 +178,21 @@ export default function ClientProfile() {
     },
   });
 
-  const handleGetUploadParameters = async () => {
-    const response = await fetch("/api/objects/upload", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
+  const handlePhotoUploadComplete = (objectPath: string, previewUrl: string) => {
+    setUploadedPhotoUrl(objectPath);
+    setPreviewImage(previewUrl);
+    toast({
+      title: "Zdjęcie przesłane!",
+      description: "Zapisz profil aby dodać zdjęcie.",
     });
-    
-    if (!response.ok) {
-      throw new Error("Failed to get upload URL");
-    }
-    
-    const data = await response.json();
-    
-    objectPathRef.current = data.objectPath;
-    previewUrlRef.current = data.previewUrl;
-    setObjectPath(data.objectPath);
-    setPreviewUrl(data.previewUrl);
-    
-    return {
-      method: "PUT" as const,
-      url: data.uploadURL,
-    };
   };
 
-  const handleUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    if (result.successful && result.successful.length > 0 && objectPathRef.current) {
-      setUploadedPhotoUrl(objectPathRef.current);
-      setPreviewImage(previewUrlRef.current);
-      toast({
-        title: "Zdjęcie przesłane!",
-        description: "Zapisz profil aby dodać zdjęcie.",
-      });
-    }
+  const handlePhotoUploadError = (error: string) => {
+    toast({
+      title: "Błąd przesyłania",
+      description: error,
+      variant: "destructive",
+    });
   };
 
   const onSubmitProfile = (data: ProfileFormValues) => {
@@ -228,12 +202,8 @@ export default function ClientProfile() {
   const handleCancelProfile = () => {
     profileForm.reset();
     setUploadedPhotoUrl("");
-    setObjectPath("");
-    setPreviewUrl("");
     setImageType("url");
-    // Use USER auth state (stable) not PROFILE query (stale)
     setPreviewImage(user?.profileImageDisplayUrl || user?.profileImageUrl || null);
-    // Trigger profile refetch to sync
     queryClient.invalidateQueries({ queryKey: ["/api/profile"] });
   };
 
@@ -470,18 +440,12 @@ export default function ClientProfile() {
                           </div>
 
                           {imageType === "upload" ? (
-                            <ObjectUploader
-                              maxNumberOfFiles={1}
-                              maxFileSize={5242880}
-                              onGetUploadParameters={handleGetUploadParameters}
-                              onComplete={handleUploadComplete}
-                              buttonClassName="w-full md:w-auto"
-                            >
-                              <div className="flex items-center gap-2">
-                                <Upload className="w-4 h-4" />
-                                <span>Wybierz zdjęcie</span>
-                              </div>
-                            </ObjectUploader>
+                            <SimplePhotoUploader
+                              onUploadComplete={handlePhotoUploadComplete}
+                              onUploadError={handlePhotoUploadError}
+                              maxSizeMB={5}
+                              buttonText="Wybierz zdjęcie"
+                            />
                           ) : (
                             <FormField
                               control={profileForm.control}
@@ -504,10 +468,10 @@ export default function ClientProfile() {
                             />
                           )}
 
-                          {(previewUrl || profileForm.watch("profileImageUrl")) && (
+                          {(previewImage || profileForm.watch("profileImageUrl")) && (
                             <div className="flex items-center gap-4">
                               <Avatar className="w-20 h-20">
-                                <AvatarImage src={previewUrl || profileForm.watch("profileImageUrl")} alt="Podgląd" />
+                                <AvatarImage src={previewImage || profileForm.watch("profileImageUrl")} alt="Podgląd" />
                                 <AvatarFallback>
                                   <User className="w-10 h-10" />
                                 </AvatarFallback>
