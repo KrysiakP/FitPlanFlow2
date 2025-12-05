@@ -1751,22 +1751,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.put("/api/profile/photo", isAuthenticated, async (req, res) => {
+    console.log("[PHOTO_UPLOAD] Received request:", { photoUrl: req.body.photoUrl, userId: req.session.userId });
+    
     if (!req.body.photoUrl) {
+      console.error("[PHOTO_UPLOAD] Missing photoUrl");
       return res.status(400).json({ message: "photoUrl jest wymagane" });
     }
 
     const userId = req.session.userId;
     if (!userId) {
+      console.error("[PHOTO_UPLOAD] No userId in session");
       return res.status(401).json({ message: "Wymagane uwierzytelnienie" });
     }
 
     try {
       const objectStorageService = new ObjectStorageService();
       
+      console.log("[PHOTO_UPLOAD] Normalizing path:", req.body.photoUrl);
       const normalizedPath = objectStorageService.normalizeObjectEntityPath(req.body.photoUrl);
+      console.log("[PHOTO_UPLOAD] Normalized path:", normalizedPath);
       
       if (!normalizedPath) {
-        console.warn(`Invalid object URL rejected: ${req.body.photoUrl}`);
+        console.warn(`[PHOTO_UPLOAD] Invalid object URL rejected: ${req.body.photoUrl}`);
         return res.status(400).json({ message: "Nieprawidłowy URL zdjęcia" });
       }
       
