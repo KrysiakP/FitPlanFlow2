@@ -56,7 +56,7 @@ type ProfileData = {
 };
 
 export default function TrainerProfile() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const params = useParams<{ userId?: string }>();
   const [, navigate] = useLocation();
@@ -278,7 +278,8 @@ export default function TrainerProfile() {
     return "Użytkownik";
   };
 
-  if (isLoading) {
+  // Show loading when auth is loading, query is loading, or data not yet available
+  if (authLoading || isLoading || (!profileData && !error)) {
     return (
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         <Skeleton className="h-12 w-64" />

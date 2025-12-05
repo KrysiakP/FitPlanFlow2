@@ -33,7 +33,7 @@ import type { UploadResult } from "@uppy/core";
 
 const profileSchema = z.object({
   bio: z.string().optional(),
-  profileImageUrl: z.string().url().optional().or(z.literal("")),
+  profileImageUrl: z.string().optional().or(z.literal("")),
   phone: z.string().optional(),
   pharmacologicalSupport: z.string().max(2000, "Maksymalna długość to 2000 znaków").optional(),
   injuries: z.string().max(2000, "Maksymalna długość to 2000 znaków").optional(),
@@ -58,7 +58,7 @@ type ProfileData = {
 };
 
 export default function ClientProfile() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const params = useParams<{ userId?: string }>();
   const [, navigate] = useLocation();
@@ -268,7 +268,8 @@ export default function ClientProfile() {
     return "Użytkownik";
   };
 
-  if (isLoading || isLoadingOwn) {
+  // Show loading when auth is loading, query is loading, or data not yet available
+  if (authLoading || isLoading || (!profileData && !error)) {
     return (
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         <Skeleton className="h-12 w-64" />
@@ -334,7 +335,7 @@ export default function ClientProfile() {
           <div className="flex items-start gap-6 flex-wrap">
             <Avatar className="w-24 h-24">
               <AvatarImage 
-                src={displayData?.user.profileImageDisplayUrl || displayUser?.profileImageDisplayUrl || displayUser?.profileImageUrl || undefined} 
+                src={displayUser?.profileImageDisplayUrl || displayUser?.profileImageUrl || undefined} 
                 alt={`${displayUser?.firstName} ${displayUser?.lastName}`}
               />
               <AvatarFallback className="bg-primary/10 text-primary font-medium text-2xl">
