@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, UserCircle, Crown, CreditCard, UserPlus, ShieldCheck, Heart, UtensilsCrossed, Apple, GraduationCap, TrendingUp, DollarSign, Clock, MessageSquare, Bell, Activity } from "lucide-react";
+import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, Crown, CreditCard, UserPlus, ShieldCheck, Heart, UtensilsCrossed, Apple, GraduationCap, TrendingUp, DollarSign, Clock, MessageSquare, Bell, Activity } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -126,7 +126,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     ...(user?.isAdmin ? [{ href: "/admin/charity-donations", icon: ShieldCheck, label: "Panel Admin" }] : []),
     { href: "/pomagamy", icon: Heart, label: "PomagaMY" },
     { href: "/pricing", icon: Crown, label: "Subskrypcja" },
-    { href: "/profile", icon: UserCircle, label: "Profil" },
   ];
 
   const clientNavItems = [
@@ -140,7 +139,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/chat", icon: MessageSquare, label: "Wiadomości" },
     { href: "/payment-schedule", icon: DollarSign, label: "Płatności" },
     { href: "/pomagamy", icon: Heart, label: "PomagaMY" },
-    { href: "/profile", icon: UserCircle, label: "Profil" },
   ];
 
   const navItems = isTrainer ? trainerNavItems : clientNavItems;
