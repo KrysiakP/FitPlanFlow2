@@ -647,9 +647,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/login", async (req, res) => {
+    console.log("[LOGIN] Received login request:", { email: req.body?.email });
     try {
       const validationResult = loginSchema.safeParse(req.body);
       if (!validationResult.success) {
+        console.log("[LOGIN] Validation failed:", validationResult.error.errors);
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
           errors: validationResult.error.errors 

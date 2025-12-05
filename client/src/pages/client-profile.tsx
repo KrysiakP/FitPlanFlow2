@@ -135,30 +135,42 @@ export default function ClientProfile() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: ProfileFormValues) => {
-      let imageUrl = data.profileImageUrl;
+      console.log("[PROFILE_SAVE] Mutation started", { uploadedPhotoUrl, data });
+      
+      try {
+        let imageUrl = data.profileImageUrl;
 
-      if (uploadedPhotoUrl) {
-        const photoResponse: any = await apiRequest("PUT", "/api/profile/photo", {
-          photoUrl: uploadedPhotoUrl,
-        });
-        data.profileImageUrl = photoResponse.objectPath;
-        setPreviewImage(photoResponse.publicUrl);
-        imageUrl = photoResponse.objectPath;
+        if (uploadedPhotoUrl) {
+          console.log("[PROFILE_SAVE] Uploading photo with path:", uploadedPhotoUrl);
+          const photoResponse: any = await apiRequest("PUT", "/api/profile/photo", {
+            photoUrl: uploadedPhotoUrl,
+          });
+          console.log("[PROFILE_SAVE] Photo upload response:", photoResponse);
+          data.profileImageUrl = photoResponse.objectPath;
+          setPreviewImage(photoResponse.publicUrl);
+          imageUrl = photoResponse.objectPath;
+        }
+
+        const profileData = {
+          bio: data.bio || null,
+          profileImageUrl: imageUrl || null,
+          phone: data.phone || null,
+          pharmacologicalSupport: data.pharmacologicalSupport || null,
+          injuries: data.injuries || null,
+          healthIssues: data.healthIssues || null,
+        };
+
+        console.log("[PROFILE_SAVE] Saving profile data:", profileData);
+        await apiRequest("PUT", "/api/profile", profileData);
+        console.log("[PROFILE_SAVE] Profile saved successfully");
+        return profileData;
+      } catch (error) {
+        console.error("[PROFILE_SAVE] Error in mutation:", error);
+        throw error;
       }
-
-      const profileData = {
-        bio: data.bio || null,
-        profileImageUrl: imageUrl || null,
-        phone: data.phone || null,
-        pharmacologicalSupport: data.pharmacologicalSupport || null,
-        injuries: data.injuries || null,
-        healthIssues: data.healthIssues || null,
-      };
-
-      await apiRequest("PUT", "/api/profile", profileData);
-      return profileData;
     },
     onSuccess: () => {
+      console.log("[PROFILE_SAVE] onSuccess called");
       queryClient.invalidateQueries({ queryKey: ["/api/profile"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       setUploadedPhotoUrl("");
@@ -169,6 +181,7 @@ export default function ClientProfile() {
       });
     },
     onError: (error: Error) => {
+      console.error("[PROFILE_SAVE] onError called:", error);
       setUploadProgress(false);
       toast({
         title: "Błąd",
