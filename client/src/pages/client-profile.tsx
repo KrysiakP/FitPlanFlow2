@@ -27,7 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import type { UploadResult } from "@uppy/core";
 
@@ -68,6 +68,9 @@ export default function ClientProfile() {
   const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState<string>("");
   const [objectPath, setObjectPath] = useState<string>("");
   const [previewUrl, setPreviewUrl] = useState<string>("");
+  
+  const objectPathRef = useRef<string>("");
+  const previewUrlRef = useRef<string>("");
 
   const viewingOtherProfile = !!params.userId;
   const isOwnProfile = !params.userId || params.userId === user?.id;
@@ -196,6 +199,8 @@ export default function ClientProfile() {
     
     const data = await response.json();
     
+    objectPathRef.current = data.objectPath;
+    previewUrlRef.current = data.previewUrl;
     setObjectPath(data.objectPath);
     setPreviewUrl(data.previewUrl);
     
@@ -206,9 +211,9 @@ export default function ClientProfile() {
   };
 
   const handleUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    if (result.successful && result.successful.length > 0 && objectPath) {
-      setUploadedPhotoUrl(objectPath);
-      setPreviewImage(previewUrl);
+    if (result.successful && result.successful.length > 0 && objectPathRef.current) {
+      setUploadedPhotoUrl(objectPathRef.current);
+      setPreviewImage(previewUrlRef.current);
       toast({
         title: "Zdjęcie przesłane!",
         description: "Zapisz profil aby dodać zdjęcie.",
