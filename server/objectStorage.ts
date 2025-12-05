@@ -193,34 +193,53 @@ export class ObjectStorageService {
         return null;
       }
 
-      // Only accept Google Storage URLs
-      if (!rawPath.startsWith('https://storage.googleapis.com/')) {
-        console.warn(`Invalid URL format: ${rawPath}`);
-        return null;
+      // CASE 1: Already normalized /objects/... path - validate and return
+      if (rawPath.startsWith('/objects/')) {
+        const entityId = rawPath.slice('/objects/'.length);
+        
+        // CRITICAL: Reject path traversal attempts
+        if (entityId.includes('..') || entityId.includes('//') || !entityId) {
+          console.error(`Path traversal attempt detected: ${entityId}`);
+          return null;
+        }
+        
+        // Validate path format (should be uploads/<uuid> or similar)
+        if (!entityId.match(/^[a-zA-Z0-9\-_\/]+$/)) {
+          console.warn(`Invalid path characters: ${entityId}`);
+          return null;
+        }
+        
+        return rawPath;
       }
 
-      const url = new URL(rawPath);
-      const rawObjectPath = url.pathname;
+      // CASE 2: Google Storage URL - extract and normalize
+      if (rawPath.startsWith('https://storage.googleapis.com/')) {
+        const url = new URL(rawPath);
+        const rawObjectPath = url.pathname;
 
-      let objectEntityDir = this.getPrivateObjectDir();
-      if (!objectEntityDir.endsWith('/')) {
-        objectEntityDir = `${objectEntityDir}/`;
+        let objectEntityDir = this.getPrivateObjectDir();
+        if (!objectEntityDir.endsWith('/')) {
+          objectEntityDir = `${objectEntityDir}/`;
+        }
+
+        if (!rawObjectPath.startsWith(objectEntityDir)) {
+          console.warn(`Path not in PRIVATE_OBJECT_DIR: ${rawObjectPath}`);
+          return null;
+        }
+
+        const entityId = rawObjectPath.slice(objectEntityDir.length);
+        
+        // CRITICAL: Reject path traversal attempts
+        if (entityId.includes('..') || entityId.includes('//')) {
+          console.error(`Path traversal attempt detected: ${entityId}`);
+          return null;
+        }
+
+        return `/objects/${entityId}`;
       }
 
-      if (!rawObjectPath.startsWith(objectEntityDir)) {
-        console.warn(`Path not in PRIVATE_OBJECT_DIR: ${rawObjectPath}`);
-        return null;
-      }
-
-      const entityId = rawObjectPath.slice(objectEntityDir.length);
-      
-      // CRITICAL: Reject path traversal attempts
-      if (entityId.includes('..') || entityId.includes('//')) {
-        console.error(`Path traversal attempt detected: ${entityId}`);
-        return null;
-      }
-
-      return `/objects/${entityId}`;
+      console.warn(`Invalid path format: ${rawPath}`);
+      return null;
     } catch (error) {
       console.error(`Path normalization error:`, error);
       return null;
