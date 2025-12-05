@@ -7,9 +7,17 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-function getApiUrl(path: string): string {
-  // Always use relative paths - Replit proxy handles routing to the backend
-  return path;
+function normalizeUrl(path: string): string {
+  // Ensure URL starts with single slash and has no double slashes
+  if (!path) return "/";
+  let normalized = path;
+  // Add leading slash if missing
+  if (!normalized.startsWith("/") && !normalized.startsWith("http")) {
+    normalized = "/" + normalized;
+  }
+  // Remove duplicate slashes (except in protocol like http://)
+  normalized = normalized.replace(/([^:])\/\/+/g, "$1/");
+  return normalized;
 }
 
 export async function apiRequest(
@@ -17,16 +25,30 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<any> {
-  const fullUrl = getApiUrl(url);
-  const res = await fetch(fullUrl, {
-    method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-  });
+  const fullUrl = normalizeUrl(url);
+  console.log(`[API] ${method} ${fullUrl}`, data ? JSON.stringify(data).slice(0, 100) : "");
+  
+  try {
+    const res = await fetch(fullUrl, {
+      method,
+      headers: data ? { "Content-Type": "application/json" } : {},
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: "include",
+    });
 
-  await throwIfResNotOk(res);
-  return await res.json();
+    console.log(`[API] Response: ${res.status} ${res.statusText}`);
+    await throwIfResNotOk(res);
+    
+    // Handle empty responses (204 No Content)
+    const contentType = res.headers.get("content-type");
+    if (res.status === 204 || !contentType?.includes("application/json")) {
+      return {};
+    }
+    return await res.json();
+  } catch (error) {
+    console.error(`[API] Error:`, error);
+    throw error;
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -35,8 +57,11 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const url = queryKey.join("/") as string;
-    const fullUrl = getApiUrl(url);
+    // Build URL from query key segments, handling leading slashes
+    const segments = queryKey.map(k => String(k).replace(/^\/+/, "")).filter(Boolean);
+    const url = "/" + segments.join("/");
+    const fullUrl = normalizeUrl(url);
+    
     const res = await fetch(fullUrl, {
       credentials: "include",
     });
