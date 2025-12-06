@@ -335,15 +335,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
               let paymentFingerprint: string | undefined;
               try {
                 if (invoice.payment_intent) {
-                  const paymentIntent = await stripe.paymentIntents.retrieve(invoice.payment_intent as string);
-                  paymentFingerprint = paymentIntent.charges?.data[0]?.payment_method_details?.card?.fingerprint;
+                  const paymentIntent = await stripe.paymentIntents.retrieve(
+                    invoice.payment_intent as string,
+                    { expand: ['latest_charge'] }
+                  );
+                  // Access fingerprint from latest_charge (expanded)
+                  const latestCharge = paymentIntent.latest_charge;
+                  if (latestCharge && typeof latestCharge !== 'string') {
+                    paymentFingerprint = latestCharge.payment_method_details?.card?.fingerprint ?? undefined;
+                  }
                   
                   if (paymentFingerprint) {
                     console.log(`[REFERRAL] Captured payment fingerprint for event ${referralEvent.id}: ${paymentFingerprint}`);
                     
                     // Update referral event metadata with payment fingerprint
+                    const existingMetadata = referralEvent.metadata && typeof referralEvent.metadata === 'object' 
+                      ? referralEvent.metadata as Record<string, unknown>
+                      : {};
                     await storage.updateReferralEventMetadata(referralEvent.id, {
-                      ...referralEvent.metadata,
+                      ...existingMetadata,
                       paymentFingerprint
                     });
                   } else {
@@ -639,6 +649,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         trialEndsAt: null,
         referredByTrainerId: referralCode ? referralCode.trainerId : null,
         referralBonusDays: 0,
+        hasFreeAccess: false,
+        subscriptionCancelledAt: null,
       });
 
       if (role === 'trainer') {
@@ -682,8 +694,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       req.session.userId = user.id;
-      const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+      
+      // Explicitly save session before responding to ensure cookie is set
+      req.session.save((err) => {
+        if (err) {
+          console.error("Error saving session:", err);
+          return res.status(500).json({ message: "Nie udało się zapisać sesji" });
+        }
+        const { password: _, ...userWithoutPassword } = user;
+        console.log("[REGISTER] Session saved successfully for user:", user.id);
+        res.status(201).json(userWithoutPassword);
+      });
     } catch (error) {
       console.error("Error registering user:", error);
       res.status(500).json({ message: "Nie udało się zarejestrować użytkownika" });
@@ -715,8 +736,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       req.session.userId = user.id;
-      const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+      
+      // Explicitly save session before responding to ensure cookie is set
+      req.session.save((err) => {
+        if (err) {
+          console.error("Error saving session:", err);
+          return res.status(500).json({ message: "Nie udało się zapisać sesji" });
+        }
+        const { password: _, ...userWithoutPassword } = user;
+        console.log("[LOGIN] Session saved successfully for user:", user.id);
+        res.json(userWithoutPassword);
+      });
     } catch (error) {
       console.error("Error logging in:", error);
       res.status(500).json({ message: "Nie udało się zalogować" });

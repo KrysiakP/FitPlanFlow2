@@ -287,10 +287,37 @@ export default function DietPlanForm() {
       });
       setLocation("/trainer/diets");
     },
-    onError: () => {
+    onError: (error: Error) => {
+      console.error("Diet plan save error:", error);
+      let errorMessage = "Nie udało się zapisać planu";
+      
+      // Try to extract more specific error message
+      if (error.message) {
+        if (error.message.includes("401")) {
+          errorMessage = "Sesja wygasła. Zaloguj się ponownie.";
+        } else if (error.message.includes("400")) {
+          errorMessage = "Nieprawidłowe dane formularza. Sprawdź wszystkie pola.";
+        } else if (error.message.includes("403")) {
+          errorMessage = "Brak uprawnień do tej operacji.";
+        } else {
+          // Try to parse JSON error from response
+          try {
+            const match = error.message.match(/\d+:\s*(.+)/);
+            if (match && match[1]) {
+              const parsed = JSON.parse(match[1]);
+              if (parsed.message) {
+                errorMessage = parsed.message;
+              }
+            }
+          } catch {
+            // Keep default message
+          }
+        }
+      }
+      
       toast({
         title: "Błąd",
-        description: "Nie udało się zapisać planu",
+        description: errorMessage,
         variant: "destructive",
       });
     },

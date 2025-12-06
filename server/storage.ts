@@ -86,7 +86,7 @@ export interface IStorage {
   updateUserRole(userId: string, role: "trainer" | "client"): Promise<User>;
   
   // Subscription operations
-  updateUserSubscription(userId: string, data: { stripeCustomerId?: string | null; stripeSubscriptionId?: string | null; subscriptionStatus?: string | null; subscriptionTier?: string }): Promise<User>;
+  updateUserSubscription(userId: string, data: { stripeCustomerId?: string | null; stripeSubscriptionId?: string | null; subscriptionStatus?: string | null; subscriptionTier?: string; trialEndsAt?: Date | null; subscriptionCancelledAt?: Date | null }): Promise<User>;
   checkTrainerClientLimit(trainerId: string): Promise<{ withinLimit: boolean; currentCount: number; maxCount: number }>;
   
   // Training plan operations
@@ -297,7 +297,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
   
-  async updateUserSubscription(userId: string, data: { stripeCustomerId?: string | null; stripeSubscriptionId?: string | null; subscriptionStatus?: string | null; subscriptionTier?: string; trialEndsAt?: Date | null }): Promise<User> {
+  async updateUserSubscription(userId: string, data: { stripeCustomerId?: string | null; stripeSubscriptionId?: string | null; subscriptionStatus?: string | null; subscriptionTier?: string; trialEndsAt?: Date | null; subscriptionCancelledAt?: Date | null }): Promise<User> {
     const [user] = await db
       .update(users)
       .set({ 
