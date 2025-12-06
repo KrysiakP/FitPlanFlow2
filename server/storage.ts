@@ -315,7 +315,7 @@ export class DatabaseStorage implements IStorage {
     return new Date() < new Date(user.trialEndsAt);
   }
   
-  // Get effective client limit considering trial and subscription
+  // Get effective client limit considering trial, subscription, and free access
   getEffectiveClientLimit(user: User): number {
     // Map tier to client limit
     const tierLimits: Record<string, number> = {
@@ -329,6 +329,11 @@ export class DatabaseStorage implements IStorage {
       free: 3,
       premium: 50,
     };
+    
+    // If has free access (granted by admin), return unlimited clients
+    if (user.hasFreeAccess) {
+      return 9999;
+    }
     
     // If in trial, return unlimited clients (9999)
     if (this.isInTrial(user)) {
