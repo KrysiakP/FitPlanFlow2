@@ -202,7 +202,7 @@ export default function DietPlanForm() {
           meals: data.meals,
         });
       } else {
-        const res = await apiRequest("POST", "/api/diets/plans", {
+        const result = await apiRequest("POST", "/api/diets/plans", {
           name: data.name,
           description: data.description,
           clientId: data.clientId,
@@ -218,7 +218,6 @@ export default function DietPlanForm() {
           endDate: data.endDate,
           meals: data.meals,
         });
-        const result = await res.json();
         planId = result.id;
       }
 
