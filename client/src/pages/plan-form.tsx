@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Plus, Trash2, GripVertical, Library, Dumbbell, Circle, Copy, ChevronDown, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -777,47 +778,58 @@ export default function PlanForm() {
 
       {!libraryDialogOpen && !successDialogOpen && (
         <div className="fixed bottom-8 right-8 flex flex-col gap-3 z-50">
-          <div className="flex items-center gap-2">
-            <span className="bg-background/90 backdrop-blur-sm text-foreground text-sm px-3 py-1.5 rounded-lg shadow border">
-              Dodaj ćwiczenie
-            </span>
-            <Select
-              onValueChange={(value) => {
-                const workoutIndex = parseInt(value);
-                addExercise(workoutIndex);
-                if (!expandedWorkouts.has(workoutIndex)) {
-                  toggleWorkoutExpanded(workoutIndex);
-                }
-              }}
-            >
-              <SelectTrigger className="w-auto h-12 px-4 rounded-full shadow-lg border-0" data-testid="button-floating-add-exercise">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                size="lg"
+                variant="secondary"
+                className="rounded-full shadow-lg h-12 px-4 gap-2"
+                data-testid="button-floating-add-exercise"
+                title="Dodaj ćwiczenie"
+              >
                 <Dumbbell className="w-5 h-5" />
-              </SelectTrigger>
-              <SelectContent align="end">
-                {form.watch("workouts").map((workout, index) => (
-                  <SelectItem key={index} value={index.toString()} data-testid={`select-workout-for-exercise-${index}`}>
+                <span className="text-sm">Dodaj ćwiczenie</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 p-2">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground px-2 py-1">Wybierz trening:</p>
+                {form.getValues("workouts").map((workout, index) => (
+                  <Button
+                    key={index}
+                    type="button"
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      addExercise(index);
+                      if (!expandedWorkouts.has(index)) {
+                        const newExpanded = new Set(expandedWorkouts);
+                        newExpanded.add(index);
+                        setExpandedWorkouts(newExpanded);
+                      }
+                    }}
+                    data-testid={`select-workout-for-exercise-${index}`}
+                  >
+                    <Circle className="w-3 h-3 mr-2 text-primary" />
                     {workout.name || `Trening ${index + 1}`}
-                  </SelectItem>
+                  </Button>
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
+              </div>
+            </PopoverContent>
+          </Popover>
           
-          <div className="flex items-center gap-2 justify-end">
-            <span className="bg-background/90 backdrop-blur-sm text-foreground text-sm px-3 py-1.5 rounded-lg shadow border">
-              Nowy trening
-            </span>
-            <Button
-              type="button"
-              size="lg"
-              className="rounded-full shadow-lg h-12 w-12 p-0"
-              onClick={addWorkout}
-              data-testid="button-floating-add-workout"
-              title="Utwórz nowy trening"
-            >
-              <Plus className="w-5 h-5" />
-            </Button>
-          </div>
+          <Button
+            type="button"
+            size="lg"
+            className="rounded-full shadow-lg h-12 px-4 gap-2"
+            onClick={addWorkout}
+            data-testid="button-floating-add-workout"
+            title="Utwórz nowy trening"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="text-sm">Nowy trening</span>
+          </Button>
         </div>
       )}
     </div>
