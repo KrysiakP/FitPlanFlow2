@@ -172,9 +172,9 @@ export default function DietPlanForm() {
       status: "active" as const,
       startDate: existingPlan.startDate ? new Date(existingPlan.startDate) : null,
       endDate: existingPlan.endDate ? new Date(existingPlan.endDate) : null,
-      meals: existingPlan.meals.map((meal) => ({
+      meals: (existingPlan.meals || []).map((meal) => ({
         name: meal.name,
-        description: meal.description,
+        description: meal.description || "",
         orderIndex: meal.orderIndex,
       })),
     } : undefined,
