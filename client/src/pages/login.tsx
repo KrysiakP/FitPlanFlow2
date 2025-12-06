@@ -66,8 +66,7 @@ export default function Login() {
 
   const resendMutation = useMutation({
     mutationFn: async (email: string) => {
-      const response = await apiRequest("POST", "/api/auth/resend-verification", { email });
-      return response.json();
+      return await apiRequest("POST", "/api/auth/resend-verification", { email });
     },
     onSuccess: (data) => {
       toast({

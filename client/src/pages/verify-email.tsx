@@ -17,8 +17,7 @@ export default function VerifyEmailPage() {
 
   const resendMutation = useMutation({
     mutationFn: async (emailToResend: string) => {
-      const response = await apiRequest("POST", "/api/auth/resend-verification", { email: emailToResend });
-      return response.json();
+      return await apiRequest("POST", "/api/auth/resend-verification", { email: emailToResend });
     },
     onSuccess: (data) => {
       setMessage(data.message || "Email weryfikacyjny został wysłany.");
