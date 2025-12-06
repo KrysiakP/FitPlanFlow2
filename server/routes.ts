@@ -197,9 +197,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const status = subscription.status;
           
           if (userId) {
-            await storage.updateUserSubscription(userId, {
+            // Determine if we need to set the cancellation date
+            // IMPORTANT: We only SET the cancellation date here, never CLEAR it
+            // Clearing is done only in invoice.paid to avoid race conditions
+            const problemStatuses = ['canceled', 'past_due', 'unpaid', 'incomplete_expired'];
+            const hasSubscriptionProblem = problemStatuses.includes(status);
+            
+            const updateData: any = {
               subscriptionStatus: status,
-            });
+            };
+            
+            if (hasSubscriptionProblem) {
+              // Use Stripe's canceled_at timestamp if available, otherwise use current date
+              // This ensures idempotency - same timestamp regardless of when we process the event
+              const stripeTimestamp = subscription.canceled_at 
+                ? new Date(subscription.canceled_at * 1000)
+                : new Date();
+              
+              // Only set if not already set (preserves earliest problem timestamp)
+              const currentUser = await storage.getUser(userId);
+              if (!currentUser?.subscriptionCancelledAt) {
+                updateData.subscriptionCancelledAt = stripeTimestamp;
+              }
+              // If already set, preserve the existing timestamp to maintain the grace period
+            }
+            // Note: We do NOT clear subscriptionCancelledAt here even if status is active
+            // This is intentional - clearing is done only by invoice.paid to avoid race conditions
+            // with invoice.payment_failed which could re-set the timestamp immediately after
+            
+            await storage.updateUserSubscription(userId, updateData);
           }
           break;
         }
@@ -209,10 +235,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const userId = subscription.metadata?.userId;
           
           if (userId) {
+            // Get current user to check if cancellation date is already set
+            const currentUser = await storage.getUser(userId);
+            
+            // Use Stripe's canceled_at timestamp if available
+            const stripeTimestamp = subscription.canceled_at 
+              ? new Date(subscription.canceled_at * 1000)
+              : new Date();
+            
             await storage.updateUserSubscription(userId, {
               subscriptionStatus: 'canceled',
               subscriptionTier: 'start',
-              subscriptionCancelledAt: new Date(),
+              // Preserve existing cancellation date if already set (maintains grace period)
+              subscriptionCancelledAt: currentUser?.subscriptionCancelledAt || stripeTimestamp,
             });
           }
           break;
@@ -235,9 +270,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               return res.status(400).json({ message: 'Missing user metadata' });
             }
             
+            // Get current user to check if cancellation date is already set
+            const currentUser = await storage.getUser(userId);
+            
             await storage.updateUserSubscription(userId, {
               subscriptionStatus: 'past_due',
-              subscriptionCancelledAt: new Date(),
+              // Only set if not already set to preserve the original grace period start
+              subscriptionCancelledAt: currentUser?.subscriptionCancelledAt || new Date(),
             });
           }
           break;
@@ -735,6 +774,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating role:", error);
       res.status(500).json({ message: "Failed to update role" });
+    }
+  });
+
+  // Client access status check - checks if client should be blocked due to trainer's expired subscription
+  app.get("/api/client/access-status", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== 'client') {
+        // Not a client, access is OK
+        return res.json({ blocked: false, reason: null, daysRemaining: null });
+      }
+      
+      // Get the client's trainer
+      const trainer = await storage.getTrainerForClient(userId);
+      
+      if (!trainer) {
+        // No trainer found, access is OK (orphaned client)
+        return res.json({ blocked: false, reason: null, daysRemaining: null });
+      }
+      
+      // Check if trainer's subscription is cancelled/past_due/unpaid
+      const problemStatuses = ['canceled', 'past_due', 'unpaid'];
+      const hasSubscriptionProblem = trainer.subscriptionStatus && problemStatuses.includes(trainer.subscriptionStatus);
+      
+      if (!hasSubscriptionProblem) {
+        // Trainer's subscription is OK
+        return res.json({ blocked: false, reason: null, daysRemaining: null });
+      }
+      
+      // Check if 7-day grace period has passed
+      if (trainer.subscriptionCancelledAt) {
+        const cancelledAt = new Date(trainer.subscriptionCancelledAt);
+        const now = new Date();
+        const daysSinceCancellation = Math.floor((now.getTime() - cancelledAt.getTime()) / (1000 * 60 * 60 * 24));
+        const daysRemaining = 7 - daysSinceCancellation;
+        
+        if (daysSinceCancellation >= 7) {
+          // More than 7 days since cancellation, block access
+          return res.json({
+            blocked: true,
+            reason: 'trainer_subscription_expired',
+            daysRemaining: 0,
+            trainerName: `${trainer.firstName} ${trainer.lastName}`
+          });
+        } else {
+          // Within grace period, warn but don't block
+          return res.json({
+            blocked: false,
+            reason: 'trainer_subscription_warning',
+            daysRemaining: daysRemaining,
+            trainerName: `${trainer.firstName} ${trainer.lastName}`
+          });
+        }
+      }
+      
+      // No cancellation date set, access is OK for now
+      return res.json({ blocked: false, reason: null, daysRemaining: null });
+    } catch (error) {
+      console.error("Error checking client access status:", error);
+      res.status(500).json({ message: "Błąd sprawdzania statusu dostępu" });
     }
   });
 

@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SubscriptionWarningModal } from "@/components/subscription-warning-modal";
+import { ClientAccessBlockModal } from "@/components/client-access-block-modal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -208,6 +209,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         subscriptionCancelledAt={user?.subscriptionCancelledAt ?? null}
         isTrainer={isTrainer}
       />
+      <ClientAccessBlockModal />
       <header className="sticky top-0 z-50 border-b bg-background">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
