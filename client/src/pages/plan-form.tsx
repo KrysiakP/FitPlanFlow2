@@ -45,6 +45,17 @@ const planSchema = z.object({
 
 type PlanFormData = z.infer<typeof planSchema>;
 
+const WORKOUT_COLORS = [
+  "border-l-blue-500",
+  "border-l-emerald-500",
+  "border-l-violet-500",
+  "border-l-orange-500",
+  "border-l-pink-500",
+  "border-l-cyan-500",
+  "border-l-amber-500",
+  "border-l-rose-500",
+];
+
 type PlanWithWorkouts = TrainingPlan & { 
   workouts: (Workout & { exercises: Exercise[] })[] 
 };
@@ -338,7 +349,7 @@ export default function PlanForm() {
                 const summary = getWorkoutSummary(workoutIndex);
                 const isExpanded = expandedWorkouts.has(workoutIndex);
                 return (
-                <Card key={workoutIndex} className="border-l-4 border-l-primary/50" data-testid={`card-workout-${workoutIndex}`}>
+                <Card key={workoutIndex} className={`border-l-4 ${WORKOUT_COLORS[workoutIndex % WORKOUT_COLORS.length]}`} data-testid={`card-workout-${workoutIndex}`}>
                   <CardHeader 
                     className="flex flex-row items-start justify-between space-y-0 gap-4 cursor-pointer hover-elevate"
                     onClick={() => toggleWorkoutExpanded(workoutIndex)}
