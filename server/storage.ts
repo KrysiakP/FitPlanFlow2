@@ -1826,26 +1826,46 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(clientPayments.id, paymentId));
 
-    // If recurring, create next month's payment
+    // If recurring, create next month's payment based on the current payment's due date
     if (payment.isRecurring && payment.recurringAmount && payment.recurringDayOfMonth) {
-      const nextDueDate = new Date();
-      nextDueDate.setMonth(nextDueDate.getMonth() + 1);
-      nextDueDate.setDate(payment.recurringDayOfMonth);
-      nextDueDate.setHours(0, 0, 0, 0);
+      // Calculate next due date based on the CURRENT payment's due date, not today
+      // Reset to first of month before adding month to avoid day overflow (e.g., Jan 31 + 1 month = Mar 3)
+      const currentDueDate = new Date(payment.dueDate);
+      const nextDueDate = new Date(currentDueDate.getFullYear(), currentDueDate.getMonth() + 1, payment.recurringDayOfMonth, 0, 0, 0, 0);
 
-      await db
-        .insert(clientPayments)
-        .values({
-          clientId: payment.clientId,
-          trainerId: payment.trainerId,
-          amount: payment.recurringAmount,
-          dueDate: nextDueDate,
-          isPaid: false,
-          notes: null,
-          isRecurring: true,
-          recurringAmount: payment.recurringAmount,
-          recurringDayOfMonth: payment.recurringDayOfMonth,
-        });
+      // Check if there's already an unpaid recurring payment for this client with the EXACT same due date
+      // This prevents duplicates while allowing multiple different payment schedules
+      const existingNextPayment = await db
+        .select()
+        .from(clientPayments)
+        .where(
+          and(
+            eq(clientPayments.clientId, payment.clientId),
+            eq(clientPayments.trainerId, payment.trainerId),
+            eq(clientPayments.isRecurring, true),
+            eq(clientPayments.isPaid, false),
+            eq(clientPayments.dueDate, nextDueDate),
+            eq(clientPayments.recurringAmount, payment.recurringAmount)
+          )
+        )
+        .limit(1);
+
+      // Only create new payment if there's no pending recurring payment with same date and amount
+      if (existingNextPayment.length === 0) {
+        await db
+          .insert(clientPayments)
+          .values({
+            clientId: payment.clientId,
+            trainerId: payment.trainerId,
+            amount: payment.recurringAmount,
+            dueDate: nextDueDate,
+            isPaid: false,
+            notes: null,
+            isRecurring: true,
+            recurringAmount: payment.recurringAmount,
+            recurringDayOfMonth: payment.recurringDayOfMonth,
+          });
+      }
     }
   }
   
