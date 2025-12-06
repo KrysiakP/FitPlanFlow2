@@ -23,7 +23,7 @@ export default function Pomagamy() {
 
   return (
     <div className="min-h-screen bg-background">
-      <PublicHeader />
+      {!user && <PublicHeader />}
       <div className="container mx-auto px-4 py-12 max-w-6xl">
         <div className="space-y-8">
           <div className="text-center space-y-6">
