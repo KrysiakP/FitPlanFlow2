@@ -119,6 +119,7 @@ export interface IStorage {
   createBulkAssignments(planId: string, clientIds: string[]): Promise<PlanAssignment[]>;
   getClientAssignment(clientId: string): Promise<PlanAssignment | undefined>;
   getAssignmentsByPlan(planId: string): Promise<PlanAssignment[]>;
+  deleteClientAssignment(clientId: string): Promise<void>;
   getTrainerClients(trainerId: string): Promise<User[]>;
   
   // Stats
@@ -738,6 +739,11 @@ export class DatabaseStorage implements IStorage {
               status: 'active',
             });
         }
+        
+        // Delete any existing assignments for this client before creating new one
+        await tx
+          .delete(planAssignments)
+          .where(eq(planAssignments.clientId, clientId));
       }
       
       const assignments = clientIds.map((clientId) => ({
@@ -764,6 +770,12 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(planAssignments)
       .where(eq(planAssignments.planId, planId));
+  }
+
+  async deleteClientAssignment(clientId: string): Promise<void> {
+    await db
+      .delete(planAssignments)
+      .where(eq(planAssignments.clientId, clientId));
   }
 
   async getTrainerClients(trainerId: string): Promise<User[]> {

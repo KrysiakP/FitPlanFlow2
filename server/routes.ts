@@ -2235,6 +2235,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/assignments/client/:clientId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can remove plan assignments" });
+      }
+
+      const { clientId } = req.params;
+      
+      // Verify the trainer has a relationship with this client
+      const trainerClients = await storage.getTrainerClients(userId);
+      const isTrainerClient = trainerClients.some(client => client.id === clientId);
+      
+      if (!isTrainerClient) {
+        return res.status(403).json({ message: "You can only remove assignments from your own clients" });
+      }
+
+      await storage.deleteClientAssignment(clientId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error removing assignment:", error);
+      res.status(500).json({ message: "Failed to remove assignment" });
+    }
+  });
+
   // Client routes
   app.post("/api/clients/search", isAuthenticated, async (req, res) => {
     try {

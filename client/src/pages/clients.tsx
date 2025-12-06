@@ -137,6 +137,27 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
     },
   });
 
+  const unassignPlanMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("DELETE", `/api/assignments/client/${client.id}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/clients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/plans"] });
+      toast({
+        title: "Plan usunięty",
+        description: `Usunięto przypisanie planu od ${client.firstName} ${client.lastName}`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Błąd",
+        description: error.message || "Nie udało się usunąć przypisania",
+        variant: "destructive",
+      });
+    },
+  });
+
   const archiveClientMutation = useMutation({
     mutationFn: async (clientId: string) => {
       return await apiRequest("POST", `/api/clients/${clientId}/archive`, {});
@@ -213,6 +234,26 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
                   data-testid={`button-change-plan-${client.id}`}
                 >
                   Zmień plan
+                </Button>
+                <Button 
+                  variant="outline"
+                  size="sm" 
+                  onClick={() => unassignPlanMutation.mutate()}
+                  disabled={unassignPlanMutation.isPending}
+                  className="text-destructive hover:bg-destructive/10"
+                  data-testid={`button-unassign-plan-${client.id}`}
+                >
+                  {unassignPlanMutation.isPending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-destructive border-t-transparent rounded-full animate-spin mr-1" />
+                      Usuwanie...
+                    </>
+                  ) : (
+                    <>
+                      <X className="w-4 h-4 mr-1" />
+                      Usuń plan
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
@@ -663,8 +704,13 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
                   
                   return (
                     <button
+                      type="button"
                       key={plan.id}
-                      onClick={() => !isCurrentPlan && assignPlanMutation.mutate(plan.id)}
+                      onClick={() => {
+                        if (!isCurrentPlan) {
+                          assignPlanMutation.mutate(plan.id);
+                        }
+                      }}
                       disabled={assignPlanMutation.isPending || isCurrentPlan}
                       className={`w-full text-left p-4 rounded-md border transition-colors ${
                         isCurrentPlan 
