@@ -39,7 +39,7 @@ const planSchema = z.object({
   targetCarbs: z.coerce.number().min(1, "Węglowodany muszą być większe od 0"),
   mealsPerDay: z.coerce.number().int().min(3, "Minimum 3 posiłki").max(6, "Maksimum 6 posiłków").optional(),
   recommendedProducts: z.string().optional(),
-  status: z.enum(["draft", "active", "completed"]),
+  status: z.enum(["active"]).default("active"),
   startDate: z.date().optional().nullable(),
   endDate: z.date().optional().nullable(),
   meals: z.array(mealSchema).optional(),
@@ -597,37 +597,6 @@ export default function DietPlanForm() {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>Status</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        className="flex gap-4"
-                        data-testid="radio-status"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="draft" id="draft" data-testid="radio-status-draft" />
-                          <Label htmlFor="draft" className="cursor-pointer">Szkic</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="active" id="active" data-testid="radio-status-active" />
-                          <Label htmlFor="active" className="cursor-pointer">Aktywny</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="completed" id="completed" data-testid="radio-status-completed" />
-                          <Label htmlFor="completed" className="cursor-pointer">Zakończony</Label>
-                        </div>
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </CardContent>
           </Card>
 
