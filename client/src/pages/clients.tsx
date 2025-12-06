@@ -59,6 +59,7 @@ import {
   Users,
   Dumbbell,
   Check,
+  Plus,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -699,6 +700,18 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
                     </button>
                   );
                 })}
+                
+                <Button 
+                  asChild 
+                  variant="outline" 
+                  className="w-full mt-4 gap-2"
+                  data-testid="button-create-new-plan"
+                >
+                  <Link href="/plans/new">
+                    <Plus className="w-4 h-4" />
+                    Utwórz nowy plan
+                  </Link>
+                </Button>
               </div>
             )}
           </ScrollArea>
