@@ -775,21 +775,51 @@ export default function PlanForm() {
         </DialogContent>
       </Dialog>
 
-      <Button
-        type="button"
-        size="lg"
-        className="fixed bottom-8 right-8 rounded-full shadow-lg"
-        onClick={() => {
-          const form_element = document.querySelector('form');
-          if (form_element) {
-            form_element.scrollIntoView({ behavior: 'smooth', block: 'end' });
-          }
-        }}
-        data-testid="button-floating-add"
-        title="Dodaj ćwiczenie"
-      >
-        <Plus className="w-5 h-5" />
-      </Button>
+      {!libraryDialogOpen && !successDialogOpen && (
+        <div className="fixed bottom-8 right-8 flex flex-col gap-3 z-50">
+          <div className="flex items-center gap-2">
+            <span className="bg-background/90 backdrop-blur-sm text-foreground text-sm px-3 py-1.5 rounded-lg shadow border">
+              Dodaj ćwiczenie
+            </span>
+            <Select
+              onValueChange={(value) => {
+                const workoutIndex = parseInt(value);
+                addExercise(workoutIndex);
+                if (!expandedWorkouts.has(workoutIndex)) {
+                  toggleWorkoutExpanded(workoutIndex);
+                }
+              }}
+            >
+              <SelectTrigger className="w-auto h-12 px-4 rounded-full shadow-lg border-0" data-testid="button-floating-add-exercise">
+                <Dumbbell className="w-5 h-5" />
+              </SelectTrigger>
+              <SelectContent align="end">
+                {form.watch("workouts").map((workout, index) => (
+                  <SelectItem key={index} value={index.toString()} data-testid={`select-workout-for-exercise-${index}`}>
+                    {workout.name || `Trening ${index + 1}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="flex items-center gap-2 justify-end">
+            <span className="bg-background/90 backdrop-blur-sm text-foreground text-sm px-3 py-1.5 rounded-lg shadow border">
+              Nowy trening
+            </span>
+            <Button
+              type="button"
+              size="lg"
+              className="rounded-full shadow-lg h-12 w-12 p-0"
+              onClick={addWorkout}
+              data-testid="button-floating-add-workout"
+              title="Utwórz nowy trening"
+            >
+              <Plus className="w-5 h-5" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
