@@ -71,6 +71,9 @@ export default function PlanForm() {
   const [expandedWorkouts, setExpandedWorkouts] = useState<Set<number>>(new Set([0]));
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [newPlanId, setNewPlanId] = useState<number | null>(null);
+  
+  const urlParams = new URLSearchParams(window.location.search);
+  const assignToClientId = urlParams.get("assignTo");
 
   const { data: existingPlan, isLoading } = useQuery<PlanWithWorkouts>({
     queryKey: ["/api/plans", id],
@@ -115,6 +118,32 @@ export default function PlanForm() {
     } : undefined,
   });
 
+  const assignPlanMutation = useMutation({
+    mutationFn: async ({ planId, clientId }: { planId: number; clientId: string }) => {
+      return await apiRequest("POST", "/api/assignments/bulk", {
+        planId: planId.toString(),
+        clientIds: [clientId],
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/clients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/plans"] });
+      toast({
+        title: "Plan utworzony i przypisany",
+        description: "Plan treningowy został utworzony i przypisany do podopiecznego",
+      });
+      setLocation("/clients");
+    },
+    onError: () => {
+      toast({
+        title: "Plan utworzony",
+        description: "Plan utworzony, ale nie udało się przypisać go automatycznie",
+        variant: "destructive",
+      });
+      setLocation("/clients");
+    },
+  });
+
   const createPlanMutation = useMutation({
     mutationFn: async (data: PlanFormData) => {
       if (isEdit) {
@@ -136,6 +165,8 @@ export default function PlanForm() {
           description: "Plan treningowy został zaktualizowany",
         });
         setLocation("/plans");
+      } else if (assignToClientId && planId) {
+        assignPlanMutation.mutate({ planId: planId as number, clientId: assignToClientId });
       } else {
         setNewPlanId(planId as number);
         setSuccessDialogOpen(true);
@@ -669,15 +700,15 @@ export default function PlanForm() {
           <div className="flex gap-4">
             <Button
               type="submit"
-              disabled={createPlanMutation.isPending}
+              disabled={createPlanMutation.isPending || assignPlanMutation.isPending}
               data-testid="button-save-plan"
             >
-              {createPlanMutation.isPending ? "Zapisywanie..." : isEdit ? "Zapisz zmiany" : "Utwórz plan"}
+              {createPlanMutation.isPending ? "Zapisywanie..." : assignPlanMutation.isPending ? "Przypisywanie..." : isEdit ? "Zapisz zmiany" : assignToClientId ? "Utwórz i przypisz plan" : "Utwórz plan"}
             </Button>
             <Button
               type="button"
               variant="outline"
-              onClick={() => setLocation("/plans")}
+              onClick={() => setLocation(assignToClientId ? "/clients" : "/plans")}
               data-testid="button-cancel"
             >
               Anuluj

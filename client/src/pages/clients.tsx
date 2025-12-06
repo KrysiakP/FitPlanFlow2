@@ -753,7 +753,7 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
                   className="w-full mt-4 gap-2"
                   data-testid="button-create-new-plan"
                 >
-                  <Link href="/plans/new">
+                  <Link href={`/plans/new?assignTo=${client.id}`}>
                     <Plus className="w-4 h-4" />
                     Utwórz nowy plan
                   </Link>
