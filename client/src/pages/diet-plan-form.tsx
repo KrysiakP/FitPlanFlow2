@@ -24,7 +24,7 @@ import type { DietPlan, DietMeal, User, DietSupplement } from "@shared/schema";
 
 const mealSchema = z.object({
   name: z.string().min(1, "Nazwa posiłku jest wymagana"),
-  description: z.string().min(1, "Opis posiłku jest wymagany"),
+  description: z.string().default(""),
   orderIndex: z.number(),
 });
 
@@ -53,13 +53,21 @@ const planSchema = z.object({
   message: "Liczba posiłków jest wymagana dla tego trybu",
   path: ["mealsPerDay"],
 }).refine((data) => {
-  // For full_plan, meals array is required
-  if (data.mode === 'full_plan' && (!data.meals || data.meals.length === 0)) {
-    return false;
+  // For full_plan, meals array is required with at least one meal
+  if (data.mode === 'full_plan') {
+    if (!data.meals || data.meals.length === 0) {
+      return false;
+    }
+    // Check that all meals have names
+    for (const meal of data.meals) {
+      if (!meal.name || meal.name.trim() === '') {
+        return false;
+      }
+    }
   }
   return true;
 }, {
-  message: "Dodaj przynajmniej jeden posiłek dla pełnej rozpiski",
+  message: "Dodaj przynajmniej jeden posiłek z nazwą dla pełnej rozpiski",
   path: ["meals"],
 }).refine((data) => {
   // Check meals count doesn't exceed mealsPerDay
@@ -442,7 +450,15 @@ export default function DietPlanForm() {
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit((data) => createPlanMutation.mutate(data))} className="space-y-6">
+        <form onSubmit={form.handleSubmit(
+          (data) => {
+            console.log("[DIET FORM] Submitting data:", data);
+            createPlanMutation.mutate(data);
+          },
+          (errors) => {
+            console.error("[DIET FORM] Validation errors:", errors);
+          }
+        )} className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="font-heading">Podstawowe informacje</CardTitle>
