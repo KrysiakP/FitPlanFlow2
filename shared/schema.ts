@@ -25,6 +25,7 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role", { length: 20 }), // 'trainer' or 'client' - null until user selects
   isAdmin: boolean("is_admin").default(false).notNull(), // Platform administrator flag
+  hasFreeAccess: boolean("has_free_access").default(false).notNull(), // Admin-granted free access (bypasses subscription)
   // Stripe subscription fields (trainers only)
   stripeCustomerId: varchar("stripe_customer_id", { length: 255 }), // Stripe customer ID (cus_xxx)
   stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }), // Stripe subscription ID (sub_xxx)
