@@ -208,6 +208,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         subscriptionStatus={user?.subscriptionStatus ?? null}
         subscriptionCancelledAt={user?.subscriptionCancelledAt ?? null}
         isTrainer={isTrainer}
+        hasFreeAccess={user?.hasFreeAccess ?? false}
       />
       <ClientAccessBlockModal />
       <header className="sticky top-0 z-50 border-b bg-background">
@@ -388,7 +389,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         <main className="flex-1 p-6 md:p-8">
           <div className="container mx-auto max-w-7xl">
-            {isTrainer && isInTrial && (
+            {isTrainer && isInTrial && !user?.hasFreeAccess && (
               <Alert className="mb-6" data-testid="alert-trial-banner">
                 <Clock className="h-4 w-4" />
                 <AlertTitle data-testid="text-trial-title">Okres próbny</AlertTitle>

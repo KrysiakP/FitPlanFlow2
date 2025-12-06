@@ -446,22 +446,35 @@ export default function TrainerProfile() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex items-center justify-between gap-4 p-4 border rounded-lg">
-                      <div className="space-y-1">
-                        <p className="font-medium" data-testid="text-subscription-tier">
-                          Plan: {user?.subscriptionTier?.toUpperCase() || "START"}
-                        </p>
-                        <p className="text-sm text-muted-foreground" data-testid="text-subscription-status">
-                          Status: {user?.subscriptionStatus === "active" ? "Aktywny" : user?.subscriptionStatus || "Brak subskrypcji"}
-                        </p>
-                      </div>
-                      <Button
-                        onClick={() => subscriptionMutation.mutate()}
-                        disabled={subscriptionMutation.isPending}
-                        data-testid="button-manage-subscription"
-                      >
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        {subscriptionMutation.isPending ? "Ładowanie..." : "Zarządzaj subskrypcją"}
-                      </Button>
+                      {user?.hasFreeAccess ? (
+                        <div className="space-y-1">
+                          <p className="font-medium text-green-600" data-testid="text-free-access">
+                            Darmowy dostęp (nieograniczony)
+                          </p>
+                          <p className="text-sm text-muted-foreground" data-testid="text-free-access-description">
+                            Masz nieograniczony dostęp do wszystkich funkcji platformy
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="space-y-1">
+                            <p className="font-medium" data-testid="text-subscription-tier">
+                              Plan: {user?.subscriptionTier?.toUpperCase() || "START"}
+                            </p>
+                            <p className="text-sm text-muted-foreground" data-testid="text-subscription-status">
+                              Status: {user?.subscriptionStatus === "active" ? "Aktywny" : user?.subscriptionStatus || "Brak subskrypcji"}
+                            </p>
+                          </div>
+                          <Button
+                            onClick={() => subscriptionMutation.mutate()}
+                            disabled={subscriptionMutation.isPending}
+                            data-testid="button-manage-subscription"
+                          >
+                            <CreditCard className="w-4 h-4 mr-2" />
+                            {subscriptionMutation.isPending ? "Ładowanie..." : "Zarządzaj subskrypcją"}
+                          </Button>
+                        </>
+                      )}
                     </div>
 
                     <Alert>

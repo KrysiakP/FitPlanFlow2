@@ -796,6 +796,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ blocked: false, reason: null, daysRemaining: null });
       }
       
+      // If trainer has free access, client is never blocked
+      if (trainer.hasFreeAccess) {
+        return res.json({ blocked: false, reason: null, daysRemaining: null });
+      }
+      
       // Check if trainer's subscription is cancelled/past_due/unpaid
       const problemStatuses = ['canceled', 'past_due', 'unpaid'];
       const hasSubscriptionProblem = trainer.subscriptionStatus && problemStatuses.includes(trainer.subscriptionStatus);

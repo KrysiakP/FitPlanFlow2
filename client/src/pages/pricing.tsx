@@ -169,6 +169,7 @@ export default function Pricing() {
   const isTrainer = user?.role === "trainer";
   const currentTier = user?.subscriptionTier || 'start';
   const isActive = user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing';
+  const hasFreeAccess = user?.hasFreeAccess ?? false;
 
   const getButtonConfig = (plan: PlanConfig) => {
     if (!user) {
@@ -184,6 +185,15 @@ export default function Pricing() {
     if (!isTrainer) {
       return {
         text: 'Tylko dla trenerów',
+        disabled: true,
+        variant: 'outline' as const,
+      };
+    }
+
+    // If trainer has free access, disable all plan buttons
+    if (hasFreeAccess) {
+      return {
+        text: 'Darmowy dostęp',
         disabled: true,
         variant: 'outline' as const,
       };
@@ -241,13 +251,21 @@ export default function Pricing() {
         </p>
         {isTrainer && (
           <div className="flex items-center justify-center gap-2 mt-4">
-            <Badge variant="secondary" data-testid="badge-current-tier">
-              Aktualny plan: {plans.find(p => p.id === currentTier)?.name || 'START'}
-            </Badge>
-            {currentTier !== 'start' && isActive && (
-              <Badge variant="default" data-testid="badge-subscription-status">
-                Aktywna subskrypcja
+            {hasFreeAccess ? (
+              <Badge variant="default" className="bg-green-600" data-testid="badge-free-access">
+                Darmowy dostęp (nieograniczony)
               </Badge>
+            ) : (
+              <>
+                <Badge variant="secondary" data-testid="badge-current-tier">
+                  Aktualny plan: {plans.find(p => p.id === currentTier)?.name || 'START'}
+                </Badge>
+                {currentTier !== 'start' && isActive && (
+                  <Badge variant="default" data-testid="badge-subscription-status">
+                    Aktywna subskrypcja
+                  </Badge>
+                )}
+              </>
             )}
           </div>
         )}

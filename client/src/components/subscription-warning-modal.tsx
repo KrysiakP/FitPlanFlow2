@@ -18,12 +18,14 @@ interface SubscriptionWarningModalProps {
   subscriptionStatus: string | null;
   subscriptionCancelledAt: string | Date | null;
   isTrainer: boolean;
+  hasFreeAccess?: boolean;
 }
 
 export function SubscriptionWarningModal({
   subscriptionStatus,
   subscriptionCancelledAt,
   isTrainer,
+  hasFreeAccess = false,
 }: SubscriptionWarningModalProps) {
   const [, setLocation] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
@@ -42,10 +44,10 @@ export function SubscriptionWarningModal({
   const isExpired = daysRemaining <= 0;
 
   useEffect(() => {
-    if (isTrainer && isOverdue) {
+    if (isTrainer && isOverdue && !hasFreeAccess) {
       setIsOpen(true);
     }
-  }, [isTrainer, isOverdue]);
+  }, [isTrainer, isOverdue, hasFreeAccess]);
 
   const createPortalSessionMutation = useMutation({
     mutationFn: async () => {
@@ -66,7 +68,7 @@ export function SubscriptionWarningModal({
     createPortalSessionMutation.mutate();
   };
 
-  if (!isTrainer || !isOverdue) {
+  if (!isTrainer || !isOverdue || hasFreeAccess) {
     return null;
   }
 
