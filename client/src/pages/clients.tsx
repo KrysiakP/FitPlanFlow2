@@ -17,6 +17,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -50,6 +57,8 @@ import {
   Activity,
   Download,
   Users,
+  Dumbbell,
+  Check,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -62,9 +71,15 @@ type ClientWithAssignment = UserType & {
   assignment?: PlanAssignment & { plan: TrainingPlan };
 };
 
+type PlanWithDetails = TrainingPlan & {
+  workouts: { id: string; name: string; exercises: { id: string }[] }[];
+  assignmentCount: number;
+};
+
 function ClientDetails({ client }: { client: ClientWithAssignment }) {
   const [isProgressOpen, setIsProgressOpen] = useState(true);
   const [isMedicalOpen, setIsMedicalOpen] = useState(false);
+  const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const { data: clientProgress, isLoading: isLoadingProgress } = useQuery<ClientProgress | null>({
@@ -87,9 +102,39 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
     enabled: !!client.id,
   });
 
+  const { data: availablePlans = [], isLoading: isLoadingPlans } = useQuery<PlanWithDetails[]>({
+    queryKey: ["/api/plans"],
+    enabled: isPlanDialogOpen,
+  });
+
   const latestReport = reports && reports.length > 0 
     ? [...reports].sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime())[0]
     : null;
+
+  const assignPlanMutation = useMutation({
+    mutationFn: async (planId: string) => {
+      return await apiRequest("POST", "/api/assignments/bulk", {
+        planId,
+        clientIds: [client.id],
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/clients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/plans"] });
+      setIsPlanDialogOpen(false);
+      toast({
+        title: "Plan przypisany",
+        description: `Plan został przypisany do ${client.firstName} ${client.lastName}`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Błąd",
+        description: error.message || "Nie udało się przypisać planu",
+        variant: "destructive",
+      });
+    },
+  });
 
   const archiveClientMutation = useMutation({
     mutationFn: async (clientId: string) => {
@@ -161,10 +206,12 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
                     Zobacz plan
                   </Link>
                 </Button>
-                <Button asChild size="sm" data-testid={`button-change-plan-${client.id}`}>
-                  <Link href="/plans">
-                    Zmień plan
-                  </Link>
+                <Button 
+                  size="sm" 
+                  onClick={() => setIsPlanDialogOpen(true)}
+                  data-testid={`button-change-plan-${client.id}`}
+                >
+                  Zmień plan
                 </Button>
               </div>
             </div>
@@ -180,10 +227,12 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
               Brak przypisanego planu
             </Badge>
             <div>
-              <Button asChild size="sm" data-testid={`button-assign-plan-${client.id}`}>
-                <Link href="/plans">
-                  Przypisz plan
-                </Link>
+              <Button 
+                size="sm" 
+                onClick={() => setIsPlanDialogOpen(true)}
+                data-testid={`button-assign-plan-${client.id}`}
+              >
+                Przypisz plan
               </Button>
             </div>
           </div>
@@ -574,6 +623,87 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
           </AlertDialogContent>
         </AlertDialog>
       </div>
+
+      <Dialog open={isPlanDialogOpen} onOpenChange={setIsPlanDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Wybierz plan treningowy</DialogTitle>
+            <DialogDescription>
+              Wybierz plan, który chcesz przypisać do {client.firstName} {client.lastName}
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="flex-1 -mx-6 px-6">
+            {isLoadingPlans ? (
+              <div className="space-y-3 py-4">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-20 w-full" />
+                ))}
+              </div>
+            ) : availablePlans.length === 0 ? (
+              <div className="py-8 text-center">
+                <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Dumbbell className="w-6 h-6 text-muted-foreground" />
+                </div>
+                <p className="text-muted-foreground mb-4">
+                  Nie masz jeszcze żadnych planów treningowych
+                </p>
+                <Button asChild size="sm">
+                  <Link href="/plans/new">Utwórz pierwszy plan</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2 py-4">
+                {availablePlans.map((plan) => {
+                  const totalExercises = plan.workouts.reduce(
+                    (sum, w) => sum + w.exercises.length,
+                    0
+                  );
+                  const isCurrentPlan = client.assignment?.planId === plan.id;
+                  
+                  return (
+                    <button
+                      key={plan.id}
+                      onClick={() => !isCurrentPlan && assignPlanMutation.mutate(plan.id)}
+                      disabled={assignPlanMutation.isPending || isCurrentPlan}
+                      className={`w-full text-left p-4 rounded-md border transition-colors ${
+                        isCurrentPlan 
+                          ? "bg-primary/5 border-primary cursor-default" 
+                          : "hover-elevate cursor-pointer"
+                      } ${assignPlanMutation.isPending ? "opacity-50" : ""}`}
+                      data-testid={`plan-option-${plan.id}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium truncate">{plan.name}</p>
+                            {isCurrentPlan && (
+                              <Badge variant="default" className="shrink-0">
+                                <Check className="w-3 h-3 mr-1" />
+                                Aktualny
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {plan.workouts.length} {plan.workouts.length === 1 ? "trening" : "treningów"} • {totalExercises} {totalExercises === 1 ? "ćwiczenie" : "ćwiczeń"}
+                          </p>
+                          {plan.description && (
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                              {plan.description}
+                            </p>
+                          )}
+                        </div>
+                        {!isCurrentPlan && (
+                          <Dumbbell className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
