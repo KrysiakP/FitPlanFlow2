@@ -147,7 +147,7 @@ export default function DietPlanForm() {
       targetCarbs: 200,
       mealsPerDay: 5,
       recommendedProducts: "",
-      status: "draft",
+      status: "active",
       startDate: null,
       endDate: null,
       meals: [
@@ -169,7 +169,7 @@ export default function DietPlanForm() {
       targetCarbs: existingPlan.targetCarbs,
       mealsPerDay: existingPlan.mealsPerDay,
       recommendedProducts: existingPlan.recommendedProducts || "",
-      status: existingPlan.status as "draft" | "active" | "completed",
+      status: "active" as const,
       startDate: existingPlan.startDate ? new Date(existingPlan.startDate) : null,
       endDate: existingPlan.endDate ? new Date(existingPlan.endDate) : null,
       meals: existingPlan.meals.map((meal) => ({
