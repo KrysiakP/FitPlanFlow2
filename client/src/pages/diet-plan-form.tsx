@@ -1120,6 +1120,12 @@ export default function DietPlanForm() {
               type="submit"
               disabled={createPlanMutation.isPending}
               data-testid="button-save-diet-plan"
+              onClick={() => {
+                console.log("[DIET FORM] Button clicked!");
+                console.log("[DIET FORM] Form values:", form.getValues());
+                console.log("[DIET FORM] Form errors:", form.formState.errors);
+                console.log("[DIET FORM] Form isValid:", form.formState.isValid);
+              }}
             >
               {createPlanMutation.isPending ? "Zapisywanie..." : isEdit ? "Zapisz zmiany" : "Utwórz plan"}
             </Button>
