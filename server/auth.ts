@@ -16,6 +16,7 @@ export function getSession() {
   });
   
   // Replit uses HTTPS even in development, so we need secure cookies
+  // Preview iframe requires sameSite: "none" to work with cookies
   const isProduction = process.env.NODE_ENV === "production";
   const isReplit = !!process.env.REPL_ID;
   
@@ -26,8 +27,8 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: isProduction || isReplit, // Use secure cookies on Replit (HTTPS)
-      sameSite: "lax",
+      secure: true, // Required for sameSite: "none"
+      sameSite: "none", // Required for iframe/preview to work
       maxAge: sessionTtl,
     },
   });
