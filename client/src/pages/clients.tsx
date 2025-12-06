@@ -1,11 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -20,7 +19,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -33,6 +31,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Search, 
   User, 
@@ -48,44 +48,43 @@ import {
   FileText,
   Pill,
   Activity,
-  Trash2,
-  Plus,
   Download,
+  Users,
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
-import { ObjectUploader } from "@/components/ObjectUploader";
 import type { User as UserType, PlanAssignment, TrainingPlan, ClientProgress, WeeklyReport, UserProfile, MedicalTest } from "@shared/schema";
 
 type ClientWithAssignment = UserType & {
   assignment?: PlanAssignment & { plan: TrainingPlan };
 };
 
-function ClientCard({ client }: { client: ClientWithAssignment }) {
-  const [isOpen, setIsOpen] = useState(false);
+function ClientDetails({ client }: { client: ClientWithAssignment }) {
+  const [isProgressOpen, setIsProgressOpen] = useState(true);
+  const [isMedicalOpen, setIsMedicalOpen] = useState(false);
   const { toast } = useToast();
 
   const { data: clientProgress, isLoading: isLoadingProgress } = useQuery<ClientProgress | null>({
     queryKey: [`/api/trainer/clients/${client.id}/progress`],
-    enabled: isOpen && !!client.id,
+    enabled: !!client.id,
   });
 
   const { data: reports, isLoading: isLoadingReports } = useQuery<WeeklyReport[]>({
     queryKey: [`/api/clients/${client.id}/reports`],
-    enabled: isOpen && !!client.id,
+    enabled: !!client.id,
   });
 
   const { data: clientProfile, isLoading: isLoadingProfile } = useQuery<UserProfile | null>({
     queryKey: [`/api/clients/${client.id}/profile`],
-    enabled: isOpen && !!client.id,
+    enabled: !!client.id,
   });
 
   const { data: medicalTests, isLoading: isLoadingMedicalTests } = useQuery<MedicalTest[]>({
     queryKey: ["/api/clients", client.id, "medical-tests"],
-    enabled: isOpen && !!client.id,
+    enabled: !!client.id,
   });
 
   const latestReport = reports && reports.length > 0 
@@ -120,293 +119,305 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
   };
 
   return (
-    <Card data-testid={`card-client-${client.id}`} className="hover-elevate">
-      <CardHeader>
-        <div className="flex items-start gap-4">
-          <Avatar className="w-16 h-16">
-            <AvatarImage src={client.profileImageDisplayUrl || client.profileImageUrl || undefined} />
-            <AvatarFallback className="bg-primary/10 text-primary font-medium text-lg">
-              {getInitials(client.firstName, client.lastName)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <CardTitle className="text-2xl truncate" data-testid={`text-client-name-${client.id}`}>
-              {client.firstName} {client.lastName}
-            </CardTitle>
-            <CardDescription className="text-base mt-1 truncate" data-testid={`text-client-email-${client.id}`}>
-              {client.email}
-            </CardDescription>
-          </div>
+    <div className="p-6 space-y-6" data-testid={`details-client-${client.id}`}>
+      <div className="flex items-start gap-4">
+        <Avatar className="w-16 h-16">
+          <AvatarImage src={client.profileImageDisplayUrl || client.profileImageUrl || undefined} />
+          <AvatarFallback className="bg-primary/10 text-primary font-medium text-lg">
+            {getInitials(client.firstName, client.lastName)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex-1 min-w-0">
+          <h2 className="font-heading font-bold text-2xl truncate" data-testid={`text-client-name-${client.id}`}>
+            {client.firstName} {client.lastName}
+          </h2>
+          <p className="text-muted-foreground text-base mt-1 truncate" data-testid={`text-client-email-${client.id}`}>
+            {client.email}
+          </p>
         </div>
-      </CardHeader>
+      </div>
 
-      <CardContent className="space-y-6">
-        <div>
-          <h3 className="font-heading font-semibold text-lg mb-3 flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
-            Przypisany plan
-          </h3>
-          {client.assignment ? (
-            <div className="space-y-3">
-              <div className="flex items-start justify-between gap-4 flex-wrap">
-                <div className="flex-1 min-w-0">
-                  <Badge variant="secondary" className="text-base mb-2" data-testid={`badge-assigned-plan-${client.id}`}>
-                    {client.assignment.plan.name}
-                  </Badge>
-                  <p className="text-sm text-muted-foreground" data-testid={`text-assignment-date-${client.id}`}>
-                    Przypisano {new Date(client.assignment.assignedAt).toLocaleDateString("pl-PL")}
-                  </p>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  <Button asChild variant="outline" size="sm" data-testid={`button-view-plan-${client.id}`}>
-                    <Link href={`/plans/${client.assignment.plan.id}/edit`}>
-                      Zobacz plan
-                    </Link>
-                  </Button>
-                  <Button asChild size="sm" data-testid={`button-change-plan-${client.id}`}>
-                    <Link href="/plans">
-                      Zmień plan
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-              {client.assignment.plan.description && (
-                <p className="text-sm text-muted-foreground" data-testid={`text-plan-description-${client.id}`}>
-                  {client.assignment.plan.description}
+      <Separator />
+
+      <div>
+        <h3 className="font-heading font-semibold text-lg mb-3 flex items-center gap-2">
+          <Calendar className="w-5 h-5" />
+          Przypisany plan
+        </h3>
+        {client.assignment ? (
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <Badge variant="secondary" className="text-base mb-2" data-testid={`badge-assigned-plan-${client.id}`}>
+                  {client.assignment.plan.name}
+                </Badge>
+                <p className="text-sm text-muted-foreground" data-testid={`text-assignment-date-${client.id}`}>
+                  Przypisano {new Date(client.assignment.assignedAt).toLocaleDateString("pl-PL")}
                 </p>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <Badge variant="outline" data-testid={`badge-no-plan-${client.id}`}>
-                Brak przypisanego planu
-              </Badge>
-              <div>
-                <Button asChild size="sm" data-testid={`button-assign-plan-${client.id}`}>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button asChild variant="outline" size="sm" data-testid={`button-view-plan-${client.id}`}>
+                  <Link href={`/plans/${client.assignment.plan.id}/edit`}>
+                    Zobacz plan
+                  </Link>
+                </Button>
+                <Button asChild size="sm" data-testid={`button-change-plan-${client.id}`}>
                   <Link href="/plans">
-                    Przypisz plan
+                    Zmień plan
                   </Link>
                 </Button>
               </div>
             </div>
-          )}
-        </div>
+            {client.assignment.plan.description && (
+              <p className="text-sm text-muted-foreground" data-testid={`text-plan-description-${client.id}`}>
+                {client.assignment.plan.description}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <Badge variant="outline" data-testid={`badge-no-plan-${client.id}`}>
+              Brak przypisanego planu
+            </Badge>
+            <div>
+              <Button asChild size="sm" data-testid={`button-assign-plan-${client.id}`}>
+                <Link href="/plans">
+                  Przypisz plan
+                </Link>
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
 
-        <Separator />
+      <Separator />
 
-        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-          <CollapsibleTrigger asChild>
-            <Button 
-              variant="ghost" 
-              className="w-full justify-between p-0 h-auto hover:bg-transparent"
-              data-testid={`button-toggle-progress-${client.id}`}
-            >
-              <h3 className="font-heading font-semibold text-lg flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
-                Postępy podopiecznego
-              </h3>
-              <ChevronDown className={`w-5 h-5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-            </Button>
-          </CollapsibleTrigger>
-          
-          <CollapsibleContent className="mt-3">
-            {isLoadingProgress || isLoadingReports || isLoadingProfile ? (
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-5/6" />
-              </div>
-            ) : clientProgress || latestReport || clientProfile?.pharmacologicalSupport || clientProfile?.injuries || clientProfile?.healthIssues ? (
-              <div className="space-y-6">
-                {clientProgress && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid={`section-progress-${client.id}`}>
-                    {clientProgress.weight && (
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Waga</p>
-                        <p className="font-medium" data-testid={`text-weight-${client.id}`}>
-                          {clientProgress.weight}
-                        </p>
-                      </div>
-                    )}
-                    {clientProgress.height && (
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Wzrost</p>
-                        <p className="font-medium" data-testid={`text-height-${client.id}`}>
-                          {clientProgress.height}
-                        </p>
-                      </div>
-                    )}
-                    {clientProgress.goal && (
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Target className="w-4 h-4" />
-                          Cel treningowy
-                        </p>
-                        <p className="font-medium" data-testid={`text-goal-${client.id}`}>
-                          {clientProgress.goal}
-                        </p>
-                      </div>
-                    )}
-                    {clientProgress.mood && (
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Heart className="w-4 h-4" />
-                          Samopoczucie
-                        </p>
-                        <p className="font-medium" data-testid={`text-mood-${client.id}`}>
-                          {clientProgress.mood}
-                        </p>
-                      </div>
-                    )}
+      <Collapsible open={isProgressOpen} onOpenChange={setIsProgressOpen}>
+        <CollapsibleTrigger asChild>
+          <Button 
+            variant="ghost" 
+            className="w-full justify-between p-0 h-auto hover:bg-transparent"
+            data-testid={`button-toggle-progress-${client.id}`}
+          >
+            <h3 className="font-heading font-semibold text-lg flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Postępy podopiecznego
+            </h3>
+            <ChevronDown className={`w-5 h-5 transition-transform ${isProgressOpen ? "rotate-180" : ""}`} />
+          </Button>
+        </CollapsibleTrigger>
+        
+        <CollapsibleContent className="mt-3">
+          {isLoadingProgress || isLoadingReports || isLoadingProfile ? (
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-5/6" />
+            </div>
+          ) : clientProgress || latestReport || clientProfile?.pharmacologicalSupport || clientProfile?.injuries || clientProfile?.healthIssues ? (
+            <div className="space-y-6">
+              {clientProgress && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid={`section-progress-${client.id}`}>
+                  {clientProgress.weight && (
                     <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <CheckCircle2 className="w-4 h-4" />
-                        Ukończone treningi
-                      </p>
-                      <p className="font-medium text-primary text-xl" data-testid={`text-completed-workouts-${client.id}`}>
-                        {clientProgress.completedWorkouts || 0}
+                      <p className="text-sm text-muted-foreground">Waga</p>
+                      <p className="font-medium" data-testid={`text-weight-${client.id}`}>
+                        {clientProgress.weight}
                       </p>
                     </div>
-                    {clientProgress.notes && (
-                      <div className="space-y-1 md:col-span-2">
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <MessageSquare className="w-4 h-4" />
-                          Notatki motywacyjne
+                  )}
+                  {clientProgress.height && (
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Wzrost</p>
+                      <p className="font-medium" data-testid={`text-height-${client.id}`}>
+                        {clientProgress.height}
+                      </p>
+                    </div>
+                  )}
+                  {clientProgress.goal && (
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Target className="w-4 h-4" />
+                        Cel treningowy
+                      </p>
+                      <p className="font-medium" data-testid={`text-goal-${client.id}`}>
+                        {clientProgress.goal}
+                      </p>
+                    </div>
+                  )}
+                  {clientProgress.mood && (
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Heart className="w-4 h-4" />
+                        Samopoczucie
+                      </p>
+                      <p className="font-medium" data-testid={`text-mood-${client.id}`}>
+                        {clientProgress.mood}
+                      </p>
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Ukończone treningi
+                    </p>
+                    <p className="font-medium text-primary text-xl" data-testid={`text-completed-workouts-${client.id}`}>
+                      {clientProgress.completedWorkouts || 0}
+                    </p>
+                  </div>
+                  {clientProgress.notes && (
+                    <div className="space-y-1 md:col-span-2">
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <MessageSquare className="w-4 h-4" />
+                        Notatki motywacyjne
+                      </p>
+                      <p className="font-medium" data-testid={`text-notes-${client.id}`}>
+                        {clientProgress.notes}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {clientProfile?.pharmacologicalSupport && (
+                <>
+                  {clientProgress && <Separator />}
+                  <div className="space-y-3" data-testid={`section-pharmacological-${client.id}`}>
+                    <h4 className="text-sm font-medium flex items-center gap-2">
+                      <Pill className="w-4 h-4" />
+                      Wsparcie farmakologiczne/Suplementacja
+                    </h4>
+                    <p className="text-sm whitespace-pre-wrap" data-testid={`text-pharmacological-support-${client.id}`}>
+                      {clientProfile.pharmacologicalSupport}
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {(clientProfile?.injuries || clientProfile?.healthIssues) && (
+                <>
+                  {(clientProgress || clientProfile?.pharmacologicalSupport) && <Separator />}
+                  <div className="space-y-4" data-testid={`section-medical-profile-${client.id}`}>
+                    <h4 className="text-sm font-medium flex items-center gap-2">
+                      <Heart className="w-4 h-4" />
+                      Profil medyczny
+                    </h4>
+                    
+                    {clientProfile.injuries && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-muted-foreground">Kontuzje i urazy</p>
+                        <p className="text-sm whitespace-pre-wrap" data-testid={`text-injuries-${client.id}`}>
+                          {clientProfile.injuries}
                         </p>
-                        <p className="font-medium" data-testid={`text-notes-${client.id}`}>
-                          {clientProgress.notes}
+                      </div>
+                    )}
+                    
+                    {clientProfile.healthIssues && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-muted-foreground">Problemy zdrowotne</p>
+                        <p className="text-sm whitespace-pre-wrap" data-testid={`text-health-issues-${client.id}`}>
+                          {clientProfile.healthIssues}
                         </p>
                       </div>
                     )}
                   </div>
-                )}
+                </>
+              )}
 
-                {clientProfile?.pharmacologicalSupport && (
-                  <>
-                    {clientProgress && <Separator />}
-                    <div className="space-y-3" data-testid={`section-pharmacological-${client.id}`}>
+              {latestReport && (
+                <>
+                  {(clientProgress || clientProfile?.pharmacologicalSupport || clientProfile?.injuries || clientProfile?.healthIssues) && <Separator />}
+                  <div className="space-y-3" data-testid={`section-latest-report-${client.id}`}>
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
                       <h4 className="text-sm font-medium flex items-center gap-2">
-                        <Pill className="w-4 h-4" />
-                        Wsparcie farmakologiczne/Suplementacja
+                        <FileText className="w-4 h-4" />
+                        Ostatni raport tygodniowy
                       </h4>
-                      <p className="text-sm whitespace-pre-wrap" data-testid={`text-pharmacological-support-${client.id}`}>
-                        {clientProfile.pharmacologicalSupport}
-                      </p>
+                      <Badge variant="secondary">
+                        {format(new Date(latestReport.reportDate), "d MMMM yyyy", { locale: pl })}
+                      </Badge>
                     </div>
-                  </>
-                )}
-
-                {(clientProfile?.injuries || clientProfile?.healthIssues) && (
-                  <>
-                    {(clientProgress || clientProfile?.pharmacologicalSupport) && <Separator />}
-                    <div className="space-y-4" data-testid={`section-medical-profile-${client.id}`}>
-                      <h4 className="text-sm font-medium flex items-center gap-2">
-                        <Heart className="w-4 h-4" />
-                        Profil medyczny
-                      </h4>
-                      
-                      {clientProfile.injuries && (
-                        <div className="space-y-2">
-                          <p className="text-sm font-medium text-muted-foreground">Kontuzje i urazy</p>
-                          <p className="text-sm whitespace-pre-wrap" data-testid={`text-injuries-${client.id}`}>
-                            {clientProfile.injuries}
-                          </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      {latestReport.weight && (
+                        <div>
+                          <span className="text-muted-foreground">Waga: </span>
+                          <span className="font-medium">{latestReport.weight}</span>
                         </div>
                       )}
-                      
-                      {clientProfile.healthIssues && (
-                        <div className="space-y-2">
-                          <p className="text-sm font-medium text-muted-foreground">Problemy zdrowotne</p>
-                          <p className="text-sm whitespace-pre-wrap" data-testid={`text-health-issues-${client.id}`}>
-                            {clientProfile.healthIssues}
-                          </p>
+                      {latestReport.mood && (
+                        <div>
+                          <span className="text-muted-foreground">Samopoczucie: </span>
+                          <span className="font-medium">{latestReport.mood}</span>
                         </div>
                       )}
                     </div>
-                  </>
-                )}
 
-                {latestReport && (
-                  <>
-                    {(clientProgress || clientProfile?.pharmacologicalSupport || clientProfile?.injuries || clientProfile?.healthIssues) && <Separator />}
-                    <div className="space-y-3" data-testid={`section-latest-report-${client.id}`}>
-                      <div className="flex items-center justify-between gap-4 flex-wrap">
-                        <h4 className="text-sm font-medium flex items-center gap-2">
-                          <FileText className="w-4 h-4" />
-                          Ostatni raport tygodniowy
-                        </h4>
-                        <Badge variant="secondary">
-                          {format(new Date(latestReport.reportDate), "d MMMM yyyy", { locale: pl })}
-                        </Badge>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                        {latestReport.weight && (
-                          <div>
-                            <span className="text-muted-foreground">Waga: </span>
-                            <span className="font-medium">{latestReport.weight}</span>
-                          </div>
-                        )}
-                        {latestReport.mood && (
-                          <div>
-                            <span className="text-muted-foreground">Samopoczucie: </span>
-                            <span className="font-medium">{latestReport.mood}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex gap-2 flex-wrap">
-                        <Button asChild variant="outline" size="sm" className="flex-1" data-testid={`button-view-all-reports-${client.id}`}>
-                          <Link href="/trainer/reports">
-                            <FileText className="w-4 h-4 mr-2" />
-                            Zobacz wszystkie raporty ({reports?.length || 0})
-                          </Link>
-                        </Button>
-                        <Button asChild variant="outline" size="sm" className="flex-1" data-testid={`button-view-profile-${client.id}`}>
-                          <Link href={`/profile/${client.id}`}>
-                            <User className="w-4 h-4 mr-2" />
-                            Zobacz profil
-                          </Link>
-                        </Button>
-                        <Button asChild size="sm" className="flex-1" data-testid={`button-view-progress-${client.id}`}>
-                          <Link href={`/trainer/clients/${client.id}/progress`}>
-                            <TrendingUp className="w-4 h-4 mr-2" />
-                            Zobacz progres
-                          </Link>
-                        </Button>
-                      </div>
+                    <div className="flex gap-2 flex-wrap">
+                      <Button asChild variant="outline" size="sm" className="flex-1" data-testid={`button-view-all-reports-${client.id}`}>
+                        <Link href="/trainer/reports">
+                          <FileText className="w-4 h-4 mr-2" />
+                          Raporty ({reports?.length || 0})
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline" size="sm" className="flex-1" data-testid={`button-view-profile-${client.id}`}>
+                        <Link href={`/profile/${client.id}`}>
+                          <User className="w-4 h-4 mr-2" />
+                          Profil
+                        </Link>
+                      </Button>
+                      <Button asChild size="sm" className="flex-1" data-testid={`button-view-progress-${client.id}`}>
+                        <Link href={`/trainer/clients/${client.id}/progress`}>
+                          <TrendingUp className="w-4 h-4 mr-2" />
+                          Progres
+                        </Link>
+                      </Button>
                     </div>
-                  </>
-                )}
+                  </div>
+                </>
+              )}
 
-                {(clientProgress || latestReport) && (
-                  <>
-                    <Separator />
-                    <Button asChild variant="default" size="sm" className="w-full" data-testid={`button-view-full-progress-${client.id}`}>
-                      <Link href={`/trainer/clients/${client.id}/progress`}>
-                        <TrendingUp className="w-4 h-4 mr-2" />
-                        Zobacz pełny progres
-                      </Link>
-                    </Button>
-                  </>
-                )}
-              </div>
-            ) : (
-              <p className="text-muted-foreground" data-testid={`text-no-progress-${client.id}`}>
-                Podopieczny nie uzupełnił jeszcze swoich postępów
-              </p>
-            )}
-          </CollapsibleContent>
-        </Collapsible>
+              {(clientProgress || latestReport) && (
+                <>
+                  <Separator />
+                  <Button asChild variant="default" size="sm" className="w-full" data-testid={`button-view-full-progress-${client.id}`}>
+                    <Link href={`/trainer/clients/${client.id}/progress`}>
+                      <TrendingUp className="w-4 h-4 mr-2" />
+                      Zobacz pełny progres
+                    </Link>
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : (
+            <p className="text-muted-foreground" data-testid={`text-no-progress-${client.id}`}>
+              Podopieczny nie uzupełnił jeszcze swoich postępów
+            </p>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
 
-        <Separator />
+      <Separator />
 
-        <div>
-          <h3 className="font-heading font-semibold text-lg mb-3 flex items-center gap-2">
-            <Activity className="w-5 h-5" />
-            Badania medyczne
-          </h3>
+      <Collapsible open={isMedicalOpen} onOpenChange={setIsMedicalOpen}>
+        <CollapsibleTrigger asChild>
+          <Button 
+            variant="ghost" 
+            className="w-full justify-between p-0 h-auto hover:bg-transparent"
+            data-testid={`button-toggle-medical-${client.id}`}
+          >
+            <h3 className="font-heading font-semibold text-lg flex items-center gap-2">
+              <Activity className="w-5 h-5" />
+              Badania medyczne
+              {medicalTests && medicalTests.length > 0 && (
+                <Badge variant="secondary" className="ml-2">{medicalTests.length}</Badge>
+              )}
+            </h3>
+            <ChevronDown className={`w-5 h-5 transition-transform ${isMedicalOpen ? "rotate-180" : ""}`} />
+          </Button>
+        </CollapsibleTrigger>
 
+        <CollapsibleContent className="mt-3">
           {isLoadingMedicalTests ? (
             <div className="space-y-2">
               <Skeleton className="h-4 w-full" />
@@ -424,7 +435,7 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
                   className="hover-elevate"
                   data-testid={`card-medical-test-${test.id}`}
                 >
-                  <CardHeader>
+                  <CardHeader className="pb-2">
                     <div className="flex items-start justify-between gap-4 flex-wrap">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -443,7 +454,7 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
                             {!test.testType && "Nie określono"}
                           </Badge>
                         </div>
-                        <CardTitle className="text-lg mb-1" data-testid={`text-test-name-${test.id}`}>
+                        <CardTitle className="text-base mb-1" data-testid={`text-test-name-${test.id}`}>
                           {test.testName}
                         </CardTitle>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -455,7 +466,7 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-3">
+                  <CardContent className="space-y-3 pt-2">
                     {test.resultValue && (
                       <div>
                         <p className="text-sm font-medium text-muted-foreground mb-1">Wynik:</p>
@@ -514,107 +525,205 @@ function ClientCard({ client }: { client: ClientWithAssignment }) {
               ))}
             </div>
           )}
-        </div>
+        </CollapsibleContent>
+      </Collapsible>
 
-        <Separator />
+      <Separator />
 
-        <div className="flex justify-end">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="gap-2 text-destructive hover:bg-destructive/10"
-                disabled={archiveClientMutation.isPending}
-                data-testid={`button-archive-${client.id}`}
-              >
-                {archiveClientMutation.isPending ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-destructive border-t-transparent rounded-full animate-spin" />
-                    Kończenie...
-                  </>
-                ) : (
-                  <>
-                    <X className="w-4 h-4" />
-                    Zakończ współpracę
-                  </>
-                )}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Czy na pewno chcesz zakończyć współpracę?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Ta akcja zarchiwizuje relację z {client.firstName} {client.lastName}. 
-                  Będziesz mógł nadal przeglądać historię współpracy, ale nie będziesz mógł dodawać nowych planów treningowych ani dietetycznych.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel data-testid="button-cancel-archive">Anuluj</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => archiveClientMutation.mutate(client.id)}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  data-testid="button-confirm-archive"
-                >
+      <div className="flex justify-end">
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="gap-2 text-destructive hover:bg-destructive/10"
+              disabled={archiveClientMutation.isPending}
+              data-testid={`button-archive-${client.id}`}
+            >
+              {archiveClientMutation.isPending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-destructive border-t-transparent rounded-full animate-spin" />
+                  Kończenie...
+                </>
+              ) : (
+                <>
+                  <X className="w-4 h-4" />
                   Zakończ współpracę
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </CardContent>
-    </Card>
+                </>
+              )}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Czy na pewno chcesz zakończyć współpracę?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Ta akcja zarchiwizuje relację z {client.firstName} {client.lastName}. 
+                Będziesz mógł nadal przeglądać historię współpracy, ale nie będziesz mógł dodawać nowych planów treningowych ani dietetycznych.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-archive">Anuluj</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => archiveClientMutation.mutate(client.id)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                data-testid="button-confirm-archive"
+              >
+                Zakończ współpracę
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </div>
+  );
+}
+
+function ClientListItem({ 
+  client, 
+  isSelected, 
+  onClick,
+}: { 
+  client: ClientWithAssignment; 
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const getInitials = (firstName?: string | null, lastName?: string | null) => {
+    const first = firstName?.charAt(0) || "";
+    const last = lastName?.charAt(0) || "";
+    return (first + last).toUpperCase() || "?";
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 p-3 rounded-md text-left transition-colors hover-elevate ${
+        isSelected ? "bg-accent" : ""
+      }`}
+      data-testid={`list-item-client-${client.id}`}
+    >
+      <Avatar className="w-10 h-10 shrink-0">
+        <AvatarImage src={client.profileImageDisplayUrl || client.profileImageUrl || undefined} />
+        <AvatarFallback className="bg-primary/10 text-primary font-medium text-sm">
+          {getInitials(client.firstName, client.lastName)}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium truncate text-sm">
+          {client.firstName} {client.lastName}
+        </p>
+        <p className="text-xs text-muted-foreground truncate">
+          {client.email}
+        </p>
+      </div>
+      <Badge 
+        variant={client.assignment ? "default" : "outline"} 
+        className="shrink-0 text-xs"
+      >
+        {client.assignment ? "Ma plan" : "Bez planu"}
+      </Badge>
+    </button>
+  );
+}
+
+function EmptyDetailsState() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+      <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+        <Users className="w-8 h-8 text-muted-foreground" />
+      </div>
+      <h3 className="font-heading font-semibold text-xl mb-2" data-testid="text-empty-details">
+        Wybierz podopiecznego
+      </h3>
+      <p className="text-muted-foreground text-sm max-w-xs">
+        Wybierz podopiecznego z listy po lewej stronie, aby zobaczyć szczegóły
+      </p>
+    </div>
   );
 }
 
 export default function Clients() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "with_plan" | "without_plan">("all");
+  const [sortBy, setSortBy] = useState<"name" | "newest" | "oldest">("name");
+  const [, navigate] = useLocation();
 
   const { data: clients = [], isLoading, error } = useQuery<ClientWithAssignment[]>({
     queryKey: ["/api/trainer/clients"],
   });
 
-  const filteredClients = useMemo(() => {
-    if (!searchQuery.trim()) return clients;
+  const processedClients = useMemo(() => {
+    let result = [...clients];
     
-    const query = searchQuery.toLowerCase();
-    return clients.filter((client) => {
-      const fullName = `${client.firstName} ${client.lastName}`.toLowerCase();
-      const email = client.email.toLowerCase();
-      return fullName.includes(query) || email.includes(query);
+    if (filter === "with_plan") {
+      result = result.filter(c => c.assignment);
+    } else if (filter === "without_plan") {
+      result = result.filter(c => !c.assignment);
+    }
+    
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(c => 
+        `${c.firstName} ${c.lastName}`.toLowerCase().includes(q) ||
+        c.email.toLowerCase().includes(q)
+      );
+    }
+    
+    result.sort((a, b) => {
+      if (sortBy === "name") {
+        return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, "pl");
+      } else if (sortBy === "newest") {
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      } else {
+        return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+      }
     });
-  }, [clients, searchQuery]);
+    
+    return result;
+  }, [clients, filter, searchQuery, sortBy]);
+
+  const selectedClient = useMemo(() => {
+    if (!selectedClientId) return null;
+    return processedClients.find(c => c.id === selectedClientId) || null;
+  }, [processedClients, selectedClientId]);
+
+  useEffect(() => {
+    if (selectedClientId && processedClients.length > 0) {
+      const stillInList = processedClients.some(c => c.id === selectedClientId);
+      if (!stillInList) {
+        setSelectedClientId(null);
+      }
+    }
+  }, [processedClients, selectedClientId]);
+
+  const clientsWithPlan = clients.filter(c => c.assignment).length;
 
   const clearSearch = () => setSearchQuery("");
 
+  const handleClientClick = (client: ClientWithAssignment) => {
+    const isDesktop = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+    if (isDesktop) {
+      setSelectedClientId(client.id);
+    } else {
+      navigate(`/profile/${client.id}`);
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="space-y-8">
-        <div>
-          <h1 className="font-heading font-bold text-4xl mb-2">
-            Podopieczni
-          </h1>
-          <p className="text-muted-foreground">
-            Zarządzaj swoimi podopiecznymi i śledź ich postępy
-          </p>
+      <div className="flex h-[calc(100vh-4rem)] gap-4">
+        <div className="w-80 shrink-0 flex flex-col border-r p-4 space-y-4">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <div className="space-y-2 flex-1">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {[1, 2, 3].map((i) => (
-            <Card key={i}>
-              <CardHeader>
-                <div className="flex items-center gap-4">
-                  <Skeleton className="w-16 h-16 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-6 w-48" />
-                    <Skeleton className="h-4 w-64" />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-24 w-full" />
-              </CardContent>
-            </Card>
-          ))}
+        <div className="flex-1 hidden lg:flex items-center justify-center">
+          <Skeleton className="h-96 w-full max-w-lg" />
         </div>
       </div>
     );
@@ -622,12 +731,7 @@ export default function Clients() {
 
   if (error) {
     return (
-      <div className="space-y-8">
-        <div>
-          <h1 className="font-heading font-bold text-4xl mb-2">
-            Podopieczni
-          </h1>
-        </div>
+      <div className="p-8">
         <Alert variant="destructive">
           <AlertDescription>
             Wystąpił błąd podczas ładowania listy podopiecznych. Spróbuj odświeżyć stronę.
@@ -637,49 +741,10 @@ export default function Clients() {
     );
   }
 
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="font-heading font-bold text-4xl mb-2" data-testid="text-clients-title">
-          Podopieczni
-        </h1>
-        <p className="text-muted-foreground" data-testid="text-clients-description">
-          Zarządzaj swoimi podopiecznymi i śledź ich postępy
-        </p>
-      </div>
-
-      {clients.length > 0 && (
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Wyszukaj po imieniu lub emailu..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                  data-testid="input-filter-clients"
-                />
-              </div>
-              {searchQuery && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={clearSearch}
-                  data-testid="button-clear-filter"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {clients.length === 0 ? (
-        <Card>
+  if (clients.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)] p-8">
+        <Card className="max-w-md w-full">
           <CardContent className="p-12 text-center space-y-6">
             <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto">
               <User className="w-10 h-10 text-muted-foreground" />
@@ -700,40 +765,115 @@ export default function Clients() {
             </div>
           </CardContent>
         </Card>
-      ) : filteredClients.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center space-y-4">
-            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
-              <Search className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <div>
-              <h3 className="font-heading font-semibold text-xl mb-2" data-testid="text-no-results">
-                Brak wyników
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                Nie znaleziono podopiecznych pasujących do "{searchQuery}"
-              </p>
-              <Button variant="outline" onClick={clearSearch} data-testid="button-clear-search">
-                Wyczyść wyszukiwanie
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-muted-foreground">
-              Wyświetlanie {filteredClients.length} {filteredClients.length === 1 ? 'podopiecznego' : 'podopiecznych'}
-              {searchQuery && ` z ${clients.length}`}
-            </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-[calc(100vh-4rem)] gap-0 lg:gap-4">
+      <div className="w-full lg:w-80 shrink-0 flex flex-col border-r lg:border-r">
+        <div className="p-4 space-y-4 border-b">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-heading font-bold text-lg" data-testid="text-clients-count">
+              {clients.length} {clients.length === 1 ? "podopieczny" : "podopiecznych"} 
+              <span className="text-muted-foreground font-normal text-sm ml-1">
+                ({clientsWithPlan} z planem)
+              </span>
+            </h2>
+            <Button asChild size="icon" variant="ghost" data-testid="button-invite-client-header">
+              <Link href="/invite">
+                <UserPlus className="w-4 h-4" />
+              </Link>
+            </Button>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {filteredClients.map((client) => (
-              <ClientCard key={client.id} client={client} />
-            ))}
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Szukaj..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-8"
+              data-testid="input-search-clients"
+            />
+            {searchQuery && (
+              <button
+                onClick={clearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                data-testid="button-clear-search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
+
+          <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+            <TabsList className="w-full">
+              <TabsTrigger value="all" className="flex-1" data-testid="tab-filter-all">
+                Wszyscy
+              </TabsTrigger>
+              <TabsTrigger value="with_plan" className="flex-1" data-testid="tab-filter-with-plan">
+                Z planem
+              </TabsTrigger>
+              <TabsTrigger value="without_plan" className="flex-1" data-testid="tab-filter-without-plan">
+                Bez planu
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+            <SelectTrigger data-testid="select-sort">
+              <SelectValue placeholder="Sortuj..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name" data-testid="sort-name">Alfabetycznie A-Z</SelectItem>
+              <SelectItem value="newest" data-testid="sort-newest">Najnowsi pierwsi</SelectItem>
+              <SelectItem value="oldest" data-testid="sort-oldest">Najstarsi pierwsi</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      )}
+
+        <ScrollArea className="flex-1">
+          <div className="p-2 space-y-1">
+            {processedClients.length === 0 ? (
+              <div className="p-4 text-center">
+                <p className="text-muted-foreground text-sm" data-testid="text-no-results">
+                  Brak wyników dla "{searchQuery}"
+                </p>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={clearSearch}
+                  className="mt-2"
+                  data-testid="button-clear-filter"
+                >
+                  Wyczyść wyszukiwanie
+                </Button>
+              </div>
+            ) : (
+              processedClients.map((client) => (
+                <ClientListItem
+                  key={client.id}
+                  client={client}
+                  isSelected={selectedClientId === client.id}
+                  onClick={() => handleClientClick(client)}
+                />
+              ))
+            )}
+          </div>
+        </ScrollArea>
+      </div>
+
+      <div className="hidden lg:flex flex-1 overflow-auto bg-card rounded-lg border">
+        {selectedClient ? (
+          <ScrollArea className="w-full">
+            <ClientDetails client={selectedClient} />
+          </ScrollArea>
+        ) : (
+          <EmptyDetailsState />
+        )}
+      </div>
     </div>
   );
 }
