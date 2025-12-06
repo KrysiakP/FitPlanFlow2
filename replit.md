@@ -70,6 +70,12 @@ The application follows a client-server architecture with a React-based frontend
   - Subscriptions (Stripe Checkout, Customer Portal, Webhooks)
   - **Diet Management:** 13 endpoints for plan CRUD, meal management, habit logging, and progress statistics
 - **Authentication:** Session-based authentication with secure password handling.
+- **Email Verification System:** 
+  - Registration sends verification email via Resend (server/email.ts)
+  - Tokens expire after 24 hours and are single-use
+  - Login blocked until email verified (returns 403 with resend option)
+  - Endpoints: GET /api/auth/verify-email, POST /api/auth/resend-verification
+  - Frontend pages: /verify-email for handling verification links
 
 ## External Dependencies
 - **Stripe:** For payment processing (Checkout, Customer Portal) and subscription management (Webhooks).

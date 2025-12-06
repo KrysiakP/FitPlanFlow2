@@ -574,8 +574,11 @@ export default function DietPlanForm() {
                       >
                         <label 
                           htmlFor="macro_only" 
-                          onClick={() => field.onChange("macro_only")}
-                          className="flex items-start space-x-3 border rounded-md p-4 hover-elevate cursor-pointer"
+                          className={`flex items-start space-x-3 border rounded-md p-4 cursor-pointer transition-colors ${
+                            field.value === "macro_only"
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:border-primary/50 hover:bg-muted/50"
+                          }`}
                         >
                           <RadioGroupItem value="macro_only" id="macro_only" data-testid="radio-mode-macro-only" className="mt-1" />
                           <span className="flex-1 flex flex-col">
@@ -590,8 +593,11 @@ export default function DietPlanForm() {
                         </label>
                         <label 
                           htmlFor="full_plan" 
-                          onClick={() => field.onChange("full_plan")}
-                          className="flex items-start space-x-3 border rounded-md p-4 hover-elevate cursor-pointer"
+                          className={`flex items-start space-x-3 border rounded-md p-4 cursor-pointer transition-colors ${
+                            field.value === "full_plan"
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:border-primary/50 hover:bg-muted/50"
+                          }`}
                         >
                           <RadioGroupItem value="full_plan" id="full_plan" data-testid="radio-mode-full-plan" className="mt-1" />
                           <span className="flex-1 flex flex-col">

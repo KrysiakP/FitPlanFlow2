@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, hashPassword, comparePassword, getSession } from "./auth";
+import { generateVerificationToken, getTokenExpiry, sendVerificationEmail } from "./email";
 // Object Storage - code adapted from javascript_object_storage blueprint
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
@@ -693,17 +694,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      req.session.userId = user.id;
-      
-      // Explicitly save session before responding to ensure cookie is set
-      req.session.save((err) => {
-        if (err) {
-          console.error("Error saving session:", err);
-          return res.status(500).json({ message: "Nie udało się zapisać sesji" });
-        }
-        const { password: _, ...userWithoutPassword } = user;
-        console.log("[REGISTER] Session saved successfully for user:", user.id);
-        res.status(201).json(userWithoutPassword);
+      // Generate and set email verification token
+      const verificationToken = generateVerificationToken();
+      const tokenExpiry = getTokenExpiry();
+      await storage.setEmailVerificationToken(user.id, verificationToken, tokenExpiry);
+
+      // Send verification email
+      const emailSent = await sendVerificationEmail({
+        email: user.email,
+        firstName: user.firstName,
+        token: verificationToken,
+      });
+
+      if (!emailSent) {
+        console.warn("[REGISTER] Failed to send verification email to:", user.email);
+      }
+
+      // Don't create session - user must verify email first
+      const { password: _, ...userWithoutPassword } = user;
+      console.log("[REGISTER] User registered, verification email sent:", user.id);
+      res.status(201).json({ 
+        ...userWithoutPassword,
+        requiresEmailVerification: true,
+        message: "Konto zostało utworzone. Sprawdź swoją skrzynkę email, aby aktywować konto."
       });
     } catch (error) {
       console.error("Error registering user:", error);
@@ -735,6 +748,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Nieprawidłowy email lub hasło" });
       }
 
+      // Check if email is verified
+      if (!user.emailVerified) {
+        console.log("[LOGIN] Email not verified for user:", user.id);
+        return res.status(403).json({ 
+          message: "Twój adres email nie został jeszcze potwierdzony. Sprawdź skrzynkę pocztową lub poproś o ponowne wysłanie linku.",
+          requiresEmailVerification: true,
+          email: user.email
+        });
+      }
+
       req.session.userId = user.id;
       
       // Explicitly save session before responding to ensure cookie is set
@@ -760,6 +783,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json({ message: "Wylogowano pomyślnie" });
     });
+  });
+
+  // Email verification endpoint
+  app.get("/api/auth/verify-email", async (req, res) => {
+    try {
+      const token = req.query.token as string;
+      
+      if (!token) {
+        return res.status(400).json({ message: "Brak tokenu weryfikacyjnego" });
+      }
+
+      const user = await storage.getUserByVerificationToken(token);
+      
+      if (!user) {
+        return res.status(400).json({ message: "Nieprawidłowy token weryfikacyjny" });
+      }
+
+      // Check if token has expired
+      if (user.emailVerificationTokenExpiresAt && new Date() > new Date(user.emailVerificationTokenExpiresAt)) {
+        return res.status(400).json({ 
+          message: "Token weryfikacyjny wygasł. Poproś o ponowne wysłanie.",
+          tokenExpired: true
+        });
+      }
+
+      // Verify the user's email
+      await storage.verifyUserEmail(user.id);
+      
+      console.log("[VERIFY] Email verified for user:", user.id);
+      res.json({ 
+        message: "Adres email został pomyślnie zweryfikowany. Możesz się teraz zalogować.",
+        verified: true
+      });
+    } catch (error) {
+      console.error("Error verifying email:", error);
+      res.status(500).json({ message: "Wystąpił błąd podczas weryfikacji" });
+    }
+  });
+
+  // Resend verification email endpoint
+  app.post("/api/auth/resend-verification", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Brak adresu email" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      
+      if (!user) {
+        // Don't reveal if user exists or not for security
+        return res.json({ message: "Jeśli konto istnieje, email weryfikacyjny został wysłany." });
+      }
+
+      if (user.emailVerified) {
+        return res.status(400).json({ message: "Ten adres email jest już zweryfikowany." });
+      }
+
+      // Generate new verification token
+      const verificationToken = generateVerificationToken();
+      const tokenExpiry = getTokenExpiry();
+      await storage.setEmailVerificationToken(user.id, verificationToken, tokenExpiry);
+
+      // Send verification email
+      const emailSent = await sendVerificationEmail({
+        email: user.email,
+        firstName: user.firstName,
+        token: verificationToken,
+      });
+
+      if (!emailSent) {
+        console.warn("[RESEND] Failed to send verification email to:", user.email);
+        return res.status(500).json({ message: "Nie udało się wysłać emaila weryfikacyjnego." });
+      }
+
+      console.log("[RESEND] Verification email resent to:", user.email);
+      res.json({ message: "Email weryfikacyjny został wysłany. Sprawdź swoją skrzynkę pocztową." });
+    } catch (error) {
+      console.error("Error resending verification email:", error);
+      res.status(500).json({ message: "Wystąpił błąd podczas wysyłania emaila" });
+    }
   });
 
   app.get("/api/auth/user", isAuthenticated, async (req, res) => {

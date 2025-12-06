@@ -1,12 +1,14 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { loginSchema, type LoginInput } from "@shared/schema";
-import { Dumbbell } from "lucide-react";
+import { Dumbbell, Mail, Loader2, AlertCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Link, useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
@@ -14,6 +16,8 @@ import { useMutation } from "@tanstack/react-query";
 export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [verificationNeeded, setVerificationNeeded] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -25,24 +29,70 @@ export default function Login() {
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginInput) => {
-      const response = await apiRequest("POST", "/api/login", data);
-      return response;
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        if (response.status === 403 && result.requiresEmailVerification) {
+          setVerificationNeeded(true);
+          setPendingEmail(result.email || data.email);
+          throw new Error(result.message);
+        }
+        throw new Error(result.message || "Błąd logowania");
+      }
+      
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       setLocation("/");
     },
     onError: (error: Error) => {
+      if (!verificationNeeded) {
+        toast({
+          title: "Błąd logowania",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  const resendMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const response = await apiRequest("POST", "/api/auth/resend-verification", { email });
+      return response.json();
+    },
+    onSuccess: (data) => {
       toast({
-        title: "Błąd logowania",
-        description: error.message,
+        title: "Email wysłany",
+        description: data.message || "Sprawdź swoją skrzynkę pocztową.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Błąd",
+        description: error.message || "Nie udało się wysłać emaila.",
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = (data: LoginInput) => {
+    setVerificationNeeded(false);
     loginMutation.mutate(data);
+  };
+
+  const handleResendVerification = () => {
+    if (pendingEmail) {
+      resendMutation.mutate(pendingEmail);
+    }
   };
 
   return (
@@ -58,6 +108,38 @@ export default function Login() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {verificationNeeded && (
+            <Alert className="border-amber-500 bg-amber-500/10" data-testid="alert-verification-needed">
+              <Mail className="h-4 w-4 text-amber-500" />
+              <AlertTitle className="text-amber-600">Wymagana weryfikacja emaila</AlertTitle>
+              <AlertDescription className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Twój adres email nie został jeszcze potwierdzony. 
+                  Sprawdź skrzynkę pocztową lub kliknij poniżej, aby otrzymać nowy link.
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleResendVerification}
+                  disabled={resendMutation.isPending}
+                  data-testid="button-resend-verification"
+                >
+                  {resendMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Wysyłanie...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-4 h-4 mr-2" />
+                      Wyślij ponownie link weryfikacyjny
+                    </>
+                  )}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField

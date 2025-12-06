@@ -36,6 +36,7 @@ import Pomagamy from "@/pages/pomagamy";
 import Pricing from "@/pages/pricing";
 import Chat from "@/pages/chat";
 import Referrals from "@/pages/referrals";
+import VerifyEmail from "@/pages/verify-email";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -55,6 +56,7 @@ function Router() {
         <Route path="/" component={Landing} />
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
+        <Route path="/verify-email" component={VerifyEmail} />
         <Route component={Landing} />
       </Switch>
     );

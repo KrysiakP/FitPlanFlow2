@@ -299,6 +299,39 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return user;
   }
+
+  async setEmailVerificationToken(userId: string, token: string, expiresAt: Date): Promise<void> {
+    await db
+      .update(users)
+      .set({ 
+        emailVerificationToken: token,
+        emailVerificationTokenExpiresAt: expiresAt,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async getUserByVerificationToken(token: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.emailVerificationToken, token));
+    return user;
+  }
+
+  async verifyUserEmail(userId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        emailVerified: true,
+        emailVerificationToken: null,
+        emailVerificationTokenExpiresAt: null,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
   
   async updateUserSubscription(userId: string, data: { stripeCustomerId?: string | null; stripeSubscriptionId?: string | null; subscriptionStatus?: string | null; subscriptionTier?: string; trialEndsAt?: Date | null; subscriptionCancelledAt?: Date | null }): Promise<User> {
     const [user] = await db

@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, Crown, CreditCard, UserPlus, ShieldCheck, Heart, UtensilsCrossed, Apple, GraduationCap, TrendingUp, DollarSign, Clock, MessageSquare, Bell, Activity } from "lucide-react";
+import { RestTimerButton } from "@/components/rest-timer";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -199,6 +200,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </Link>
         );
       })}
+      <div className="pt-4 border-t mt-4">
+        <RestTimerButton />
+      </div>
     </nav>
   );
 

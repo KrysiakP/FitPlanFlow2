@@ -14,14 +14,15 @@ import {
   MessageHistory,
   MessageComposer,
 } from "@/components/chat-components";
-import { Card } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, ArrowLeft } from "lucide-react";
 
 export default function ChatPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const params = useParams<{ clientId?: string }>();
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [showChatOnMobile, setShowChatOnMobile] = useState(false);
 
   const isTrainer = user?.role === "trainer";
   const clientIdFromUrl = params.clientId;
@@ -54,6 +55,7 @@ export default function ChatPage() {
         const conversation = conversations.find((c) => c.clientId === clientIdFromUrl);
         if (conversation) {
           setSelectedConversation(conversation);
+          setShowChatOnMobile(true);
           // Mark as read
           markAsReadMutation.mutate(conversation.partnerId);
         } else {
@@ -63,16 +65,15 @@ export default function ChatPage() {
           }
         }
       } else {
-        // No client selected, select first conversation
-        if (conversations.length > 0) {
-          setLocation(`/chat/${conversations[0].clientId}`);
-        }
+        // No client selected, don't auto-select on mobile (let user choose)
+        setShowChatOnMobile(false);
       }
     } else {
       // Client: auto-select trainer conversation
       const trainerConversation = conversations[0];
       if (trainerConversation) {
         setSelectedConversation(trainerConversation);
+        setShowChatOnMobile(true);
         // Mark as read
         markAsReadMutation.mutate(trainerConversation.partnerId);
       }
@@ -81,12 +82,21 @@ export default function ChatPage() {
 
   const handleSelectConversation = (conversation: Conversation) => {
     setSelectedConversation(conversation);
+    setShowChatOnMobile(true);
     // Mark as read
     markAsReadMutation.mutate(conversation.partnerId);
 
     // Update URL for trainers
     if (isTrainer) {
       setLocation(`/chat/${conversation.clientId}`);
+    }
+  };
+
+  const handleBackToList = () => {
+    setShowChatOnMobile(false);
+    setSelectedConversation(null);
+    if (isTrainer) {
+      setLocation("/chat");
     }
   };
 
@@ -115,15 +125,37 @@ export default function ChatPage() {
 
   return (
     <div className="h-screen flex flex-col" data-testid="chat-page">
-      <header className="border-b p-4">
+      {/* Mobile: Show either header with back button or main header */}
+      <header className="border-b p-4 flex items-center gap-3">
+        {showChatOnMobile && selectedConversation && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleBackToList}
+            className="md:hidden shrink-0"
+            data-testid="button-back-to-list"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+        )}
         <h1 className="text-2xl font-bold" data-testid="chat-title">
-          Wiadomości
+          {showChatOnMobile && selectedConversation ? (
+            <span className="md:hidden">{selectedConversation.partnerName}</span>
+          ) : null}
+          <span className={showChatOnMobile && selectedConversation ? "hidden md:inline" : ""}>
+            Wiadomości
+          </span>
         </h1>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Conversations sidebar */}
-        <aside className="w-80 border-r flex flex-col" data-testid="conversations-sidebar">
+        {/* Conversations sidebar - hidden on mobile when chat is open */}
+        <aside 
+          className={`w-full md:w-80 border-r flex flex-col ${
+            showChatOnMobile ? "hidden md:flex" : "flex"
+          }`} 
+          data-testid="conversations-sidebar"
+        >
           <div className="p-4 border-b">
             <h2 className="font-semibold" data-testid="conversations-title">
               {isTrainer ? "Podopieczni" : "Trener"}
@@ -139,11 +171,17 @@ export default function ChatPage() {
           </div>
         </aside>
 
-        {/* Message area */}
-        <main className="flex-1 flex flex-col" data-testid="message-area">
+        {/* Message area - hidden on mobile when showing conversation list */}
+        <main 
+          className={`flex-1 flex flex-col ${
+            !showChatOnMobile ? "hidden md:flex" : "flex"
+          }`} 
+          data-testid="message-area"
+        >
           {selectedConversation ? (
             <>
-              <div className="border-b p-4">
+              {/* Desktop header for conversation partner */}
+              <div className="border-b p-4 hidden md:block">
                 <h2 className="font-semibold" data-testid="conversation-partner-name">
                   {selectedConversation.partnerName}
                 </h2>
