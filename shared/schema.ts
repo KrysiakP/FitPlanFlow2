@@ -30,6 +30,7 @@ export const users = pgTable("users", {
   stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }), // Stripe subscription ID (sub_xxx)
   subscriptionStatus: varchar("subscription_status", { length: 50 }), // 'active', 'canceled', 'past_due', 'unpaid', or null
   subscriptionTier: varchar("subscription_tier", { length: 50 }).default('start').notNull(), // 'start', 'solo', 'pro', 'elite', 'studio'
+  subscriptionCancelledAt: timestamp("subscription_cancelled_at"), // Date when subscription was cancelled/became past_due
   trialEndsAt: timestamp("trial_ends_at"), // 30-day trial end date for trainers
   // Referral system fields
   referredByTrainerId: varchar("referred_by_trainer_id", { length: 255 }).references(() => users.id), // Who referred this user (self-reference)

@@ -168,6 +168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               subscriptionStatus: 'active',
               subscriptionTier: tier,
               trialEndsAt: null, // Clear trial when subscription is activated
+              subscriptionCancelledAt: null, // Clear cancellation date
             });
           }
           break;
@@ -184,6 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               subscriptionStatus: 'active',
               subscriptionTier: tier,
               trialEndsAt: null, // Clear trial when subscription is activated
+              subscriptionCancelledAt: null, // Clear cancellation date
             });
           }
           break;
@@ -210,6 +212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.updateUserSubscription(userId, {
               subscriptionStatus: 'canceled',
               subscriptionTier: 'start',
+              subscriptionCancelledAt: new Date(),
             });
           }
           break;
@@ -234,6 +237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             await storage.updateUserSubscription(userId, {
               subscriptionStatus: 'past_due',
+              subscriptionCancelledAt: new Date(),
             });
           }
           break;
@@ -258,6 +262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             await storage.updateUserSubscription(userId, {
               subscriptionStatus: 'active',
+              subscriptionCancelledAt: null, // Clear cancellation date on successful payment
             });
 
             // ISSUE 4 FIX: Check for referral bonus eligibility (trainer qualifies on FIRST paid invoice only)
