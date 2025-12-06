@@ -711,8 +711,8 @@ export default function Clients() {
 
   if (isLoading) {
     return (
-      <div className="flex h-[calc(100vh-4rem)] gap-4">
-        <div className="w-80 shrink-0 flex flex-col border-r p-4 space-y-4">
+      <div className="flex h-[calc(100vh-4rem)]">
+        <div className="w-[400px] shrink-0 flex flex-col border-r p-4 space-y-4">
           <Skeleton className="h-8 w-full" />
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
@@ -770,8 +770,8 @@ export default function Clients() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] gap-0 lg:gap-4">
-      <div className="w-full lg:w-80 shrink-0 flex flex-col border-r lg:border-r">
+    <div className="flex h-[calc(100vh-4rem)]">
+      <div className="w-full lg:w-[400px] shrink-0 flex flex-col border-r overflow-hidden">
         <div className="p-4 space-y-4 border-b">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-heading font-bold text-lg" data-testid="text-clients-count">
