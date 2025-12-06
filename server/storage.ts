@@ -193,8 +193,10 @@ export interface IStorage {
   // Diet Meals
   createDietMeal(meal: InsertDietMeal): Promise<DietMeal>;
   getDietPlanMeals(planId: string): Promise<DietMeal[]>;
+  getDietPlanMealsForDay(planId: string, dayOfWeek: number): Promise<DietMeal[]>;
   updateDietMeal(id: string, updates: Partial<InsertDietMeal>): Promise<DietMeal>;
   deleteDietMeal(id: string): Promise<void>;
+  deleteDietMealsByPlanId(planId: string): Promise<void>;
   
   // Diet Supplements
   getDietSupplements(dietPlanId: string): Promise<DietSupplement[]>;
@@ -1548,6 +1550,19 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(dietMeals)
       .where(eq(dietMeals.planId, planId))
+      .orderBy(asc(dietMeals.dayOfWeek), asc(dietMeals.orderIndex));
+  }
+  
+  async getDietPlanMealsForDay(planId: string, dayOfWeek: number): Promise<DietMeal[]> {
+    return await db
+      .select()
+      .from(dietMeals)
+      .where(
+        and(
+          eq(dietMeals.planId, planId),
+          eq(dietMeals.dayOfWeek, dayOfWeek)
+        )
+      )
       .orderBy(asc(dietMeals.orderIndex));
   }
   
@@ -1564,6 +1579,12 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(dietMeals)
       .where(eq(dietMeals.id, id));
+  }
+  
+  async deleteDietMealsByPlanId(planId: string): Promise<void> {
+    await db
+      .delete(dietMeals)
+      .where(eq(dietMeals.planId, planId));
   }
   
   // Diet Supplements

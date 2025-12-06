@@ -212,9 +212,9 @@ export const dietPlans = pgTable("diet_plans", {
   targetFat: integer("target_fat").notNull(), // gramy
   targetCarbs: integer("target_carbs").notNull(), // gramy
   mealsPerDay: integer("meals_per_day").notNull(), // 3-6
-  mode: varchar("mode", { length: 50 }).notNull().default('macro_only'), // 'macro_only', 'macro_with_meals', 'full_plan'
-  recommendedProducts: text("recommended_products"), // Lista polecanych produktów dla macro_with_meals (opcjonalne)
-  status: varchar("status", { length: 20 }).notNull().default("draft"), // draft/active/completed
+  mode: varchar("mode", { length: 50 }).notNull().default('macro_only'), // 'macro_only' lub 'full_plan' (tygodniowa rozpiska)
+  recommendedProducts: text("recommended_products"), // Lista polecanych produktów (opcjonalne)
+  status: varchar("status", { length: 20 }).notNull().default("active"), // active/completed
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -223,16 +223,23 @@ export const dietPlans = pgTable("diet_plans", {
   clientIdx: index("diet_plans_client_idx").on(table.clientId),
 }));
 
-// Diet meals - meals within a diet plan
+// Diet meals - meals within a diet plan (supports weekly structure for full_plan mode)
 export const dietMeals = pgTable("diet_meals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   planId: varchar("plan_id").notNull().references(() => dietPlans.id, { onDelete: "cascade" }),
-  orderIndex: integer("order_index").notNull(), // 1-6
-  name: varchar("name", { length: 255 }).notNull(), // np. "Śniadanie", "Drugie śniadanie"
-  description: text("description").notNull(), // składniki i wskazówki
+  dayOfWeek: integer("day_of_week").notNull().default(1), // 1=Poniedziałek, 2=Wtorek, ..., 7=Niedziela
+  orderIndex: integer("order_index").notNull(), // kolejność posiłku w danym dniu (1, 2, 3...)
+  name: varchar("name", { length: 255 }).notNull(), // np. "Śniadanie", "Obiad"
+  description: text("description"), // składniki, przepis
+  suggestedTime: varchar("suggested_time", { length: 10 }), // np. "08:00", "13:00"
+  calories: integer("calories"), // kcal dla tego posiłku
+  protein: integer("protein"), // białko w gramach
+  fat: integer("fat"), // tłuszcz w gramach
+  carbs: integer("carbs"), // węglowodany w gramach
 }, (table) => ({
   planIdx: index("diet_meals_plan_idx").on(table.planId),
-  uniquePlanOrder: uniqueIndex("unique_diet_meal_plan_order").on(table.planId, table.orderIndex),
+  dayIdx: index("diet_meals_day_idx").on(table.planId, table.dayOfWeek),
+  uniquePlanDayOrder: uniqueIndex("unique_diet_meal_plan_day_order").on(table.planId, table.dayOfWeek, table.orderIndex),
 }));
 
 // Daily habit logs - client's daily diet and habit tracking
@@ -859,8 +866,8 @@ export const insertDietPlanSchema = createInsertSchema(dietPlans).omit({
   trainerId: true,
   createdAt: true,
 }).extend({
-  mode: z.enum(['macro_only', 'macro_with_meals', 'full_plan'], { 
-    errorMap: () => ({ message: "Tryb diety musi być: macro_only, macro_with_meals lub full_plan" }) 
+  mode: z.enum(['macro_only', 'full_plan'], { 
+    errorMap: () => ({ message: "Tryb diety musi być: macro_only lub full_plan" }) 
   }).default('macro_only'),
   mealsPerDay: z.coerce.number().int().min(3, "Liczba posiłków musi być między 3 a 6").max(6, "Liczba posiłków musi być między 3 a 6").optional(),
   recommendedProducts: z.string().optional(),
@@ -868,6 +875,16 @@ export const insertDietPlanSchema = createInsertSchema(dietPlans).omit({
 
 export const insertDietMealSchema = createInsertSchema(dietMeals).omit({
   id: true,
+}).extend({
+  dayOfWeek: z.coerce.number().int().min(1, "Dzień musi być między 1 a 7").max(7, "Dzień musi być między 1 a 7").default(1),
+  orderIndex: z.coerce.number().int().min(1),
+  name: z.string().min(1, "Nazwa posiłku jest wymagana"),
+  description: z.string().optional(),
+  suggestedTime: z.string().optional(),
+  calories: z.coerce.number().int().optional(),
+  protein: z.coerce.number().int().optional(),
+  fat: z.coerce.number().int().optional(),
+  carbs: z.coerce.number().int().optional(),
 });
 
 export const insertDailyHabitLogSchema = createInsertSchema(dailyHabitLogs).omit({

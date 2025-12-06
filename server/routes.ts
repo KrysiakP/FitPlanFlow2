@@ -3066,6 +3066,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get meals for a specific day of week
+  app.get("/api/diets/plans/:planId/meals/day/:dayOfWeek", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { planId, dayOfWeek } = req.params;
+      const dayNum = parseInt(dayOfWeek);
+      
+      if (isNaN(dayNum) || dayNum < 1 || dayNum > 7) {
+        return res.status(400).json({ message: "Dzień musi być liczbą od 1 do 7" });
+      }
+      
+      const plan = await storage.getDietPlanById(planId);
+      
+      if (!plan) {
+        return res.status(404).json({ message: "Plan dietetyczny nie został znaleziony" });
+      }
+
+      if (user?.role === "trainer" && plan.trainerId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego planu" });
+      }
+
+      if (user?.role === "client" && plan.clientId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego planu" });
+      }
+
+      const meals = await storage.getDietPlanMealsForDay(planId, dayNum);
+      res.json(meals);
+    } catch (error) {
+      console.error("Error fetching diet meals for day:", error);
+      res.status(500).json({ message: "Nie udało się pobrać posiłków" });
+    }
+  });
+
   app.put("/api/diets/meals/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
@@ -3132,6 +3166,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting diet meal:", error);
       res.status(500).json({ message: "Nie udało się usunąć posiłku" });
+    }
+  });
+
+  app.delete("/api/diets/plans/:planId/meals", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { planId } = req.params;
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą usuwać posiłki" });
+      }
+
+      const plan = await storage.getDietPlanById(planId);
+      
+      if (!plan) {
+        return res.status(404).json({ message: "Plan dietetyczny nie został znaleziony" });
+      }
+
+      if (plan.trainerId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego planu" });
+      }
+
+      await storage.deleteDietMealsByPlanId(planId);
+      res.json({ message: "Wszystkie posiłki zostały usunięte" });
+    } catch (error) {
+      console.error("Error deleting diet meals:", error);
+      res.status(500).json({ message: "Nie udało się usunąć posiłków" });
     }
   });
 

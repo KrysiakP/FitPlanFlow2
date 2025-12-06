@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format } from "date-fns";
+import { format, getDay, startOfWeek, addDays } from "date-fns";
 import { pl } from "date-fns/locale";
-import { Calendar as CalendarIcon, Droplet, Loader2, Pill, Apple } from "lucide-react";
+import { Calendar as CalendarIcon, Droplet, Loader2, Pill, Apple, Clock, Utensils } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -42,6 +42,27 @@ const logFormSchema = z.object({
 
 type LogFormValues = z.infer<typeof logFormSchema>;
 
+const POLISH_DAY_NAMES = [
+  "Poniedziałek",
+  "Wtorek",
+  "Środa",
+  "Czwartek",
+  "Piątek",
+  "Sobota",
+  "Niedziela",
+];
+
+const POLISH_DAY_SHORT = ["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"];
+
+function getPolishDayOfWeek(date: Date): number {
+  const jsDay = getDay(date);
+  return jsDay === 0 ? 7 : jsDay;
+}
+
+function getPolishDayName(dayOfWeek: number): string {
+  return POLISH_DAY_NAMES[dayOfWeek - 1] || "";
+}
+
 export default function ClientDiet() {
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -52,7 +73,7 @@ export default function ClientDiet() {
 
   const { data: supplements, isLoading: isSupplementsLoading } = useQuery<DietSupplement[]>({
     queryKey: ["/api/diet-plans", dietPlan?.id, "supplements"],
-    enabled: !!dietPlan?.id && (dietPlan.mode === 'macro_with_meals' || dietPlan.mode === 'full_plan'),
+    enabled: !!dietPlan?.id,
   });
 
   const { data: existingLogs, isLoading: isLogLoading } = useQuery<DailyHabitLogWithCheckmarks[]>({
@@ -66,6 +87,33 @@ export default function ClientDiet() {
 
   const existingLog = existingLogs?.[0];
 
+  const selectedDayOfWeek = useMemo(() => getPolishDayOfWeek(selectedDate), [selectedDate]);
+  const selectedDayName = useMemo(() => getPolishDayName(selectedDayOfWeek), [selectedDayOfWeek]);
+
+  const filteredMeals = useMemo(() => {
+    if (!dietPlan?.meals) return [];
+    return dietPlan.meals
+      .filter(meal => meal.dayOfWeek === selectedDayOfWeek)
+      .sort((a, b) => a.orderIndex - b.orderIndex);
+  }, [dietPlan?.meals, selectedDayOfWeek]);
+
+  const dailyMacroSummary = useMemo(() => {
+    return filteredMeals.reduce(
+      (acc, meal) => ({
+        calories: acc.calories + (meal.calories || 0),
+        protein: acc.protein + (meal.protein || 0),
+        fat: acc.fat + (meal.fat || 0),
+        carbs: acc.carbs + (meal.carbs || 0),
+      }),
+      { calories: 0, protein: 0, fat: 0, carbs: 0 }
+    );
+  }, [filteredMeals]);
+
+  const weekDays = useMemo(() => {
+    const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
+    return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  }, [selectedDate]);
+
   const form = useForm<LogFormValues>({
     resolver: zodResolver(logFormSchema),
     defaultValues: {
@@ -78,37 +126,45 @@ export default function ClientDiet() {
     },
   });
 
-  // Update form when existing log or meals change
   useEffect(() => {
-    if (existingLog) {
+    if (existingLog && filteredMeals.length > 0) {
       form.reset({
         waterLiters: parseFloat(existingLog.waterLiters) || 0,
         hitCalories: existingLog.hitCalories,
         hitProtein: existingLog.hitProtein,
         hitFat: existingLog.hitFat,
         hitCarbs: existingLog.hitCarbs,
-        mealCheckmarks: dietPlan?.meals.map(meal => {
+        mealCheckmarks: filteredMeals.map(meal => {
           const checkmark = existingLog.mealCheckmarks?.find(mc => mc.mealId === meal.id);
           return {
             mealId: meal.id,
             completed: checkmark?.completed || false,
           };
-        }) || [],
+        }),
       });
-    } else if (dietPlan?.meals) {
+    } else if (filteredMeals.length > 0) {
       form.reset({
         waterLiters: 0,
         hitCalories: false,
         hitProtein: false,
         hitFat: false,
         hitCarbs: false,
-        mealCheckmarks: dietPlan.meals.map(meal => ({
+        mealCheckmarks: filteredMeals.map(meal => ({
           mealId: meal.id,
           completed: false,
         })),
       });
+    } else {
+      form.reset({
+        waterLiters: existingLog ? parseFloat(existingLog.waterLiters) || 0 : 0,
+        hitCalories: existingLog?.hitCalories || false,
+        hitProtein: existingLog?.hitProtein || false,
+        hitFat: existingLog?.hitFat || false,
+        hitCarbs: existingLog?.hitCarbs || false,
+        mealCheckmarks: [],
+      });
     }
-  }, [existingLog, dietPlan?.meals, form]);
+  }, [existingLog, filteredMeals, form]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: LogFormValues) => {
@@ -220,7 +276,7 @@ export default function ClientDiet() {
                     </div>
                   </div>
 
-                  {(dietPlan.mode === 'macro_with_meals' || dietPlan.mode === 'full_plan' ) && (
+                  {dietPlan.mode === 'full_plan' && (
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Liczba posiłków dziennie</p>
                       <p className="font-medium" data-testid="text-meals-per-day">
@@ -250,48 +306,127 @@ export default function ClientDiet() {
                     </div>
                   )}
 
-                  {dietPlan.mode === 'macro_with_meals' && dietPlan.recommendedProducts && (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Apple className="w-4 h-4" />
-                        <h4 className="font-heading font-semibold">Polecane produkty</h4>
+                  {dietPlan.mode === 'full_plan' && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Utensils className="w-4 h-4" />
+                        <h4 className="font-heading font-semibold" data-testid="text-meals-day-header">
+                          Posiłki na {selectedDayName}, {format(selectedDate, "d MMMM", { locale: pl })}
+                        </h4>
                       </div>
-                      <Card>
-                        <CardContent className="p-4">
-                          <p className="text-sm whitespace-pre-wrap" data-testid="text-recommended-products">
-                            {dietPlan.recommendedProducts}
-                          </p>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
 
-                  {(dietPlan.mode === 'full_plan' ) && (
-                    <div className="space-y-3">
-                      <h4 className="font-heading font-semibold">Posiłki</h4>
-                      <div className="space-y-2">
-                        {dietPlan.meals
-                          .sort((a, b) => a.orderIndex - b.orderIndex)
-                          .map((meal) => (
-                            <Card key={meal.id} data-testid={`meal-item-${meal.id}`}>
-                              <CardContent className="p-4">
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-medium text-muted-foreground">
-                                      #{meal.orderIndex}
-                                    </span>
-                                    <h5 className="font-medium">{meal.name}</h5>
+                      <div className="flex gap-1 flex-wrap" data-testid="week-calendar">
+                        {weekDays.map((day, index) => {
+                          const dayOfWeek = getPolishDayOfWeek(day);
+                          const isSelected = format(day, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd");
+                          const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
+                          return (
+                            <Button
+                              key={index}
+                              variant={isSelected ? "default" : "outline"}
+                              size="sm"
+                              className={cn(
+                                "flex-1 min-w-[40px] px-2",
+                                isToday && !isSelected && "border-primary"
+                              )}
+                              onClick={() => setSelectedDate(day)}
+                              data-testid={`btn-day-${dayOfWeek}`}
+                            >
+                              <div className="flex flex-col items-center">
+                                <span className="text-xs">{POLISH_DAY_SHORT[index]}</span>
+                                <span className="text-xs font-medium">{format(day, "d")}</span>
+                              </div>
+                            </Button>
+                          );
+                        })}
+                      </div>
+
+                      {filteredMeals.length === 0 ? (
+                        <Alert data-testid="alert-no-meals-for-day">
+                          <AlertDescription>
+                            Brak posiłków zaplanowanych na {selectedDayName.toLowerCase()}.
+                          </AlertDescription>
+                        </Alert>
+                      ) : (
+                        <>
+                          <div className="space-y-3">
+                            {filteredMeals.map((meal) => (
+                              <Card key={meal.id} data-testid={`meal-item-${meal.id}`}>
+                                <CardContent className="p-4">
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      {meal.suggestedTime && (
+                                        <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground" data-testid={`meal-time-${meal.id}`}>
+                                          <Clock className="w-3 h-3" />
+                                          {meal.suggestedTime}
+                                        </span>
+                                      )}
+                                      <h5 className="font-medium" data-testid={`meal-name-${meal.id}`}>{meal.name}</h5>
+                                    </div>
+                                    {meal.description && (
+                                      <p className="text-sm text-muted-foreground" data-testid={`meal-description-${meal.id}`}>
+                                        {meal.description}
+                                      </p>
+                                    )}
+                                    {(meal.calories || meal.protein || meal.fat || meal.carbs) && (
+                                      <div className="flex gap-3 flex-wrap text-xs" data-testid={`meal-macros-${meal.id}`}>
+                                        {meal.calories && (
+                                          <span className="text-muted-foreground">
+                                            <span className="font-medium text-foreground">{meal.calories}</span> kcal
+                                          </span>
+                                        )}
+                                        {meal.protein && (
+                                          <span className="text-muted-foreground">
+                                            B: <span className="font-medium text-foreground">{meal.protein}g</span>
+                                          </span>
+                                        )}
+                                        {meal.fat && (
+                                          <span className="text-muted-foreground">
+                                            T: <span className="font-medium text-foreground">{meal.fat}g</span>
+                                          </span>
+                                        )}
+                                        {meal.carbs && (
+                                          <span className="text-muted-foreground">
+                                            W: <span className="font-medium text-foreground">{meal.carbs}g</span>
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
-                                  <p className="text-sm text-muted-foreground">{meal.description}</p>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+
+                          {(dailyMacroSummary.calories > 0 || dailyMacroSummary.protein > 0 || dailyMacroSummary.fat > 0 || dailyMacroSummary.carbs > 0) && (
+                            <div className="p-3 bg-muted/50 rounded-lg" data-testid="daily-macro-summary">
+                              <p className="text-sm font-medium mb-2">Podsumowanie dnia:</p>
+                              <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                                <div>
+                                  <p className="font-medium" data-testid="summary-calories">{dailyMacroSummary.calories}</p>
+                                  <p className="text-muted-foreground">kcal</p>
                                 </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                      </div>
+                                <div>
+                                  <p className="font-medium" data-testid="summary-protein">{dailyMacroSummary.protein}g</p>
+                                  <p className="text-muted-foreground">białko</p>
+                                </div>
+                                <div>
+                                  <p className="font-medium" data-testid="summary-fat">{dailyMacroSummary.fat}g</p>
+                                  <p className="text-muted-foreground">tłuszcz</p>
+                                </div>
+                                <div>
+                                  <p className="font-medium" data-testid="summary-carbs">{dailyMacroSummary.carbs}g</p>
+                                  <p className="text-muted-foreground">węgle</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
 
-                  {(dietPlan.mode === 'macro_with_meals' || dietPlan.mode === 'full_plan') && supplements && supplements.length > 0 && (
+                  {supplements && supplements.length > 0 && (
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
                         <Pill className="w-4 h-4" />
@@ -390,40 +525,47 @@ export default function ClientDiet() {
               ) : (
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   {/* Meals Section - only for full_plan mode */}
-                  {(dietPlan.mode === 'full_plan' ) && (
+                  {dietPlan.mode === 'full_plan' && (
                     <div className="space-y-4">
-                      <h4 className="font-heading font-semibold">Posiłki</h4>
+                      <h4 className="font-heading font-semibold" data-testid="text-checkmarks-header">
+                        Posiłki - {selectedDayName}
+                      </h4>
                       {isLogLoading ? (
                         <div className="space-y-3">
                           <Skeleton className="h-8 w-full" />
                           <Skeleton className="h-8 w-full" />
                           <Skeleton className="h-8 w-full" />
                         </div>
+                      ) : filteredMeals.length === 0 ? (
+                        <p className="text-sm text-muted-foreground" data-testid="text-no-meals-checkmarks">
+                          Brak posiłków na ten dzień.
+                        </p>
                       ) : (
                         <div className="space-y-3">
-                          {dietPlan.meals
-                            .sort((a, b) => a.orderIndex - b.orderIndex)
-                            .map((meal, index) => (
-                              <div key={meal.id} className="flex items-center space-x-2">
-                                <Checkbox
-                                  id={`meal-${meal.id}`}
-                                  checked={form.watch(`mealCheckmarks.${index}.completed`) || false}
-                                  onCheckedChange={(checked) => {
-                                    form.setValue(`mealCheckmarks.${index}`, {
-                                      mealId: meal.id,
-                                      completed: checked as boolean,
-                                    });
-                                  }}
-                                  data-testid={`checkbox-meal-${meal.id}`}
-                                />
-                                <Label
-                                  htmlFor={`meal-${meal.id}`}
-                                  className="text-sm font-normal cursor-pointer"
-                                >
-                                  {meal.name}
-                                </Label>
-                              </div>
-                            ))}
+                          {filteredMeals.map((meal, index) => (
+                            <div key={meal.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`meal-${meal.id}`}
+                                checked={form.watch(`mealCheckmarks.${index}.completed`) || false}
+                                onCheckedChange={(checked) => {
+                                  form.setValue(`mealCheckmarks.${index}`, {
+                                    mealId: meal.id,
+                                    completed: checked as boolean,
+                                  });
+                                }}
+                                data-testid={`checkbox-meal-${meal.id}`}
+                              />
+                              <Label
+                                htmlFor={`meal-${meal.id}`}
+                                className="text-sm font-normal cursor-pointer flex items-center gap-2"
+                              >
+                                {meal.suggestedTime && (
+                                  <span className="text-muted-foreground text-xs">{meal.suggestedTime}</span>
+                                )}
+                                {meal.name}
+                              </Label>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>

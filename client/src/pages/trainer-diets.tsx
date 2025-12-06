@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, User, Apple, UtensilsCrossed, ChefHat, Pill } from "lucide-react";
+import { Plus, Pencil, Trash2, User, Apple, ChefHat, Pill } from "lucide-react";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -27,7 +27,7 @@ type DietPlanWithClient = DietPlan & {
 function SupplementCountBadge({ planId, mode }: { planId: string; mode: string | null }) {
   const { data: supplements } = useQuery<DietSupplement[]>({
     queryKey: ["/api/diet-plans", planId, "supplements"],
-    enabled: mode === 'macro_with_meals' || mode === 'full_plan',
+    enabled: !!planId,
   });
 
   if (!supplements || supplements.length === 0) {
@@ -85,9 +85,8 @@ export default function TrainerDiets() {
 
   const getModeLabel = (mode?: string | null) => {
     if (mode === "macro_only") return "Tylko makro";
-    if (mode === "macro_with_meals") return "Makro z posiłkami";
     if (mode === "full_plan") return "Pełna rozpiska";
-    return "Tylko makro"; // default for backward compatibility
+    return "Tylko makro";
   };
 
   if (isLoading) {
@@ -169,7 +168,6 @@ export default function TrainerDiets() {
                   <div className="flex gap-2 flex-wrap">
                     <Badge variant="outline" data-testid={`badge-mode-${plan.id}`} className="flex items-center gap-1">
                       {plan.mode === 'macro_only' && <Apple className="w-3 h-3" />}
-                      {plan.mode === 'macro_with_meals' && <UtensilsCrossed className="w-3 h-3" />}
                       {plan.mode === 'full_plan' && <ChefHat className="w-3 h-3" />}
                       {!plan.mode && <Apple className="w-3 h-3" />}
                       {getModeLabel(plan.mode)}
@@ -229,14 +227,6 @@ export default function TrainerDiets() {
                       {plan.mealsPerDay}
                     </span>
                   </div>
-                  {plan.mode === 'macro_with_meals' && plan.recommendedProducts && (
-                    <div className="text-sm pt-2">
-                      <p className="text-muted-foreground mb-1">Polecane produkty:</p>
-                      <p className="text-sm" data-testid={`text-recommended-products-${plan.id}`}>
-                        {plan.recommendedProducts}
-                      </p>
-                    </div>
-                  )}
                   {(plan.startDate || plan.endDate) && (
                     <div className="text-xs text-muted-foreground pt-1">
                       {plan.startDate && (
