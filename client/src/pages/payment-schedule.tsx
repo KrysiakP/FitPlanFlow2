@@ -181,16 +181,16 @@ export default function PaymentSchedule() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+    <div className="container mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-heading text-3xl font-bold flex items-center gap-2" data-testid="heading-payment-schedule">
-            <DollarSign className="w-8 h-8 text-primary" />
+          <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-2" data-testid="heading-payment-schedule">
+            <DollarSign className="w-6 h-6 md:w-8 md:h-8 text-primary" />
             Terminarz płatności
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground text-sm md:text-base mt-1">
             {isTrainer 
-              ? "Zarządzaj terminarzem płatności swoich podopiecznych" 
+              ? "Zarządzaj płatnościami podopiecznych" 
               : "Twój harmonogram płatności"}
           </p>
         </div>
@@ -392,111 +392,199 @@ export default function PaymentSchedule() {
               : `Łącznie: ${payments.length} płatności`}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-3 md:p-6">
           {payments.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>Brak płatności w systemie</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table data-testid="table-payments">
-                <TableHeader>
-                  <TableRow>
-                    {isTrainer && <TableHead>Podopieczny</TableHead>}
-                    <TableHead>Kwota</TableHead>
-                    <TableHead>Termin płatności</TableHead>
-                    <TableHead>Status</TableHead>
-                    {payments.some(p => p.notes) && <TableHead>Notatki</TableHead>}
-                    <TableHead className="text-right">Akcje</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payments.map((payment) => (
-                    <TableRow 
-                      key={payment.id} 
-                      data-testid={`row-payment-${payment.id}`}
-                      className={isOverdue(payment) ? "bg-destructive/5" : ""}
-                    >
-                      {isTrainer && (
-                        <TableCell className="font-medium" data-testid={`cell-client-${payment.id}`}>
-                          {getClientName(payment.clientId)}
-                        </TableCell>
-                      )}
-                      <TableCell 
-                        className={`font-semibold ${isOverdue(payment) ? "text-destructive" : ""}`}
-                        data-testid={`cell-amount-${payment.id}`}
-                      >
-                        {formatAmount(payment.amount)}
-                      </TableCell>
-                      <TableCell 
-                        className={isOverdue(payment) ? "text-destructive" : ""}
-                        data-testid={`cell-due-date-${payment.id}`}
-                      >
+            <>
+              {/* Mobile view - cards */}
+              <div className="md:hidden space-y-3" data-testid="payments-mobile-view">
+                {payments.map((payment) => (
+                  <div 
+                    key={payment.id}
+                    data-testid={`card-payment-${payment.id}`}
+                    className={`p-4 rounded-lg border ${isOverdue(payment) ? "border-destructive/50 bg-destructive/5" : "bg-card"}`}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="flex-1 min-w-0">
+                        {isTrainer && (
+                          <p className="font-medium truncate" data-testid={`mobile-client-${payment.id}`}>
+                            {getClientName(payment.clientId)}
+                          </p>
+                        )}
+                        <p className={`text-xl font-bold ${isOverdue(payment) ? "text-destructive" : ""}`} data-testid={`mobile-amount-${payment.id}`}>
+                          {formatAmount(payment.amount)}
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-1 items-end shrink-0">
+                        {payment.isPaid ? (
+                          <Badge variant="default" className="bg-green-500" data-testid={`badge-paid-${payment.id}`}>
+                            Zapłacono
+                          </Badge>
+                        ) : isOverdue(payment) ? (
+                          <Badge variant="destructive" data-testid={`badge-overdue-${payment.id}`}>
+                            Zaległość
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" data-testid={`badge-pending-${payment.id}`}>
+                            Oczekuje
+                          </Badge>
+                        )}
+                        {payment.isRecurring && (
+                          <Badge variant="outline" className="gap-1" data-testid={`badge-recurring-${payment.id}`}>
+                            <Repeat className="w-3 h-3" />
+                            Cykliczna
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3">
+                      <Calendar className="w-4 h-4" />
+                      <span className={isOverdue(payment) ? "text-destructive" : ""} data-testid={`mobile-date-${payment.id}`}>
                         {formatDate(payment.dueDate)}
-                      </TableCell>
-                      <TableCell data-testid={`cell-status-${payment.id}`}>
-                        <div className="flex flex-col gap-2">
-                          <div>
-                            {payment.isPaid ? (
-                              <Badge variant="default" className="bg-green-500" data-testid={`badge-paid-${payment.id}`}>
-                                Zapłacono
-                              </Badge>
-                            ) : isOverdue(payment) ? (
-                              <Badge variant="destructive" data-testid={`badge-overdue-${payment.id}`}>
-                                Zaległość
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary" data-testid={`badge-pending-${payment.id}`}>
-                                Oczekuje
+                      </span>
+                    </div>
+                    
+                    {payment.notes && (
+                      <p className="text-sm text-muted-foreground mb-3" data-testid={`mobile-notes-${payment.id}`}>
+                        {payment.notes}
+                      </p>
+                    )}
+                    
+                    <div className="flex gap-2">
+                      {!payment.isPaid && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => markPaidMutation.mutate(payment.id)}
+                          disabled={markPaidMutation.isPending}
+                          data-testid={`button-mark-paid-${payment.id}`}
+                        >
+                          <Check className="w-4 h-4 mr-1" />
+                          Zapłacono
+                        </Button>
+                      )}
+                      {isTrainer && (
+                        <Button
+                          size="icon"
+                          variant="destructive"
+                          onClick={() => deletePaymentMutation.mutate(payment.id)}
+                          disabled={deletePaymentMutation.isPending}
+                          data-testid={`button-delete-${payment.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop view - table */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table data-testid="table-payments">
+                  <TableHeader>
+                    <TableRow>
+                      {isTrainer && <TableHead>Podopieczny</TableHead>}
+                      <TableHead>Kwota</TableHead>
+                      <TableHead>Termin płatności</TableHead>
+                      <TableHead>Status</TableHead>
+                      {payments.some(p => p.notes) && <TableHead>Notatki</TableHead>}
+                      <TableHead className="text-right">Akcje</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {payments.map((payment) => (
+                      <TableRow 
+                        key={payment.id} 
+                        data-testid={`row-payment-${payment.id}`}
+                        className={isOverdue(payment) ? "bg-destructive/5" : ""}
+                      >
+                        {isTrainer && (
+                          <TableCell className="font-medium" data-testid={`cell-client-${payment.id}`}>
+                            {getClientName(payment.clientId)}
+                          </TableCell>
+                        )}
+                        <TableCell 
+                          className={`font-semibold ${isOverdue(payment) ? "text-destructive" : ""}`}
+                          data-testid={`cell-amount-${payment.id}`}
+                        >
+                          {formatAmount(payment.amount)}
+                        </TableCell>
+                        <TableCell 
+                          className={isOverdue(payment) ? "text-destructive" : ""}
+                          data-testid={`cell-due-date-${payment.id}`}
+                        >
+                          {formatDate(payment.dueDate)}
+                        </TableCell>
+                        <TableCell data-testid={`cell-status-${payment.id}`}>
+                          <div className="flex flex-col gap-2">
+                            <div>
+                              {payment.isPaid ? (
+                                <Badge variant="default" className="bg-green-500" data-testid={`badge-paid-${payment.id}`}>
+                                  Zapłacono
+                                </Badge>
+                              ) : isOverdue(payment) ? (
+                                <Badge variant="destructive" data-testid={`badge-overdue-${payment.id}`}>
+                                  Zaległość
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" data-testid={`badge-pending-${payment.id}`}>
+                                  Oczekuje
+                                </Badge>
+                              )}
+                            </div>
+                            {payment.isRecurring && (
+                              <Badge variant="outline" className="gap-1" data-testid={`badge-recurring-${payment.id}`}>
+                                <Repeat className="w-3 h-3" />
+                                Cykliczna
                               </Badge>
                             )}
                           </div>
-                          {payment.isRecurring && (
-                            <Badge variant="outline" className="gap-1" data-testid={`badge-recurring-${payment.id}`}>
-                              <Repeat className="w-3 h-3" />
-                              Cykliczna
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      {payments.some(p => p.notes) && (
-                        <TableCell className="text-sm text-muted-foreground" data-testid={`cell-notes-${payment.id}`}>
-                          {payment.notes || "-"}
                         </TableCell>
-                      )}
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          {!payment.isPaid && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => markPaidMutation.mutate(payment.id)}
-                              disabled={markPaidMutation.isPending}
-                              data-testid={`button-mark-paid-${payment.id}`}
-                            >
-                              <Check className="w-4 h-4 mr-1" />
-                              Zapłacono
-                            </Button>
-                          )}
-                          {isTrainer && (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => deletePaymentMutation.mutate(payment.id)}
-                              disabled={deletePaymentMutation.isPending}
-                              data-testid={`button-delete-${payment.id}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                        {payments.some(p => p.notes) && (
+                          <TableCell className="text-sm text-muted-foreground" data-testid={`cell-notes-${payment.id}`}>
+                            {payment.notes || "-"}
+                          </TableCell>
+                        )}
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            {!payment.isPaid && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => markPaidMutation.mutate(payment.id)}
+                                disabled={markPaidMutation.isPending}
+                                data-testid={`button-mark-paid-${payment.id}`}
+                              >
+                                <Check className="w-4 h-4 mr-1" />
+                                Zapłacono
+                              </Button>
+                            )}
+                            {isTrainer && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => deletePaymentMutation.mutate(payment.id)}
+                                disabled={deletePaymentMutation.isPending}
+                                data-testid={`button-delete-${payment.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
