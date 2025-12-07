@@ -6,13 +6,14 @@ import crypto from 'crypto';
 const DEFAULT_FROM_EMAIL = 'Panel Trenera <noreply@paneltrenera.pl>';
 
 export async function getResendClient() {
-  const apiKey = process.env.RESEND_API_KEY;
+  // Try RESEND_KEY first (new), then fall back to RESEND_API_KEY (old)
+  const apiKey = process.env.RESEND_KEY || process.env.RESEND_API_KEY;
   
   if (!apiKey) {
-    throw new Error('RESEND_API_KEY not configured');
+    throw new Error('RESEND_KEY or RESEND_API_KEY not configured');
   }
   
-  console.log('[EMAIL] Using RESEND_API_KEY from environment, from:', DEFAULT_FROM_EMAIL);
+  console.log('[EMAIL] Using API key from environment, from:', DEFAULT_FROM_EMAIL);
   
   return {
     client: new Resend(apiKey),
