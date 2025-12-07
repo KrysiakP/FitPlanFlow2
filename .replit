@@ -104,4 +104,4 @@ integrations = ["javascript_stripe:1.0.0", "javascript_log_in_with_replit:1.0.0"
 [userenv]
 
 [userenv.production]
-BASE_URL = "https://panel-trenera.replit.app"
+BASE_URL = "https://paneltrenera.pl"
