@@ -38,9 +38,24 @@ export function getPasswordResetTokenExpiry(): Date {
 }
 
 function getBaseUrl(): string {
+  // Priority 1: Custom BASE_URL (recommended for production)
+  if (process.env.BASE_URL) {
+    return process.env.BASE_URL;
+  }
+  // Priority 2: Replit deployment URL
   if (process.env.REPLIT_DEPLOYMENT && process.env.REPLIT_DEPLOYMENT_URL) {
     return `https://${process.env.REPLIT_DEPLOYMENT_URL}`;
   }
+  // Priority 3: REPLIT_DOMAINS (includes production domain when deployed)
+  if (process.env.REPLIT_DOMAINS) {
+    const domains = process.env.REPLIT_DOMAINS.split(',');
+    // Prefer .replit.app domain (production) over .replit.dev (development)
+    const productionDomain = domains.find(d => d.includes('.replit.app'));
+    if (productionDomain) {
+      return `https://${productionDomain.trim()}`;
+    }
+  }
+  // Priority 4: Dev domain fallback
   if (process.env.REPLIT_DEV_DOMAIN) {
     return `https://${process.env.REPLIT_DEV_DOMAIN}`;
   }
