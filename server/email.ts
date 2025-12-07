@@ -36,7 +36,9 @@ interface SendVerificationEmailParams {
 
 export async function sendVerificationEmail({ email, firstName, token }: SendVerificationEmailParams): Promise<boolean> {
   try {
+    console.log('[EMAIL] Starting to send verification email to:', email);
     const { client, fromEmail } = await getResendClient();
+    console.log('[EMAIL] Using from address:', fromEmail);
     
     const baseUrl = process.env.REPLIT_DEV_DOMAIN 
       ? `https://${process.env.REPLIT_DEV_DOMAIN}`
