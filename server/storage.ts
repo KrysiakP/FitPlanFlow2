@@ -274,6 +274,12 @@ export interface IStorage {
   markNotificationRead(id: number, trainerId: string): Promise<Notification>;
   markAllNotificationsRead(trainerId: string): Promise<void>;
   getUnreadPayments(): Promise<ClientPayment[]>;
+
+  // Password reset operations
+  setPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<void>;
+  getUserByPasswordResetToken(token: string): Promise<User | undefined>;
+  clearPasswordResetToken(userId: string): Promise<void>;
+  updateUserPassword(userId: string, hashedPassword: string): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -326,6 +332,50 @@ export class DatabaseStorage implements IStorage {
         emailVerified: true,
         emailVerificationToken: null,
         emailVerificationTokenExpiresAt: null,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async setPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<void> {
+    await db
+      .update(users)
+      .set({ 
+        passwordResetToken: token,
+        passwordResetTokenExpiresAt: expiresAt,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async getUserByPasswordResetToken(token: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.passwordResetToken, token));
+    return user;
+  }
+
+  async clearPasswordResetToken(userId: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ 
+        passwordResetToken: null,
+        passwordResetTokenExpiresAt: null,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async updateUserPassword(userId: string, hashedPassword: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        password: hashedPassword,
+        passwordResetToken: null,
+        passwordResetTokenExpiresAt: null,
         updatedAt: new Date()
       })
       .where(eq(users.id, userId))

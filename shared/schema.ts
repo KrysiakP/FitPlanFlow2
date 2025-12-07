@@ -30,6 +30,9 @@ export const users = pgTable("users", {
   emailVerified: boolean("email_verified").default(false).notNull(),
   emailVerificationToken: varchar("email_verification_token", { length: 64 }),
   emailVerificationTokenExpiresAt: timestamp("email_verification_token_expires_at"),
+  // Password reset fields
+  passwordResetToken: varchar("password_reset_token", { length: 64 }),
+  passwordResetTokenExpiresAt: timestamp("password_reset_token_expires_at"),
   // Stripe subscription fields (trainers only)
   stripeCustomerId: varchar("stripe_customer_id", { length: 255 }), // Stripe customer ID (cus_xxx)
   stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }), // Stripe subscription ID (sub_xxx)

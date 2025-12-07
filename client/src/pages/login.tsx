@@ -179,6 +179,16 @@ export default function Login() {
                 )}
               />
 
+              <div className="text-right">
+                <Link 
+                  href="/forgot-password" 
+                  className="text-sm text-primary hover:underline"
+                  data-testid="link-forgot-password"
+                >
+                  Zapomniałeś hasła?
+                </Link>
+              </div>
+
               <Button
                 type="submit"
                 className="w-full"

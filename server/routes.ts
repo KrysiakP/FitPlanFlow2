@@ -1,13 +1,15 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import { setupAuth, isAuthenticated, hashPassword, comparePassword, getSessionFromStore, unsignSessionCookie } from "./auth";
-import { generateVerificationToken, getTokenExpiry, sendVerificationEmail } from "./email";
+import { generateVerificationToken, getTokenExpiry, sendVerificationEmail, sendPasswordResetEmail, getPasswordResetTokenExpiry } from "./email";
 // Object Storage - code adapted from javascript_object_storage blueprint
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { WebSocketServer, WebSocket } from "ws";
 import { parse as parseCookie } from "cookie";
+import { sql } from "drizzle-orm";
 import {
   insertTrainingPlanSchema,
   insertWorkoutSchema,
@@ -34,6 +36,7 @@ import {
   insertMedicalTestSchema,
   insertClientPaymentSchema,
   insertMessageSchema,
+  sessions,
 } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
@@ -867,6 +870,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error resending verification email:", error);
       res.status(500).json({ message: "Wystąpił błąd podczas wysyłania emaila" });
+    }
+  });
+
+  // Zod schemas for password reset endpoints
+  const forgotPasswordSchema = z.object({
+    email: z.string().email("Nieprawidłowy format adresu email"),
+  });
+
+  const resetPasswordSchema = z.object({
+    token: z.string().min(1, "Token jest wymagany"),
+    newPassword: z.string().min(6, "Hasło musi mieć co najmniej 6 znaków"),
+  });
+
+  // Forgot password endpoint - request password reset
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const parseResult = forgotPasswordSchema.safeParse(req.body);
+      
+      if (!parseResult.success) {
+        const errorMessage = parseResult.error.errors[0]?.message || "Nieprawidłowe dane";
+        return res.status(400).json({ message: errorMessage });
+      }
+
+      const { email } = parseResult.data;
+
+      const user = await storage.getUserByEmail(email);
+      
+      // Always return success to prevent user enumeration
+      if (!user) {
+        console.log("[FORGOT_PASSWORD] No user found for email:", email);
+        return res.json({ message: "Jeśli konto istnieje, email z linkiem do resetowania hasła został wysłany." });
+      }
+
+      // Generate password reset token
+      const resetToken = generateVerificationToken();
+      const tokenExpiry = getPasswordResetTokenExpiry();
+
+      // Send password reset email FIRST (before saving token to DB)
+      const emailSent = await sendPasswordResetEmail({
+        email: user.email,
+        firstName: user.firstName,
+        token: resetToken,
+      });
+
+      if (!emailSent) {
+        console.warn("[FORGOT_PASSWORD] Failed to send password reset email to:", user.email);
+        return res.status(500).json({ message: "Nie udało się wysłać emaila. Spróbuj ponownie później." });
+      }
+
+      // Only save token to DB AFTER email is successfully sent
+      await storage.setPasswordResetToken(user.id, resetToken, tokenExpiry);
+
+      console.log("[FORGOT_PASSWORD] Password reset email sent to:", user.email);
+      res.json({ message: "Jeśli konto istnieje, email z linkiem do resetowania hasła został wysłany." });
+    } catch (error) {
+      console.error("Error in forgot password:", error);
+      res.status(500).json({ message: "Wystąpił błąd podczas przetwarzania żądania" });
+    }
+  });
+
+  // Reset password endpoint - set new password using token
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const parseResult = resetPasswordSchema.safeParse(req.body);
+      
+      if (!parseResult.success) {
+        const errorMessage = parseResult.error.errors[0]?.message || "Nieprawidłowe dane";
+        return res.status(400).json({ message: errorMessage });
+      }
+
+      const { token, newPassword } = parseResult.data;
+
+      // Find user by reset token
+      const user = await storage.getUserByPasswordResetToken(token);
+      
+      if (!user) {
+        return res.status(400).json({ message: "Nieprawidłowy lub wygasły link do resetowania hasła" });
+      }
+
+      // Check if token has expired
+      if (!user.passwordResetTokenExpiresAt || new Date() > new Date(user.passwordResetTokenExpiresAt)) {
+        // Clear the expired token to prevent potential reuse attempts
+        await storage.clearPasswordResetToken(user.id);
+        return res.status(400).json({ message: "Token wygasł. Poproś o nowy link resetujący hasło." });
+      }
+
+      // Hash the new password and update user (this also clears the reset token)
+      const hashedPassword = await hashPassword(newPassword);
+      await storage.updateUserPassword(user.id, hashedPassword);
+
+      // Invalidate all existing sessions for this user for enhanced security
+      await db.delete(sessions).where(sql`sess->>'userId' = ${user.id}`);
+
+      console.log("[RESET_PASSWORD] Password reset successfully for user:", user.id);
+      res.json({ message: "Hasło zostało zmienione. Możesz się teraz zalogować." });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      res.status(500).json({ message: "Wystąpił błąd podczas zmiany hasła" });
     }
   });
 
