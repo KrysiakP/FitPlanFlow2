@@ -225,7 +225,7 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-background">
-      <PublicHeader />
+      {!user && <PublicHeader />}
       <div className="container mx-auto px-4 py-12 space-y-8">
         <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border-primary/20">
         <CardContent className="p-6 text-center">
