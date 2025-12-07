@@ -207,7 +207,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen flex flex-col bg-background" style={{ "--app-header-height": "4rem" } as React.CSSProperties}>
       <SubscriptionWarningModal
         subscriptionStatus={user?.subscriptionStatus ?? null}
         subscriptionCancelledAt={user?.subscriptionCancelledAt ?? null}
@@ -215,7 +215,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         hasFreeAccess={user?.hasFreeAccess ?? false}
       />
       <ClientAccessBlockModal />
-      <header className="sticky top-0 z-50 border-b bg-background">
+      <header className="shrink-0 z-50 border-b bg-background h-16">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -384,15 +384,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <div className="flex">
-        <aside className="hidden md:block w-64 border-r min-h-[calc(100vh-4rem)] sticky top-16">
+      <div className="flex-1 flex min-h-0 overflow-hidden">
+        <aside className="hidden md:flex md:flex-col w-64 border-r overflow-y-auto">
           <div className="p-6">
             <NavLinks />
           </div>
         </aside>
 
-        <main className="flex-1 p-6 md:p-8">
-          <div className="container mx-auto max-w-7xl">
+        <main className="flex-1 flex flex-col min-h-0 overflow-y-auto p-4 md:p-8">
+          <div className="container mx-auto max-w-7xl flex-1">
             {isTrainer && isInTrial && !user?.hasFreeAccess && (
               <Alert className="mb-6" data-testid="alert-trial-banner">
                 <Clock className="h-4 w-4" />

@@ -124,9 +124,9 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col" data-testid="chat-page">
+    <div className="flex-1 flex flex-col min-h-0 -m-4 md:-m-8" data-testid="chat-page">
       {/* Mobile: Show either header with back button or main header */}
-      <header className="border-b p-4 flex items-center gap-3">
+      <header className="shrink-0 border-b p-4 flex items-center gap-3 bg-background">
         {showChatOnMobile && selectedConversation && (
           <Button
             variant="ghost"
@@ -148,20 +148,20 @@ export default function ChatPage() {
         </h1>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Conversations sidebar - hidden on mobile when chat is open */}
         <aside 
-          className={`w-full md:w-80 border-r flex flex-col ${
+          className={`w-full md:w-80 border-r flex flex-col min-h-0 ${
             showChatOnMobile ? "hidden md:flex" : "flex"
           }`} 
           data-testid="conversations-sidebar"
         >
-          <div className="p-4 border-b">
+          <div className="shrink-0 p-4 border-b">
             <h2 className="font-semibold" data-testid="conversations-title">
               {isTrainer ? "Podopieczni" : "Trener"}
             </h2>
           </div>
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-hidden">
             <ConversationList
               conversations={conversations}
               selectedPartnerId={selectedConversation?.partnerId || null}
