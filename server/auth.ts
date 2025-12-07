@@ -2,36 +2,65 @@ import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
 import bcrypt from "bcryptjs";
+import cookieSignature from "cookie-signature";
 import { storage } from "./storage";
 import type { User } from "@shared/schema";
 
+const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+const pgStore = connectPg(session);
+
+export const sessionStore = new pgStore({
+  conString: process.env.DATABASE_URL,
+  createTableIfMissing: true,
+  ttl: sessionTtl,
+  tableName: "sessions",
+});
+
+const sessionConfig = {
+  secret: process.env.SESSION_SECRET!,
+  store: sessionStore,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none" as const,
+    maxAge: sessionTtl,
+  },
+};
+
 export function getSession() {
-  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: true,
-    ttl: sessionTtl,
-    tableName: "sessions",
+  return session(sessionConfig);
+}
+
+export interface SessionStoreWithGet extends session.Store {
+  get(sid: string, callback: (err: any, session?: session.SessionData | null) => void): void;
+}
+
+export function getSessionFromStore(sessionId: string): Promise<session.SessionData | null> {
+  return new Promise((resolve, reject) => {
+    (sessionStore as SessionStoreWithGet).get(sessionId, (err, session) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(session || null);
+      }
+    });
   });
+}
+
+export function unsignSessionCookie(signedValue: string): string | null {
+  const secret = process.env.SESSION_SECRET!;
+  const decoded = decodeURIComponent(signedValue);
   
-  // Replit uses HTTPS even in development, so we need secure cookies
-  // Preview iframe requires sameSite: "none" to work with cookies
-  const isProduction = process.env.NODE_ENV === "production";
-  const isReplit = !!process.env.REPL_ID;
+  if (!decoded.startsWith('s:')) {
+    return null;
+  }
   
-  return session({
-    secret: process.env.SESSION_SECRET!,
-    store: sessionStore,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      secure: true, // Required for sameSite: "none"
-      sameSite: "none", // Required for iframe/preview to work
-      maxAge: sessionTtl,
-    },
-  });
+  const signedPart = decoded.slice(2);
+  const result = cookieSignature.unsign(signedPart, secret);
+  
+  return result === false ? null : result;
 }
 
 export async function setupAuth(app: Express) {

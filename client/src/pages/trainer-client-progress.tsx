@@ -1,35 +1,105 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRoute } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import { 
   TrendingUp, 
   TrendingDown, 
-  Image as ImageIcon,
   Dumbbell,
   Calendar,
   Weight,
   Ruler,
   AlertCircle,
-  ArrowRight,
   Activity,
-  ArrowLeft
+  ArrowLeft,
+  BarChart3
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, eachWeekOfInterval, subWeeks, parseISO } from "date-fns";
 import { pl } from "date-fns/locale";
 import { Link } from "wouter";
-import type { WeeklyReport, ExerciseLog, User } from "@shared/schema";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import type { WeeklyReport, ExerciseLog, User, Exercise } from "@shared/schema";
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  BarChart,
+  Bar,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+  Area,
+  AreaChart
+} from "recharts";
+import { useMemo } from "react";
 
 function parseNumericValue(value: string | null | undefined): number {
   if (!value) return 0;
   const normalized = value.replace(',', '.');
   return parseFloat(normalized) || 0;
 }
+
+function parseLoadToKg(load: string | null | undefined): number {
+  if (!load) return 0;
+  const normalized = load.toLowerCase().replace(',', '.');
+  const match = normalized.match(/(\d+(?:\.\d+)?)/);
+  if (match) {
+    return parseFloat(match[1]);
+  }
+  return 0;
+}
+
+const weightChartConfig = {
+  waga: {
+    label: "Waga (kg)",
+    color: "hsl(var(--chart-1))",
+  },
+} satisfies ChartConfig;
+
+const measurementChartConfig = {
+  klatka: {
+    label: "Klatka piersiowa",
+    color: "hsl(var(--chart-1))",
+  },
+  talia: {
+    label: "Talia",
+    color: "hsl(var(--chart-2))",
+  },
+  biodro: {
+    label: "Biodro",
+    color: "hsl(var(--chart-4))",
+  },
+} satisfies ChartConfig;
+
+const workoutChartConfig = {
+  treningi: {
+    label: "Treningi",
+    color: "hsl(var(--chart-2))",
+  },
+} satisfies ChartConfig;
+
+const performanceChartConfig = {
+  obciazenie: {
+    label: "Max obciążenie (kg)",
+    color: "hsl(var(--chart-1))",
+  },
+  powtorzenia: {
+    label: "Powtórzenia",
+    color: "hsl(var(--chart-3))",
+  },
+} satisfies ChartConfig;
 
 export default function TrainerClientProgress() {
   const [, params] = useRoute("/trainer/clients/:clientId/progress");
@@ -50,28 +120,114 @@ export default function TrainerClientProgress() {
     enabled: !!clientId,
   });
 
-  const sortedReports = reports 
-    ? [...reports].sort((a, b) => new Date(a.reportDate).getTime() - new Date(b.reportDate).getTime())
-    : [];
+  const sortedReports = useMemo(() => {
+    if (!reports) return [];
+    return [...reports].sort((a, b) => new Date(a.reportDate).getTime() - new Date(b.reportDate).getTime());
+  }, [reports]);
 
   const oldestReport = sortedReports[0];
   const newestReport = sortedReports[sortedReports.length - 1];
 
-  const weightData = sortedReports
-    .filter(r => r.weight)
-    .map(r => ({
-      date: format(new Date(r.reportDate), "dd.MM", { locale: pl }),
-      waga: parseNumericValue(r.weight),
-    }));
+  const weightData = useMemo(() => {
+    return sortedReports
+      .filter(r => r.weight)
+      .map(r => ({
+        date: format(new Date(r.reportDate), "dd.MM", { locale: pl }),
+        fullDate: format(new Date(r.reportDate), "d MMMM yyyy", { locale: pl }),
+        waga: parseNumericValue(r.weight),
+      }));
+  }, [sortedReports]);
 
-  const measurementData = sortedReports
-    .filter(r => r.chest || r.waist || r.hips)
-    .map(r => ({
-      date: format(new Date(r.reportDate), "dd.MM", { locale: pl }),
-      klatka: r.chest ? parseNumericValue(r.chest) : null,
-      talia: r.waist ? parseNumericValue(r.waist) : null,
-      biodro: r.hips ? parseNumericValue(r.hips) : null,
-    }));
+  const measurementData = useMemo(() => {
+    return sortedReports
+      .filter(r => r.chest || r.waist || r.hips)
+      .map(r => ({
+        date: format(new Date(r.reportDate), "dd.MM", { locale: pl }),
+        fullDate: format(new Date(r.reportDate), "d MMMM yyyy", { locale: pl }),
+        klatka: r.chest ? parseNumericValue(r.chest) : null,
+        talia: r.waist ? parseNumericValue(r.waist) : null,
+        biodro: r.hips ? parseNumericValue(r.hips) : null,
+      }));
+  }, [sortedReports]);
+
+  const workoutConsistencyData = useMemo(() => {
+    if (!exerciseLogs || exerciseLogs.length === 0) return [];
+    
+    const sortedLogs = [...exerciseLogs].sort((a, b) => 
+      new Date(a.loggedAt).getTime() - new Date(b.loggedAt).getTime()
+    );
+    
+    if (sortedLogs.length === 0) return [];
+    
+    const firstLogDate = new Date(sortedLogs[0].loggedAt);
+    const lastLogDate = new Date(sortedLogs[sortedLogs.length - 1].loggedAt);
+    
+    const weeks = eachWeekOfInterval(
+      { start: firstLogDate, end: lastLogDate },
+      { weekStartsOn: 1 }
+    );
+    
+    const weeklyData = weeks.map(weekStart => {
+      const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+      
+      const uniqueWorkoutDays = new Set<string>();
+      sortedLogs.forEach(log => {
+        const logDate = new Date(log.loggedAt);
+        if (logDate >= weekStart && logDate <= weekEnd) {
+          uniqueWorkoutDays.add(format(logDate, 'yyyy-MM-dd'));
+        }
+      });
+      
+      return {
+        tydzien: format(weekStart, "dd.MM", { locale: pl }),
+        fullDate: `${format(weekStart, "d MMM", { locale: pl })} - ${format(weekEnd, "d MMM", { locale: pl })}`,
+        treningi: uniqueWorkoutDays.size,
+      };
+    });
+    
+    return weeklyData.slice(-12);
+  }, [exerciseLogs]);
+
+  const exercisePerformanceData = useMemo(() => {
+    if (!exerciseLogs || exerciseLogs.length === 0) return [];
+    
+    const exerciseGroups = new Map<string, { 
+      exerciseId: string;
+      logs: Array<{ date: Date; load: number; reps: number }>;
+    }>();
+    
+    exerciseLogs.forEach(log => {
+      const key = log.exerciseId;
+      if (!exerciseGroups.has(key)) {
+        exerciseGroups.set(key, {
+          exerciseId: log.exerciseId,
+          logs: [],
+        });
+      }
+      exerciseGroups.get(key)!.logs.push({
+        date: new Date(log.loggedAt),
+        load: parseLoadToKg(log.load),
+        reps: log.reps,
+      });
+    });
+    
+    const topExercises = Array.from(exerciseGroups.entries())
+      .map(([id, data]) => ({
+        exerciseId: id,
+        totalLogs: data.logs.length,
+        maxLoad: Math.max(...data.logs.map(l => l.load)),
+        logs: data.logs.sort((a, b) => a.date.getTime() - b.date.getTime()),
+      }))
+      .sort((a, b) => b.totalLogs - a.totalLogs)
+      .slice(0, 5);
+    
+    return topExercises;
+  }, [exerciseLogs]);
+
+  const recentExerciseLogs = useMemo(() => {
+    if (!exerciseLogs) return [];
+    return exerciseLogs.slice(0, 10);
+  }, [exerciseLogs]);
 
   if (isLoadingClient || isLoadingReports || isLoadingLogs) {
     return (
@@ -82,6 +238,11 @@ export default function TrainerClientProgress() {
             <Skeleton className="h-10 w-64 mb-2" />
             <Skeleton className="h-5 w-96" />
           </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Skeleton className="h-96" />
@@ -141,6 +302,15 @@ export default function TrainerClientProgress() {
     );
   }
 
+  const hasReportData = reports && reports.length > 0;
+  const hasExerciseData = exerciseLogs && exerciseLogs.length > 0;
+  const hasAnyData = hasReportData || hasExerciseData;
+
+  const totalWorkouts = workoutConsistencyData.reduce((sum, w) => sum + w.treningi, 0);
+  const avgWorkoutsPerWeek = workoutConsistencyData.length > 0 
+    ? (totalWorkouts / workoutConsistencyData.length).toFixed(1)
+    : "0";
+
   return (
     <div className="space-y-8">
       <div className="flex items-center gap-4">
@@ -159,18 +329,62 @@ export default function TrainerClientProgress() {
         </div>
       </div>
 
-      {!reports || reports.length === 0 ? (
+      {!hasAnyData ? (
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Brak danych</AlertTitle>
           <AlertDescription>
-            Podopieczny nie wypełnił jeszcze żadnego raportu tygodniowego.
+            Podopieczny nie ma jeszcze żadnych zarejestrowanych danych progresowych.
           </AlertDescription>
         </Alert>
       ) : (
         <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card data-testid="card-stats-reports">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Calendar className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{reports?.length || 0}</p>
+                    <p className="text-sm text-muted-foreground">Raportów tygodniowych</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card data-testid="card-stats-workouts">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Dumbbell className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{totalWorkouts}</p>
+                    <p className="text-sm text-muted-foreground">Dni treningowych</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card data-testid="card-stats-avg">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <BarChart3 className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{avgWorkoutsPerWeek}</p>
+                    <p className="text-sm text-muted-foreground">Śr. treningów/tydzień</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           {oldestReport && newestReport && (
-            <Card>
+            <Card data-testid="card-measurement-changes">
               <CardHeader>
                 <CardTitle className="font-heading flex items-center gap-2">
                   <Activity className="w-5 h-5" />
@@ -232,121 +446,388 @@ export default function TrainerClientProgress() {
             </Card>
           )}
 
-          {weightData.length > 1 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-heading flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />
-                  Wykres wagi
-                </CardTitle>
-                <CardDescription>
-                  Zmiana wagi w czasie na podstawie raportów tygodniowych
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={weightData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="waga" 
-                      stroke="hsl(var(--primary))" 
-                      strokeWidth={2}
-                      name="Waga (kg)"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
+          <Tabs defaultValue="weight" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
+              <TabsTrigger value="weight" data-testid="tab-weight">
+                <Weight className="w-4 h-4 mr-2" />
+                Waga
+              </TabsTrigger>
+              <TabsTrigger value="measurements" data-testid="tab-measurements">
+                <Ruler className="w-4 h-4 mr-2" />
+                Obwody
+              </TabsTrigger>
+              <TabsTrigger value="consistency" data-testid="tab-consistency">
+                <Calendar className="w-4 h-4 mr-2" />
+                Regularność
+              </TabsTrigger>
+              <TabsTrigger value="performance" data-testid="tab-performance">
+                <Dumbbell className="w-4 h-4 mr-2" />
+                Siła
+              </TabsTrigger>
+            </TabsList>
 
-          {measurementData.length > 1 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-heading flex items-center gap-2">
-                  <Ruler className="w-5 h-5" />
-                  Wykres obwodów
-                </CardTitle>
-                <CardDescription>
-                  Zmiana obwodów ciała w czasie
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={measurementData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    {measurementData.some(d => d.klatka) && (
-                      <Line 
-                        type="monotone" 
-                        dataKey="klatka" 
-                        stroke="#8884d8" 
-                        strokeWidth={2}
-                        name="Klatka (cm)"
-                      />
-                    )}
-                    {measurementData.some(d => d.talia) && (
-                      <Line 
-                        type="monotone" 
-                        dataKey="talia" 
-                        stroke="#82ca9d" 
-                        strokeWidth={2}
-                        name="Talia (cm)"
-                      />
-                    )}
-                    {measurementData.some(d => d.biodro) && (
-                      <Line 
-                        type="monotone" 
-                        dataKey="biodro" 
-                        stroke="#ffc658" 
-                        strokeWidth={2}
-                        name="Biodro (cm)"
-                      />
-                    )}
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
+            <TabsContent value="weight" className="mt-6">
+              {weightData.length > 1 ? (
+                <Card data-testid="card-weight-chart">
+                  <CardHeader>
+                    <CardTitle className="font-heading flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5" />
+                      Wykres wagi
+                    </CardTitle>
+                    <CardDescription>
+                      Zmiana wagi w czasie na podstawie raportów tygodniowych
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer config={weightChartConfig} className="h-[300px] w-full">
+                      <AreaChart data={weightData} accessibilityLayer>
+                        <defs>
+                          <linearGradient id="fillWeight" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="var(--color-waga)" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="var(--color-waga)" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis 
+                          dataKey="date" 
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={8}
+                        />
+                        <YAxis 
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={8}
+                          domain={['dataMin - 2', 'dataMax + 2']}
+                        />
+                        <ChartTooltip
+                          cursor={false}
+                          content={
+                            <ChartTooltipContent
+                              labelFormatter={(value, payload) => {
+                                if (payload && payload[0]) {
+                                  return payload[0].payload.fullDate;
+                                }
+                                return value;
+                              }}
+                            />
+                          }
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="waga"
+                          stroke="var(--color-waga)"
+                          fill="url(#fillWeight)"
+                          strokeWidth={2}
+                        />
+                      </AreaChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Niewystarczające dane</AlertTitle>
+                  <AlertDescription>
+                    Potrzebne są co najmniej 2 raporty z wagą, aby wyświetlić wykres.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </TabsContent>
 
-          {exerciseLogs && exerciseLogs.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-heading flex items-center gap-2">
-                  <Dumbbell className="w-5 h-5" />
-                  Progres w ćwiczeniach
-                </CardTitle>
-                <CardDescription>
-                  Ostatnie wyniki podopiecznego w poszczególnych ćwiczeniach
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {exerciseLogs.slice(0, 5).map((log) => (
-                    <div key={log.id} className="flex items-center justify-between p-3 rounded-lg border" data-testid={`exercise-log-${log.id}`}>
-                      <div className="flex-1">
-                        <p className="font-medium" data-testid={`text-exercise-name-${log.id}`}>{log.exerciseId}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(log.loggedAt), "d MMMM yyyy", { locale: pl })}
-                        </p>
+            <TabsContent value="measurements" className="mt-6">
+              {measurementData.length > 1 ? (
+                <Card data-testid="card-measurements-chart">
+                  <CardHeader>
+                    <CardTitle className="font-heading flex items-center gap-2">
+                      <Ruler className="w-5 h-5" />
+                      Wykres obwodów
+                    </CardTitle>
+                    <CardDescription>
+                      Zmiana obwodów ciała w czasie
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer config={measurementChartConfig} className="h-[300px] w-full">
+                      <LineChart data={measurementData} accessibilityLayer>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis 
+                          dataKey="date" 
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={8}
+                        />
+                        <YAxis 
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={8}
+                        />
+                        <ChartTooltip
+                          content={
+                            <ChartTooltipContent
+                              labelFormatter={(value, payload) => {
+                                if (payload && payload[0]) {
+                                  return payload[0].payload.fullDate;
+                                }
+                                return value;
+                              }}
+                            />
+                          }
+                        />
+                        <ChartLegend content={<ChartLegendContent />} />
+                        {measurementData.some(d => d.klatka) && (
+                          <Line 
+                            type="monotone" 
+                            dataKey="klatka" 
+                            stroke="var(--color-klatka)" 
+                            strokeWidth={2}
+                            dot={{ r: 3 }}
+                            activeDot={{ r: 5 }}
+                          />
+                        )}
+                        {measurementData.some(d => d.talia) && (
+                          <Line 
+                            type="monotone" 
+                            dataKey="talia" 
+                            stroke="var(--color-talia)" 
+                            strokeWidth={2}
+                            dot={{ r: 3 }}
+                            activeDot={{ r: 5 }}
+                          />
+                        )}
+                        {measurementData.some(d => d.biodro) && (
+                          <Line 
+                            type="monotone" 
+                            dataKey="biodro" 
+                            stroke="var(--color-biodro)" 
+                            strokeWidth={2}
+                            dot={{ r: 3 }}
+                            activeDot={{ r: 5 }}
+                          />
+                        )}
+                      </LineChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Niewystarczające dane</AlertTitle>
+                  <AlertDescription>
+                    Potrzebne są co najmniej 2 raporty z obwodami, aby wyświetlić wykres.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </TabsContent>
+
+            <TabsContent value="consistency" className="mt-6">
+              {workoutConsistencyData.length > 0 ? (
+                <Card data-testid="card-consistency-chart">
+                  <CardHeader>
+                    <CardTitle className="font-heading flex items-center gap-2">
+                      <Calendar className="w-5 h-5" />
+                      Regularność treningów
+                    </CardTitle>
+                    <CardDescription>
+                      Liczba dni treningowych w każdym tygodniu (ostatnie 12 tygodni)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer config={workoutChartConfig} className="h-[300px] w-full">
+                      <BarChart data={workoutConsistencyData} accessibilityLayer>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis 
+                          dataKey="tydzien" 
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={8}
+                        />
+                        <YAxis 
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={8}
+                          domain={[0, 7]}
+                          ticks={[0, 1, 2, 3, 4, 5, 6, 7]}
+                        />
+                        <ChartTooltip
+                          content={
+                            <ChartTooltipContent
+                              labelFormatter={(value, payload) => {
+                                if (payload && payload[0]) {
+                                  return payload[0].payload.fullDate;
+                                }
+                                return value;
+                              }}
+                              formatter={(value, name) => [
+                                `${value} ${Number(value) === 1 ? 'dzień' : 'dni'}`,
+                                'Treningi'
+                              ]}
+                            />
+                          }
+                        />
+                        <Bar 
+                          dataKey="treningi" 
+                          fill="var(--color-treningi)" 
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Brak danych o treningach</AlertTitle>
+                  <AlertDescription>
+                    Podopieczny nie zarejestrował jeszcze żadnych treningów.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </TabsContent>
+
+            <TabsContent value="performance" className="mt-6">
+              {exercisePerformanceData.length > 0 ? (
+                <div className="space-y-6">
+                  <Card data-testid="card-performance-overview">
+                    <CardHeader>
+                      <CardTitle className="font-heading flex items-center gap-2">
+                        <Dumbbell className="w-5 h-5" />
+                        Progres siłowy
+                      </CardTitle>
+                      <CardDescription>
+                        Najczęściej wykonywane ćwiczenia i maksymalne obciążenia
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {exercisePerformanceData.map((exercise, index) => {
+                          const firstLoad = exercise.logs[0]?.load || 0;
+                          const lastLoad = exercise.logs[exercise.logs.length - 1]?.load || 0;
+                          const progress = lastLoad - firstLoad;
+                          
+                          return (
+                            <div 
+                              key={exercise.exerciseId} 
+                              className="p-4 rounded-lg border"
+                              data-testid={`exercise-performance-${exercise.exerciseId}`}
+                            >
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-muted-foreground">
+                                    #{index + 1}
+                                  </span>
+                                  <span className="font-medium truncate max-w-[200px]">
+                                    Ćwiczenie
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                  <div className="text-right">
+                                    <p className="text-sm text-muted-foreground">Max obciążenie</p>
+                                    <p className="font-semibold">{exercise.maxLoad} kg</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-sm text-muted-foreground">Sesji</p>
+                                    <p className="font-semibold">{exercise.totalLogs}</p>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {exercise.logs.length > 1 && (
+                                <div className="h-[80px]">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={exercise.logs.map(l => ({
+                                      date: format(l.date, "dd.MM"),
+                                      obciazenie: l.load,
+                                    }))}>
+                                      <defs>
+                                        <linearGradient id={`fill-${exercise.exerciseId}`} x1="0" y1="0" x2="0" y2="1">
+                                          <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
+                                          <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
+                                        </linearGradient>
+                                      </defs>
+                                      <Area
+                                        type="monotone"
+                                        dataKey="obciazenie"
+                                        stroke="hsl(var(--chart-1))"
+                                        fill={`url(#fill-${exercise.exerciseId})`}
+                                        strokeWidth={2}
+                                      />
+                                    </AreaChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              )}
+                              
+                              {progress !== 0 && (
+                                <div className={`flex items-center gap-1 text-sm mt-2 ${
+                                  progress > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                                }`}>
+                                  {progress > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                                  <span>
+                                    {progress > 0 ? "+" : ""}{progress.toFixed(1)} kg od pierwszego wpisu
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-lg" data-testid={`text-exercise-reps-${log.id}`}>{log.reps} powtórzeń</p>
-                        {log.load && <p className="text-sm text-muted-foreground" data-testid={`text-exercise-load-${log.id}`}>{log.load}</p>}
+                    </CardContent>
+                  </Card>
+
+                  <Card data-testid="card-recent-exercises">
+                    <CardHeader>
+                      <CardTitle className="font-heading flex items-center gap-2">
+                        <Activity className="w-5 h-5" />
+                        Ostatnie ćwiczenia
+                      </CardTitle>
+                      <CardDescription>
+                        Najnowsze zarejestrowane wyniki
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {recentExerciseLogs.map((log) => (
+                          <div 
+                            key={log.id} 
+                            className="flex items-center justify-between p-3 rounded-lg border" 
+                            data-testid={`exercise-log-${log.id}`}
+                          >
+                            <div className="flex-1">
+                              <p className="text-sm text-muted-foreground">
+                                {format(new Date(log.loggedAt), "d MMMM yyyy, HH:mm", { locale: pl })}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <p className="font-semibold" data-testid={`text-exercise-reps-${log.id}`}>
+                                  {log.reps} powt.
+                                </p>
+                              </div>
+                              {log.load && (
+                                <div className="text-right min-w-[60px]">
+                                  <p className="font-semibold text-primary" data-testid={`text-exercise-load-${log.id}`}>
+                                    {log.load}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                  ))}
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Brak danych o ćwiczeniach</AlertTitle>
+                  <AlertDescription>
+                    Podopieczny nie zarejestrował jeszcze żadnych ćwiczeń z obciążeniem.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </TabsContent>
+          </Tabs>
         </>
       )}
     </div>

@@ -31,12 +31,42 @@ interface RestTimerProps {
   variant?: "sidebar" | "floating";
 }
 
+const STORAGE_KEYS = {
+  DURATION: "rest-timer-duration",
+  SOUND: "rest-timer-sound",
+};
+
+function getStoredDuration(): number {
+  if (typeof window === "undefined") return 60;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.DURATION);
+    if (stored) {
+      const value = parseInt(stored, 10);
+      if (PRESET_TIMES.some((p) => p.value === value)) {
+        return value;
+      }
+    }
+  } catch (e) {}
+  return 60;
+}
+
+function getStoredSound(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.SOUND);
+    if (stored !== null) {
+      return stored === "true";
+    }
+  } catch (e) {}
+  return true;
+}
+
 export function RestTimer({ variant = "sidebar" }: RestTimerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedTime, setSelectedTime] = useState(60);
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [selectedTime, setSelectedTime] = useState(() => getStoredDuration());
+  const [timeLeft, setTimeLeft] = useState(() => getStoredDuration());
   const [isRunning, setIsRunning] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(() => getStoredSound());
 
   const playSound = useCallback(() => {
     if (!soundEnabled) return;
@@ -104,6 +134,17 @@ export function RestTimer({ variant = "sidebar" }: RestTimerProps) {
     if (!isRunning) {
       setTimeLeft(newTime);
     }
+    try {
+      localStorage.setItem(STORAGE_KEYS.DURATION, newTime.toString());
+    } catch (e) {}
+  };
+
+  const handleSoundToggle = () => {
+    const newValue = !soundEnabled;
+    setSoundEnabled(newValue);
+    try {
+      localStorage.setItem(STORAGE_KEYS.SOUND, newValue.toString());
+    } catch (e) {}
   };
 
   const formatTime = (seconds: number) => {
@@ -134,7 +175,7 @@ export function RestTimer({ variant = "sidebar" }: RestTimerProps) {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setSoundEnabled(!soundEnabled)}
+          onClick={handleSoundToggle}
           data-testid="button-toggle-sound"
         >
           {soundEnabled ? (
@@ -247,10 +288,10 @@ export function RestTimer({ variant = "sidebar" }: RestTimerProps) {
 
 export function RestTimerButton() {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedTime, setSelectedTime] = useState(60);
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [selectedTime, setSelectedTime] = useState(() => getStoredDuration());
+  const [timeLeft, setTimeLeft] = useState(() => getStoredDuration());
   const [isRunning, setIsRunning] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(() => getStoredSound());
 
   const playSound = useCallback(() => {
     if (!soundEnabled) return;
@@ -318,6 +359,17 @@ export function RestTimerButton() {
     if (!isRunning) {
       setTimeLeft(newTime);
     }
+    try {
+      localStorage.setItem(STORAGE_KEYS.DURATION, newTime.toString());
+    } catch (e) {}
+  };
+
+  const handleSoundToggle = () => {
+    const newValue = !soundEnabled;
+    setSoundEnabled(newValue);
+    try {
+      localStorage.setItem(STORAGE_KEYS.SOUND, newValue.toString());
+    } catch (e) {}
   };
 
   const formatTime = (seconds: number) => {
@@ -376,7 +428,7 @@ export function RestTimerButton() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setSoundEnabled(!soundEnabled)}
+              onClick={handleSoundToggle}
               data-testid="button-toggle-sound"
             >
               {soundEnabled ? (

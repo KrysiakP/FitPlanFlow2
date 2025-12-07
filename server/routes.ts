@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, hashPassword, comparePassword, getSession } from "./auth";
+import { setupAuth, isAuthenticated, hashPassword, comparePassword, getSessionFromStore, unsignSessionCookie } from "./auth";
 import { generateVerificationToken, getTokenExpiry, sendVerificationEmail } from "./email";
 // Object Storage - code adapted from javascript_object_storage blueprint
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -4378,7 +4378,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   wss.on('connection', async (ws: WebSocket, req) => {
     try {
-      // Parse cookies to get session
       const cookies = req.headers.cookie;
       if (!cookies) {
         ws.close(1008, 'No cookies provided');
@@ -4386,43 +4385,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const parsedCookies = parseCookie(cookies);
-      const sessionCookieName = 'connect.sid';
-      const sessionId = parsedCookies[sessionCookieName];
+      const signedSessionId = parsedCookies['connect.sid'];
 
-      if (!sessionId) {
+      if (!signedSessionId) {
         ws.close(1008, 'No session cookie');
         return;
       }
 
-      // Decode session ID (remove 's:' prefix and signature)
-      const decodedSessionId = decodeURIComponent(sessionId).split('.')[0].substring(2);
+      const sessionId = unsignSessionCookie(signedSessionId);
+      if (!sessionId) {
+        ws.close(1008, 'Invalid session signature');
+        return;
+      }
 
-      // Get session from store
-      const sessionStore = (getSession() as any).store;
+      const session = await getSessionFromStore(sessionId);
+      if (!session || !session.userId) {
+        ws.close(1008, 'Invalid session');
+        return;
+      }
+
+      const userId = session.userId;
       
-      sessionStore.get(decodedSessionId, async (err: any, session: any) => {
-        if (err || !session || !session.userId) {
-          ws.close(1008, 'Invalid session');
-          return;
-        }
+      clients.set(userId, ws);
+      console.log(`WebSocket client connected: ${userId}`);
 
-        const userId = session.userId;
-        
-        // Store client connection
-        clients.set(userId, ws);
-        console.log(`WebSocket client connected: ${userId}`);
-
-        // Handle client disconnect
-        ws.on('close', () => {
-          clients.delete(userId);
-          console.log(`WebSocket client disconnected: ${userId}`);
-        });
-
-        // Handle ping/pong for keep-alive
-        ws.on('pong', () => {
-          // Client is alive
-        });
+      ws.on('close', () => {
+        clients.delete(userId);
+        console.log(`WebSocket client disconnected: ${userId}`);
       });
+
+      ws.on('pong', () => {});
     } catch (error) {
       console.error('WebSocket connection error:', error);
       ws.close(1011, 'Server error');

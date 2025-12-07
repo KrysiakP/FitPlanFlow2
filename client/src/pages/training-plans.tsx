@@ -81,13 +81,13 @@ export default function TrainingPlans() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-heading font-bold text-4xl mb-2" data-testid="text-plans-title">
+          <h1 className="font-heading font-bold text-2xl md:text-4xl mb-1 md:mb-2" data-testid="text-plans-title">
             Plany treningowe
           </h1>
-          <p className="text-muted-foreground">Zarządzaj swoimi planami treningowymi</p>
+          <p className="text-muted-foreground text-sm md:text-base">Zarządzaj swoimi planami treningowymi</p>
         </div>
         <Button asChild data-testid="button-create-plan">
           <Link href="/plans/new">
@@ -99,13 +99,13 @@ export default function TrainingPlans() {
 
       {!plans || plans.length === 0 ? (
         <Card>
-          <CardContent className="p-12 text-center space-y-4">
-            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
-              <Plus className="w-8 h-8 text-muted-foreground" />
+          <CardContent className="p-6 md:p-12 text-center space-y-4">
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
+              <Plus className="w-6 h-6 md:w-8 md:h-8 text-muted-foreground" />
             </div>
             <div>
-              <h3 className="font-heading font-semibold text-xl mb-2">Brak planów treningowych</h3>
-              <p className="text-muted-foreground mb-4">
+              <h3 className="font-heading font-semibold text-lg md:text-xl mb-2">Brak planów treningowych</h3>
+              <p className="text-muted-foreground text-sm md:text-base mb-4">
                 Utwórz swój pierwszy plan treningowy dla podopiecznych
               </p>
               <Button asChild data-testid="button-create-first-plan">
@@ -118,20 +118,20 @@ export default function TrainingPlans() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {plans.map((plan) => (
             <Card key={plan.id} className="flex flex-col" data-testid={`card-plan-${plan.id}`}>
-              <CardHeader>
-                <CardTitle className="font-heading" data-testid={`text-plan-name-${plan.id}`}>
+              <CardHeader className="p-4 md:p-6">
+                <CardTitle className="font-heading text-base md:text-lg" data-testid={`text-plan-name-${plan.id}`}>
                   {plan.name}
                 </CardTitle>
                 {plan.description && (
-                  <CardDescription>{plan.description}</CardDescription>
+                  <CardDescription className="text-xs md:text-sm">{plan.description}</CardDescription>
                 )}
               </CardHeader>
-              <CardContent className="flex-1">
+              <CardContent className="flex-1 p-4 md:p-6 pt-0 md:pt-0">
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground flex-wrap">
                     <span className="font-medium" data-testid={`text-workout-count-${plan.id}`}>
                       {plan.workouts.length} {plan.workouts.length === 1 ? 'trening' : 'treningów'}
                     </span>
@@ -141,7 +141,7 @@ export default function TrainingPlans() {
                     </span>
                   </div>
                   {plan.workouts.length > 0 && (
-                    <div className="space-y-1">
+                    <div className="space-y-1 hidden md:block">
                       <p className="text-xs text-muted-foreground">Treningi:</p>
                       <ul className="text-sm space-y-1">
                         {plan.workouts.slice(0, 3).map((workout) => (
@@ -157,23 +157,24 @@ export default function TrainingPlans() {
                       </ul>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 text-sm pt-2">
-                    <Users className="w-4 h-4" />
+                  <div className="flex items-center gap-2 text-xs md:text-sm pt-2">
+                    <Users className="w-3 h-3 md:w-4 md:h-4" />
                     <span data-testid={`text-assignment-count-${plan.id}`}>
                       {plan.assignmentCount} przypisań
                     </span>
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="gap-2 flex-wrap">
+              <CardFooter className="gap-2 flex-wrap p-4 md:p-6 pt-0 md:pt-0">
                 <Button
                   variant="outline"
                   size="sm"
                   asChild
+                  className="flex-1 md:flex-none"
                   data-testid={`button-edit-${plan.id}`}
                 >
                   <Link href={`/plans/${plan.id}/edit`}>
-                    <Pencil className="w-4 h-4 mr-2" />
+                    <Pencil className="w-4 h-4 mr-1 md:mr-2" />
                     Edytuj
                   </Link>
                 </Button>
@@ -181,20 +182,22 @@ export default function TrainingPlans() {
                   variant="outline"
                   size="sm"
                   asChild
+                  className="flex-1 md:flex-none"
                   data-testid={`button-assign-${plan.id}`}
                 >
                   <Link href={`/plans/${plan.id}/assign`}>
-                    <Users className="w-4 h-4 mr-2" />
+                    <Users className="w-4 h-4 mr-1 md:mr-2" />
                     Przypisz
                   </Link>
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
+                  className="flex-1 md:flex-none"
                   onClick={() => copyPlanMutation.mutate(plan.id)}
                   data-testid={`button-copy-${plan.id}`}
                 >
-                  <Copy className="w-4 h-4 mr-2" />
+                  <Copy className="w-4 h-4 mr-1 md:mr-2" />
                   Kopiuj
                 </Button>
                 <AlertDialog>
@@ -202,24 +205,26 @@ export default function TrainingPlans() {
                     <Button
                       variant="outline"
                       size="sm"
+                      className="flex-1 md:flex-none"
                       data-testid={`button-delete-${plan.id}`}
                     >
-                      <Trash2 className="w-4 h-4 mr-2" />
+                      <Trash2 className="w-4 h-4 mr-1 md:mr-2" />
                       Usuń
                     </Button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent>
+                  <AlertDialogContent className="mx-4 md:mx-0 max-w-[calc(100vw-2rem)] md:max-w-lg">
                     <AlertDialogHeader>
                       <AlertDialogTitle>Czy na pewno?</AlertDialogTitle>
                       <AlertDialogDescription>
                         Ta operacja jest nieodwracalna. Plan treningowy zostanie trwale usunięty.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel data-testid={`button-cancel-delete-${plan.id}`}>
+                    <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                      <AlertDialogCancel className="w-full sm:w-auto" data-testid={`button-cancel-delete-${plan.id}`}>
                         Anuluj
                       </AlertDialogCancel>
                       <AlertDialogAction
+                        className="w-full sm:w-auto"
                         onClick={() => deletePlanMutation.mutate(plan.id)}
                         data-testid={`button-confirm-delete-${plan.id}`}
                       >

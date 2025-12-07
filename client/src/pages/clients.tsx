@@ -186,19 +186,19 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
   };
 
   return (
-    <div className="p-6 space-y-6" data-testid={`details-client-${client.id}`}>
-      <div className="flex items-start gap-4">
-        <Avatar className="w-16 h-16">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6" data-testid={`details-client-${client.id}`}>
+      <div className="flex items-start gap-3 md:gap-4">
+        <Avatar className="w-12 h-12 md:w-16 md:h-16">
           <AvatarImage src={client.profileImageDisplayUrl || client.profileImageUrl || undefined} />
-          <AvatarFallback className="bg-primary/10 text-primary font-medium text-lg">
+          <AvatarFallback className="bg-primary/10 text-primary font-medium text-base md:text-lg">
             {getInitials(client.firstName, client.lastName)}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
-          <h2 className="font-heading font-bold text-2xl truncate" data-testid={`text-client-name-${client.id}`}>
+          <h2 className="font-heading font-bold text-xl md:text-2xl truncate" data-testid={`text-client-name-${client.id}`}>
             {client.firstName} {client.lastName}
           </h2>
-          <p className="text-muted-foreground text-base mt-1 truncate" data-testid={`text-client-email-${client.id}`}>
+          <p className="text-muted-foreground text-sm md:text-base mt-1 truncate" data-testid={`text-client-email-${client.id}`}>
             {client.email}
           </p>
         </div>
@@ -207,8 +207,8 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
       <Separator />
 
       <div>
-        <h3 className="font-heading font-semibold text-lg mb-3 flex items-center gap-2">
-          <Calendar className="w-5 h-5" />
+        <h3 className="font-heading font-semibold text-base md:text-lg mb-2 md:mb-3 flex items-center gap-2">
+          <Calendar className="w-4 h-4 md:w-5 md:h-5" />
           Przypisany plan
         </h3>
         {client.assignment ? (
@@ -290,8 +290,8 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
             className="w-full justify-between p-0 h-auto hover:bg-transparent"
             data-testid={`button-toggle-progress-${client.id}`}
           >
-            <h3 className="font-heading font-semibold text-lg flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
+            <h3 className="font-heading font-semibold text-base md:text-lg flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 md:w-5 md:h-5" />
               Postępy podopiecznego
             </h3>
             <ChevronDown className={`w-5 h-5 transition-transform ${isProgressOpen ? "rotate-180" : ""}`} />
@@ -497,8 +497,8 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
             className="w-full justify-between p-0 h-auto hover:bg-transparent"
             data-testid={`button-toggle-medical-${client.id}`}
           >
-            <h3 className="font-heading font-semibold text-lg flex items-center gap-2">
-              <Activity className="w-5 h-5" />
+            <h3 className="font-heading font-semibold text-base md:text-lg flex items-center gap-2">
+              <Activity className="w-4 h-4 md:w-5 md:h-5" />
               Badania medyczne
               {medicalTests && medicalTests.length > 0 && (
                 <Badge variant="secondary" className="ml-2">{medicalTests.length}</Badge>
@@ -816,14 +816,14 @@ function ClientListItem({
 
 function EmptyDetailsState() {
   return (
-    <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-      <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-        <Users className="w-8 h-8 text-muted-foreground" />
+    <div className="flex flex-col items-center justify-center h-full p-4 md:p-8 text-center">
+      <div className="w-12 h-12 md:w-16 md:h-16 bg-muted rounded-full flex items-center justify-center mb-3 md:mb-4">
+        <Users className="w-6 h-6 md:w-8 md:h-8 text-muted-foreground" />
       </div>
-      <h3 className="font-heading font-semibold text-xl mb-2" data-testid="text-empty-details">
+      <h3 className="font-heading font-semibold text-lg md:text-xl mb-2" data-testid="text-empty-details">
         Wybierz podopiecznego
       </h3>
-      <p className="text-muted-foreground text-sm max-w-xs">
+      <p className="text-muted-foreground text-xs md:text-sm max-w-xs">
         Wybierz podopiecznego z listy po lewej stronie, aby zobaczyć szczegóły
       </p>
     </div>
@@ -901,7 +901,7 @@ export default function Clients() {
   if (isLoading) {
     return (
       <div className="flex h-[calc(100vh-4rem)]">
-        <div className="w-[400px] shrink-0 flex flex-col border-r p-4 space-y-4">
+        <div className="w-full lg:w-[400px] shrink-0 flex flex-col border-r p-4 space-y-4">
           <Skeleton className="h-8 w-full" />
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
@@ -920,7 +920,7 @@ export default function Clients() {
 
   if (error) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <Alert variant="destructive">
           <AlertDescription>
             Wystąpił błąd podczas ładowania listy podopiecznych. Spróbuj odświeżyć stronę.
@@ -932,17 +932,17 @@ export default function Clients() {
 
   if (clients.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-4rem)] p-8">
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)] p-4 md:p-8">
         <Card className="max-w-md w-full">
-          <CardContent className="p-12 text-center space-y-6">
-            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto">
-              <User className="w-10 h-10 text-muted-foreground" />
+          <CardContent className="p-6 md:p-12 text-center space-y-4 md:space-y-6">
+            <div className="w-16 h-16 md:w-20 md:h-20 bg-muted rounded-full flex items-center justify-center mx-auto">
+              <User className="w-8 h-8 md:w-10 md:h-10 text-muted-foreground" />
             </div>
             <div>
-              <h3 className="font-heading font-semibold text-2xl mb-2" data-testid="text-empty-state">
+              <h3 className="font-heading font-semibold text-xl md:text-2xl mb-2" data-testid="text-empty-state">
                 Nie masz jeszcze podopiecznych
               </h3>
-              <p className="text-muted-foreground mb-6">
+              <p className="text-muted-foreground text-sm md:text-base mb-4 md:mb-6">
                 Rozpocznij wysyłanie zaproszeń do planów treningowych, aby zacząć pracować z podopiecznymi
               </p>
               <Button asChild data-testid="button-invite-client">
