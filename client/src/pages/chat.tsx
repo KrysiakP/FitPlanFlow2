@@ -173,7 +173,7 @@ export default function ChatPage() {
 
         {/* Message area - hidden on mobile when showing conversation list */}
         <main 
-          className={`flex-1 flex flex-col ${
+          className={`flex-1 flex flex-col min-h-0 ${
             !showChatOnMobile ? "hidden md:flex" : "flex"
           }`} 
           data-testid="message-area"
@@ -181,7 +181,7 @@ export default function ChatPage() {
           {selectedConversation ? (
             <>
               {/* Desktop header for conversation partner */}
-              <div className="border-b p-4 hidden md:block">
+              <div className="border-b p-4 hidden md:block shrink-0">
                 <h2 className="font-semibold" data-testid="conversation-partner-name">
                   {selectedConversation.partnerName}
                 </h2>
@@ -194,10 +194,12 @@ export default function ChatPage() {
                 isLoading={messagesLoading}
               />
 
-              <MessageComposer
-                onSend={handleSendMessage}
-                isSending={sendMessageMutation.isPending}
-              />
+              <div className="shrink-0">
+                <MessageComposer
+                  onSend={handleSendMessage}
+                  isSending={sendMessageMutation.isPending}
+                />
+              </div>
             </>
           ) : (
             <div className="flex items-center justify-center h-full" data-testid="no-conversation-selected">

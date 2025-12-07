@@ -40,11 +40,10 @@ export function useSendMessage() {
       clientId: string;  // Only for cache invalidation, not sent to server
     }) => {
       // SECURITY: Only send recipientId and body - server derives all other IDs from session
-      const res = await apiRequest("POST", "/api/chat/messages", {
+      return await apiRequest("POST", "/api/chat/messages", {
         recipientId: data.recipientId,
         body: data.body,
       });
-      return res.json();
     },
     onSuccess: (_, variables) => {
       // Invalidate conversations list
@@ -61,8 +60,7 @@ export function useSendMessage() {
 export function useMarkAsRead() {
   return useMutation({
     mutationFn: async (partnerId: string) => {
-      const res = await apiRequest("POST", "/api/chat/mark-read", { partnerId });
-      return res.json();
+      return await apiRequest("POST", "/api/chat/mark-read", { partnerId });
     },
     onSuccess: () => {
       // Invalidate conversations to update unread count
