@@ -5,16 +5,69 @@ import crypto from 'crypto';
 
 const DEFAULT_FROM_EMAIL = 'Panel Trenera <noreply@paneltrenera.pl>';
 
-async function getResendClient() {
-  const apiKey = process.env.RESEND_API_KEY;
-  
-  if (!apiKey) {
-    throw new Error('RESEND_API_KEY not configured');
+let connectionSettings: any;
+
+async function getCredentials() {
+  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+  const xReplitToken = process.env.REPL_IDENTITY 
+    ? 'repl ' + process.env.REPL_IDENTITY 
+    : process.env.WEB_REPL_RENEWAL 
+    ? 'depl ' + process.env.WEB_REPL_RENEWAL 
+    : null;
+
+  if (!xReplitToken || !hostname) {
+    console.log('[EMAIL] Replit Connectors not available, falling back to RESEND_API_KEY');
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      throw new Error('RESEND_API_KEY not configured');
+    }
+    return { apiKey, fromEmail: DEFAULT_FROM_EMAIL };
   }
-  
+
+  try {
+    const response = await fetch(
+      'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=resend',
+      {
+        headers: {
+          'Accept': 'application/json',
+          'X_REPLIT_TOKEN': xReplitToken
+        }
+      }
+    );
+    
+    const data = await response.json();
+    connectionSettings = data.items?.[0];
+
+    if (!connectionSettings || !connectionSettings.settings?.api_key) {
+      console.log('[EMAIL] Resend connector not found, falling back to RESEND_API_KEY');
+      const apiKey = process.env.RESEND_API_KEY;
+      if (!apiKey) {
+        throw new Error('RESEND_API_KEY not configured and Resend connector not available');
+      }
+      return { apiKey, fromEmail: DEFAULT_FROM_EMAIL };
+    }
+    
+    return {
+      apiKey: connectionSettings.settings.api_key,
+      fromEmail: connectionSettings.settings.from_email || DEFAULT_FROM_EMAIL
+    };
+  } catch (error) {
+    console.error('[EMAIL] Error fetching Resend credentials from connector:', error);
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      throw new Error('RESEND_API_KEY not configured');
+    }
+    return { apiKey, fromEmail: DEFAULT_FROM_EMAIL };
+  }
+}
+
+// WARNING: Never cache this client.
+// Access tokens expire, so a new client must be created each time.
+export async function getResendClient() {
+  const { apiKey, fromEmail } = await getCredentials();
   return {
     client: new Resend(apiKey),
-    fromEmail: DEFAULT_FROM_EMAIL
+    fromEmail
   };
 }
 
@@ -47,6 +100,7 @@ export async function sendVerificationEmail({ email, firstName, token }: SendVer
       : 'http://localhost:5000';
     
     const verificationUrl = `${baseUrl}/verify-email?token=${token}`;
+    console.log('[EMAIL] Verification URL:', verificationUrl);
     
     const result = await client.emails.send({
       from: fromEmail,
@@ -116,7 +170,13 @@ Panel Trenera - Polska marka
       `
     });
     
-    console.log('[EMAIL] Verification email sent to:', email, 'Result:', result);
+    console.log('[EMAIL] Verification email sent successfully to:', email, 'Result:', JSON.stringify(result));
+    
+    if (result.error) {
+      console.error('[EMAIL] Resend API returned error:', result.error);
+      return false;
+    }
+    
     return true;
   } catch (error) {
     console.error('[EMAIL] Failed to send verification email:', error);
