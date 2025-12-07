@@ -1,73 +1,22 @@
-// Email service using Resend integration
-// Reference: connection:conn_resend_01KA2C1AT6M2JMN97FVHBJEA62
+// Email service using Resend
+// Uses RESEND_API_KEY from environment secrets
 import { Resend } from 'resend';
 import crypto from 'crypto';
 
 const DEFAULT_FROM_EMAIL = 'Panel Trenera <noreply@paneltrenera.pl>';
 
-let connectionSettings: any;
-
-async function getCredentials() {
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY 
-    ? 'repl ' + process.env.REPL_IDENTITY 
-    : process.env.WEB_REPL_RENEWAL 
-    ? 'depl ' + process.env.WEB_REPL_RENEWAL 
-    : null;
-
-  if (!xReplitToken || !hostname) {
-    console.log('[EMAIL] Replit Connectors not available, falling back to RESEND_API_KEY');
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      throw new Error('RESEND_API_KEY not configured');
-    }
-    return { apiKey, fromEmail: DEFAULT_FROM_EMAIL };
-  }
-
-  try {
-    const response = await fetch(
-      'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=resend',
-      {
-        headers: {
-          'Accept': 'application/json',
-          'X_REPLIT_TOKEN': xReplitToken
-        }
-      }
-    );
-    
-    const data = await response.json();
-    connectionSettings = data.items?.[0];
-
-    if (!connectionSettings || !connectionSettings.settings?.api_key) {
-      console.log('[EMAIL] Resend connector not found, falling back to RESEND_API_KEY');
-      const apiKey = process.env.RESEND_API_KEY;
-      if (!apiKey) {
-        throw new Error('RESEND_API_KEY not configured and Resend connector not available');
-      }
-      return { apiKey, fromEmail: DEFAULT_FROM_EMAIL };
-    }
-    
-    return {
-      apiKey: connectionSettings.settings.api_key,
-      fromEmail: connectionSettings.settings.from_email || DEFAULT_FROM_EMAIL
-    };
-  } catch (error) {
-    console.error('[EMAIL] Error fetching Resend credentials from connector:', error);
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      throw new Error('RESEND_API_KEY not configured');
-    }
-    return { apiKey, fromEmail: DEFAULT_FROM_EMAIL };
-  }
-}
-
-// WARNING: Never cache this client.
-// Access tokens expire, so a new client must be created each time.
 export async function getResendClient() {
-  const { apiKey, fromEmail } = await getCredentials();
+  const apiKey = process.env.RESEND_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY not configured');
+  }
+  
+  console.log('[EMAIL] Using RESEND_API_KEY from environment, from:', DEFAULT_FROM_EMAIL);
+  
   return {
     client: new Resend(apiKey),
-    fromEmail
+    fromEmail: DEFAULT_FROM_EMAIL
   };
 }
 
