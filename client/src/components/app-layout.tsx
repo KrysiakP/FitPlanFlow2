@@ -391,8 +391,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
 
-        <main className="flex-1 flex flex-col min-h-0 overflow-y-auto p-4 md:p-8">
-          <div className="container mx-auto max-w-7xl flex-1">
+        <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-4 md:p-8">
+            <div className="container mx-auto max-w-7xl flex-1 flex flex-col min-h-0">
             {isTrainer && isInTrial && !user?.hasFreeAccess && (
               <Alert className="mb-6" data-testid="alert-trial-banner">
                 <Clock className="h-4 w-4" />
@@ -408,6 +409,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </Alert>
             )}
             {children}
+            </div>
           </div>
         </main>
       </div>

@@ -124,7 +124,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 -m-4 md:-m-8" data-testid="chat-page">
+    <div className="h-[calc(100dvh-4rem)] flex flex-col -m-4 md:-m-8" data-testid="chat-page">
       {/* Mobile: Show either header with back button or main header */}
       <header className="shrink-0 border-b p-4 flex items-center gap-3 bg-background">
         {showChatOnMobile && selectedConversation && (
