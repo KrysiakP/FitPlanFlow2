@@ -4474,6 +4474,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Global exercises endpoint
+  app.get("/api/exercises", isAuthenticated, async (req, res) => {
+    try {
+      const muscleGroup = req.query.muscleGroup as string | undefined;
+      const search = req.query.search as string | undefined;
+      const exercises = await storage.getGlobalExercises(muscleGroup, search);
+      res.json(exercises);
+    } catch (error) {
+      console.error("Error fetching global exercises:", error);
+      res.status(500).json({ message: "Nie udało się pobrać ćwiczeń" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   // WebSocket setup for real-time chat

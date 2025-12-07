@@ -109,6 +109,18 @@ export const exerciseLibrary = pgTable("exercise_library", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Global exercise database - shared library for all trainers
+export const globalExercises = pgTable("global_exercises", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  namePl: varchar("name_pl", { length: 255 }).notNull(),
+  nameEn: varchar("name_en", { length: 255 }).notNull(),
+  muscleGroup: varchar("muscle_group", { length: 50 }).notNull(),
+}, (table) => ({
+  muscleGroupIdx: index("global_exercises_muscle_group_idx").on(table.muscleGroup),
+  namePlIdx: index("global_exercises_name_pl_idx").on(table.namePl),
+  nameEnIdx: index("global_exercises_name_en_idx").on(table.nameEn),
+}));
+
 // User profiles - extended info for trainers and clients
 export const userProfiles = pgTable("user_profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -989,6 +1001,10 @@ export const updateUserRoleSchema = z.object({
   role: z.enum(["trainer", "client"]),
 });
 
+export const insertGlobalExerciseSchema = createInsertSchema(globalExercises).omit({
+  id: true,
+});
+
 export const registerSchema = z.object({
   email: z.string().email("Nieprawidłowy adres email"),
   password: z.string().min(6, "Hasło musi mieć co najmniej 6 znaków"),
@@ -1031,3 +1047,5 @@ export type InsertReferralEventInput = z.infer<typeof insertReferralEventSchema>
 export type InsertNotificationInput = z.infer<typeof insertNotificationSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type InsertGlobalExerciseInput = z.infer<typeof insertGlobalExerciseSchema>;
+export type GlobalExercise = typeof globalExercises.$inferSelect;

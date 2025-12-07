@@ -5,6 +5,7 @@ import {
   exercises,
   planAssignments,
   exerciseLibrary,
+  globalExercises,
   userProfiles,
   clientProgress,
   exerciseLogs,
@@ -20,6 +21,7 @@ import {
   clientPayments,
   dietSupplements,
   type User,
+  type GlobalExercise,
   type UpsertUser,
   type TrainingPlan,
   type InsertTrainingPlan,
@@ -280,6 +282,9 @@ export interface IStorage {
   getUserByPasswordResetToken(token: string): Promise<User | undefined>;
   clearPasswordResetToken(userId: string): Promise<void>;
   updateUserPassword(userId: string, hashedPassword: string): Promise<User>;
+
+  // Global exercises
+  getGlobalExercises(muscleGroup?: string, search?: string): Promise<GlobalExercise[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2642,6 +2647,30 @@ export class DatabaseStorage implements IStorage {
       .where(eq(clientPayments.isPaid, false))
       .orderBy(asc(clientPayments.dueDate));
     return results;
+  }
+
+  async getGlobalExercises(muscleGroup?: string, search?: string): Promise<GlobalExercise[]> {
+    let query = db.select().from(globalExercises);
+    
+    const conditions = [];
+    if (muscleGroup) {
+      conditions.push(eq(globalExercises.muscleGroup, muscleGroup));
+    }
+    if (search) {
+      const searchLower = search.toLowerCase();
+      conditions.push(
+        or(
+          sql`LOWER(${globalExercises.namePl}) LIKE ${`%${searchLower}%`}`,
+          sql`LOWER(${globalExercises.nameEn}) LIKE ${`%${searchLower}%`}`
+        )
+      );
+    }
+    
+    if (conditions.length > 0) {
+      return await query.where(and(...conditions)).orderBy(asc(globalExercises.namePl));
+    }
+    
+    return await query.orderBy(asc(globalExercises.namePl));
   }
 }
 
