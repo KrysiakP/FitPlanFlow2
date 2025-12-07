@@ -652,6 +652,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         referralBonusDays: 0,
         hasFreeAccess: false,
         subscriptionCancelledAt: null,
+        emailVerified: false,
+        emailVerificationToken: null,
+        emailVerificationTokenExpiresAt: null,
       });
 
       if (role === 'trainer') {

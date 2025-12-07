@@ -215,8 +215,8 @@ export interface IStorage {
   getHabitLogCheckmarks(habitLogId: string): Promise<MealCheckmark[]>;
   
   // Medical Tests
-  createMedicalTest(clientId: string, test: InsertMedicalTest): Promise<MedicalTest>;
-  updateMedicalTest(id: string, clientId: string, updates: Partial<InsertMedicalTest>): Promise<MedicalTest>;
+  createMedicalTest(clientId: string, test: Omit<InsertMedicalTest, 'clientId'>): Promise<MedicalTest>;
+  updateMedicalTest(id: string, clientId: string, updates: Partial<Omit<InsertMedicalTest, 'clientId'>>): Promise<MedicalTest>;
   deleteMedicalTest(id: string, clientId: string): Promise<void>;
   getClientMedicalTests(clientId: string): Promise<MedicalTest[]>;
   getMedicalTestById(id: string): Promise<MedicalTest | null>;
@@ -1742,7 +1742,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Medical Tests
-  async createMedicalTest(clientId: string, test: InsertMedicalTest): Promise<MedicalTest> {
+  async createMedicalTest(clientId: string, test: Omit<InsertMedicalTest, 'clientId'>): Promise<MedicalTest> {
     const [newTest] = await db
       .insert(medicalTests)
       .values({
@@ -1753,7 +1753,7 @@ export class DatabaseStorage implements IStorage {
     return newTest;
   }
   
-  async updateMedicalTest(id: string, clientId: string, updates: Partial<InsertMedicalTest>): Promise<MedicalTest> {
+  async updateMedicalTest(id: string, clientId: string, updates: Partial<Omit<InsertMedicalTest, 'clientId'>>): Promise<MedicalTest> {
     const [updatedTest] = await db
       .update(medicalTests)
       .set({
