@@ -54,7 +54,7 @@ export function ExerciseSelectionDialog({
     return `/api/exercises?${params.toString()}`;
   }, [selectedMuscleGroup, searchQuery]);
 
-  const { data: exercises, isLoading, error } = useQuery<GlobalExercise[]>({
+  const { data: exercises, isLoading } = useQuery<GlobalExercise[]>({
     queryKey: ["/api/exercises", selectedMuscleGroup, searchQuery],
     queryFn: async () => {
       const response = await fetch(queryUrl, { credentials: "include" });
@@ -65,9 +65,6 @@ export function ExerciseSelectionDialog({
     },
     enabled: open,
   });
-  
-  // Debug logging
-  console.log("ExerciseSelectionDialog query:", { queryUrl, exercises, isLoading, error, open });
 
   const handleExerciseClick = (exercise: GlobalExercise) => {
     onSelect({ namePl: exercise.namePl, nameEn: exercise.nameEn });
