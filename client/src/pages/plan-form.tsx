@@ -11,12 +11,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Trash2, GripVertical, Library, Dumbbell, Circle, Copy, ChevronDown, CheckCircle } from "lucide-react";
+import { Plus, Trash2, GripVertical, Library, Dumbbell, Circle, Copy, ChevronDown, CheckCircle, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLocation, useParams, Link } from "wouter";
 import type { TrainingPlan, Workout, Exercise, ExerciseLibrary } from "@shared/schema";
+import { ExerciseSelectionDialog } from "@/components/ExerciseSelectionDialog";
 
 const exerciseSchema = z.object({
   name: z.string().min(1, "Nazwa ćwiczenia jest wymagana"),
@@ -66,6 +67,7 @@ export default function PlanForm() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [libraryDialogOpen, setLibraryDialogOpen] = useState(false);
+  const [globalExerciseDialogOpen, setGlobalExerciseDialogOpen] = useState(false);
   const [selectedWorkoutIndex, setSelectedWorkoutIndex] = useState<number | null>(null);
   const [selectedExerciseIndex, setSelectedExerciseIndex] = useState<number | null>(null);
   const [expandedWorkouts, setExpandedWorkouts] = useState<Set<number>>(new Set([0]));
@@ -291,6 +293,22 @@ export default function PlanForm() {
     form.setValue(`workouts.${selectedWorkoutIndex}.exercises.${selectedExerciseIndex}.restTime`, exercise.defaultRestTime ?? 60);
     
     setLibraryDialogOpen(false);
+    setSelectedWorkoutIndex(null);
+    setSelectedExerciseIndex(null);
+  };
+
+  const handleSelectFromGlobalDatabase = (workoutIndex: number, exerciseIndex: number) => {
+    setSelectedWorkoutIndex(workoutIndex);
+    setSelectedExerciseIndex(exerciseIndex);
+    setGlobalExerciseDialogOpen(true);
+  };
+
+  const handleGlobalExerciseSelect = (exercise: { namePl: string; nameEn: string }) => {
+    if (selectedWorkoutIndex === null || selectedExerciseIndex === null) return;
+    
+    form.setValue(`workouts.${selectedWorkoutIndex}.exercises.${selectedExerciseIndex}.name`, exercise.namePl);
+    
+    setGlobalExerciseDialogOpen(false);
     setSelectedWorkoutIndex(null);
     setSelectedExerciseIndex(null);
   };
@@ -530,17 +548,28 @@ export default function PlanForm() {
                                   </div>
                                 </div>
 
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="w-full"
-                                  onClick={() => handleSelectFromLibrary(workoutIndex, exerciseIndex)}
-                                  data-testid={`button-select-from-library-${workoutIndex}-${exerciseIndex}`}
-                                >
-                                  <Library className="w-4 h-4 mr-2" />
-                                  Wybierz z biblioteki
-                                </Button>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleSelectFromGlobalDatabase(workoutIndex, exerciseIndex)}
+                                    data-testid={`button-select-from-database-${workoutIndex}-${exerciseIndex}`}
+                                  >
+                                    <Search className="w-4 h-4 mr-2" />
+                                    Baza ćwiczeń
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleSelectFromLibrary(workoutIndex, exerciseIndex)}
+                                    data-testid={`button-select-from-library-${workoutIndex}-${exerciseIndex}`}
+                                  >
+                                    <Library className="w-4 h-4 mr-2" />
+                                    Moje ćwiczenia
+                                  </Button>
+                                </div>
 
                                 <div className="grid grid-cols-3 gap-3">
                                   <FormField
@@ -874,6 +903,12 @@ export default function PlanForm() {
           </Button>
         </div>
       )}
+
+      <ExerciseSelectionDialog
+        open={globalExerciseDialogOpen}
+        onOpenChange={setGlobalExerciseDialogOpen}
+        onSelect={handleGlobalExerciseSelect}
+      />
     </div>
   );
 }
