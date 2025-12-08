@@ -16,7 +16,6 @@ import {
 import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, Crown, CreditCard, UserPlus, ShieldCheck, Heart, UtensilsCrossed, Apple, GraduationCap, TrendingUp, DollarSign, Clock, MessageSquare, Bell, Activity } from "lucide-react";
 import { RestTimerButton } from "@/components/rest-timer";
 import { ThemeToggle } from "@/components/theme-toggle";
-import logoImage from "@assets/Logo Panel Trenera__1764010995737.png";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -228,7 +227,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </SheetTrigger>
               <SheetContent side="left" className="w-64">
                 <div className="flex items-center gap-2 mb-8">
-                  <img src={logoImage} alt="Panel Trenera" className="h-8 w-auto" data-testid="img-logo-mobile" />
+                  <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center" data-testid="img-logo-mobile">
+                    <Dumbbell className="h-5 w-5 text-primary-foreground" />
+                  </div>
                   <span className="font-heading font-bold text-lg">Panel Trenera</span>
                 </div>
                 <NavLinks onClick={() => setMobileMenuOpen(false)} />
@@ -237,7 +238,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
             <Link href="/">
               <div className="flex items-center gap-2">
-                <img src={logoImage} alt="Panel Trenera" className="h-10 w-auto" data-testid="img-logo-header" />
+                <div className="h-10 w-10 rounded-md bg-primary flex items-center justify-center" data-testid="img-logo-header">
+                  <Dumbbell className="h-6 w-6 text-primary-foreground" />
+                </div>
                 <span className="font-heading font-bold text-xl hidden sm:inline">
                   Panel Trenera
                 </span>
