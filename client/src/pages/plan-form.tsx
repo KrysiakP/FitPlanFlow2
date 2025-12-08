@@ -548,27 +548,30 @@ export default function PlanForm() {
                                   </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-2">
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleSelectFromGlobalDatabase(workoutIndex, exerciseIndex)}
-                                    data-testid={`button-select-from-database-${workoutIndex}-${exerciseIndex}`}
-                                  >
-                                    <Search className="w-4 h-4 mr-2" />
-                                    Baza ćwiczeń
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleSelectFromLibrary(workoutIndex, exerciseIndex)}
-                                    data-testid={`button-select-from-library-${workoutIndex}-${exerciseIndex}`}
-                                  >
-                                    <Library className="w-4 h-4 mr-2" />
-                                    Moje ćwiczenia
-                                  </Button>
+                                <div className="bg-primary/5 border border-primary/20 rounded-md p-3 space-y-2">
+                                  <p className="text-xs font-medium text-primary">Wybierz ćwiczenie z bazy:</p>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <Button
+                                      type="button"
+                                      variant="default"
+                                      size="sm"
+                                      onClick={() => handleSelectFromGlobalDatabase(workoutIndex, exerciseIndex)}
+                                      data-testid={`button-select-from-database-${workoutIndex}-${exerciseIndex}`}
+                                    >
+                                      <Search className="w-4 h-4 mr-2" />
+                                      Baza ćwiczeń
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleSelectFromLibrary(workoutIndex, exerciseIndex)}
+                                      data-testid={`button-select-from-library-${workoutIndex}-${exerciseIndex}`}
+                                    >
+                                      <Library className="w-4 h-4 mr-2" />
+                                      Moje ćwiczenia
+                                    </Button>
+                                  </div>
                                 </div>
 
                                 <div className="grid grid-cols-3 gap-3">
