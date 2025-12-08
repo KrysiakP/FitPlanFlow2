@@ -1,12 +1,13 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Video, AlertCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Video, AlertCircle, Search } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { ExerciseLibrary } from "@shared/schema";
 import { insertExerciseLibrarySchema } from "@shared/schema";
+import { ExerciseSelectionDialog } from "@/components/ExerciseSelectionDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,19 +51,29 @@ function ExerciseDialog({
   exercise,
   trigger,
   onSuccess,
+  initialName,
+  externalOpen,
+  onExternalOpenChange,
 }: {
   exercise?: ExerciseLibrary;
-  trigger: React.ReactNode;
+  trigger?: React.ReactNode;
   onSuccess?: () => void;
+  initialName?: string;
+  externalOpen?: boolean;
+  onExternalOpenChange?: (open: boolean) => void;
 }) {
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  const isControlled = externalOpen !== undefined;
+  const open = isControlled ? externalOpen : internalOpen;
+  const setOpen = isControlled ? (onExternalOpenChange || (() => {})) : setInternalOpen;
   const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(exercise?.id || null);
 
   const form = useForm<ExerciseFormValues>({
     resolver: zodResolver(insertExerciseLibrarySchema),
     defaultValues: {
-      name: exercise?.name || "",
+      name: exercise?.name || initialName || "",
       description: exercise?.description || "",
       videoUrl: exercise?.videoUrl || "",
       defaultSets: exercise?.defaultSets || undefined,
@@ -71,6 +82,15 @@ function ExerciseDialog({
       defaultRestTime: exercise?.defaultRestTime || undefined,
     },
   });
+  
+  // Reset form when initialName changes (for controlled mode with pre-filled name)
+  const [lastInitialName, setLastInitialName] = useState(initialName);
+  if (initialName !== lastInitialName) {
+    setLastInitialName(initialName);
+    if (initialName) {
+      form.setValue("name", initialName);
+    }
+  }
 
   const createMutation = useMutation({
     mutationFn: async (data: ExerciseFormValues) => {
@@ -136,7 +156,7 @@ function ExerciseDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -414,10 +434,25 @@ function VideoPreview({ videoUrl }: { videoUrl: string | null }) {
 
 export default function ExerciseLibrary() {
   const { toast } = useToast();
+  const [globalExerciseDialogOpen, setGlobalExerciseDialogOpen] = useState(false);
+  const [selectedGlobalExerciseName, setSelectedGlobalExerciseName] = useState("");
+  const [exerciseDialogOpen, setExerciseDialogOpen] = useState(false);
 
   const { data: exercises, isLoading, error, refetch } = useQuery<ExerciseLibrary[]>({
     queryKey: ["/api/exercises/library"],
   });
+  
+  const handleGlobalExerciseSelect = (exercise: { namePl: string; nameEn: string }) => {
+    setSelectedGlobalExerciseName(exercise.namePl);
+    setExerciseDialogOpen(true);
+  };
+  
+  const handleExerciseDialogClose = (open: boolean) => {
+    setExerciseDialogOpen(open);
+    if (!open) {
+      setSelectedGlobalExerciseName("");
+    }
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (exerciseId: string) => {
@@ -468,7 +503,7 @@ export default function ExerciseLibrary() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="font-heading font-bold text-4xl mb-2" data-testid="text-library-title">
             Moja biblioteka ćwiczeń
@@ -477,15 +512,37 @@ export default function ExerciseLibrary() {
             Zarządzaj swoją kolekcją ćwiczeń
           </p>
         </div>
-        <ExerciseDialog
-          trigger={
-            <Button data-testid="button-add-exercise">
-              <Plus className="w-4 h-4 mr-2" />
-              Dodaj ćwiczenie
-            </Button>
-          }
-        />
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            onClick={() => setGlobalExerciseDialogOpen(true)}
+            data-testid="button-add-from-database"
+          >
+            <Search className="w-4 h-4 mr-2" />
+            Dodaj z bazy
+          </Button>
+          <ExerciseDialog
+            trigger={
+              <Button data-testid="button-add-exercise">
+                <Plus className="w-4 h-4 mr-2" />
+                Dodaj ćwiczenie
+              </Button>
+            }
+          />
+        </div>
       </div>
+      
+      <ExerciseSelectionDialog
+        open={globalExerciseDialogOpen}
+        onOpenChange={setGlobalExerciseDialogOpen}
+        onSelect={handleGlobalExerciseSelect}
+      />
+      
+      <ExerciseDialog
+        externalOpen={exerciseDialogOpen}
+        onExternalOpenChange={handleExerciseDialogClose}
+        initialName={selectedGlobalExerciseName}
+      />
 
       {error && (
         <Alert variant="destructive" data-testid="alert-library-error">
@@ -511,16 +568,26 @@ export default function ExerciseLibrary() {
                 Brak ćwiczeń w bibliotece
               </h3>
               <p className="text-muted-foreground mb-4">
-                Dodaj swoje pierwsze ćwiczenie do biblioteki
+                Dodaj swoje pierwsze ćwiczenie do biblioteki lub wybierz z bazy ćwiczeń
               </p>
-              <ExerciseDialog
-                trigger={
-                  <Button data-testid="button-add-first-exercise">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Dodaj pierwsze ćwiczenie
-                  </Button>
-                }
-              />
+              <div className="flex justify-center gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  onClick={() => setGlobalExerciseDialogOpen(true)}
+                  data-testid="button-add-first-from-database"
+                >
+                  <Search className="w-4 h-4 mr-2" />
+                  Wybierz z bazy
+                </Button>
+                <ExerciseDialog
+                  trigger={
+                    <Button data-testid="button-add-first-exercise">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Dodaj własne
+                    </Button>
+                  }
+                />
+              </div>
             </div>
           </CardContent>
         </Card>

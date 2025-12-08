@@ -45,26 +45,17 @@ export function ExerciseSelectionDialog({
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState("chest");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const queryParams = useMemo(() => {
+  const queryUrl = useMemo(() => {
     const params = new URLSearchParams();
     params.set("muscleGroup", selectedMuscleGroup);
     if (searchQuery.trim()) {
       params.set("search", searchQuery.trim());
     }
-    return params.toString();
+    return `/api/exercises?${params.toString()}`;
   }, [selectedMuscleGroup, searchQuery]);
 
   const { data: exercises, isLoading } = useQuery<GlobalExercise[]>({
-    queryKey: ["/api/exercises", { muscleGroup: selectedMuscleGroup, search: searchQuery }],
-    queryFn: async () => {
-      const response = await fetch(`/api/exercises?${queryParams}`, {
-        credentials: "include",
-      });
-      if (!response.ok) {
-        throw new Error("Nie udało się pobrać ćwiczeń");
-      }
-      return response.json();
-    },
+    queryKey: [queryUrl],
     enabled: open,
   });
 
