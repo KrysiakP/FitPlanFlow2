@@ -148,10 +148,11 @@ export interface IStorage {
   upsertClientProgress(clientId: string, data: Partial<InsertClientProgress>): Promise<ClientProgress>;
   
   // Exercise logs operations
-  logExercise(clientId: string, exerciseId: string, data: { reps: number, load?: string, notes?: string }): Promise<ExerciseLog>;
+  logExercise(clientId: string, exerciseId: string, data: { reps: number, load?: string, notes?: string, setNumber?: number }): Promise<ExerciseLog>;
   getExerciseLogs(clientId: string, exerciseId: string): Promise<ExerciseLog[]>;
   getAllClientExerciseLogs(clientId: string): Promise<ExerciseLog[]>;
   getLatestExerciseLog(clientId: string, exerciseId: string): Promise<ExerciseLog | undefined>;
+  getLatestExerciseLogsBySet(clientId: string, exerciseId: string): Promise<ExerciseLog[]>;
   
   // Weekly reports operations
   createWeeklyReport(clientId: string, data: Omit<InsertWeeklyReport, 'clientId'>): Promise<WeeklyReport>;
@@ -994,7 +995,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Exercise logs operations
-  async logExercise(clientId: string, exerciseId: string, data: { reps: number, load?: string, notes?: string }): Promise<ExerciseLog> {
+  async logExercise(clientId: string, exerciseId: string, data: { reps: number, load?: string, notes?: string, setNumber?: number }): Promise<ExerciseLog> {
     const [log] = await db
       .insert(exerciseLogs)
       .values({
@@ -1003,6 +1004,7 @@ export class DatabaseStorage implements IStorage {
         reps: data.reps,
         load: data.load || null,
         notes: data.notes || null,
+        setNumber: data.setNumber || 1,
       })
       .returning();
     return log;
@@ -1042,6 +1044,34 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(exerciseLogs.loggedAt))
       .limit(1);
     return log;
+  }
+
+  async getLatestExerciseLogsBySet(clientId: string, exerciseId: string): Promise<ExerciseLog[]> {
+    // Get the latest log for each set number using a subquery approach
+    const logs = await db
+      .select()
+      .from(exerciseLogs)
+      .where(
+        and(
+          eq(exerciseLogs.clientId, clientId),
+          eq(exerciseLogs.exerciseId, exerciseId)
+        )
+      )
+      .orderBy(desc(exerciseLogs.loggedAt));
+    
+    // Group by setNumber and keep only the latest log for each set
+    const latestBySet = new Map<number, typeof logs[0]>();
+    for (const log of logs) {
+      const setNum = log.setNumber || 1;
+      if (!latestBySet.has(setNum)) {
+        latestBySet.set(setNum, log);
+      }
+    }
+    
+    // Return as array sorted by set number
+    return Array.from(latestBySet.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([, log]) => log);
   }
 
   // Weekly reports operations

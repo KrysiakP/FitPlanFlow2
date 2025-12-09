@@ -52,35 +52,55 @@ function CompactExerciseCard({ exercise, index }: { exercise: Exercise; index: n
     }));
   });
 
-  const { data: latestLog } = useQuery<ExerciseLog | null>({
-    queryKey: ["/api/exercises", exercise.id, "latest-log"],
+  const { data: latestLogsBySet } = useQuery<ExerciseLog[]>({
+    queryKey: ["/api/exercises", exercise.id, "latest-logs-by-set"],
   });
 
   useEffect(() => {
-    if (latestLog) {
-      const lastKg = latestLog.load 
-        ? (latestLog.load.match(/(\d+(?:\.\d+)?)/)?.[1] ? parseFloat(latestLog.load.match(/(\d+(?:\.\d+)?)/)?.[1] || '0') : 0)
-        : 0;
-      const lastReps = latestLog.reps || targetReps;
-      
-      setSets(prev => prev.map(set => ({
-        ...set,
-        kg: lastKg,
-        reps: lastReps,
-      })));
+    if (latestLogsBySet && latestLogsBySet.length > 0) {
+      setSets(prev => prev.map(set => {
+        // Find the log for this specific set number
+        const logForSet = latestLogsBySet.find(log => (log.setNumber || 1) === set.id);
+        if (logForSet) {
+          const lastKg = logForSet.load 
+            ? (logForSet.load.match(/(\d+(?:\.\d+)?)/)?.[1] ? parseFloat(logForSet.load.match(/(\d+(?:\.\d+)?)/)?.[1] || '0') : 0)
+            : 0;
+          const lastReps = logForSet.reps || targetReps;
+          return {
+            ...set,
+            kg: lastKg,
+            reps: lastReps,
+          };
+        }
+        // If no log for this set, try to get values from the first available log
+        const firstLog = latestLogsBySet[0];
+        if (firstLog) {
+          const lastKg = firstLog.load 
+            ? (firstLog.load.match(/(\d+(?:\.\d+)?)/)?.[1] ? parseFloat(firstLog.load.match(/(\d+(?:\.\d+)?)/)?.[1] || '0') : 0)
+            : 0;
+          const lastReps = firstLog.reps || targetReps;
+          return {
+            ...set,
+            kg: lastKg,
+            reps: lastReps,
+          };
+        }
+        return set;
+      }));
     }
-  }, [latestLog, targetReps]);
+  }, [latestLogsBySet, targetReps]);
 
   const logMutation = useMutation({
-    mutationFn: async (data: { reps: number; load?: string }) => {
+    mutationFn: async (data: { reps: number; load?: string; setNumber: number }) => {
       return await apiRequest("POST", `/api/exercises/${exercise.id}/log`, {
         exerciseId: exercise.id,
         reps: data.reps,
         load: data.load || undefined,
+        setNumber: data.setNumber,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/exercises", exercise.id, "latest-log"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/exercises", exercise.id, "latest-logs-by-set"] });
       toast({
         title: "Seria zapisana!",
         description: "Twoje wykonanie zostało zapisane.",
@@ -118,6 +138,7 @@ function CompactExerciseCard({ exercise, index }: { exercise: Exercise; index: n
       logMutation.mutate({
         reps: setToToggle.reps,
         load: setToToggle.kg > 0 ? `${setToToggle.kg}kg` : undefined,
+        setNumber: setId,
       });
     }
   };

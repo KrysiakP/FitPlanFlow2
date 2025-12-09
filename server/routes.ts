@@ -2817,11 +2817,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { reps, load, notes } = validationResult.data;
+      const { reps, load, notes, setNumber } = validationResult.data;
       const log = await storage.logExercise(userId, exerciseId, { 
         reps, 
         load: load ?? undefined, 
-        notes: notes ?? undefined 
+        notes: notes ?? undefined,
+        setNumber: setNumber ?? 1
       });
       res.json(log);
     } catch (error) {
@@ -2863,6 +2864,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching latest exercise log:", error);
       res.status(500).json({ message: "Nie udało się pobrać najnowszego loga ćwiczenia" });
+    }
+  });
+
+  app.get("/api/exercises/:exerciseId/latest-logs-by-set", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko klienci mogą pobierać logi ćwiczeń" });
+      }
+
+      const { exerciseId } = req.params;
+      const logs = await storage.getLatestExerciseLogsBySet(userId, exerciseId);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching latest exercise logs by set:", error);
+      res.status(500).json({ message: "Nie udało się pobrać logów ćwiczeń" });
     }
   });
 
