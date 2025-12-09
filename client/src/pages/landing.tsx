@@ -23,8 +23,8 @@ export default function Landing() {
         >
           <div className="container mx-auto max-w-5xl flex items-center justify-center gap-2 text-center">
             <Sparkles className="w-5 h-5 shrink-0" />
-            <p className="text-sm md:text-base font-medium">
-              Zakładając konto już teraz — otrzymasz nielimitowany dostęp do wszystkich funkcji aplikacji zupełnie za darmo do 31 stycznia 2026!
+            <p className="text-sm md:text-base font-medium whitespace-nowrap">
+              Darmowy dostęp do wszystkich funkcji do 31 stycznia 2026!
             </p>
             <Sparkles className="w-5 h-5 shrink-0 hidden md:block" />
           </div>
