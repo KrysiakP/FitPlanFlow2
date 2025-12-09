@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search } from "lucide-react";
+import { Search, RefreshCw, AlertCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 type GlobalExercise = {
   id: string;
@@ -54,14 +55,20 @@ export function ExerciseSelectionDialog({
     return `/api/exercises?${params.toString()}`;
   }, [selectedMuscleGroup, searchQuery]);
 
-  const { data: exercises, isLoading } = useQuery<GlobalExercise[]>({
+  const { data: exercises, isLoading, error, refetch } = useQuery<GlobalExercise[]>({
     queryKey: ["/api/exercises", selectedMuscleGroup, searchQuery],
     queryFn: async () => {
+      console.log("[ExerciseSelectionDialog] Fetching:", queryUrl);
       const response = await fetch(queryUrl, { credentials: "include" });
+      console.log("[ExerciseSelectionDialog] Response status:", response.status);
       if (!response.ok) {
-        throw new Error("Failed to fetch exercises");
+        const text = await response.text();
+        console.error("[ExerciseSelectionDialog] Error response:", text);
+        throw new Error(`Błąd ${response.status}: ${text || response.statusText}`);
       }
-      return response.json();
+      const data = await response.json();
+      console.log("[ExerciseSelectionDialog] Received exercises:", data.length);
+      return data;
     },
     enabled: open,
     staleTime: 0,
@@ -132,6 +139,22 @@ export function ExerciseSelectionDialog({
                       data-testid={`skeleton-exercise-${index}`}
                     />
                   ))}
+                </div>
+              ) : error ? (
+                <div className="flex flex-col items-center justify-center h-full p-8 space-y-4">
+                  <AlertCircle className="w-12 h-12 text-destructive" />
+                  <div className="text-center">
+                    <p className="font-medium text-destructive mb-2">Błąd ładowania ćwiczeń</p>
+                    <p className="text-sm text-muted-foreground mb-4">{error.message}</p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => refetch()}
+                    data-testid="button-retry-exercises"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Spróbuj ponownie
+                  </Button>
                 </div>
               ) : exercises && exercises.length > 0 ? (
                 <div className="space-y-1 p-1">
