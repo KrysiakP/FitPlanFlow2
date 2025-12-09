@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dumbbell, Users, ClipboardList, TrendingUp, MapPin, Heart, Mail } from "lucide-react";
+import { Dumbbell, Users, ClipboardList, TrendingUp, MapPin, Heart, Mail, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 import { PublicHeader } from "@/components/public-header";
 import { TrainerSection } from "@/components/landing/TrainerSection";
@@ -17,6 +17,19 @@ export default function Landing() {
       {!user && <PublicHeader />}
 
       <main>
+        <div 
+          className="bg-primary text-primary-foreground py-3 px-4"
+          data-testid="banner-promo"
+        >
+          <div className="container mx-auto max-w-5xl flex items-center justify-center gap-2 text-center">
+            <Sparkles className="w-5 h-5 shrink-0" />
+            <p className="text-sm md:text-base font-medium">
+              Zakładając konto już teraz — otrzymasz nielimitowany dostęp do wszystkich funkcji aplikacji zupełnie za darmo do 31 stycznia 2026!
+            </p>
+            <Sparkles className="w-5 h-5 shrink-0 hidden md:block" />
+          </div>
+        </div>
+
         <section className="py-20 px-4">
           <div className="container mx-auto max-w-5xl text-center space-y-8">
             <h1 className="font-heading font-bold text-4xl md:text-5xl lg:text-6xl">

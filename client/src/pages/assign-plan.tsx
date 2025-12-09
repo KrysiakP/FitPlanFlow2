@@ -11,11 +11,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPlanInvitationSchema } from "@shared/schema";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
-import { AlertCircle, Crown } from "lucide-react";
+import { AlertCircle, Crown, Users, Mail } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import type { TrainingPlan, Exercise, Workout, PlanInvitation, InsertPlanInvitationInput } from "@shared/schema";
+import type { TrainingPlan, Exercise, Workout, PlanInvitation, InsertPlanInvitationInput, User } from "@shared/schema";
 
 type PlanWithDetails = TrainingPlan & {
   workouts: (Workout & { exercises: Exercise[] })[];
@@ -37,6 +39,10 @@ export default function AssignPlan() {
   const { data: allInvitations } = useQuery<InvitationWithPlan[]>({
     queryKey: ["/api/invitations"],
     enabled: !!id,
+  });
+
+  const { data: clients = [] } = useQuery<User[]>({
+    queryKey: ["/api/trainer/clients"],
   });
 
   const planInvitations = allInvitations?.filter(inv => inv.planId === id) || [];
@@ -184,57 +190,154 @@ export default function AssignPlan() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="font-heading">Zaproś podopiecznego</CardTitle>
+            <CardTitle className="font-heading">Przypisz plan</CardTitle>
             <CardDescription>
-              Wpisz adres email podopiecznego aby wysłać mu zaproszenie do tego planu
+              Wybierz podopiecznego z listy lub zaproś nową osobę
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="clientEmail"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email podopiecznego</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="email@podopiecznego.pl"
-                          data-testid="input-client-email"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Podopieczny otrzyma zaproszenie na podany adres email
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="planId"
-                  render={({ field }) => (
-                    <FormItem className="hidden">
-                      <FormControl>
-                        <Input type="hidden" {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <Button
-                  type="submit"
-                  disabled={sendInvitationMutation.isPending}
-                  data-testid="button-send-invitation"
-                  className="w-full"
-                >
-                  {sendInvitationMutation.isPending
-                    ? "Wysyłanie zaproszenia..."
-                    : "Wyślij zaproszenie"}
-                </Button>
-              </form>
-            </Form>
+            <Tabs defaultValue={clients.length > 0 ? "existing" : "new"} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="existing" data-testid="tab-existing-clients">
+                  <Users className="w-4 h-4 mr-2" />
+                  Wybierz podopiecznego
+                </TabsTrigger>
+                <TabsTrigger value="new" data-testid="tab-new-client">
+                  <Mail className="w-4 h-4 mr-2" />
+                  Zaproś nową osobę
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="existing">
+                {clients.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                    <p>Nie masz jeszcze żadnych podopiecznych</p>
+                    <p className="text-sm mt-1">Zaproś pierwszą osobę używając zakładki "Zaproś nową osobę"</p>
+                  </div>
+                ) : (
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="clientEmail"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Wybierz podopiecznego</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value || ""}
+                            >
+                              <FormControl>
+                                <SelectTrigger data-testid="select-client">
+                                  <SelectValue placeholder="Wybierz podopiecznego z listy..." />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {clients.map((client) => (
+                                  <SelectItem
+                                    key={client.id}
+                                    value={client.email || ""}
+                                    data-testid={`option-client-${client.id}`}
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">
+                                        {client.firstName && client.lastName
+                                          ? `${client.firstName} ${client.lastName}`
+                                          : client.email}
+                                      </span>
+                                      {client.firstName && client.lastName && (
+                                        <span className="text-xs text-muted-foreground">
+                                          {client.email}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              Podopieczny otrzyma zaproszenie do tego planu
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="planId"
+                        render={({ field }) => (
+                          <FormItem className="hidden">
+                            <FormControl>
+                              <Input type="hidden" {...field} value={field.value || ""} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <Button
+                        type="submit"
+                        disabled={sendInvitationMutation.isPending || !form.watch("clientEmail")}
+                        data-testid="button-send-invitation-existing"
+                        className="w-full"
+                      >
+                        {sendInvitationMutation.isPending
+                          ? "Wysyłanie zaproszenia..."
+                          : "Wyślij zaproszenie"}
+                      </Button>
+                    </form>
+                  </Form>
+                )}
+              </TabsContent>
+
+              <TabsContent value="new">
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="clientEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email podopiecznego</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="email@podopiecznego.pl"
+                              data-testid="input-client-email"
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Podopieczny otrzyma zaproszenie na podany adres email
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="planId"
+                      render={({ field }) => (
+                        <FormItem className="hidden">
+                          <FormControl>
+                            <Input type="hidden" {...field} value={field.value || ""} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="submit"
+                      disabled={sendInvitationMutation.isPending}
+                      data-testid="button-send-invitation"
+                      className="w-full"
+                    >
+                      {sendInvitationMutation.isPending
+                        ? "Wysyłanie zaproszenia..."
+                        : "Wyślij zaproszenie"}
+                    </Button>
+                  </form>
+                </Form>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>
