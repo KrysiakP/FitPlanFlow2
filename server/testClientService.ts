@@ -94,7 +94,17 @@ export async function createTestClientWithSampleData(trainerId: string): Promise
 }
 
 async function createSampleTrainingPlans(trainerId: string, clientId: string): Promise<void> {
-  const plansData = [
+  // Create a single plan with 3 workouts (Push/Pull/Legs split)
+  const planId = randomUUID();
+  
+  await db.insert(trainingPlans).values({
+    id: planId,
+    name: "Plan testowy - Push/Pull/Legs",
+    description: "Klasyczny podział treningowy PPL. Trzy jednostki treningowe: Push (mięśnie pchające), Pull (mięśnie ciągnące) i Legs (nogi).",
+    trainerId: trainerId,
+  });
+  
+  const workoutsData = [
     {
       name: "Push Day - Klatka, Barki, Triceps",
       description: "Trening mięśni pchających. Skupienie na klatce piersiowej, barkach i tricepsach.",
@@ -130,30 +140,22 @@ async function createSampleTrainingPlans(trainerId: string, clientId: string): P
     },
   ];
   
-  for (const planData of plansData) {
-    const planId = randomUUID();
-    
-    // Create training plan
-    await db.insert(trainingPlans).values({
-      id: planId,
-      name: planData.name,
-      description: planData.description,
-      trainerId: trainerId,
-    });
-    
-    // Create workout
+  // Create 3 workouts within the single plan
+  for (let workoutIndex = 0; workoutIndex < workoutsData.length; workoutIndex++) {
+    const workoutData = workoutsData[workoutIndex];
     const workoutId = randomUUID();
+    
     await db.insert(workouts).values({
       id: workoutId,
       planId: planId,
-      name: planData.name,
-      description: planData.description,
-      orderIndex: 0,
+      name: workoutData.name,
+      description: workoutData.description,
+      orderIndex: workoutIndex,
     });
     
-    // Create exercises
-    for (let i = 0; i < planData.exercises.length; i++) {
-      const ex = planData.exercises[i];
+    // Create exercises for this workout
+    for (let i = 0; i < workoutData.exercises.length; i++) {
+      const ex = workoutData.exercises[i];
       await db.insert(exercises).values({
         id: randomUUID(),
         workoutId: workoutId,
@@ -166,14 +168,14 @@ async function createSampleTrainingPlans(trainerId: string, clientId: string): P
         orderIndex: i,
       });
     }
-    
-    // Assign plan to test client
-    await db.insert(planAssignments).values({
-      id: randomUUID(),
-      planId: planId,
-      clientId: clientId,
-    });
   }
+  
+  // Assign the single plan to test client
+  await db.insert(planAssignments).values({
+    id: randomUUID(),
+    planId: planId,
+    clientId: clientId,
+  });
 }
 
 async function createSampleWeeklyReports(clientId: string): Promise<void> {
