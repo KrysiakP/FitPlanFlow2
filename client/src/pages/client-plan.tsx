@@ -57,9 +57,10 @@ function CompactExerciseCard({ exercise, index }: { exercise: Exercise; index: n
   });
 
   useEffect(() => {
-    if (latestLog && latestLog.load) {
-      const kgMatch = latestLog.load.match(/(\d+)/);
-      const lastKg = kgMatch ? parseInt(kgMatch[1], 10) : 0;
+    if (latestLog) {
+      const lastKg = latestLog.load 
+        ? (latestLog.load.match(/(\d+(?:\.\d+)?)/)?.[1] ? parseFloat(latestLog.load.match(/(\d+(?:\.\d+)?)/)?.[1] || '0') : 0)
+        : 0;
       const lastReps = latestLog.reps || targetReps;
       
       setSets(prev => prev.map(set => ({
