@@ -509,22 +509,10 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
                     </div>
 
                     <div className="flex gap-2 flex-wrap">
-                      <Button asChild variant="outline" size="sm" className="flex-1" data-testid={`button-view-all-reports-${client.id}`}>
+                      <Button asChild variant="outline" size="sm" data-testid={`button-view-all-reports-${client.id}`}>
                         <Link href="/trainer/reports">
                           <FileText className="w-4 h-4 mr-2" />
                           Raporty ({reports?.length || 0})
-                        </Link>
-                      </Button>
-                      <Button asChild variant="outline" size="sm" className="flex-1" data-testid={`button-view-profile-${client.id}`}>
-                        <Link href={`/profile/${client.id}`}>
-                          <User className="w-4 h-4 mr-2" />
-                          Profil
-                        </Link>
-                      </Button>
-                      <Button asChild size="sm" className="flex-1" data-testid={`button-view-progress-${client.id}`}>
-                        <Link href={`/trainer/clients/${client.id}/progress`}>
-                          <TrendingUp className="w-4 h-4 mr-2" />
-                          Progres
                         </Link>
                       </Button>
                     </div>
@@ -532,17 +520,6 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
                 </>
               )}
 
-              {(clientProgress || latestReport) && (
-                <>
-                  <Separator />
-                  <Button asChild variant="default" size="sm" className="w-full" data-testid={`button-view-full-progress-${client.id}`}>
-                    <Link href={`/trainer/clients/${client.id}/progress`}>
-                      <TrendingUp className="w-4 h-4 mr-2" />
-                      Zobacz pełny progres
-                    </Link>
-                  </Button>
-                </>
-              )}
             </div>
           ) : (
             <p className="text-muted-foreground" data-testid={`text-no-progress-${client.id}`}>
