@@ -7,6 +7,7 @@ import { Clock, Dumbbell, Video, Check, Plus, Minus, ChevronLeft, Play, Trash2, 
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState, useEffect } from "react";
+import { useSearch, useLocation } from "wouter";
 import type { PlanAssignment, TrainingPlan, Workout, Exercise, ExerciseLog } from "@shared/schema";
 
 type AssignmentWithPlan = PlanAssignment & {
@@ -688,10 +689,28 @@ function WorkoutView({
 
 export default function ClientPlan() {
   const [selectedWorkout, setSelectedWorkout] = useState<(Workout & { exercises: Exercise[] }) | null>(null);
+  const searchString = useSearch();
+  const [, setLocation] = useLocation();
 
   const { data: assignment, isLoading } = useQuery<AssignmentWithPlan>({
     queryKey: ["/api/client/assignment"],
   });
+
+  // Auto-select workout from URL query parameter
+  useEffect(() => {
+    if (assignment && searchString) {
+      const params = new URLSearchParams(searchString);
+      const workoutId = params.get("workout");
+      if (workoutId && assignment.plan.workouts) {
+        const workout = assignment.plan.workouts.find(w => w.id === workoutId);
+        if (workout) {
+          setSelectedWorkout(workout);
+          // Clear the query parameter from URL
+          setLocation("/my-plan", { replace: true });
+        }
+      }
+    }
+  }, [assignment, searchString, setLocation]);
 
   if (isLoading) {
     return (

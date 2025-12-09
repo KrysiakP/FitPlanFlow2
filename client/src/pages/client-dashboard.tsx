@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ClipboardList, Calendar, AlertCircle, Bell, Mail, UserCheck, X, User as UserIcon } from "lucide-react";
+import { ClipboardList, Calendar, AlertCircle, Bell, Mail, UserCheck, X, User as UserIcon, Dumbbell, Play } from "lucide-react";
 import { Link } from "wouter";
 import { startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -315,29 +315,67 @@ export default function ClientDashboard() {
       </div>
 
       {assignment ? (
-        <Link href="/my-plan">
-          <Card className="hover-elevate cursor-pointer" data-testid="card-current-plan">
-            <CardHeader>
-              <CardTitle className="font-heading">{assignment.plan.name}</CardTitle>
-              {assignment.plan.description && (
-                <CardDescription>{assignment.plan.description}</CardDescription>
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium mb-2">
-                    Przypisany {new Date(assignment.assignedAt).toLocaleDateString("pl-PL")}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <ClipboardList className="w-4 h-4" />
-                  <span>{getTotalExercises()} ćwiczeń</span>
-                </div>
+        <>
+          {/* Quick workout selection section */}
+          {assignment.plan.workouts && assignment.plan.workouts.length > 0 && (
+            <div className="space-y-4" data-testid="section-quick-workouts">
+              <div>
+                <h2 className="font-heading font-bold text-xl mb-1">Twoje treningi</h2>
+                <p className="text-muted-foreground text-sm">Kliknij aby rozpocząć trening</p>
               </div>
-            </CardContent>
-          </Card>
-        </Link>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {assignment.plan.workouts.map((workout, index) => (
+                  <Link href={`/my-plan?workout=${workout.id}`} key={workout.id}>
+                    <Card className="hover-elevate cursor-pointer h-full" data-testid={`card-workout-${workout.id}`}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <Dumbbell className="w-5 h-5 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-heading font-semibold truncate" data-testid={`text-workout-name-${workout.id}`}>
+                              {workout.name}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {workout.exercises?.length || 0} ćwiczeń
+                            </p>
+                          </div>
+                          <Button size="icon" variant="ghost" className="shrink-0" data-testid={`button-start-workout-${workout.id}`}>
+                            <Play className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <Link href="/my-plan">
+            <Card className="hover-elevate cursor-pointer" data-testid="card-current-plan">
+              <CardHeader>
+                <CardTitle className="font-heading">{assignment.plan.name}</CardTitle>
+                {assignment.plan.description && (
+                  <CardDescription>{assignment.plan.description}</CardDescription>
+                )}
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium mb-2">
+                      Przypisany {new Date(assignment.assignedAt).toLocaleDateString("pl-PL")}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <ClipboardList className="w-4 h-4" />
+                    <span>{getTotalExercises()} ćwiczeń</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </>
       ) : (
         <Card>
           <CardContent className="p-12 text-center space-y-4">
