@@ -243,31 +243,31 @@ function CompactExerciseCard({ exercise, index }: { exercise: Exercise; index: n
 
       <CardContent className="pt-0">
         <div className="bg-muted/30 rounded-lg overflow-hidden">
-          <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-1 text-xs font-medium text-muted-foreground p-2 border-b">
-            <div className="w-10 text-center">Seria</div>
+          <div className="grid grid-cols-[28px_1fr_1fr_40px] gap-0.5 text-xs font-medium text-muted-foreground p-1.5 border-b">
+            <div className="text-center">#</div>
             <div className="text-center">kg</div>
             <div className="text-center">Powt</div>
-            <div className="w-12 text-center">OK</div>
+            <div className="text-center">OK</div>
           </div>
 
           <div className="divide-y divide-border/50">
             {sets.map((set) => (
               <div 
                 key={set.id} 
-                className={`grid grid-cols-[auto_1fr_1fr_auto] gap-1 p-2 items-center transition-colors ${
+                className={`grid grid-cols-[28px_1fr_1fr_40px] gap-0.5 p-1.5 items-center transition-colors ${
                   set.completed ? 'bg-primary/5' : ''
                 }`}
                 data-testid={`row-set-${exercise.id}-${set.id}`}
               >
-                <div className="w-10 text-center text-sm font-medium text-muted-foreground">
+                <div className="text-center text-sm font-medium text-muted-foreground">
                   {set.id}
                 </div>
                 
-                <div className="flex items-center justify-center gap-0.5">
+                <div className="flex items-center justify-center gap-0">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-7 w-7 shrink-0"
                     onClick={() => incrementValue(set.id, 'kg', -0.5)}
                     disabled={set.completed}
                     data-testid={`button-kg-minus-${exercise.id}-${set.id}`}
@@ -278,14 +278,14 @@ function CompactExerciseCard({ exercise, index }: { exercise: Exercise; index: n
                     type="number"
                     value={set.kg}
                     onChange={(e) => updateSet(set.id, 'kg', parseFloat(e.target.value) || 0)}
-                    className="w-16 h-8 text-center text-sm px-1"
+                    className="w-12 h-7 text-center text-sm px-0.5"
                     disabled={set.completed}
                     data-testid={`input-kg-${exercise.id}-${set.id}`}
                   />
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-7 w-7 shrink-0"
                     onClick={() => incrementValue(set.id, 'kg', 0.5)}
                     disabled={set.completed}
                     data-testid={`button-kg-plus-${exercise.id}-${set.id}`}
@@ -294,11 +294,11 @@ function CompactExerciseCard({ exercise, index }: { exercise: Exercise; index: n
                   </Button>
                 </div>
 
-                <div className="flex items-center justify-center gap-0.5">
+                <div className="flex items-center justify-center gap-0">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-7 w-7 shrink-0"
                     onClick={() => incrementValue(set.id, 'reps', -1)}
                     disabled={set.completed}
                     data-testid={`button-reps-minus-${exercise.id}-${set.id}`}
@@ -309,14 +309,14 @@ function CompactExerciseCard({ exercise, index }: { exercise: Exercise; index: n
                     type="number"
                     value={set.reps}
                     onChange={(e) => updateSet(set.id, 'reps', parseInt(e.target.value) || 0)}
-                    className="w-12 h-8 text-center text-sm px-1"
+                    className="w-10 h-7 text-center text-sm px-0.5"
                     disabled={set.completed}
                     data-testid={`input-reps-${exercise.id}-${set.id}`}
                   />
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-7 w-7 shrink-0"
                     onClick={() => incrementValue(set.id, 'reps', 1)}
                     disabled={set.completed}
                     data-testid={`button-reps-plus-${exercise.id}-${set.id}`}
@@ -325,11 +325,11 @@ function CompactExerciseCard({ exercise, index }: { exercise: Exercise; index: n
                   </Button>
                 </div>
 
-                <div className="w-12 flex justify-center">
+                <div className="flex justify-center">
                   <Button
                     variant={set.completed ? "default" : "outline"}
                     size="icon"
-                    className={`h-9 w-9 ${set.completed ? 'bg-primary' : ''}`}
+                    className={`h-8 w-8 ${set.completed ? 'bg-primary' : ''}`}
                     onClick={() => toggleSetComplete(set.id)}
                     data-testid={`button-complete-${exercise.id}-${set.id}`}
                   >
