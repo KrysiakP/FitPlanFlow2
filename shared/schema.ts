@@ -26,6 +26,8 @@ export const users = pgTable("users", {
   role: varchar("role", { length: 20 }), // 'trainer' or 'client' - null until user selects
   isAdmin: boolean("is_admin").default(false).notNull(), // Platform administrator flag
   hasFreeAccess: boolean("has_free_access").default(false).notNull(), // Admin-granted free access (bypasses subscription)
+  isTestUser: boolean("is_test_user").default(false).notNull(), // Test client created for trainer onboarding demo
+  testUserTrainerId: varchar("test_user_trainer_id").references(() => users.id, { onDelete: "cascade" }), // Trainer who owns this test client
   // Email verification fields
   emailVerified: boolean("email_verified").default(false).notNull(),
   emailVerificationToken: varchar("email_verification_token", { length: 64 }),
