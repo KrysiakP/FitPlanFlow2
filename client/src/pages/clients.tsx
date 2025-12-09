@@ -60,6 +60,7 @@ import {
   Dumbbell,
   Check,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -179,6 +180,26 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
     },
   });
 
+  const deleteTestClientMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("DELETE", "/api/trainer/test-client", {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/clients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/stats"] });
+      toast({
+        title: "Podopieczny testowy został usunięty",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Błąd",
+        description: error.message || "Nie udało się usunąć podopiecznego testowego",
+        variant: "destructive",
+      });
+    },
+  });
+
   const getInitials = (firstName?: string | null, lastName?: string | null) => {
     const first = firstName?.charAt(0) || "";
     const last = lastName?.charAt(0) || "";
@@ -195,14 +216,57 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
-          <h2 className="font-heading font-bold text-xl md:text-2xl truncate" data-testid={`text-client-name-${client.id}`}>
-            {client.firstName} {client.lastName}
-          </h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="font-heading font-bold text-xl md:text-2xl truncate" data-testid={`text-client-name-${client.id}`}>
+              {client.firstName} {client.lastName}
+            </h2>
+            {client.isTestUser && (
+              <Badge variant="outline" className="bg-violet-500/10 text-violet-600 border-violet-300 shrink-0" data-testid={`badge-test-user-${client.id}`}>
+                TESTOWY
+              </Badge>
+            )}
+          </div>
           <p className="text-muted-foreground text-sm md:text-base mt-1 truncate" data-testid={`text-client-email-${client.id}`}>
             {client.email}
           </p>
         </div>
       </div>
+
+      {client.isTestUser && (
+        <>
+          <Separator />
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full text-destructive hover:bg-destructive/10"
+                data-testid={`button-delete-test-client-${client.id}`}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Usuń podopiecznego testowego
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Usunąć podopiecznego testowego?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {client.firstName} {client.lastName} i wszystkie powiązane dane zostaną usunięte. Tej operacji nie można cofnąć.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel data-testid="button-cancel-delete-test-client">Anuluj</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => deleteTestClientMutation.mutate()}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  data-testid="button-confirm-delete-test-client"
+                >
+                  {deleteTestClientMutation.isPending ? "Usuwanie..." : "Usuń"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      )}
 
       <Separator />
 
@@ -797,9 +861,16 @@ function ClientListItem({
         </AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
-        <p className="font-medium truncate text-sm">
-          {client.firstName} {client.lastName}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className="font-medium truncate text-sm">
+            {client.firstName} {client.lastName}
+          </p>
+          {client.isTestUser && (
+            <Badge variant="outline" className="bg-violet-500/10 text-violet-600 border-violet-300 shrink-0 text-xs" data-testid={`badge-test-user-list-${client.id}`}>
+              TESTOWY
+            </Badge>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground truncate">
           {client.email}
         </p>
@@ -885,7 +956,8 @@ export default function Clients() {
     }
   }, [processedClients, selectedClientId]);
 
-  const clientsWithPlan = clients.filter(c => c.assignment).length;
+  const realClients = clients.filter(c => !c.isTestUser);
+  const clientsWithPlan = realClients.filter(c => c.assignment).length;
 
   const clearSearch = () => setSearchQuery("");
 
@@ -964,7 +1036,7 @@ export default function Clients() {
         <div className="p-4 space-y-4 border-b">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-heading font-bold text-lg" data-testid="text-clients-count">
-              {clients.length} {clients.length === 1 ? "podopieczny" : "podopiecznych"} 
+              {realClients.length} {realClients.length === 1 ? "podopieczny" : "podopiecznych"} 
               <span className="text-muted-foreground font-normal text-sm ml-1">
                 ({clientsWithPlan} z planem)
               </span>

@@ -46,6 +46,7 @@ import { randomUUID } from "crypto";
 import Stripe from "stripe";
 import express from "express";
 import { checkPaymentNotifications } from "./services/paymentNotifications";
+import { createTestClientWithSampleData, deleteTestClient } from "./testClientService";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { 
   apiVersion: '2024-11-20.acacia' as any 
@@ -677,6 +678,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           trialEndsAt.setDate(trialEndsAt.getDate() + 30);
         }
         await storage.updateUserSubscription(user.id, { trialEndsAt });
+        
+        // Create test client with sample data for new trainers
+        const testClientResult = await createTestClientWithSampleData(user.id);
+        if (testClientResult.success) {
+          console.log(`[REGISTER] Test client created for trainer ${user.id}`);
+        } else {
+          console.warn(`[REGISTER] Failed to create test client: ${testClientResult.error}`);
+        }
       }
 
       if (referralCode) {
@@ -2564,6 +2573,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching trainer clients:", error);
       res.status(500).json({ message: "Failed to fetch clients" });
+    }
+  });
+
+  // Delete test client for trainer
+  app.delete("/api/trainer/test-client", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą usuwać podopiecznego testowego" });
+      }
+
+      const result = await deleteTestClient(userId);
+      
+      if (!result.success) {
+        return res.status(404).json({ message: result.error || "Nie znaleziono podopiecznego testowego" });
+      }
+      
+      res.status(200).json({ message: "Podopieczny testowy został usunięty" });
+    } catch (error) {
+      console.error("Error deleting test client:", error);
+      res.status(500).json({ message: "Nie udało się usunąć podopiecznego testowego" });
     }
   });
 
