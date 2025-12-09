@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Clock, Dumbbell, Video, Check, Plus, Minus, ChevronLeft, Play, Trash2 } from "lucide-react";
+import { Clock, Dumbbell, Video, Check, Plus, Minus, ChevronLeft, Play, Trash2, TrendingUp, TrendingDown, Minus as MinusIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState, useEffect } from "react";
@@ -370,6 +370,181 @@ function CompactExerciseCard({ exercise, index }: { exercise: Exercise; index: n
   );
 }
 
+type ExerciseProgressData = {
+  exerciseId: string;
+  exerciseName: string;
+  firstLog: { date: Date; load: number; reps: number; volume: number } | null;
+  latestLog: { date: Date; load: number; reps: number; volume: number } | null;
+  loadChange: number;
+  volumeChange: number;
+};
+
+function parseLoadToKg(load: string | null | undefined): number {
+  if (!load) return 0;
+  const match = load.match(/(\d+(?:\.\d+)?)/);
+  return match ? parseFloat(match[1]) : 0;
+}
+
+function WorkoutProgressStats({ exercises }: { exercises: Exercise[] }) {
+  const exerciseQueries = exercises.map(ex => ({
+    exerciseId: ex.id,
+    exerciseName: ex.name,
+  }));
+
+  const allLogsQueries = exercises.map(exercise => 
+    useQuery<ExerciseLog[]>({
+      queryKey: ["/api/exercises", exercise.id, "logs"],
+    })
+  );
+
+  const isLoading = allLogsQueries.some(q => q.isLoading);
+  const hasAnyData = allLogsQueries.some(q => q.data && q.data.length > 0);
+
+  if (isLoading) {
+    return (
+      <Card className="mt-6">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-center py-4">
+            <div className="animate-spin w-5 h-5 border-2 border-primary border-t-transparent rounded-full" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!hasAnyData) {
+    return null;
+  }
+
+  const progressData: ExerciseProgressData[] = exercises.map((exercise, index) => {
+    const logs = allLogsQueries[index].data || [];
+    
+    if (logs.length === 0) {
+      return {
+        exerciseId: exercise.id,
+        exerciseName: exercise.name,
+        firstLog: null,
+        latestLog: null,
+        loadChange: 0,
+        volumeChange: 0,
+      };
+    }
+
+    const sortedLogs = [...logs].sort((a, b) => 
+      new Date(a.loggedAt).getTime() - new Date(b.loggedAt).getTime()
+    );
+
+    const firstLog = sortedLogs[0];
+    const latestLog = sortedLogs[sortedLogs.length - 1];
+
+    const firstLoad = parseLoadToKg(firstLog.load);
+    const latestLoad = parseLoadToKg(latestLog.load);
+    const firstVolume = firstLoad * (firstLog.reps || 0);
+    const latestVolume = latestLoad * (latestLog.reps || 0);
+
+    return {
+      exerciseId: exercise.id,
+      exerciseName: exercise.name,
+      firstLog: {
+        date: new Date(firstLog.loggedAt),
+        load: firstLoad,
+        reps: firstLog.reps || 0,
+        volume: firstVolume,
+      },
+      latestLog: {
+        date: new Date(latestLog.loggedAt),
+        load: latestLoad,
+        reps: latestLog.reps || 0,
+        volume: latestVolume,
+      },
+      loadChange: firstLoad > 0 ? ((latestLoad - firstLoad) / firstLoad) * 100 : 0,
+      volumeChange: firstVolume > 0 ? ((latestVolume - firstVolume) / firstVolume) * 100 : 0,
+    };
+  }).filter(p => p.firstLog !== null);
+
+  if (progressData.length === 0) {
+    return null;
+  }
+
+  const totalFirstVolume = progressData.reduce((sum, p) => sum + (p.firstLog?.volume || 0), 0);
+  const totalLatestVolume = progressData.reduce((sum, p) => sum + (p.latestLog?.volume || 0), 0);
+  const totalVolumeChange = totalFirstVolume > 0 
+    ? ((totalLatestVolume - totalFirstVolume) / totalFirstVolume) * 100 
+    : 0;
+
+  const avgLoadChange = progressData.length > 0
+    ? progressData.reduce((sum, p) => sum + p.loadChange, 0) / progressData.length
+    : 0;
+
+  return (
+    <Card className="mt-6" data-testid="card-workout-progress">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-primary" />
+          Twój progres
+        </CardTitle>
+        <CardDescription>
+          Porównanie pierwszego treningu z ostatnim
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-muted/30 rounded-lg p-3 text-center">
+            <div className="text-xs text-muted-foreground mb-1">Średnia zmiana ciężaru</div>
+            <div className={`text-xl font-bold flex items-center justify-center gap-1 ${
+              avgLoadChange > 0 ? 'text-green-600 dark:text-green-400' : 
+              avgLoadChange < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
+            }`} data-testid="text-avg-load-change">
+              {avgLoadChange > 0 ? <TrendingUp className="w-4 h-4" /> : 
+               avgLoadChange < 0 ? <TrendingDown className="w-4 h-4" /> : null}
+              {avgLoadChange > 0 ? '+' : ''}{avgLoadChange.toFixed(1)}%
+            </div>
+          </div>
+          <div className="bg-muted/30 rounded-lg p-3 text-center">
+            <div className="text-xs text-muted-foreground mb-1">Zmiana objętości</div>
+            <div className={`text-xl font-bold flex items-center justify-center gap-1 ${
+              totalVolumeChange > 0 ? 'text-green-600 dark:text-green-400' : 
+              totalVolumeChange < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
+            }`} data-testid="text-volume-change">
+              {totalVolumeChange > 0 ? <TrendingUp className="w-4 h-4" /> : 
+               totalVolumeChange < 0 ? <TrendingDown className="w-4 h-4" /> : null}
+              {totalVolumeChange > 0 ? '+' : ''}{totalVolumeChange.toFixed(1)}%
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-muted-foreground">Szczegóły ćwiczeń</div>
+          <div className="space-y-2">
+            {progressData.map((progress) => (
+              <div 
+                key={progress.exerciseId} 
+                className="flex items-center justify-between p-2 bg-muted/20 rounded-md"
+                data-testid={`row-exercise-progress-${progress.exerciseId}`}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{progress.exerciseName}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {progress.firstLog?.load}kg → {progress.latestLog?.load}kg
+                  </div>
+                </div>
+                <div className={`text-sm font-semibold flex items-center gap-1 ${
+                  progress.loadChange > 0 ? 'text-green-600 dark:text-green-400' : 
+                  progress.loadChange < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
+                }`}>
+                  {progress.loadChange > 0 ? <TrendingUp className="w-3 h-3" /> : 
+                   progress.loadChange < 0 ? <TrendingDown className="w-3 h-3" /> : null}
+                  {progress.loadChange > 0 ? '+' : ''}{progress.loadChange.toFixed(1)}%
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function WorkoutSelector({ 
   workouts, 
   onSelect, 
@@ -483,6 +658,8 @@ function WorkoutView({
           />
         ))}
       </div>
+
+      <WorkoutProgressStats exercises={workout.exercises} />
     </div>
   );
 }
