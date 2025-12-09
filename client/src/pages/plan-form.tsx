@@ -28,6 +28,8 @@ const exerciseSchema = z.object({
   restTime: z.coerce.number().optional(),
   load: z.string().optional(),
   technique: z.string().optional(),
+  rir: z.coerce.number().optional(),
+  tempo: z.string().optional(),
   orderIndex: z.number(),
 });
 
@@ -94,7 +96,7 @@ export default function PlanForm() {
       workouts: [{
         name: "Trening 1",
         description: "",
-        exercises: [{ name: "", sets: 3, reps: 10, description: "", videoUrl: "", restTime: 60, load: "", technique: "", orderIndex: 0 }],
+        exercises: [{ name: "", sets: 3, reps: 10, description: "", videoUrl: "", restTime: 60, load: "", technique: "", rir: undefined, tempo: "", orderIndex: 0 }],
         orderIndex: 0
       }],
     },
@@ -113,6 +115,8 @@ export default function PlanForm() {
           restTime: ex.restTime ?? 60,
           load: ex.load ?? "",
           technique: ex.technique ?? "",
+          rir: ex.rir ?? undefined,
+          tempo: ex.tempo ?? "",
           orderIndex: ex.orderIndex,
         })),
         orderIndex: workout.orderIndex,
@@ -191,7 +195,7 @@ export default function PlanForm() {
       { 
         name: `Trening ${currentWorkouts.length + 1}`,
         description: "",
-        exercises: [{ name: "", sets: 3, reps: 10, description: "", videoUrl: "", restTime: 60, load: "", orderIndex: 0 }],
+        exercises: [{ name: "", sets: 3, reps: 10, description: "", videoUrl: "", restTime: 60, load: "", technique: "", rir: undefined, tempo: "", orderIndex: 0 }],
         orderIndex: currentWorkouts.length
       },
     ]);
@@ -217,7 +221,7 @@ export default function PlanForm() {
     const newExerciseIndex = currentExercises.length;
     form.setValue(`workouts.${workoutIndex}.exercises`, [
       ...currentExercises,
-      { name: "", sets: 3, reps: 10, description: "", videoUrl: "", restTime: 60, load: "", technique: "", orderIndex: currentExercises.length },
+      { name: "", sets: 3, reps: 10, description: "", videoUrl: "", restTime: 60, load: "", technique: "", rir: undefined, tempo: "", orderIndex: currentExercises.length },
     ]);
     
     setTimeout(() => {
@@ -627,6 +631,50 @@ export default function PlanForm() {
                                             data-testid={`input-exercise-rest-${workoutIndex}-${exerciseIndex}`} 
                                           />
                                         </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                  <FormField
+                                    control={form.control}
+                                    name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.rir`}
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel className="text-xs">RIR (opcjonalnie)</FormLabel>
+                                        <FormControl>
+                                          <Input 
+                                            type="number" 
+                                            min="0"
+                                            max="10"
+                                            placeholder="np. 2"
+                                            {...field}
+                                            value={field.value ?? ""}
+                                            data-testid={`input-exercise-rir-${workoutIndex}-${exerciseIndex}`} 
+                                          />
+                                        </FormControl>
+                                        <p className="text-xs text-muted-foreground">Powtórzenia w zapasie</p>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+
+                                  <FormField
+                                    control={form.control}
+                                    name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.tempo`}
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel className="text-xs">Tempo (opcjonalnie)</FormLabel>
+                                        <FormControl>
+                                          <Input 
+                                            placeholder="np. 3-1-2-0"
+                                            {...field}
+                                            data-testid={`input-exercise-tempo-${workoutIndex}-${exerciseIndex}`} 
+                                          />
+                                        </FormControl>
+                                        <p className="text-xs text-muted-foreground">Ekscentryka-pauza-koncentryka-pauza</p>
                                         <FormMessage />
                                       </FormItem>
                                     )}

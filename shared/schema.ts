@@ -86,6 +86,8 @@ export const exercises = pgTable("exercises", {
   load: varchar("load"), // obciążenie zalecane przez trenera (np. "20kg", "bodyweight")
   videoUrl: text("video_url"), // link do filmu lub upload
   technique: varchar("technique", { length: 50 }), // technika treningowa: 'dropset', 'cluster_set', 'rest_pause', 'piramida', lub null
+  rir: integer("rir"), // RIR (Reps In Reserve) - ile powtórzeń w zapasie
+  tempo: varchar("tempo", { length: 20 }), // tempo ćwiczenia np. "3-1-2-0" (eccentric-pause-concentric-pause)
 });
 
 // Plan assignments to clients
