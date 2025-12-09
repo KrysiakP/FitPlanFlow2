@@ -154,6 +154,7 @@ export const exerciseLogs = pgTable("exercise_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   exerciseId: varchar("exercise_id").notNull().references(() => exercises.id, { onDelete: "cascade" }),
+  setNumber: integer("set_number").default(1).notNull(), // numer serii (1, 2, 3, ...)
   reps: integer("reps").notNull(), // ilość powtórzeń wykonanych przez podopiecznego
   load: varchar("load"), // obciążenie użyte przez podopiecznego (np. "25kg")
   notes: text("notes"), // notatki podopiecznego
