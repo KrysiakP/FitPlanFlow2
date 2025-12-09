@@ -64,6 +64,7 @@ export function ExerciseSelectionDialog({
       return response.json();
     },
     enabled: open,
+    staleTime: 0,
   });
 
   const handleExerciseClick = (exercise: GlobalExercise) => {
