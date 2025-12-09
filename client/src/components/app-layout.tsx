@@ -401,16 +401,50 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-4 md:p-8">
             <div className="container mx-auto max-w-7xl flex-1 flex flex-col min-h-0">
             {isTrainer && isInTrial && !user?.hasFreeAccess && (
-              <Alert className="mb-6" data-testid="alert-trial-banner">
-                <Clock className="h-4 w-4" />
-                <AlertTitle data-testid="text-trial-title">Okres próbny</AlertTitle>
+              <Alert className="mb-6 border-primary/50 bg-primary/5" data-testid="alert-trial-banner">
+                <Clock className="h-4 w-4 text-primary" />
+                <AlertTitle data-testid="text-trial-title" className="text-primary">
+                  {(() => {
+                    const trialEnd = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
+                    const isPromotionalTrial = trialEnd && 
+                      trialEnd.getFullYear() === 2026 && 
+                      trialEnd.getMonth() === 0 && 
+                      trialEnd.getDate() === 31;
+                    return isPromotionalTrial ? "Darmowy dostęp promocyjny" : "Okres próbny";
+                  })()}
+                </AlertTitle>
                 <AlertDescription data-testid="text-trial-description">
-                  Twój 30-dniowy trial kończy się za {daysRemaining} {daysRemaining === 1 ? 'dzień' : 'dni'}. 
-                  <Link href="/pricing">
-                    <button className="ml-2 underline hover:text-primary" data-testid="link-trial-pricing">
-                      Wykup subskrypcję
-                    </button>
-                  </Link> aby kontynuować z nieograniczoną liczbą podopiecznych.
+                  {(() => {
+                    const trialEnd = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
+                    const isPromotionalTrial = trialEnd && 
+                      trialEnd.getFullYear() === 2026 && 
+                      trialEnd.getMonth() === 0 && 
+                      trialEnd.getDate() === 31;
+                    
+                    if (isPromotionalTrial) {
+                      return (
+                        <>
+                          Korzystasz z darmowego dostępu do <strong>31 stycznia 2026</strong>. 
+                          <Link href="/pricing">
+                            <button className="ml-2 underline hover:text-primary font-medium" data-testid="link-trial-pricing">
+                              Zobacz plany subskrypcji
+                            </button>
+                          </Link> i wybierz pakiet odpowiedni dla Ciebie.
+                        </>
+                      );
+                    }
+                    
+                    return (
+                      <>
+                        Twój trial kończy się za {daysRemaining} {daysRemaining === 1 ? 'dzień' : 'dni'}. 
+                        <Link href="/pricing">
+                          <button className="ml-2 underline hover:text-primary" data-testid="link-trial-pricing">
+                            Wykup subskrypcję
+                          </button>
+                        </Link> aby kontynuować z nieograniczoną liczbą podopiecznych.
+                      </>
+                    );
+                  })()}
                 </AlertDescription>
               </Alert>
             )}
