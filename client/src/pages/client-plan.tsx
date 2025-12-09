@@ -106,10 +106,32 @@ function CompactExerciseCard({ exercise, index }: { exercise: Exercise; index: n
         description: "Twoje wykonanie zostało zapisane.",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      let message = "Nie udało się zapisać wykonania.";
+      
+      // apiRequest throws Error with format "status: jsonText"
+      // Try to parse the backend message from it
+      if (error?.message) {
+        const colonIndex = error.message.indexOf(': ');
+        if (colonIndex > -1) {
+          const jsonPart = error.message.slice(colonIndex + 2);
+          try {
+            const parsed = JSON.parse(jsonPart);
+            if (parsed.message) {
+              message = parsed.message;
+            }
+          } catch {
+            // If not valid JSON, use the raw message after the status
+            message = jsonPart || error.message;
+          }
+        } else {
+          message = error.message;
+        }
+      }
+      
       toast({
         title: "Błąd",
-        description: "Nie udało się zapisać wykonania.",
+        description: message,
         variant: "destructive",
       });
     },

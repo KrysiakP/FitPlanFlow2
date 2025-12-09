@@ -2805,12 +2805,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { exerciseId } = req.params;
+      
+      // Verify exercise exists before logging
+      const exercise = await storage.getExerciseById(exerciseId);
+      if (!exercise) {
+        console.error(`Exercise not found: ${exerciseId}`);
+        return res.status(404).json({ message: "Ćwiczenie nie zostało znalezione" });
+      }
+      
+      // Verify client has access to this exercise
+      const assignment = await storage.getClientAssignment(userId);
+      if (!assignment) {
+        console.error(`Client ${userId} has no plan assignment`);
+        return res.status(403).json({ message: "Nie masz przypisanego planu treningowego" });
+      }
+      
+      // Get workouts for the assigned plan and verify this exercise belongs to one of them
+      const workouts = await storage.getWorkoutsByPlanId(assignment.planId);
+      const workoutIds = workouts.map(w => w.id);
+      
+      if (!exercise.workoutId || !workoutIds.includes(exercise.workoutId)) {
+        console.error(`Exercise ${exerciseId} (workoutId: ${exercise.workoutId}) is not in client's assigned plan ${assignment.planId}`);
+        return res.status(403).json({ message: "Nie masz dostępu do tego ćwiczenia" });
+      }
+      
       const validationResult = insertExerciseLogSchema.safeParse({
         ...req.body,
         exerciseId,
       });
 
       if (!validationResult.success) {
+        console.error("Exercise log validation error:", validationResult.error.errors);
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
           errors: validationResult.error.errors 
