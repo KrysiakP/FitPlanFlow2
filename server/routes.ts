@@ -661,8 +661,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (role === 'trainer') {
-        const trialEndsAt = new Date();
-        trialEndsAt.setDate(trialEndsAt.getDate() + 30);
+        // Promotional period: registration before Jan 30, 2026 gets free access until Jan 31, 2026
+        const promoRegistrationDeadline = new Date('2026-01-30T23:59:59Z');
+        const promoTrialEndDate = new Date('2026-01-31T23:59:59Z');
+        const now = new Date();
+        
+        let trialEndsAt: Date;
+        if (now <= promoRegistrationDeadline) {
+          // User registered during promotional period - give free access until Jan 31, 2026
+          trialEndsAt = promoTrialEndDate;
+          console.log(`[REGISTER] Promotional trial granted until ${promoTrialEndDate.toISOString()}`);
+        } else {
+          // Standard 30-day trial
+          trialEndsAt = new Date();
+          trialEndsAt.setDate(trialEndsAt.getDate() + 30);
+        }
         await storage.updateUserSubscription(user.id, { trialEndsAt });
       }
 
