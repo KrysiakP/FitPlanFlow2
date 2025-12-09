@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Search, RefreshCw, AlertCircle } from "lucide-react";
 import {
@@ -72,7 +72,17 @@ export function ExerciseSelectionDialog({
     },
     enabled: open,
     staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
   });
+
+  // Force refetch when dialog opens
+  useEffect(() => {
+    if (open) {
+      console.log("[ExerciseSelectionDialog] Dialog opened, triggering refetch");
+      refetch();
+    }
+  }, [open, refetch]);
 
   const handleExerciseClick = (exercise: GlobalExercise) => {
     onSelect({ namePl: exercise.namePl, nameEn: exercise.nameEn });
