@@ -268,7 +268,7 @@ function CompactExerciseCard({ exercise, index }: { exercise: Exercise; index: n
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
-                    onClick={() => incrementValue(set.id, 'kg', -2.5)}
+                    onClick={() => incrementValue(set.id, 'kg', -0.5)}
                     disabled={set.completed}
                     data-testid={`button-kg-minus-${exercise.id}-${set.id}`}
                   >
@@ -286,7 +286,7 @@ function CompactExerciseCard({ exercise, index }: { exercise: Exercise; index: n
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
-                    onClick={() => incrementValue(set.id, 'kg', 2.5)}
+                    onClick={() => incrementValue(set.id, 'kg', 0.5)}
                     disabled={set.completed}
                     data-testid={`button-kg-plus-${exercise.id}-${set.id}`}
                   >
