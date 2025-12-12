@@ -51,7 +51,7 @@ export default function Landing() {
                 <img 
                   src={heroImage} 
                   alt="Panel Trenera - aplikacja mobilna" 
-                  className="max-w-full h-auto max-h-[500px] object-contain"
+                  className="max-w-full h-auto max-h-[700px] object-contain scale-110 lg:scale-125"
                   data-testid="img-hero"
                 />
               </div>
