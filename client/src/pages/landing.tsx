@@ -39,7 +39,7 @@ export default function Landing() {
                   Profesjonalne zarządzanie<br />planami treningowymi
                 </h1>
                 <p className="text-xl text-muted-foreground max-w-2xl mx-auto lg:mx-0">
-                  Stwórz, przypisuj i zarządzaj planami treningowymi dla swoich podopiecznych w jednym miejscu
+                  Stwórz, przypisuj i zarządzaj planami treningowymi<br />dla swoich podopiecznych w jednym miejscu
                 </p>
                 <div className="flex gap-4 justify-center lg:justify-start">
                   <Button size="lg" asChild data-testid="button-start">
