@@ -8,6 +8,7 @@ import { TrainerSection } from "@/components/landing/TrainerSection";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { CharitySection } from "@/components/landing/CharitySection";
 import { useAuth } from "@/hooks/useAuth";
+import heroImage from "@assets/1_1765563277246.png";
 
 export default function Landing() {
   const { user } = useAuth();
@@ -31,17 +32,29 @@ export default function Landing() {
         </div>
 
         <section className="py-20 px-4">
-          <div className="container mx-auto max-w-5xl text-center space-y-8">
-            <h1 className="font-heading font-bold text-4xl md:text-5xl lg:text-6xl">
-              Profesjonalne zarządzanie<br />planami treningowymi
-            </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Stwórz, przypisuj i zarządzaj planami treningowymi dla swoich podopiecznych w jednym miejscu
-            </p>
-            <div className="flex gap-4 justify-center">
-              <Button size="lg" asChild data-testid="button-start">
-                <Link href="/register">Rozpocznij za darmo</Link>
-              </Button>
+          <div className="container mx-auto max-w-6xl">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              <div className="space-y-8 text-center lg:text-left">
+                <h1 className="font-heading font-bold text-4xl md:text-5xl lg:text-6xl">
+                  Profesjonalne zarządzanie<br />planami treningowymi
+                </h1>
+                <p className="text-xl text-muted-foreground max-w-2xl mx-auto lg:mx-0">
+                  Stwórz, przypisuj i zarządzaj planami treningowymi dla swoich podopiecznych w jednym miejscu
+                </p>
+                <div className="flex gap-4 justify-center lg:justify-start">
+                  <Button size="lg" asChild data-testid="button-start">
+                    <Link href="/register">Rozpocznij za darmo</Link>
+                  </Button>
+                </div>
+              </div>
+              <div className="flex justify-center lg:justify-end">
+                <img 
+                  src={heroImage} 
+                  alt="Panel Trenera - aplikacja mobilna" 
+                  className="max-w-full h-auto max-h-[500px] object-contain"
+                  data-testid="img-hero"
+                />
+              </div>
             </div>
           </div>
         </section>
