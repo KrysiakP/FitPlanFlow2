@@ -19,6 +19,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       if (stored === "light" || stored === "dark") {
         return stored;
       }
+      // Clear any existing dark class and set light as default
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem(THEME_STORAGE_KEY, "light");
     }
     return "light";
   });
