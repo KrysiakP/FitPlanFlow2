@@ -31,7 +31,7 @@ export default function Landing() {
           </div>
         </div>
 
-        <section className="py-20 px-4">
+        <section className="pt-20 pb-0 px-4">
           <div className="container mx-auto max-w-6xl">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <div className="space-y-8 text-center lg:text-left">
