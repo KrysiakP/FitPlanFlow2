@@ -78,6 +78,11 @@ export default function DietPlanForm() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [activeDay, setActiveDay] = useState("1");
+  
+  // Macro percentages state
+  const [proteinPercent, setProteinPercent] = useState(30);
+  const [fatPercent, setFatPercent] = useState(25);
+  const [carbsPercent, setCarbsPercent] = useState(45);
 
   const { data: existingPlan, isLoading: isLoadingPlan } = useQuery<DietPlanWithMeals>({
     queryKey: ["/api/diets/plans", id],
@@ -135,9 +140,9 @@ export default function DietPlanForm() {
       clientId: null,
       mode: 'macro_only',
       targetCalories: 2000,
-      targetProtein: 150,
-      targetFat: 65,
-      targetCarbs: 200,
+      targetProtein: 150, // 30% of 2000 kcal / 4 kcal per gram
+      targetFat: 56, // 25% of 2000 kcal / 9 kcal per gram
+      targetCarbs: 225, // 45% of 2000 kcal / 4 kcal per gram
       mealsPerDay: 5,
       recommendedProducts: "",
       status: "active",
@@ -146,8 +151,74 @@ export default function DietPlanForm() {
     },
   });
 
+  // Calculate grams from percentage and calories
+  const calculateGramsFromPercent = (calories: number, percent: number, kcalPerGram: number) => {
+    return Math.round((calories * (percent / 100)) / kcalPerGram);
+  };
+
+  // Calculate percentage from grams and calories
+  const calculatePercentFromGrams = (calories: number, grams: number, kcalPerGram: number) => {
+    if (calories <= 0) return 0;
+    return Math.round((grams * kcalPerGram / calories) * 100);
+  };
+
+  // Handle percentage change - update grams
+  const handlePercentChange = (macro: 'protein' | 'fat' | 'carbs', percent: number) => {
+    const calories = form.getValues('targetCalories') || 0;
+    const kcalPerGram = macro === 'fat' ? 9 : 4;
+    const grams = calculateGramsFromPercent(calories, percent, kcalPerGram);
+    
+    if (macro === 'protein') {
+      setProteinPercent(percent);
+      form.setValue('targetProtein', grams);
+    } else if (macro === 'fat') {
+      setFatPercent(percent);
+      form.setValue('targetFat', grams);
+    } else {
+      setCarbsPercent(percent);
+      form.setValue('targetCarbs', grams);
+    }
+  };
+
+  // Handle grams change - update percentage
+  const handleGramsChange = (macro: 'protein' | 'fat' | 'carbs', grams: number) => {
+    const calories = form.getValues('targetCalories') || 0;
+    const kcalPerGram = macro === 'fat' ? 9 : 4;
+    const percent = calculatePercentFromGrams(calories, grams, kcalPerGram);
+    
+    if (macro === 'protein') {
+      setProteinPercent(percent);
+    } else if (macro === 'fat') {
+      setFatPercent(percent);
+    } else {
+      setCarbsPercent(percent);
+    }
+  };
+
+  // Handle calories change - recalculate all grams based on current percentages
+  const handleCaloriesChange = (calories: number) => {
+    form.setValue('targetCalories', calories);
+    form.setValue('targetProtein', calculateGramsFromPercent(calories, proteinPercent, 4));
+    form.setValue('targetFat', calculateGramsFromPercent(calories, fatPercent, 9));
+    form.setValue('targetCarbs', calculateGramsFromPercent(calories, carbsPercent, 4));
+  };
+
+  const totalPercent = proteinPercent + fatPercent + carbsPercent;
+  // Allow 1% tolerance for rounding errors (99-101%)
+  const isPercentValid = totalPercent >= 99 && totalPercent <= 101;
+
   useEffect(() => {
     if (existingPlan) {
+      // Calculate percentages from existing grams
+      const calories = existingPlan.targetCalories || 2000;
+      const pPercent = calculatePercentFromGrams(calories, existingPlan.targetProtein, 4);
+      const fPercent = calculatePercentFromGrams(calories, existingPlan.targetFat, 9);
+      const cPercent = calculatePercentFromGrams(calories, existingPlan.targetCarbs, 4);
+      
+      setProteinPercent(pPercent);
+      setFatPercent(fPercent);
+      setCarbsPercent(cPercent);
+
       form.reset({
         name: existingPlan.name,
         description: existingPlan.description || "",
@@ -481,6 +552,14 @@ export default function DietPlanForm() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(
           (data) => {
+            if (!isPercentValid) {
+              toast({
+                title: "Nieprawidłowe makroskładniki",
+                description: "Suma procentów makroskładników musi wynosić około 100% (dopuszczalne 99-101%)",
+                variant: "destructive",
+              });
+              return;
+            }
             console.log("[DIET FORM] Submitting data:", data);
             createPlanMutation.mutate(data);
           },
@@ -623,65 +702,177 @@ export default function DietPlanForm() {
           <Card>
             <CardHeader>
               <CardTitle className="font-heading">Makroskładniki docelowe</CardTitle>
-              <CardDescription>Określ cele żywieniowe</CardDescription>
+              <CardDescription>Określ cele żywieniowe - suma procentów musi wynosić 100%</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <CardContent className="space-y-6">
+              {/* Calories Row */}
+              <div className="flex items-center gap-4 flex-wrap">
+                <Label className="w-28 font-medium">Zapotrzebowanie</Label>
                 <FormField
                   control={form.control}
                   name="targetCalories"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Kalorie (kcal)</FormLabel>
+                    <FormItem className="flex-1 min-w-[100px]">
                       <FormControl>
-                        <Input type="number" min="1" {...field} data-testid="input-target-calories" />
+                        <Input
+                          type="number"
+                          min="1"
+                          {...field}
+                          onChange={(e) => handleCaloriesChange(Number(e.target.value))}
+                          data-testid="input-target-calories"
+                          className="text-center font-medium"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+                <span className="text-muted-foreground">kcal</span>
+              </div>
 
+              {/* Protein Row */}
+              <div className="flex items-center gap-4 flex-wrap">
+                <Label className="w-28 font-medium">Białko</Label>
                 <FormField
                   control={form.control}
                   name="targetProtein"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Białko (g)</FormLabel>
+                    <FormItem className="flex-1 min-w-[80px]">
                       <FormControl>
-                        <Input type="number" min="1" {...field} data-testid="input-target-protein" />
+                        <Input
+                          type="number"
+                          min="0"
+                          {...field}
+                          onChange={(e) => {
+                            const grams = Number(e.target.value);
+                            field.onChange(grams);
+                            handleGramsChange('protein', grams);
+                          }}
+                          data-testid="input-target-protein"
+                          className="text-center font-medium"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+                <span className="text-muted-foreground">g</span>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={proteinPercent}
+                  onChange={(e) => handlePercentChange('protein', Number(e.target.value))}
+                  data-testid="input-protein-percent"
+                  className="w-20 text-center font-medium"
+                />
+                <span className="text-muted-foreground">%</span>
+              </div>
 
+              {/* Fat Row */}
+              <div className="flex items-center gap-4 flex-wrap">
+                <Label className="w-28 font-medium">Tłuszcze</Label>
                 <FormField
                   control={form.control}
                   name="targetFat"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tłuszcze (g)</FormLabel>
+                    <FormItem className="flex-1 min-w-[80px]">
                       <FormControl>
-                        <Input type="number" min="1" {...field} data-testid="input-target-fat" />
+                        <Input
+                          type="number"
+                          min="0"
+                          {...field}
+                          onChange={(e) => {
+                            const grams = Number(e.target.value);
+                            field.onChange(grams);
+                            handleGramsChange('fat', grams);
+                          }}
+                          data-testid="input-target-fat"
+                          className="text-center font-medium"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+                <span className="text-muted-foreground">g</span>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={fatPercent}
+                  onChange={(e) => handlePercentChange('fat', Number(e.target.value))}
+                  data-testid="input-fat-percent"
+                  className="w-20 text-center font-medium"
+                />
+                <span className="text-muted-foreground">%</span>
+              </div>
 
+              {/* Carbs Row */}
+              <div className="flex items-center gap-4 flex-wrap">
+                <Label className="w-28 font-medium">Węglowodany</Label>
                 <FormField
                   control={form.control}
                   name="targetCarbs"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Węglowodany (g)</FormLabel>
+                    <FormItem className="flex-1 min-w-[80px]">
                       <FormControl>
-                        <Input type="number" min="1" {...field} data-testid="input-target-carbs" />
+                        <Input
+                          type="number"
+                          min="0"
+                          {...field}
+                          onChange={(e) => {
+                            const grams = Number(e.target.value);
+                            field.onChange(grams);
+                            handleGramsChange('carbs', grams);
+                          }}
+                          data-testid="input-target-carbs"
+                          className="text-center font-medium"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+                <span className="text-muted-foreground">g</span>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={carbsPercent}
+                  onChange={(e) => handlePercentChange('carbs', Number(e.target.value))}
+                  data-testid="input-carbs-percent"
+                  className="w-20 text-center font-medium"
+                />
+                <span className="text-muted-foreground">%</span>
+              </div>
+
+              {/* Total Percentage Display */}
+              <div className={cn(
+                "p-4 rounded-lg border",
+                isPercentValid 
+                  ? "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800" 
+                  : "bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800"
+              )}>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="font-medium">Razem:</span>
+                  <span className={cn(
+                    "text-2xl font-bold px-4 py-1 rounded",
+                    isPercentValid 
+                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" 
+                      : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+                  )} data-testid="text-total-percent">
+                    {totalPercent}%
+                  </span>
+                </div>
+                <p className={cn(
+                  "text-sm mt-2",
+                  isPercentValid ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"
+                )}>
+                  {isPercentValid 
+                    ? "Łączna wartość % makroskładników jest prawidłowa" 
+                    : "Łączna wartość % makroskładników musi wynosić około 100% (dopuszczalne 99-101%)"}
+                </p>
               </div>
             </CardContent>
           </Card>
