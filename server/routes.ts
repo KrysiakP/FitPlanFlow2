@@ -3673,7 +3673,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const meals = await storage.getDietPlanMeals(plan.id);
-      res.json({ plan, meals });
+      res.json({ ...plan, meals });
     } catch (error) {
       console.error("Error fetching client diet:", error);
       res.status(500).json({ message: "Nie udało się pobrać planu dietetycznego" });
