@@ -8,7 +8,7 @@ import { TrainerSection } from "@/components/landing/TrainerSection";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { CharitySection } from "@/components/landing/CharitySection";
 import { useAuth } from "@/hooks/useAuth";
-import heroImage from "@assets/1_1765563277246.png";
+import heroImage from "@assets/2_1765646280340.png";
 
 export default function Landing() {
   const { user } = useAuth();
