@@ -487,10 +487,10 @@ export default function PlanForm() {
                           {form.watch(`workouts.${workoutIndex}.exercises`).map((_, exerciseIndex) => (
                             <Card key={exerciseIndex} className="bg-muted/30" data-testid={`card-exercise-${workoutIndex}-${exerciseIndex}`}>
                               <CardContent className="p-4 space-y-4">
-                                <div className="flex items-start justify-between gap-4">
-                                  <div className="flex items-start gap-3 flex-1">
-                                    <GripVertical className="w-4 h-4 text-muted-foreground mt-1 flex-shrink-0" />
-                                    <div className="flex-1 min-w-0">
+                                <div className="space-y-3">
+                                  <div className="flex items-start gap-2">
+                                    <GripVertical className="w-4 h-4 text-muted-foreground mt-2 flex-shrink-0 hidden sm:block" />
+                                    <div className="flex-1">
                                       <FormField
                                         control={form.control}
                                         name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.name`}
@@ -501,6 +501,7 @@ export default function PlanForm() {
                                               <Input 
                                                 placeholder="np. Wyciskanie sztangi" 
                                                 {...field} 
+                                                className="text-base"
                                                 data-testid={`input-exercise-name-${workoutIndex}-${exerciseIndex}`} 
                                               />
                                             </FormControl>
@@ -510,45 +511,43 @@ export default function PlanForm() {
                                       />
                                     </div>
                                   </div>
-                                  <div className="flex gap-2 flex-shrink-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <Button
                                       type="button"
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => duplicateExercise(workoutIndex, exerciseIndex)}
-                                      data-testid={`button-duplicate-exercise-${workoutIndex}-${exerciseIndex}`}
-                                      title="Duplikuj ćwiczenie"
+                                      onClick={() => handleSelectFromLibrary(workoutIndex, exerciseIndex)}
+                                      data-testid={`button-select-from-library-${workoutIndex}-${exerciseIndex}`}
                                     >
-                                      <Copy className="w-4 h-4" />
+                                      <Library className="w-4 h-4 mr-2" />
+                                      Moje ćwiczenia
                                     </Button>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="icon"
-                                      onClick={() => removeExercise(workoutIndex, exerciseIndex)}
-                                      disabled={form.watch(`workouts.${workoutIndex}.exercises`).length === 1}
-                                      data-testid={`button-remove-exercise-${workoutIndex}-${exerciseIndex}`}
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
+                                    <div className="flex gap-2 ml-auto">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => duplicateExercise(workoutIndex, exerciseIndex)}
+                                        data-testid={`button-duplicate-exercise-${workoutIndex}-${exerciseIndex}`}
+                                        title="Duplikuj ćwiczenie"
+                                      >
+                                        <Copy className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => removeExercise(workoutIndex, exerciseIndex)}
+                                        disabled={form.watch(`workouts.${workoutIndex}.exercises`).length === 1}
+                                        data-testid={`button-remove-exercise-${workoutIndex}-${exerciseIndex}`}
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
                                   </div>
                                 </div>
 
-                                <div className="bg-primary/5 border border-primary/20 rounded-md p-3 space-y-2">
-                                  <p className="text-xs font-medium text-primary">Wybierz ćwiczenie z biblioteki:</p>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleSelectFromLibrary(workoutIndex, exerciseIndex)}
-                                    data-testid={`button-select-from-library-${workoutIndex}-${exerciseIndex}`}
-                                  >
-                                    <Library className="w-4 h-4 mr-2" />
-                                    Moje ćwiczenia
-                                  </Button>
-                                </div>
-
-                                <div className="grid grid-cols-3 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                   <FormField
                                     control={form.control}
                                     name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.sets`}
@@ -607,7 +606,7 @@ export default function PlanForm() {
                                   />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                   <FormField
                                     control={form.control}
                                     name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.rir`}
