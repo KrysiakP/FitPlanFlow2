@@ -26,53 +26,6 @@ export default function TrainerDashboard() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-        <Link href="/plans">
-          <Card className="hover-elevate cursor-pointer" data-testid="card-stat-plans">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Plany treningowe</CardTitle>
-              <ClipboardList className="w-4 h-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-total-plans">
-                {stats?.totalPlans ?? 0}
-              </div>
-              <p className="text-xs text-muted-foreground">Łączna liczba planów</p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/clients">
-          <Card className="hover-elevate cursor-pointer" data-testid="card-stat-clients">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Podopieczni</CardTitle>
-              <Users className="w-4 h-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-total-clients">
-                {stats?.totalClients ?? 0}
-              </div>
-              <p className="text-xs text-muted-foreground">Aktywni podopieczni</p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/plans">
-          <Card className="hover-elevate cursor-pointer" data-testid="card-stat-assignments">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Przypisania</CardTitle>
-              <UserPlus className="w-4 h-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-total-assignments">
-                {stats?.totalAssignments ?? 0}
-              </div>
-              <p className="text-xs text-muted-foreground">Przypisane plany</p>
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         <Link href="/plans">
           <Card className="hover-elevate cursor-pointer" data-testid="card-quick-plans">
@@ -252,6 +205,53 @@ export default function TrainerDashboard() {
           </Card>
         </Link>
 
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        <Link href="/plans">
+          <Card className="hover-elevate cursor-pointer" data-testid="card-stat-plans">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Plany treningowe</CardTitle>
+              <ClipboardList className="w-4 h-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-total-plans">
+                {stats?.totalPlans ?? 0}
+              </div>
+              <p className="text-xs text-muted-foreground">Łączna liczba planów</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/clients">
+          <Card className="hover-elevate cursor-pointer" data-testid="card-stat-clients">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Podopieczni</CardTitle>
+              <Users className="w-4 h-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-total-clients">
+                {stats?.totalClients ?? 0}
+              </div>
+              <p className="text-xs text-muted-foreground">Aktywni podopieczni</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/plans">
+          <Card className="hover-elevate cursor-pointer" data-testid="card-stat-assignments">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Przypisania</CardTitle>
+              <UserPlus className="w-4 h-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-total-assignments">
+                {stats?.totalAssignments ?? 0}
+              </div>
+              <p className="text-xs text-muted-foreground">Przypisane plany</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border-primary/20 mt-4 md:mt-8">
