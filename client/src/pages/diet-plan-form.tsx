@@ -715,10 +715,16 @@ export default function DietPlanForm() {
                     <FormItem className="flex-1 min-w-[100px]">
                       <FormControl>
                         <Input
-                          type="number"
-                          min="1"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           {...field}
-                          onChange={(e) => handleCaloriesChange(Number(e.target.value))}
+                          value={field.value || ''}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, '');
+                            field.onChange(val === '' ? '' : Number(val));
+                            if (val !== '') handleCaloriesChange(Number(val));
+                          }}
                           data-testid="input-target-calories"
                           className="text-center font-medium"
                         />
@@ -740,12 +746,15 @@ export default function DietPlanForm() {
                     <FormItem className="flex-1 min-w-[80px]">
                       <FormControl>
                         <Input
-                          type="number"
-                          min="0"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           {...field}
+                          value={field.value || ''}
                           onChange={(e) => {
-                            const grams = Number(e.target.value);
-                            field.onChange(grams);
+                            const val = e.target.value.replace(/[^0-9]/g, '');
+                            const grams = val === '' ? 0 : Number(val);
+                            field.onChange(val === '' ? '' : grams);
                             handleGramsChange('protein', grams);
                           }}
                           data-testid="input-target-protein"
@@ -758,11 +767,14 @@ export default function DietPlanForm() {
                 />
                 <span className="text-muted-foreground">g</span>
                 <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={proteinPercent}
-                  onChange={(e) => handlePercentChange('protein', Number(e.target.value))}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={proteinPercent || ''}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    handlePercentChange('protein', val === '' ? 0 : Number(val));
+                  }}
                   data-testid="input-protein-percent"
                   className="w-20 text-center font-medium"
                 />
@@ -779,12 +791,15 @@ export default function DietPlanForm() {
                     <FormItem className="flex-1 min-w-[80px]">
                       <FormControl>
                         <Input
-                          type="number"
-                          min="0"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           {...field}
+                          value={field.value || ''}
                           onChange={(e) => {
-                            const grams = Number(e.target.value);
-                            field.onChange(grams);
+                            const val = e.target.value.replace(/[^0-9]/g, '');
+                            const grams = val === '' ? 0 : Number(val);
+                            field.onChange(val === '' ? '' : grams);
                             handleGramsChange('fat', grams);
                           }}
                           data-testid="input-target-fat"
@@ -797,11 +812,14 @@ export default function DietPlanForm() {
                 />
                 <span className="text-muted-foreground">g</span>
                 <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={fatPercent}
-                  onChange={(e) => handlePercentChange('fat', Number(e.target.value))}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={fatPercent || ''}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    handlePercentChange('fat', val === '' ? 0 : Number(val));
+                  }}
                   data-testid="input-fat-percent"
                   className="w-20 text-center font-medium"
                 />
@@ -818,12 +836,15 @@ export default function DietPlanForm() {
                     <FormItem className="flex-1 min-w-[80px]">
                       <FormControl>
                         <Input
-                          type="number"
-                          min="0"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           {...field}
+                          value={field.value || ''}
                           onChange={(e) => {
-                            const grams = Number(e.target.value);
-                            field.onChange(grams);
+                            const val = e.target.value.replace(/[^0-9]/g, '');
+                            const grams = val === '' ? 0 : Number(val);
+                            field.onChange(val === '' ? '' : grams);
                             handleGramsChange('carbs', grams);
                           }}
                           data-testid="input-target-carbs"
@@ -836,11 +857,14 @@ export default function DietPlanForm() {
                 />
                 <span className="text-muted-foreground">g</span>
                 <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={carbsPercent}
-                  onChange={(e) => handlePercentChange('carbs', Number(e.target.value))}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={carbsPercent || ''}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    handlePercentChange('carbs', val === '' ? 0 : Number(val));
+                  }}
                   data-testid="input-carbs-percent"
                   className="w-20 text-center font-medium"
                 />

@@ -562,9 +562,15 @@ export default function PlanForm() {
                                         <FormLabel className="text-xs">Powtórzenia</FormLabel>
                                         <FormControl>
                                           <Input 
-                                            type="number" 
-                                            min="1" 
-                                            {...field} 
+                                            type="text"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            {...field}
+                                            value={field.value ?? ''}
+                                            onChange={(e) => {
+                                              const val = e.target.value.replace(/[^0-9]/g, '');
+                                              field.onChange(val === '' ? '' : Number(val));
+                                            }}
                                             data-testid={`input-exercise-reps-${workoutIndex}-${exerciseIndex}`} 
                                           />
                                         </FormControl>
@@ -581,9 +587,15 @@ export default function PlanForm() {
                                         <FormLabel className="text-xs">Serie</FormLabel>
                                         <FormControl>
                                           <Input 
-                                            type="number" 
-                                            min="1" 
-                                            {...field} 
+                                            type="text"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            {...field}
+                                            value={field.value ?? ''}
+                                            onChange={(e) => {
+                                              const val = e.target.value.replace(/[^0-9]/g, '');
+                                              field.onChange(val === '' ? '' : Number(val));
+                                            }}
                                             data-testid={`input-exercise-sets-${workoutIndex}-${exerciseIndex}`} 
                                           />
                                         </FormControl>
@@ -602,9 +614,15 @@ export default function PlanForm() {
                                         <FormLabel className="text-xs">Odpoczynek (s)</FormLabel>
                                         <FormControl>
                                           <Input 
-                                            type="number" 
-                                            min="0" 
-                                            {...field} 
+                                            type="text"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            {...field}
+                                            value={field.value ?? ''}
+                                            onChange={(e) => {
+                                              const val = e.target.value.replace(/[^0-9]/g, '');
+                                              field.onChange(val === '' ? '' : Number(val));
+                                            }}
                                             data-testid={`input-exercise-rest-${workoutIndex}-${exerciseIndex}`} 
                                           />
                                         </FormControl>
@@ -621,12 +639,16 @@ export default function PlanForm() {
                                         <FormLabel className="text-xs">RIR</FormLabel>
                                         <FormControl>
                                           <Input 
-                                            type="number" 
-                                            min="0"
-                                            max="10"
+                                            type="text"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
                                             placeholder="np. 2"
                                             {...field}
-                                            value={field.value ?? ""}
+                                            value={field.value ?? ''}
+                                            onChange={(e) => {
+                                              const val = e.target.value.replace(/[^0-9]/g, '');
+                                              field.onChange(val === '' ? '' : Number(val));
+                                            }}
                                             data-testid={`input-exercise-rir-${workoutIndex}-${exerciseIndex}`} 
                                           />
                                         </FormControl>
