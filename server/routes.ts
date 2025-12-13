@@ -4141,9 +4141,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
       const { id } = req.params;
 
-      // Both trainer and client can mark payment as paid
-      if (!user?.role) {
-        return res.status(400).json({ message: "Użytkownik nie ma przypisanej roli" });
+      // Only trainers can mark payment as paid
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trener może oznaczyć płatność jako zapłaconą" });
       }
 
       await storage.markPaymentAsPaid(id);

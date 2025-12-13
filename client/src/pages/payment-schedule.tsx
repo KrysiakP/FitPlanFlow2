@@ -455,21 +455,21 @@ export default function PaymentSchedule() {
                       </p>
                     )}
                     
-                    <div className="flex gap-2">
-                      {!payment.isPaid && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => markPaidMutation.mutate(payment.id)}
-                          disabled={markPaidMutation.isPending}
-                          data-testid={`button-mark-paid-${payment.id}`}
-                        >
-                          <Check className="w-4 h-4 mr-1" />
-                          Zapłacono
-                        </Button>
-                      )}
-                      {isTrainer && (
+                    {isTrainer && (
+                      <div className="flex gap-2">
+                        {!payment.isPaid && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => markPaidMutation.mutate(payment.id)}
+                            disabled={markPaidMutation.isPending}
+                            data-testid={`button-mark-paid-${payment.id}`}
+                          >
+                            <Check className="w-4 h-4 mr-1" />
+                            Zapłacono
+                          </Button>
+                        )}
                         <Button
                           size="icon"
                           variant="destructive"
@@ -479,8 +479,8 @@ export default function PaymentSchedule() {
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -495,7 +495,7 @@ export default function PaymentSchedule() {
                       <TableHead>Termin płatności</TableHead>
                       <TableHead>Status</TableHead>
                       {payments.some(p => p.notes) && <TableHead>Notatki</TableHead>}
-                      <TableHead className="text-right">Akcje</TableHead>
+                      {isTrainer && <TableHead className="text-right">Akcje</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -552,21 +552,21 @@ export default function PaymentSchedule() {
                             {payment.notes || "-"}
                           </TableCell>
                         )}
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            {!payment.isPaid && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => markPaidMutation.mutate(payment.id)}
-                                disabled={markPaidMutation.isPending}
-                                data-testid={`button-mark-paid-${payment.id}`}
-                              >
-                                <Check className="w-4 h-4 mr-1" />
-                                Zapłacono
-                              </Button>
-                            )}
-                            {isTrainer && (
+                        {isTrainer && (
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              {!payment.isPaid && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => markPaidMutation.mutate(payment.id)}
+                                  disabled={markPaidMutation.isPending}
+                                  data-testid={`button-mark-paid-${payment.id}`}
+                                >
+                                  <Check className="w-4 h-4 mr-1" />
+                                  Zapłacono
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant="destructive"
@@ -576,9 +576,9 @@ export default function PaymentSchedule() {
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
-                            )}
-                          </div>
-                        </TableCell>
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
