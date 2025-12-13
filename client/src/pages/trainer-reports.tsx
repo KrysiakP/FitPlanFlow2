@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { FileText, User, Calendar, Weight, Ruler, Activity, Heart, Pill, MessageSquare, Image as ImageIcon, TrendingUp, TrendingDown, Minus, ArrowRight, BarChart3 } from "lucide-react";
+import { FileText, User, Calendar, Weight, Ruler, Activity, Heart, Pill, MessageSquare, Image as ImageIcon, ArrowRight, BarChart3 } from "lucide-react";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import type { User as UserType, WeeklyReport } from "@shared/schema";
@@ -20,35 +20,34 @@ function parseNumericValue(value: string | null | undefined): number | null {
   return isNaN(num) ? null : num;
 }
 
-function formatDiff(diff: number | null, unit: string = "", invert: boolean = false): { text: string; type: "positive" | "negative" | "neutral" } {
+function formatDiff(diff: number | null, unit: string = ""): { text: string; type: "positive" | "negative" | "neutral" } {
   if (diff === null) return { text: "-", type: "neutral" };
   const absValue = Math.abs(diff).toFixed(1);
-  const effectiveInvert = invert ? !false : false;
   
   if (Math.abs(diff) < 0.05) {
     return { text: `0${unit}`, type: "neutral" };
   }
   
-  if (diff < 0) {
+  if (diff > 0) {
     return { 
-      text: `-${absValue}${unit}`, 
-      type: invert ? "negative" : "positive"
+      text: `+${absValue}${unit}`, 
+      type: "positive"
     };
   }
   return { 
-    text: `+${absValue}${unit}`, 
-    type: invert ? "positive" : "negative"
+    text: `-${absValue}${unit}`, 
+    type: "negative"
   };
 }
 
 function calculateComparison(oldReport: WeeklyReport, newReport: WeeklyReport) {
-  const metrics: { label: string; field: keyof WeeklyReport; unit: string; invert?: boolean }[] = [
+  const metrics: { label: string; field: keyof WeeklyReport; unit: string }[] = [
     { label: "Waga", field: "weight", unit: " kg" },
     { label: "Klatka", field: "chest", unit: " cm" },
     { label: "Talia", field: "waist", unit: " cm" },
     { label: "Biodro", field: "hips", unit: " cm" },
-    { label: "Ramię", field: "arm", unit: " cm", invert: true },
-    { label: "Udo", field: "leg", unit: " cm", invert: true },
+    { label: "Ramię", field: "arm", unit: " cm" },
+    { label: "Udo", field: "leg", unit: " cm" },
   ];
 
   return metrics.map(m => {
@@ -59,7 +58,7 @@ function calculateComparison(oldReport: WeeklyReport, newReport: WeeklyReport) {
       ...m,
       oldValue: oldVal !== null ? `${oldVal}${m.unit}` : "-",
       newValue: newVal !== null ? `${newVal}${m.unit}` : "-",
-      ...formatDiff(diff, m.unit, m.invert),
+      ...formatDiff(diff, m.unit),
     };
   }).filter(m => m.oldValue !== "-" || m.newValue !== "-");
 }
@@ -91,14 +90,7 @@ function ProgressComparisonSection({ reports }: { reports: WeeklyReport[] }) {
           >
             <p className="text-xs text-muted-foreground mb-1">{metric.label}</p>
             <div className="flex items-center justify-center gap-1">
-              {metric.type === "positive" && <TrendingDown className="w-4 h-4 text-green-600" />}
-              {metric.type === "negative" && <TrendingUp className="w-4 h-4 text-red-500" />}
-              {metric.type === "neutral" && <Minus className="w-4 h-4 text-muted-foreground" />}
-              <span className={`font-semibold text-sm ${
-                metric.type === "positive" ? "text-green-600" : 
-                metric.type === "negative" ? "text-red-500" : 
-                "text-muted-foreground"
-              }`}>
+              <span className="font-semibold text-sm">
                 {metric.text}
               </span>
             </div>
