@@ -844,7 +844,7 @@ export default function PlanForm() {
               onClick={() => {
                 setSuccessDialogOpen(false);
                 if (newPlanId) {
-                  setLocation(`/plans/${newPlanId}`);
+                  setLocation(`/plans/${newPlanId}/edit`);
                 }
               }}
               data-testid="button-view-plan"
