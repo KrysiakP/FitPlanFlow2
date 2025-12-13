@@ -74,6 +74,22 @@ export default function TrainerDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        <Link href="/profile">
+          <Card className="hover-elevate cursor-pointer" data-testid="card-quick-profile">
+            <CardContent className="p-4 md:p-6">
+              <div className="flex items-center gap-3 md:gap-4">
+                <div className="p-2 md:p-3 bg-primary/10 rounded-lg">
+                  <UserCircle className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-heading font-semibold text-base md:text-lg">Profil</h3>
+                  <p className="text-xs md:text-sm text-muted-foreground">Edytuj swoje dane</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
         <Link href="/plans">
           <Card className="hover-elevate cursor-pointer" data-testid="card-quick-plans">
             <CardContent className="p-4 md:p-6">
@@ -204,21 +220,6 @@ export default function TrainerDashboard() {
           </Card>
         </Link>
 
-        <Link href="/profile">
-          <Card className="hover-elevate cursor-pointer" data-testid="card-quick-profile">
-            <CardContent className="p-4 md:p-6">
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="p-2 md:p-3 bg-primary/10 rounded-lg">
-                  <UserCircle className="w-5 h-5 md:w-6 md:h-6 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-heading font-semibold text-base md:text-lg">Profil</h3>
-                  <p className="text-xs md:text-sm text-muted-foreground">Edytuj swoje dane</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
       </div>
 
       <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border-primary/20 mt-4 md:mt-8">
