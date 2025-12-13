@@ -198,12 +198,6 @@ export default function PlanForm() {
       },
     ]);
     
-    setTimeout(() => {
-      const element = document.querySelector(`[data-testid="card-workout-${newWorkoutIndex}"]`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-    }, 100);
   };
 
   const removeWorkout = (workoutIndex: number) => {
@@ -222,12 +216,6 @@ export default function PlanForm() {
       { name: "", sets: 3, reps: 10, description: "", videoUrl: "", restTime: 60, load: "", technique: "", rir: undefined, tempo: "", orderIndex: currentExercises.length },
     ]);
     
-    setTimeout(() => {
-      const element = document.querySelector(`[data-testid="card-exercise-${workoutIndex}-${newExerciseIndex}"]`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-    }, 100);
   };
 
   const removeExercise = (workoutIndex: number, exerciseIndex: number) => {
@@ -868,7 +856,7 @@ export default function PlanForm() {
       </Dialog>
 
       {!libraryDialogOpen && !successDialogOpen && (
-        <div className="fixed bottom-24 right-8 flex flex-col gap-3 z-50">
+        <div className="hidden sm:flex fixed bottom-24 right-8 flex-col gap-3 z-50">
           <Popover>
             <PopoverTrigger asChild>
               <Button
