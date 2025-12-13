@@ -856,7 +856,7 @@ export default function PlanForm() {
       </Dialog>
 
       {!libraryDialogOpen && !successDialogOpen && (
-        <div className="hidden sm:flex fixed bottom-24 right-8 flex-col gap-3 z-50">
+        <div className="flex fixed bottom-24 right-8 flex-col gap-3 z-50">
           <Popover>
             <PopoverTrigger asChild>
               <Button
