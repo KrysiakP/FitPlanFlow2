@@ -208,7 +208,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="h-screen flex flex-col bg-background" style={{ "--app-header-height": "4rem" } as React.CSSProperties}>
+    <div className="min-h-svh flex flex-col bg-background" style={{ "--app-header-height": "4rem" } as React.CSSProperties}>
       <SubscriptionWarningModal
         subscriptionStatus={user?.subscriptionStatus ?? null}
         subscriptionCancelledAt={user?.subscriptionCancelledAt ?? null}
