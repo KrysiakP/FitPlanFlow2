@@ -7,11 +7,137 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { FileText, User, Calendar, Weight, Ruler, Activity, Heart, Pill, MessageSquare, Image as ImageIcon } from "lucide-react";
+import { FileText, User, Calendar, Weight, Ruler, Activity, Heart, Pill, MessageSquare, Image as ImageIcon, TrendingUp, TrendingDown, Minus, ArrowRight, BarChart3 } from "lucide-react";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import type { User as UserType, WeeklyReport } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+
+function parseNumericValue(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const cleaned = value.replace(",", ".").replace(/[^\d.-]/g, "");
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : num;
+}
+
+function formatDiff(diff: number | null, unit: string = "", invert: boolean = false): { text: string; type: "positive" | "negative" | "neutral" } {
+  if (diff === null) return { text: "-", type: "neutral" };
+  const absValue = Math.abs(diff).toFixed(1);
+  const effectiveInvert = invert ? !false : false;
+  
+  if (Math.abs(diff) < 0.05) {
+    return { text: `0${unit}`, type: "neutral" };
+  }
+  
+  if (diff < 0) {
+    return { 
+      text: `-${absValue}${unit}`, 
+      type: invert ? "negative" : "positive"
+    };
+  }
+  return { 
+    text: `+${absValue}${unit}`, 
+    type: invert ? "positive" : "negative"
+  };
+}
+
+function calculateComparison(oldReport: WeeklyReport, newReport: WeeklyReport) {
+  const metrics: { label: string; field: keyof WeeklyReport; unit: string; invert?: boolean }[] = [
+    { label: "Waga", field: "weight", unit: " kg" },
+    { label: "Klatka", field: "chest", unit: " cm" },
+    { label: "Talia", field: "waist", unit: " cm" },
+    { label: "Biodro", field: "hips", unit: " cm" },
+    { label: "Ramię", field: "arm", unit: " cm", invert: true },
+    { label: "Udo", field: "leg", unit: " cm", invert: true },
+  ];
+
+  return metrics.map(m => {
+    const oldVal = parseNumericValue(oldReport[m.field] as string | null);
+    const newVal = parseNumericValue(newReport[m.field] as string | null);
+    const diff = oldVal !== null && newVal !== null ? newVal - oldVal : null;
+    return {
+      ...m,
+      oldValue: oldVal !== null ? `${oldVal}${m.unit}` : "-",
+      newValue: newVal !== null ? `${newVal}${m.unit}` : "-",
+      ...formatDiff(diff, m.unit, m.invert),
+    };
+  }).filter(m => m.oldValue !== "-" || m.newValue !== "-");
+}
+
+function ProgressComparisonSection({ reports }: { reports: WeeklyReport[] }) {
+  if (reports.length < 2) return null;
+
+  const newestReport = reports[0];
+  const previousReport = reports[1];
+  const firstReport = reports[reports.length - 1];
+
+  const totalComparison = calculateComparison(firstReport, newestReport);
+  const recentComparison = calculateComparison(previousReport, newestReport);
+
+  const renderComparisonRow = (comparison: ReturnType<typeof calculateComparison>, title: string, dateFrom: Date, dateTo: Date, testIdPrefix: string) => (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h4 className="font-medium text-sm">{title}</h4>
+        <span className="text-xs text-muted-foreground">
+          {format(new Date(dateFrom), "dd.MM.yyyy")} <ArrowRight className="w-3 h-3 inline" /> {format(new Date(dateTo), "dd.MM.yyyy")}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+        {comparison.map((metric, index) => (
+          <div 
+            key={`${testIdPrefix}-${metric.field}`} 
+            className="bg-muted/50 rounded-lg p-3 text-center"
+            data-testid={`${testIdPrefix}-${metric.field}`}
+          >
+            <p className="text-xs text-muted-foreground mb-1">{metric.label}</p>
+            <div className="flex items-center justify-center gap-1">
+              {metric.type === "positive" && <TrendingDown className="w-4 h-4 text-green-600" />}
+              {metric.type === "negative" && <TrendingUp className="w-4 h-4 text-red-500" />}
+              {metric.type === "neutral" && <Minus className="w-4 h-4 text-muted-foreground" />}
+              <span className={`font-semibold text-sm ${
+                metric.type === "positive" ? "text-green-600" : 
+                metric.type === "negative" ? "text-red-500" : 
+                "text-muted-foreground"
+              }`}>
+                {metric.text}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <Card className="border-primary/20" data-testid="card-progress-comparison">
+      <CardHeader className="pb-3">
+        <CardTitle className="font-heading flex items-center gap-2 text-lg">
+          <BarChart3 className="w-5 h-5 text-primary" />
+          Porównanie progresu
+        </CardTitle>
+        <CardDescription>
+          Przegląd zmian między raportami ({reports.length} raportów)
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {reports.length >= 2 && renderComparisonRow(
+          totalComparison,
+          "Całkowity progres (pierwszy → najnowszy)",
+          firstReport.reportDate,
+          newestReport.reportDate,
+          "total-progress"
+        )}
+        {reports.length >= 2 && previousReport.id !== firstReport.id && renderComparisonRow(
+          recentComparison,
+          "Ostatni progres (poprzedni → najnowszy)",
+          previousReport.reportDate,
+          newestReport.reportDate,
+          "recent-progress"
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 type ClientWithReports = UserType & {
   assignment?: any;
@@ -193,6 +319,10 @@ export default function TrainerReports() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {sortedReports.length >= 2 && (
+        <ProgressComparisonSection reports={sortedReports} />
       )}
 
       <div className="space-y-6">
