@@ -538,16 +538,15 @@ export default function PlanForm() {
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                   <FormField
                                     control={form.control}
-                                    name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.sets`}
+                                    name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.load`}
                                     render={({ field }) => (
                                       <FormItem>
-                                        <FormLabel className="text-xs">Serie</FormLabel>
+                                        <FormLabel className="text-xs">Obciążenie</FormLabel>
                                         <FormControl>
                                           <Input 
-                                            type="number" 
-                                            min="1" 
+                                            placeholder="np. 20kg, bodyweight" 
                                             {...field} 
-                                            data-testid={`input-exercise-sets-${workoutIndex}-${exerciseIndex}`} 
+                                            data-testid={`input-exercise-load-${workoutIndex}-${exerciseIndex}`} 
                                           />
                                         </FormControl>
                                         <FormMessage />
@@ -576,6 +575,27 @@ export default function PlanForm() {
 
                                   <FormField
                                     control={form.control}
+                                    name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.sets`}
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel className="text-xs">Serie</FormLabel>
+                                        <FormControl>
+                                          <Input 
+                                            type="number" 
+                                            min="1" 
+                                            {...field} 
+                                            data-testid={`input-exercise-sets-${workoutIndex}-${exerciseIndex}`} 
+                                          />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                  <FormField
+                                    control={form.control}
                                     name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.restTime`}
                                     render={({ field }) => (
                                       <FormItem>
@@ -592,15 +612,13 @@ export default function PlanForm() {
                                       </FormItem>
                                     )}
                                   />
-                                </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                   <FormField
                                     control={form.control}
                                     name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.rir`}
                                     render={({ field }) => (
                                       <FormItem>
-                                        <FormLabel className="text-xs">RIR (opcjonalnie)</FormLabel>
+                                        <FormLabel className="text-xs">RIR</FormLabel>
                                         <FormControl>
                                           <Input 
                                             type="number" 
@@ -623,7 +641,7 @@ export default function PlanForm() {
                                     name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.tempo`}
                                     render={({ field }) => (
                                       <FormItem>
-                                        <FormLabel className="text-xs">Tempo (opcjonalnie)</FormLabel>
+                                        <FormLabel className="text-xs">Tempo</FormLabel>
                                         <FormControl>
                                           <Input 
                                             placeholder="np. 3-1-2-0"
@@ -640,66 +658,10 @@ export default function PlanForm() {
 
                                 <FormField
                                   control={form.control}
-                                  name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.description`}
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormLabel className="text-xs">Opis (opcjonalnie)</FormLabel>
-                                      <FormControl>
-                                        <Textarea
-                                          placeholder="Dodatkowe wskazówki"
-                                          {...field}
-                                          className="text-xs"
-                                          data-testid={`input-exercise-description-${workoutIndex}-${exerciseIndex}`}
-                                        />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-
-                                <FormField
-                                  control={form.control}
-                                  name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.load`}
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormLabel className="text-xs">Obciążenie (opcjonalnie)</FormLabel>
-                                      <FormControl>
-                                        <Input 
-                                          placeholder="np. 20kg, bodyweight" 
-                                          {...field} 
-                                          data-testid={`input-exercise-load-${workoutIndex}-${exerciseIndex}`} 
-                                        />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-
-                                <FormField
-                                  control={form.control}
-                                  name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.videoUrl`}
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormLabel className="text-xs">Link do filmu (opcjonalnie)</FormLabel>
-                                      <FormControl>
-                                        <Input 
-                                          type="url"
-                                          placeholder="https://youtube.com/watch?v=..." 
-                                          {...field} 
-                                          data-testid={`input-exercise-video-${workoutIndex}-${exerciseIndex}`} 
-                                        />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-
-                                <FormField
-                                  control={form.control}
                                   name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.technique`}
                                   render={({ field }) => (
                                     <FormItem>
-                                      <FormLabel className="text-xs">Technika treningowa (opcjonalnie)</FormLabel>
+                                      <FormLabel className="text-xs">Technika treningowa</FormLabel>
                                       <Select 
                                         onValueChange={field.onChange} 
                                         value={field.value || "none"}
@@ -717,6 +679,44 @@ export default function PlanForm() {
                                           <SelectItem value="piramida">Piramida</SelectItem>
                                         </SelectContent>
                                       </Select>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+
+                                <FormField
+                                  control={form.control}
+                                  name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.description`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel className="text-xs">Dodatkowe informacje</FormLabel>
+                                      <FormControl>
+                                        <Textarea
+                                          placeholder="Dodatkowe wskazówki"
+                                          {...field}
+                                          className="text-xs"
+                                          data-testid={`input-exercise-description-${workoutIndex}-${exerciseIndex}`}
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+
+                                <FormField
+                                  control={form.control}
+                                  name={`workouts.${workoutIndex}.exercises.${exerciseIndex}.videoUrl`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel className="text-xs">Link do filmu</FormLabel>
+                                      <FormControl>
+                                        <Input 
+                                          type="url"
+                                          placeholder="https://youtube.com/watch?v=..." 
+                                          {...field} 
+                                          data-testid={`input-exercise-video-${workoutIndex}-${exerciseIndex}`} 
+                                        />
+                                      </FormControl>
                                       <FormMessage />
                                     </FormItem>
                                   )}
