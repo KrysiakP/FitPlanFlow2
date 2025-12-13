@@ -4,7 +4,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import path from "path";
 import { storage } from "./storage";
 
-// FIX: Validate required environment variables at startup
+// Validate Object Storage environment variables (non-blocking - just warn)
 function validateObjectStorageEnvVars() {
   const requiredVars = {
     PUBLIC_OBJECT_SEARCH_PATHS: process.env.PUBLIC_OBJECT_SEARCH_PATHS,
@@ -16,21 +16,26 @@ function validateObjectStorageEnvVars() {
     .map(([key, _]) => key);
 
   if (missing.length > 0) {
-    const errorMsg = `CRITICAL: Missing required Object Storage environment variables: ${missing.join(', ')}. ` +
-      `Please configure these in the 'Object Storage' tool.`;
-    console.error(errorMsg);
-    throw new Error(errorMsg);
+    console.warn(`Warning: Missing Object Storage environment variables: ${missing.join(', ')}. ` +
+      `File uploads may not work. Configure in 'Object Storage' tool.`);
+    return false;
   }
 
   console.log('✓ Object Storage environment variables validated');
   console.log(`  - PUBLIC_OBJECT_SEARCH_PATHS: ${process.env.PUBLIC_OBJECT_SEARCH_PATHS}`);
   console.log(`  - PRIVATE_OBJECT_DIR: ${process.env.PRIVATE_OBJECT_DIR}`);
+  return true;
 }
 
-// Validate env vars before starting the app
+// Validate env vars before starting the app (non-blocking)
 validateObjectStorageEnvVars();
 
 const app = express();
+
+// Health check endpoint - must respond quickly for Autoscale
+app.get('/health', (_req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // CRITICAL: Stripe webhook needs raw body for signature verification
 // This MUST come BEFORE express.json() to prevent body parsing
