@@ -224,8 +224,8 @@ export function PricingSection() {
           </p>
           {!user && (
             <div className="mt-6">
-              <Badge variant="default" className="text-base px-4 py-2" data-testid="badge-trial-offer">
-                🎉 30 dni za darmo dla nowych trenerów! Nieograniczona liczba podopiecznych podczas trial
+              <Badge variant="default" className="text-base px-4 py-2 whitespace-normal text-center" data-testid="badge-trial-offer">
+                30 dni za darmo dla nowych trenerów! Nieograniczona liczba podopiecznych podczas trial
               </Badge>
             </div>
           )}
