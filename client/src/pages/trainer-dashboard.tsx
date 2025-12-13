@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ClipboardList, Users, UserPlus, Dumbbell, FileText, Heart, Crown, UserCircle, ShieldCheck } from "lucide-react";
+import { ClipboardList, Users, UserPlus, Dumbbell, FileText, Heart, Crown, ShieldCheck, UtensilsCrossed, MessageSquare, DollarSign } from "lucide-react";
 import { Link } from "wouter";
 
 export default function TrainerDashboard() {
@@ -74,22 +74,6 @@ export default function TrainerDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        <Link href="/profile">
-          <Card className="hover-elevate cursor-pointer" data-testid="card-quick-profile">
-            <CardContent className="p-4 md:p-6">
-              <div className="flex items-center gap-3 md:gap-4">
-                <div className="p-2 md:p-3 bg-primary/10 rounded-lg">
-                  <UserCircle className="w-5 h-5 md:w-6 md:h-6 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-heading font-semibold text-base md:text-lg">Profil</h3>
-                  <p className="text-xs md:text-sm text-muted-foreground">Edytuj swoje dane</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
         <Link href="/plans">
           <Card className="hover-elevate cursor-pointer" data-testid="card-quick-plans">
             <CardContent className="p-4 md:p-6">
@@ -138,6 +122,22 @@ export default function TrainerDashboard() {
           </Card>
         </Link>
 
+        <Link href="/trainer/diets">
+          <Card className="hover-elevate cursor-pointer" data-testid="card-quick-diets">
+            <CardContent className="p-4 md:p-6">
+              <div className="flex items-center gap-3 md:gap-4">
+                <div className="p-2 md:p-3 bg-primary/10 rounded-lg">
+                  <UtensilsCrossed className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-heading font-semibold text-base md:text-lg">Diety</h3>
+                  <p className="text-xs md:text-sm text-muted-foreground">Zarządzaj planami żywieniowymi</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
         <Link href="/invite">
           <Card className="hover-elevate cursor-pointer" data-testid="card-quick-invite">
             <CardContent className="p-4 md:p-6">
@@ -164,6 +164,38 @@ export default function TrainerDashboard() {
                 <div className="min-w-0">
                   <h3 className="font-heading font-semibold text-base md:text-lg">Raporty tygodniowe</h3>
                   <p className="text-xs md:text-sm text-muted-foreground">Przeglądaj postępy podopiecznych</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/chat">
+          <Card className="hover-elevate cursor-pointer" data-testid="card-quick-messages">
+            <CardContent className="p-4 md:p-6">
+              <div className="flex items-center gap-3 md:gap-4">
+                <div className="p-2 md:p-3 bg-primary/10 rounded-lg">
+                  <MessageSquare className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-heading font-semibold text-base md:text-lg">Wiadomości</h3>
+                  <p className="text-xs md:text-sm text-muted-foreground">Czatuj z podopiecznymi</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/payment-schedule">
+          <Card className="hover-elevate cursor-pointer" data-testid="card-quick-payments">
+            <CardContent className="p-4 md:p-6">
+              <div className="flex items-center gap-3 md:gap-4">
+                <div className="p-2 md:p-3 bg-primary/10 rounded-lg">
+                  <DollarSign className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-heading font-semibold text-base md:text-lg">Płatności</h3>
+                  <p className="text-xs md:text-sm text-muted-foreground">Zarządzaj płatnościami</p>
                 </div>
               </div>
             </CardContent>
