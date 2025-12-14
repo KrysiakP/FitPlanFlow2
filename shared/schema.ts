@@ -45,6 +45,8 @@ export const users = pgTable("users", {
   // Referral system fields
   referredByTrainerId: varchar("referred_by_trainer_id", { length: 255 }).references(() => users.id), // Who referred this user (self-reference)
   referralBonusDays: integer("referral_bonus_days").default(0).notNull(), // Total bonus days earned from referrals
+  // Client count for trainers (denormalized for quick access)
+  clientCount: integer("client_count").default(0).notNull(), // Number of active clients for this trainer
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
