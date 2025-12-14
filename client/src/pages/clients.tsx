@@ -889,6 +889,15 @@ export default function Clients() {
     queryKey: ["/api/trainer/clients"],
   });
 
+  const { data: stats } = useQuery<{
+    totalPlans: number;
+    totalClients: number;
+    totalAssignments: number;
+    maxClients: number;
+  }>({
+    queryKey: ["/api/trainer/stats"],
+  });
+
   const processedClients = useMemo(() => {
     let result = [...clients];
     
@@ -1013,7 +1022,7 @@ export default function Clients() {
         <div className="p-4 space-y-4 border-b">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-heading font-bold text-lg" data-testid="text-clients-count">
-              {realClients.length} {realClients.length === 1 ? "podopieczny" : "podopiecznych"} 
+              {realClients.length}{stats?.maxClients !== undefined && stats.maxClients !== -1 && `/${stats.maxClients}`} {realClients.length === 1 ? "podopieczny" : "podopiecznych"}
               <span className="text-muted-foreground font-normal text-sm ml-1">
                 ({clientsWithPlan} z planem)
               </span>

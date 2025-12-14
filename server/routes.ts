@@ -2778,7 +2778,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const stats = await storage.getTrainerStats(userId);
-      res.json(stats);
+      const limitCheck = await storage.checkTrainerClientLimit(userId);
+      res.json({
+        ...stats,
+        maxClients: limitCheck.maxCount,
+      });
     } catch (error) {
       console.error("Error fetching stats:", error);
       res.status(500).json({ message: "Failed to fetch stats" });
