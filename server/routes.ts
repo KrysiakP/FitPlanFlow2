@@ -47,6 +47,7 @@ import Stripe from "stripe";
 import express from "express";
 import { checkPaymentNotifications } from "./services/paymentNotifications";
 import { createTestClientWithSampleData, deleteTestClient } from "./testClientService";
+import { getDemoClient, getDemoTrainingPlans, getDemoWeeklyReports, getDemoDietPlan, getDemoMedicalTests, getDemoPayments, isDemoId, DEMO_CLIENT_ID } from "./demoDataService";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { 
   apiVersion: '2024-11-20.acacia' as any 
@@ -2359,6 +2360,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { clientId } = req.params;
       
+      // Demo client progress: return empty progress with isDemo flag
+      if (isDemoId(clientId)) {
+        return res.json({
+          id: "demo-progress-001",
+          clientId: DEMO_CLIENT_ID,
+          currentWeight: 80.5,
+          targetWeight: 78,
+          height: 180,
+          notes: "Podopieczny demonstracyjny - postępy są tylko przykładowe",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isDemo: true,
+        });
+      }
+      
       const trainerClients = await storage.getTrainerClients(userId);
       const isTrainerClient = trainerClients.some(client => client.id === clientId);
       
@@ -2390,6 +2406,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { clientId } = req.params;
       
+      // Demo client: return empty logs array
+      if (isDemoId(clientId)) {
+        return res.json([]);
+      }
+      
       const trainerClients = await storage.getTrainerClients(userId);
       const isTrainerClient = trainerClients.some(client => client.id === clientId);
       
@@ -2418,6 +2439,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { clientId } = req.params;
+      
+      // Demo client: return demo profile
+      if (isDemoId(clientId)) {
+        return res.json({
+          id: "demo-profile-001",
+          userId: DEMO_CLIENT_ID,
+          bio: "Podopieczny demonstracyjny - aktywny sportowiec amator",
+          goals: "Redukcja tkanki tłuszczowej, poprawa siły i wytrzymałości",
+          fitnessLevel: "intermediate",
+          isDemo: true,
+        });
+      }
       
       const trainerClients = await storage.getTrainerClients(userId);
       const isTrainerClient = trainerClients.some(client => client.id === clientId);
@@ -2449,6 +2482,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clientIds: z.array(z.string()),
       }).parse(req.body);
       
+      // Guard: Cannot assign plans to demo clients
+      if (clientIds.some(id => isDemoId(id))) {
+        return res.status(400).json({ message: "Nie można modyfikować danych demonstracyjnych" });
+      }
+      
       const plan = await storage.getTrainingPlan(planId);
       if (!plan) {
         return res.status(404).json({ message: "Plan not found" });
@@ -2476,6 +2514,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { clientId } = req.params;
+      
+      // Guard: Cannot modify demo data
+      if (isDemoId(clientId)) {
+        return res.status(400).json({ message: "Nie można modyfikować danych demonstracyjnych" });
+      }
       
       // Verify the trainer has a relationship with this client
       const trainerClients = await storage.getTrainerClients(userId);
@@ -2555,6 +2598,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const clients = await storage.getTrainerClients(userId);
       
+      // If no real clients, return demo client
+      if (clients.length === 0) {
+        const demoClient = getDemoClient(userId);
+        const demoPlans = getDemoTrainingPlans(userId);
+        const demoClientWithAssignment = {
+          ...demoClient,
+          assignment: demoPlans.length > 0 ? {
+            id: "demo-assignment-001",
+            clientId: DEMO_CLIENT_ID,
+            planId: demoPlans[0].id,
+            trainerId: userId,
+            assignedAt: new Date(),
+            plan: demoPlans[0],
+          } : undefined,
+        };
+        return res.json([demoClientWithAssignment]);
+      }
+      
       const clientsWithAssignments = await Promise.all(
         clients.map(async (client) => {
           const assignment = await storage.getClientAssignment(client.id);
@@ -2576,7 +2637,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete test client for trainer
+  // Delete test client for trainer (also handles demo client deletion request)
   app.delete("/api/trainer/test-client", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
@@ -2584,6 +2645,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (user?.role !== "trainer") {
         return res.status(403).json({ message: "Tylko trenerzy mogą usuwać podopiecznego testowego" });
+      }
+
+      // Check if this is a request to delete demo client - just return success
+      // since demo data is virtual and doesn't exist in DB
+      const clients = await storage.getTrainerClients(userId);
+      if (clients.length === 0) {
+        return res.status(200).json({ message: "Dane demonstracyjne zostały ukryte" });
       }
 
       const result = await deleteTestClient(userId);
@@ -2609,6 +2677,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { clientId } = req.params;
+      
+      // Guard: Cannot modify demo data
+      if (isDemoId(clientId)) {
+        return res.status(400).json({ message: "Nie można modyfikować danych demonstracyjnych" });
+      }
       
       await storage.archiveClientRelationship(userId, clientId);
       
@@ -3112,6 +3185,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { clientId } = req.params;
+      
+      // Return demo weekly reports for demo client
+      if (isDemoId(clientId)) {
+        const demoReports = getDemoWeeklyReports();
+        return res.json(demoReports);
+      }
+      
       const reports = await storage.getClientWeeklyReportsForTrainer(clientId, userId);
       
       // CRITICAL FIX: Generate presigned URLs for photos but preserve original paths
@@ -3165,6 +3245,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { reportId } = req.params;
+      
+      // Demo reports: just return success without modifying anything
+      if (isDemoId(reportId)) {
+        return res.json({ message: "Raport oznaczony jako przeczytany" });
+      }
       
       // Verify the report belongs to one of trainer's clients
       const report = await storage.getWeeklyReport(reportId);
@@ -3788,6 +3873,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { clientId } = req.params;
+      
+      // Return demo diet plan for demo client
+      if (isDemoId(clientId)) {
+        const demoDietPlan = getDemoDietPlan(userId);
+        return res.json(demoDietPlan);
+      }
+      
       const activePlan = await storage.getClientActiveDietPlan(clientId);
       
       if (activePlan && activePlan.trainerId !== userId) {
@@ -4009,6 +4101,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Nieautoryzowany dostęp" });
       }
 
+      // Return demo medical tests for demo client
+      if (isDemoId(clientId)) {
+        const demoTests = getDemoMedicalTests();
+        return res.json(demoTests);
+      }
+
       const canAccess = await storage.canTrainerAccessClientTests(userId, clientId);
       if (!canAccess) {
         return res.status(403).json({ message: "Brak dostępu do tego podopiecznego" });
@@ -4106,6 +4204,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Nieprawidłowe dane wejściowe",
           errors: validationResult.error.errors 
         });
+      }
+
+      // Guard: Cannot modify demo data
+      if (isDemoId(validationResult.data.clientId)) {
+        return res.status(400).json({ message: "Nie można modyfikować danych demonstracyjnych" });
       }
 
       // Validate date is not too far in the past (max 1 year)
