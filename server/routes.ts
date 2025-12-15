@@ -46,7 +46,7 @@ import { randomUUID } from "crypto";
 import Stripe from "stripe";
 import express from "express";
 import { checkPaymentNotifications } from "./services/paymentNotifications";
-import { createTestClientWithSampleData, deleteTestClient } from "./testClientService";
+import { deleteTestClient } from "./testClientService";
 import { getDemoClient, getDemoTrainingPlans, getDemoWeeklyReports, getDemoDietPlan, getDemoMedicalTests, getDemoPayments, isDemoId, DEMO_CLIENT_ID } from "./demoDataService";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { 
@@ -679,14 +679,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           trialEndsAt.setDate(trialEndsAt.getDate() + 30);
         }
         await storage.updateUserSubscription(user.id, { trialEndsAt });
-        
-        // Create test client with sample data for new trainers
-        const testClientResult = await createTestClientWithSampleData(user.id);
-        if (testClientResult.success) {
-          console.log(`[REGISTER] Test client created for trainer ${user.id}`);
-        } else {
-          console.warn(`[REGISTER] Failed to create test client: ${testClientResult.error}`);
-        }
+        // Demo data is now generated on-the-fly, no need to create test clients
       }
 
       if (referralCode) {
