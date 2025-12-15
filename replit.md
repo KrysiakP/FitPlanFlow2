@@ -51,6 +51,7 @@ The application follows a client-server architecture with a React-based frontend
     - Progress tracking with charts and statistics for meal completion, streaks, and water intake.
 - **"PomagaMY" Charity System:** Administrator uploads monthly charity donation confirmations, which are publicly displayed for transparency.
 - **"Polska marka" Section:** Dedicated content highlighting the platform's local origin on the landing page and footer.
+- **Virtual Demo Data System:** When trainers have no real clients, the platform shows virtual demo data (client "Jan Demonstracyjny" with sample plans, reports, diet, etc.) generated in-memory without database storage. Demo data has `isDemo: true` flag and uses IDs with "demo-" prefix. Demo data is read-only and disappears when trainer adds a real client.
 
 **System Design Choices:**
 - **Data Model:** Comprehensive PostgreSQL schema including:
