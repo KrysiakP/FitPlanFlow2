@@ -61,6 +61,7 @@ import {
   Check,
   Plus,
   Trash2,
+  Info,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -71,6 +72,7 @@ import type { User as UserType, PlanAssignment, TrainingPlan, ClientProgress, We
 
 type ClientWithAssignment = UserType & {
   assignment?: PlanAssignment & { plan: TrainingPlan };
+  isDemo?: boolean;
 };
 
 type PlanWithDetails = TrainingPlan & {
@@ -220,7 +222,12 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
             <h2 className="font-heading font-bold text-xl md:text-2xl truncate" data-testid={`text-client-name-${client.id}`}>
               {client.firstName} {client.lastName}
             </h2>
-            {client.isTestUser && (
+            {client.isDemo && (
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-300 shrink-0" data-testid={`badge-demo-${client.id}`}>
+                DEMO
+              </Badge>
+            )}
+            {client.isTestUser && !client.isDemo && (
               <Badge variant="outline" className="bg-violet-500/10 text-violet-600 border-violet-300 shrink-0" data-testid={`badge-test-user-${client.id}`}>
                 TESTOWY
               </Badge>
@@ -232,7 +239,19 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
         </div>
       </div>
 
-      {client.isTestUser && (
+      {client.isDemo && (
+        <>
+          <Separator />
+          <Alert className="border-amber-300 bg-amber-500/10" data-testid={`alert-demo-info-${client.id}`}>
+            <Info className="w-4 h-4 text-amber-600" />
+            <AlertDescription className="text-amber-700">
+              To jest wirtualny podopieczny demonstracyjny. Dane demo znikną automatycznie po dodaniu prawdziwego klienta.
+            </AlertDescription>
+          </Alert>
+        </>
+      )}
+
+      {client.isTestUser && !client.isDemo && (
         <>
           <Separator />
           <AlertDialog>
@@ -842,7 +861,12 @@ function ClientListItem({
           <p className="font-medium truncate text-sm">
             {client.firstName} {client.lastName}
           </p>
-          {client.isTestUser && (
+          {client.isDemo && (
+            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-300 shrink-0 text-xs" data-testid={`badge-demo-list-${client.id}`}>
+              DEMO
+            </Badge>
+          )}
+          {client.isTestUser && !client.isDemo && (
             <Badge variant="outline" className="bg-violet-500/10 text-violet-600 border-violet-300 shrink-0 text-xs" data-testid={`badge-test-user-list-${client.id}`}>
               TESTOWY
             </Badge>
