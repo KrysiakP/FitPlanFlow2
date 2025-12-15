@@ -76,7 +76,7 @@ import {
   type InsertNotification,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, or, isNull, sql, gte, lte, asc } from "drizzle-orm";
+import { eq, and, desc, or, isNull, sql, gte, lte, asc, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -1237,7 +1237,7 @@ export class DatabaseStorage implements IStorage {
       .from(weeklyReports)
       .where(
         and(
-          sql`${weeklyReports.clientId} = ANY(${clientIds})`,
+          inArray(weeklyReports.clientId, clientIds),
           eq(weeklyReports.viewedByTrainer, false)
         )
       );
