@@ -40,6 +40,9 @@ import Referrals from "@/pages/referrals";
 import VerifyEmail from "@/pages/verify-email";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
+import LegalRegulamin from "@/pages/legal-regulamin";
+import LegalPolitykaPrivatnosci from "@/pages/legal-polityka-prywatnosci";
+import LegalPolitykaCookies from "@/pages/legal-polityka-cookies";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -62,6 +65,9 @@ function Router() {
         <Route path="/verify-email" component={VerifyEmail} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password" component={ResetPassword} />
+        <Route path="/legal/regulamin" component={LegalRegulamin} />
+        <Route path="/legal/polityka-prywatnosci" component={LegalPolitykaPrivatnosci} />
+        <Route path="/legal/polityka-cookies" component={LegalPolitykaCookies} />
         <Route component={Landing} />
       </Switch>
     );
@@ -104,6 +110,9 @@ function Router() {
             <Route path="/pomagamy" component={Pomagamy} />
             <Route path="/pricing" component={Pricing} />
             <Route path="/referrals" component={Referrals} />
+            <Route path="/legal/regulamin" component={LegalRegulamin} />
+            <Route path="/legal/polityka-prywatnosci" component={LegalPolitykaPrivatnosci} />
+            <Route path="/legal/polityka-cookies" component={LegalPolitykaCookies} />
             <Route path="/profile/:userId" component={TrainerProfile} />
             <Route path="/profile" component={TrainerProfile} />
           </>
@@ -120,6 +129,9 @@ function Router() {
             <Route path="/payment-schedule" component={PaymentSchedule} />
             <Route path="/pomagamy" component={Pomagamy} />
             <Route path="/pricing" component={Pricing} />
+            <Route path="/legal/regulamin" component={LegalRegulamin} />
+            <Route path="/legal/polityka-prywatnosci" component={LegalPolitykaPrivatnosci} />
+            <Route path="/legal/polityka-cookies" component={LegalPolitykaCookies} />
             <Route path="/profile/:userId" component={ClientProfile} />
             <Route path="/profile" component={ClientProfile} />
           </>
