@@ -221,7 +221,6 @@ export default function LegalPolitykaCookies() {
               <p>W przypadku pytań dotyczących stosowania plików cookies prosimy o kontakt:</p>
               <ul>
                 <li><strong>E-mail:</strong> kontakt@paneltrenera.pl</li>
-                <li><strong>Adres:</strong> Panel Trenera Sp. z o.o., ul. [Adres do uzupełnienia], 00-000 Warszawa</li>
               </ul>
             </section>
 

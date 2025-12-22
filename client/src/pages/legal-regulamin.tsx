@@ -42,7 +42,7 @@ export default function LegalRegulamin() {
               <h2>§1. Postanowienia ogólne</h2>
               <ol>
                 <li>Niniejszy Regulamin określa zasady korzystania z serwisu internetowego Panel Trenera, dostępnego pod adresem paneltrenera.pl (dalej: „Serwis").</li>
-                <li>Operatorem Serwisu jest Panel Trenera Sp. z o.o. z siedzibą w Warszawie, ul. [Adres do uzupełnienia], 00-000 Warszawa, wpisana do rejestru przedsiębiorców Krajowego Rejestru Sądowego pod numerem KRS: [do uzupełnienia], NIP: [do uzupełnienia], REGON: [do uzupełnienia] (dalej: „Operator").</li>
+                <li>Operatorem Serwisu jest Panel Trenera (dalej: „Operator").</li>
                 <li>Kontakt z Operatorem możliwy jest pod adresem e-mail: kontakt@paneltrenera.pl.</li>
                 <li>Korzystanie z Serwisu oznacza akceptację niniejszego Regulaminu oraz Polityki Prywatności.</li>
                 <li>Serwis przeznaczony jest dla osób pełnoletnich. Osoby niepełnoletnie mogą korzystać z Serwisu wyłącznie za zgodą opiekuna prawnego.</li>

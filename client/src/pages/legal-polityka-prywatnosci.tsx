@@ -40,12 +40,8 @@ export default function LegalPolitykaPrivatnosci() {
           <CardContent className="prose prose-sm dark:prose-invert max-w-none" data-testid="content-polityka-prywatnosci">
             <section>
               <h2>1. Administrator danych osobowych</h2>
-              <p>Administratorem Państwa danych osobowych jest Panel Trenera Sp. z o.o. z siedzibą w Warszawie, ul. [Adres do uzupełnienia], 00-000 Warszawa, wpisana do rejestru przedsiębiorców Krajowego Rejestru Sądowego pod numerem KRS: [do uzupełnienia], NIP: [do uzupełnienia], REGON: [do uzupełnienia] (dalej: „Administrator" lub „my").</p>
-              <p>Kontakt z Administratorem możliwy jest:</p>
-              <ul>
-                <li>drogą elektroniczną: kontakt@paneltrenera.pl</li>
-                <li>listownie na adres siedziby Administratora</li>
-              </ul>
+              <p>Administratorem Państwa danych osobowych jest Panel Trenera (dalej: „Administrator" lub „my").</p>
+              <p>Kontakt z Administratorem możliwy jest drogą elektroniczną: kontakt@paneltrenera.pl</p>
               <p>Administrator dokłada szczególnej staranności w celu ochrony interesów osób, których dane dotyczą, a w szczególności zapewnia, że zbierane przez niego dane są przetwarzane zgodnie z prawem, zbierane dla oznaczonych, zgodnych z prawem celów i niepoddawane dalszemu przetwarzaniu niezgodnemu z tymi celami.</p>
             </section>
 
@@ -268,7 +264,6 @@ export default function LegalPolitykaPrivatnosci() {
               <p>W sprawach związanych z ochroną danych osobowych prosimy o kontakt:</p>
               <ul>
                 <li><strong>E-mail:</strong> kontakt@paneltrenera.pl</li>
-                <li><strong>Adres:</strong> Panel Trenera Sp. z o.o., ul. [Adres do uzupełnienia], 00-000 Warszawa</li>
               </ul>
             </section>
           </CardContent>
