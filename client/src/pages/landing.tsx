@@ -8,6 +8,7 @@ import { TrainerSection } from "@/components/landing/TrainerSection";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { CharitySection } from "@/components/landing/CharitySection";
 import { useAuth } from "@/hooks/useAuth";
+import { CookieSettingsButton } from "@/components/cookie-consent";
 import heroImage from "@assets/2_1765646280340.png";
 
 export default function Landing() {
@@ -185,6 +186,7 @@ export default function Landing() {
                 <Link href="/legal/polityka-cookies" className="block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-cookies">
                   Polityka cookies
                 </Link>
+                <CookieSettingsButton />
               </div>
             </div>
 
