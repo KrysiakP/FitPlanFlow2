@@ -9,7 +9,17 @@ import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { apiRequest } from "@/lib/queryClient";
 import { registerSchema, type RegisterInput } from "@shared/schema";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dumbbell, User, UserCheck, Mail, CheckCircle, Loader2 } from "lucide-react";
+import { z } from "zod";
+
+const registerFormSchema = registerSchema.extend({
+  acceptTerms: z.literal(true, {
+    errorMap: () => ({ message: "Musisz zaakceptować regulamin" }),
+  }),
+});
+
+type RegisterFormInput = z.infer<typeof registerFormSchema>;
 import { useForm } from "react-hook-form";
 import { Link } from "wouter";
 import { useMutation } from "@tanstack/react-query";
@@ -22,14 +32,15 @@ export default function Register() {
   const searchParams = new URLSearchParams(window.location.search);
   const refCode = searchParams.get('ref');
 
-  const form = useForm<RegisterInput>({
-    resolver: zodResolver(registerSchema),
+  const form = useForm<RegisterFormInput>({
+    resolver: zodResolver(registerFormSchema),
     defaultValues: {
       email: "",
       password: "",
       firstName: "",
       lastName: "",
       role: "client",
+      acceptTerms: false as unknown as true,
     },
   });
 
@@ -86,8 +97,9 @@ export default function Register() {
     },
   });
 
-  const onSubmit = (data: RegisterInput) => {
-    registerMutation.mutate(data);
+  const onSubmit = (data: RegisterFormInput) => {
+    const { acceptTerms, ...registerData } = data;
+    registerMutation.mutate(registerData);
   };
 
   const handleResendVerification = () => {
@@ -301,6 +313,35 @@ export default function Register() {
                       </RadioGroup>
                     </FormControl>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="acceptTerms"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="checkbox-accept-terms"
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="text-sm font-normal">
+                        Akceptuję{" "}
+                        <Link href="/legal/regulamin" className="text-primary hover:underline" target="_blank">
+                          Regulamin
+                        </Link>
+                        {" "}oraz{" "}
+                        <Link href="/legal/polityka-prywatnosci" className="text-primary hover:underline" target="_blank">
+                          Politykę prywatności
+                        </Link>
+                      </FormLabel>
+                      <FormMessage />
+                    </div>
                   </FormItem>
                 )}
               />

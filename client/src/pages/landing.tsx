@@ -148,7 +148,7 @@ export default function Landing() {
 
       <footer className="border-t py-12 px-4 bg-card">
         <div className="container mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Dumbbell className="w-6 h-6 text-primary" />
@@ -170,6 +170,21 @@ export default function Landing() {
                   <MapPin className="w-4 h-4 text-primary" />
                   <span>Wsparcie lokalne 24/7</span>
                 </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="font-heading font-semibold">Dokumenty</h3>
+              <div className="space-y-2">
+                <Link href="/legal/regulamin" className="block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-regulamin">
+                  Regulamin
+                </Link>
+                <Link href="/legal/polityka-prywatnosci" className="block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-privacy">
+                  Polityka prywatności
+                </Link>
+                <Link href="/legal/polityka-cookies" className="block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-cookies">
+                  Polityka cookies
+                </Link>
               </div>
             </div>
 
