@@ -105,6 +105,45 @@ function getWeekBounds(): { weekStart: Date; weekEnd: Date } {
   return { weekStart, weekEnd };
 }
 
+const DAY_LABELS = ["Pn", "Wt", "Śr", "Cz", "Pt", "Sb", "Nd"];
+
+type DayStatus = "trained" | "rest" | "future" | "today";
+
+interface DayChip {
+  label: string;
+  date: Date;
+  status: DayStatus;
+}
+
+function buildWeekDayChips(sessions: WorkoutSession[]): DayChip[] {
+  const { weekStart } = getWeekBounds();
+  const now = new Date();
+  const todayStr = now.toDateString();
+
+  const trainedDates = new Set(
+    sessions.map((s) => new Date(s.completedAt).toDateString())
+  );
+
+  return DAY_LABELS.map((label, i) => {
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + i);
+    const dateStr = date.toDateString();
+
+    let status: DayStatus;
+    if (date > now && dateStr !== todayStr) {
+      status = "future";
+    } else if (trainedDates.has(dateStr)) {
+      status = "trained";
+    } else if (dateStr === todayStr) {
+      status = "today";
+    } else {
+      status = "rest";
+    }
+
+    return { label, date, status };
+  });
+}
+
 function computeWeeklyStats(sessions: WorkoutSession[], logs: ExerciseLog[]) {
   const { weekStart, weekEnd } = getWeekBounds();
   const now = new Date();
@@ -172,6 +211,7 @@ interface WeeklySummaryCardProps {
 
 function WeeklySummaryCard({ sessions, logs, colors }: WeeklySummaryCardProps) {
   const stats = useMemo(() => computeWeeklyStats(sessions, logs), [sessions, logs]);
+  const dayChips = useMemo(() => buildWeekDayChips(sessions), [sessions]);
 
   const items: { icon: ComponentProps<typeof Ionicons>["name"]; label: string; value: string; sub?: string }[] = [
     { icon: "checkmark-circle-outline", label: "Treningi", value: String(stats.sessionsThisWeek) },
@@ -210,6 +250,63 @@ function WeeklySummaryCard({ sessions, logs, colors }: WeeklySummaryCardProps) {
             <Text style={[summaryStyles.statLabel, { color: colors.mutedForeground }]}>{item.label}</Text>
           </View>
         ))}
+      </View>
+      {/* Day-by-day calendar strip */}
+      <View style={[summaryStyles.calendarDivider, { backgroundColor: colors.border }]} />
+      <View style={summaryStyles.calendarStrip} testID="view-week-calendar">
+        {dayChips.map((chip, i) => {
+          const isTrained = chip.status === "trained";
+          const isFuture = chip.status === "future";
+          const isToday = chip.status === "today";
+
+          const chipBg = isTrained
+            ? colors.primary
+            : isFuture
+            ? "transparent"
+            : isToday
+            ? colors.primary + "22"
+            : colors.accent;
+
+          const chipBorder = isTrained
+            ? colors.primary
+            : isToday
+            ? colors.primary + "60"
+            : isFuture
+            ? colors.border
+            : colors.border;
+
+          const labelColor = isTrained
+            ? "#fff"
+            : isFuture
+            ? colors.mutedForeground + "60"
+            : isToday
+            ? colors.primary
+            : colors.mutedForeground;
+
+          return (
+            <View
+              key={i}
+              style={[
+                summaryStyles.dayChip,
+                {
+                  backgroundColor: chipBg,
+                  borderColor: chipBorder,
+                },
+              ]}
+              testID={`chip-day-${i}`}
+            >
+              <Text style={[summaryStyles.dayChipLabel, { color: labelColor }]}>
+                {chip.label}
+              </Text>
+              {isTrained && (
+                <Ionicons name="checkmark" size={10} color="#fff" />
+              )}
+              {isToday && !isTrained && (
+                <View style={[summaryStyles.todayDot, { backgroundColor: colors.primary }]} />
+              )}
+            </View>
+          );
+        })}
       </View>
     </View>
   );
@@ -976,6 +1073,34 @@ const summaryStyles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Inter_400Regular",
     textAlign: "center",
+  },
+  calendarDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: -16,
+  },
+  calendarStrip: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 4,
+  },
+  dayChip: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 8,
+    gap: 3,
+    minWidth: 0,
+  },
+  dayChipLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+  },
+  todayDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
   },
 });
 
