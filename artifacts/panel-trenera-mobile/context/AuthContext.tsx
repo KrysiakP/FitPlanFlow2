@@ -30,16 +30,6 @@ const AuthContext = createContext<AuthContextType | null>(null);
 // The native HTTP cookie store (NSHTTPCookieStorage / Android CookieManager)
 // manages the actual session cookie automatically when credentials:"include" is used.
 export const HAS_SESSION_KEY = "pt_has_session";
-const ONBOARDING_DONE_KEY = "pt_onboarding_done";
-
-export async function markOnboardingDone(): Promise<void> {
-  if (Platform.OS === "web") {
-    localStorage.setItem(ONBOARDING_DONE_KEY, "true");
-    return;
-  }
-  await SecureStore.setItemAsync(ONBOARDING_DONE_KEY, "true");
-}
-
 const BASE_URL = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
 
 export async function hasStoredSession(): Promise<boolean> {
