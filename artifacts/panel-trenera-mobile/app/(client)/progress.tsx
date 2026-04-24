@@ -45,12 +45,12 @@ function formatDate(dateStr: string) {
 export default function ProgressScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, bearerToken } = useAuth();
+  const { user } = useAuth();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const { data, isLoading, refetch, isRefetching } = useQuery<ProgressEntry | null>({
     queryKey: ["client-progress", user?.id],
-    queryFn: () => apiGet<ProgressEntry | null>("/api/client/progress", bearerToken),
+    queryFn: () => apiGet<ProgressEntry | null>("/api/client/progress"),
     enabled: !!user?.id,
     retry: 1,
   });

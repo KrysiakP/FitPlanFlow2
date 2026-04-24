@@ -32,13 +32,13 @@ interface ClientWithPlan {
 export default function TrainerClientsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, bearerToken } = useAuth();
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const { data, isLoading, refetch, isRefetching } = useQuery<ClientWithPlan[]>({
     queryKey: ["trainer-clients"],
-    queryFn: () => apiGet<ClientWithPlan[]>("/api/trainer/clients", bearerToken),
+    queryFn: () => apiGet<ClientWithPlan[]>("/api/trainer/clients"),
     enabled: !!user?.id,
   });
 

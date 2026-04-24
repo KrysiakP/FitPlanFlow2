@@ -17,7 +17,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPost } from "@/lib/api";
 
@@ -207,7 +206,6 @@ function ExerciseRow({
 export default function TrainingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { bearerToken } = useAuth();
   const queryClient = useQueryClient();
 
   const [activeWorkout, setActiveWorkout] = useState<string | null>(null);
@@ -220,15 +218,14 @@ export default function TrainingScreen() {
 
   const { data, isLoading, refetch, isRefetching } = useQuery<PlanAssignment>({
     queryKey: ["client-assignment"],
-    queryFn: () => apiGet<PlanAssignment>("/api/client/assignment", bearerToken),
+    queryFn: () => apiGet<PlanAssignment>("/api/client/assignment"),
   });
 
   const logMutation = useMutation({
     mutationFn: async ({ exerciseId, reps, load }: ExerciseLog) => {
       return apiPost(
         `/api/exercises/${exerciseId}/log`,
-        { reps, load: load || undefined, setNumber: 1 },
-        bearerToken
+        { reps, load: load || undefined, setNumber: 1 }
       );
     },
     onSuccess: (_data, variables) => {

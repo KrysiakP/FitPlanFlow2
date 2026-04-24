@@ -18,7 +18,6 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  bearerToken: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -26,51 +25,46 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const TOKEN_KEY = "pt_mobile_token";
+// Persisted flag so we can show biometric login when a session likely exists.
+// The native HTTP cookie store (NSHTTPCookieStorage / Android CookieManager)
+// manages the actual session cookie automatically when credentials:"include" is used.
+export const HAS_SESSION_KEY = "pt_has_session";
 const BASE_URL = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
 
-async function getStoredToken(): Promise<string | null> {
-  if (Platform.OS === "web") return localStorage.getItem(TOKEN_KEY);
-  return SecureStore.getItemAsync(TOKEN_KEY);
+export async function hasStoredSession(): Promise<boolean> {
+  if (Platform.OS === "web") return !!localStorage.getItem(HAS_SESSION_KEY);
+  const val = await SecureStore.getItemAsync(HAS_SESSION_KEY);
+  return val === "true";
 }
 
-async function storeToken(token: string): Promise<void> {
+async function setStoredSession(value: boolean): Promise<void> {
   if (Platform.OS === "web") {
-    localStorage.setItem(TOKEN_KEY, token);
+    value ? localStorage.setItem(HAS_SESSION_KEY, "true") : localStorage.removeItem(HAS_SESSION_KEY);
     return;
   }
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
-}
-
-async function clearToken(): Promise<void> {
-  if (Platform.OS === "web") {
-    localStorage.removeItem(TOKEN_KEY);
-    return;
+  if (value) {
+    await SecureStore.setItemAsync(HAS_SESSION_KEY, "true");
+  } else {
+    await SecureStore.deleteItemAsync(HAS_SESSION_KEY);
   }
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
 }
 
-export async function apiFetch(
-  path: string,
-  options: RequestInit = {},
-  token?: string | null
-): Promise<Response> {
+// All API requests use credentials:"include" so the native HTTP client and
+// browser cookie store can manage the session cookie automatically.
+export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
   };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
   return fetch(`${BASE_URL}${path}`, {
     ...options,
     headers,
-    credentials: "omit",
+    credentials: "include",
   });
 }
 
-async function registerPushToken(token: string | null): Promise<void> {
-  if (Platform.OS === "web" || !token) return;
+async function registerPushToken(): Promise<void> {
+  if (Platform.OS === "web") return;
   try {
     const { status: existing } = await Notifications.getPermissionsAsync();
     let status = existing;
@@ -80,11 +74,10 @@ async function registerPushToken(token: string | null): Promise<void> {
     }
     if (status !== "granted") return;
     const pushToken = await Notifications.getExpoPushTokenAsync();
-    await apiFetch(
-      "/api/push-tokens",
-      { method: "POST", body: JSON.stringify({ token: pushToken.data, platform: Platform.OS }) },
-      token
-    );
+    await apiFetch("/api/push-tokens", {
+      method: "POST",
+      body: JSON.stringify({ token: pushToken.data, platform: Platform.OS }),
+    });
   } catch {
     // push tokens are optional — fail silently
   }
@@ -93,44 +86,31 @@ async function registerPushToken(token: string | null): Promise<void> {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [bearerToken, setBearerToken] = useState<string | null>(null);
 
-  const fetchUser = useCallback(async (token: string | null) => {
-    if (!token) {
-      setUser(null);
-      return;
-    }
+  const refreshUser = useCallback(async () => {
     try {
-      const res = await apiFetch("/api/auth/user", {}, token);
+      const res = await apiFetch("/api/auth/user");
       if (res.ok) {
         const data: User = await res.json();
         setUser(data);
       } else {
         setUser(null);
-        setBearerToken(null);
-        await clearToken();
+        await setStoredSession(false);
       }
     } catch {
       setUser(null);
     }
   }, []);
 
-  const refreshUser = useCallback(async () => {
-    const token = await getStoredToken();
-    await fetchUser(token);
-  }, [fetchUser]);
-
   useEffect(() => {
     void (async () => {
-      const token = await getStoredToken();
-      setBearerToken(token);
-      await fetchUser(token);
+      await refreshUser();
       setIsLoading(false);
     })();
-  }, [fetchUser]);
+  }, [refreshUser]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await apiFetch("/api/auth/mobile-login", {
+    const res = await apiFetch("/api/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
@@ -138,26 +118,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const err = await res.json().catch(() => ({})) as { message?: string };
       throw new Error(err.message ?? "Nieprawidłowe dane logowania");
     }
-    const data = await res.json() as { token: string; user: User };
-    await storeToken(data.token);
-    setBearerToken(data.token);
-    setUser(data.user);
-    void registerPushToken(data.token);
+    const data: User = await res.json();
+    setUser(data);
+    await setStoredSession(true);
+    void registerPushToken();
   }, []);
 
   const logout = useCallback(async () => {
     try {
-      if (bearerToken) {
-        await apiFetch("/api/auth/mobile-logout", { method: "POST" }, bearerToken);
-      }
+      await apiFetch("/api/logout", { method: "POST" });
     } catch { /* ignore */ }
     setUser(null);
-    setBearerToken(null);
-    await clearToken();
-  }, [bearerToken]);
+    await setStoredSession(false);
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, bearerToken, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

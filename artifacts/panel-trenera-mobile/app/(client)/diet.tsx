@@ -14,7 +14,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPost } from "@/lib/api";
 
@@ -55,7 +54,6 @@ const WATER_STEP_ML = 250;
 export default function DietScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { bearerToken } = useAuth();
   const queryClient = useQueryClient();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -64,7 +62,7 @@ export default function DietScreen() {
 
   const { data, isLoading, refetch, isRefetching } = useQuery<DietPlan | null>({
     queryKey: ["diet-plan"],
-    queryFn: () => apiGet<DietPlan | null>("/api/client/diet", bearerToken),
+    queryFn: () => apiGet<DietPlan | null>("/api/client/diet"),
     retry: 1,
   });
 
@@ -79,8 +77,7 @@ export default function DietScreen() {
           planId,
           waterLiters: waterMl / 1000,
           mealCheckmarks,
-        },
-        bearerToken
+        }
       );
     },
     onSuccess: () => {

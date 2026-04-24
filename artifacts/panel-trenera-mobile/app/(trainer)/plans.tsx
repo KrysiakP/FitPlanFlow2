@@ -24,12 +24,12 @@ interface TrainingPlan {
 export default function TrainerPlansScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, bearerToken } = useAuth();
+  const { user } = useAuth();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const { data, isLoading, refetch, isRefetching } = useQuery<TrainingPlan[]>({
     queryKey: ["training-plans"],
-    queryFn: () => apiGet<TrainingPlan[]>("/api/plans", bearerToken),
+    queryFn: () => apiGet<TrainingPlan[]>("/api/plans"),
     enabled: !!user?.id,
   });
 

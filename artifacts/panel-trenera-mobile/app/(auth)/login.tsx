@@ -15,11 +15,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import * as LocalAuthentication from "expo-local-authentication";
-import * as SecureStore from "expo-secure-store";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, hasStoredSession } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
-
-const BIOMETRIC_AVAILABLE_KEY = "pt_biometric_enabled";
 
 export default function LoginScreen() {
   const colors = useColors();
@@ -42,9 +39,9 @@ export default function LoginScreen() {
     if (Platform.OS === "web") return;
     const compatible = await LocalAuthentication.hasHardwareAsync();
     const enrolled = await LocalAuthentication.isEnrolledAsync();
-    const enabled = await SecureStore.getItemAsync(BIOMETRIC_AVAILABLE_KEY);
+    const hasSession = await hasStoredSession();
     setBiometricAvailable(compatible && enrolled);
-    setBiometricEnabled(compatible && enrolled && enabled === "true");
+    setBiometricEnabled(compatible && enrolled && hasSession);
   }
 
   async function handleBiometricLogin() {
@@ -58,6 +55,14 @@ export default function LoginScreen() {
       });
       if (result.success) {
         await refreshUser();
+        // refreshUser either restores the user from the persisted session cookie
+        // or clears hasStoredSession and sets user to null if the session expired.
+        const stillHasSession = await hasStoredSession();
+        if (!stillHasSession) {
+          setBiometricEnabled(false);
+          setError("Sesja wygasła. Zaloguj się ponownie e-mailem i hasłem.");
+          return;
+        }
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.replace("/");
       } else if (result.error !== "user_cancel") {
@@ -79,9 +84,7 @@ export default function LoginScreen() {
     setError(null);
     try {
       await login(email.trim().toLowerCase(), password);
-      if (Platform.OS !== "web" && biometricAvailable) {
-        await SecureStore.setItemAsync(BIOMETRIC_AVAILABLE_KEY, "true");
-      }
+      // login() sets hasStoredSession flag — biometric becomes available next launch
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/");
     } catch (e: unknown) {
