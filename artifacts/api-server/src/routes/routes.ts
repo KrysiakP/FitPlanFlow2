@@ -2897,9 +2897,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.archiveClientRelationship(userId, clientId);
       
       res.status(200).json({ message: "Współpraca została zakończona" });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error archiving client relationship:", error);
-      res.status(500).json({ message: error?.message || "Nie udało się zakończyć współpracy" });
+      res.status(500).json({ message: error instanceof Error ? error.message : "Nie udało się zakończyć współpracy" });
     }
   });
 
@@ -3535,9 +3535,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const report = await storage.updateWeeklyReport(req.params.id, userId, validationResult.data);
       res.json(report);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error updating weekly report:", error);
-      if (error.message?.includes("not found") || error.message?.includes("not owned")) {
+      if (error instanceof Error && (error.message.includes("not found") || error.message.includes("not owned"))) {
         return res.status(404).json({ message: "Raport nie znaleziony" });
       }
       res.status(500).json({ message: "Nie udało się zaktualizować raportu" });
@@ -4387,10 +4387,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const donation = await storage.createCharityDonation(validationResult.data);
       res.json(donation);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error creating charity donation:", error);
       
-      if (error.code === '23505' || error.message?.includes('unique')) {
+      const errMsg = error instanceof Error ? error.message : "";
+      const errCode = (error as { code?: string })?.code;
+      if (errCode === '23505' || errMsg.includes('unique')) {
         return res.status(400).json({ 
           message: "Darowizna dla tego miesiąca i roku już istnieje" 
         });
@@ -4511,9 +4513,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updatedTest = await storage.updateMedicalTest(id, userId, validationResult.data);
       res.json(updatedTest);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error updating medical test:", error);
-      if (error.message === "Test not found or unauthorized") {
+      if (error instanceof Error && error.message === "Test not found or unauthorized") {
         return res.status(404).json({ message: "Badanie nie znalezione lub brak uprawnień" });
       }
       res.status(500).json({ message: "Nie udało się zaktualizować badania" });
@@ -4952,9 +4954,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const notification = await storage.markNotificationRead(notificationId, userId);
       res.json(notification);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error marking notification as read:", error);
-      if (error.message === "Powiadomienie nie znalezione lub nie należy do tego trenera") {
+      if (error instanceof Error && error.message === "Powiadomienie nie znalezione lub nie należy do tego trenera") {
         return res.status(404).json({ message: error.message });
       }
       res.status(500).json({ message: "Nie udało się oznaczyć powiadomienia jako przeczytane" });
@@ -4998,8 +5000,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const notification = await storage.markPushNotificationRead(id, userId);
       res.json(notification);
-    } catch (error: any) {
-      if (error.message === "Powiadomienie nie znalezione") {
+    } catch (error) {
+      if (error instanceof Error && error.message === "Powiadomienie nie znalezione") {
         return res.status(404).json({ message: error.message });
       }
       console.error("Error marking notification read:", error);
