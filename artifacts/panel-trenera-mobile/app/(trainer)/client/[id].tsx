@@ -44,18 +44,18 @@ export default function ClientDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { sessionCookie } = useAuth();
+  const { bearerToken } = useAuth();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const { data: progress, isLoading: loadingProgress, refetch, isRefetching } = useQuery<ProgressEntry[]>({
     queryKey: ["client-progress", id],
-    queryFn: () => apiGet<ProgressEntry[]>(`/api/client-progress/${id}`, sessionCookie),
+    queryFn: () => apiGet<ProgressEntry[]>(`/api/client-progress/${id}`, bearerToken),
     enabled: !!id,
   });
 
   const { data: assignment, isLoading: loadingPlan } = useQuery<PlanAssignment>({
     queryKey: ["plan-assignment", id],
-    queryFn: () => apiGet<PlanAssignment>(`/api/plan-assignment/${id}`, sessionCookie),
+    queryFn: () => apiGet<PlanAssignment>(`/api/plan-assignment/${id}`, bearerToken),
     enabled: !!id,
   });
 

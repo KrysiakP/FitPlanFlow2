@@ -74,6 +74,10 @@ import {
   notifications,
   type Notification,
   type InsertNotification,
+  mobileTokens,
+  type MobileToken,
+  pushTokens,
+  type PushToken,
 } from "@workspace/db";
 import { db } from "./db";
 import { eq, and, desc, or, isNull, sql, gte, lte, asc, inArray } from "drizzle-orm";
@@ -286,6 +290,17 @@ export interface IStorage {
 
   // Global exercises
   getGlobalExercises(muscleGroup?: string, search?: string): Promise<GlobalExercise[]>;
+
+  // Mobile authentication tokens
+  createMobileToken(userId: string, token: string, expiresAt: Date): Promise<MobileToken>;
+  getMobileTokenByToken(token: string): Promise<MobileToken | undefined>;
+  deleteMobileToken(token: string): Promise<void>;
+  deleteAllMobileTokensForUser(userId: string): Promise<void>;
+
+  // Push notification tokens
+  upsertPushToken(userId: string, token: string, platform: string): Promise<PushToken>;
+  getPushTokensByUser(userId: string): Promise<PushToken[]>;
+  deletePushToken(userId: string, token: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2701,6 +2716,46 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await query.orderBy(asc(globalExercises.namePl));
+  }
+
+  // Mobile authentication tokens
+  async createMobileToken(userId: string, token: string, expiresAt: Date): Promise<MobileToken> {
+    const [record] = await db.insert(mobileTokens).values({ userId, token, expiresAt }).returning();
+    return record;
+  }
+
+  async getMobileTokenByToken(token: string): Promise<MobileToken | undefined> {
+    const [record] = await db.select().from(mobileTokens).where(eq(mobileTokens.token, token));
+    return record;
+  }
+
+  async deleteMobileToken(token: string): Promise<void> {
+    await db.delete(mobileTokens).where(eq(mobileTokens.token, token));
+  }
+
+  async deleteAllMobileTokensForUser(userId: string): Promise<void> {
+    await db.delete(mobileTokens).where(eq(mobileTokens.userId, userId));
+  }
+
+  // Push notification tokens
+  async upsertPushToken(userId: string, token: string, platform: string): Promise<PushToken> {
+    const [record] = await db
+      .insert(pushTokens)
+      .values({ userId, token, platform })
+      .onConflictDoUpdate({
+        target: [pushTokens.userId, pushTokens.token],
+        set: { platform },
+      })
+      .returning();
+    return record;
+  }
+
+  async getPushTokensByUser(userId: string): Promise<PushToken[]> {
+    return db.select().from(pushTokens).where(eq(pushTokens.userId, userId));
+  }
+
+  async deletePushToken(userId: string, token: string): Promise<void> {
+    await db.delete(pushTokens).where(and(eq(pushTokens.userId, userId), eq(pushTokens.token, token)));
   }
 }
 

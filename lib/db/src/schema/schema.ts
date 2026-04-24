@@ -432,6 +432,29 @@ export const notifications = pgTable("notifications", {
   uniqueNotification: uniqueIndex("unique_trainer_payment_type").on(table.trainerId, table.paymentId, table.type),
 }));
 
+export const mobileTokens = pgTable("mobile_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("mobile_tokens_user_idx").on(table.userId),
+}));
+
+export const pushTokens = pgTable("push_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull(),
+  platform: text("platform").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueUserToken: uniqueIndex("push_tokens_user_token_unique").on(table.userId, table.token),
+}));
+
+export type MobileToken = typeof mobileTokens.$inferSelect;
+export type PushToken = typeof pushTokens.$inferSelect;
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   createdPlans: many(trainingPlans),

@@ -30,11 +30,11 @@ interface Assignment {
 export default function ClientDashboard() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, sessionCookie } = useAuth();
+  const { user, bearerToken } = useAuth();
 
   const { data: assignment, isLoading, refetch, isRefetching } = useQuery<Assignment>({
     queryKey: ["client-assignment"],
-    queryFn: () => apiGet<Assignment>(`/api/plan-assignment/${user?.id}`, sessionCookie),
+    queryFn: () => apiGet<Assignment>(`/api/plan-assignment/${user?.id}`, bearerToken),
     enabled: !!user?.id,
     retry: 1,
   });
