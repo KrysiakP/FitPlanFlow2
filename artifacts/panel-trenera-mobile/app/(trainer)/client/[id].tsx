@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useState } from "react";
@@ -60,6 +61,8 @@ export default function ClientDetailScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const [assignModalVisible, setAssignModalVisible] = useState(false);
+  const [remindModalVisible, setRemindModalVisible] = useState(false);
+  const [customMessage, setCustomMessage] = useState("");
 
   const { data: progress, isLoading: loadingProgress, refetch, isRefetching } = useQuery<ProgressEntry[]>({
     queryKey: ["client-progress", id],
@@ -92,10 +95,13 @@ export default function ClientDetailScreen() {
   });
 
   const remindMutation = useMutation({
-    mutationFn: () => apiPost(`/api/trainer/clients/${id}/remind`, {}),
+    mutationFn: (msg: string) =>
+      apiPost(`/api/trainer/clients/${id}/remind`, msg.trim() ? { message: msg.trim() } : {}),
     onSuccess: (result: unknown) => {
       const sent = (result as { sent?: number })?.sent ?? 0;
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setRemindModalVisible(false);
+      setCustomMessage("");
       Alert.alert(
         "Przypomnienie wysłane",
         sent > 0
@@ -129,7 +135,7 @@ export default function ClientDetailScreen() {
               {clientData.firstName} {clientData.lastName}
             </Text>
             <Pressable
-              onPress={() => { if (!remindMutation.isPending) remindMutation.mutate(); }}
+              onPress={() => { if (!remindMutation.isPending) setRemindModalVisible(true); }}
               disabled={remindMutation.isPending}
               style={({ pressed }) => [
                 styles.remindBtn,
@@ -137,11 +143,8 @@ export default function ClientDetailScreen() {
               ]}
               testID="button-send-reminder"
             >
-              {remindMutation.isPending
-                ? <ActivityIndicator size="small" color={colors.primary} />
-                : <Ionicons name="notifications-outline" size={18} color={colors.primary} />
-              }
-              <Text style={[styles.remindBtnText, { color: colors.primary }]}>Przypomnienie</Text>
+              <Ionicons name="notifications-outline" size={18} color={colors.primary} />
+              <Text style={[styles.remindBtnText, { color: colors.primary }]}>Przypomnij o treningu</Text>
             </Pressable>
           </View>
         )}
@@ -208,6 +211,69 @@ export default function ClientDetailScreen() {
           </View>
         )}
       </ScrollView>
+
+      <Modal
+        visible={remindModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { if (!remindMutation.isPending) { setRemindModalVisible(false); setCustomMessage(""); } }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.modalTitleRow}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Wyślij przypomnienie</Text>
+              <Pressable
+                onPress={() => { if (!remindMutation.isPending) { setRemindModalVisible(false); setCustomMessage(""); } }}
+                testID="button-close-remind-modal"
+              >
+                <Ionicons name="close" size={22} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+
+            <Text style={[styles.remindModalHint, { color: colors.mutedForeground }]}>
+              Opcjonalnie wpisz treść wiadomości. Jeśli pole będzie puste, zostanie użyta wiadomość domyślna z nazwą planu.
+            </Text>
+
+            <TextInput
+              style={[
+                styles.remindInput,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  color: colors.foreground,
+                },
+              ]}
+              placeholder="np. Pamiętaj o treningu na nogi dziś o 18:00!"
+              placeholderTextColor={colors.mutedForeground}
+              value={customMessage}
+              onChangeText={setCustomMessage}
+              multiline
+              numberOfLines={3}
+              maxLength={200}
+              testID="input-reminder-message"
+            />
+
+            <Pressable
+              onPress={() => { if (!remindMutation.isPending) remindMutation.mutate(customMessage); }}
+              disabled={remindMutation.isPending}
+              style={({ pressed }) => [
+                styles.remindSendBtn,
+                { backgroundColor: colors.primary, opacity: (remindMutation.isPending || pressed) ? 0.75 : 1 },
+              ]}
+              testID="button-confirm-send-reminder"
+            >
+              {remindMutation.isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="send-outline" size={16} color="#fff" />
+              )}
+              <Text style={styles.remindSendBtnText}>
+                {remindMutation.isPending ? "Wysyłanie…" : "Wyślij przypomnienie"}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={assignModalVisible}
@@ -332,4 +398,24 @@ const styles = StyleSheet.create({
   planRowName: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   planRowDesc: { fontSize: 12, fontFamily: "Inter_400Regular" },
   errorText: { fontSize: 13, color: "#e53935", fontFamily: "Inter_400Regular", marginTop: 8 },
+  remindModalHint: { fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 12, lineHeight: 18 },
+  remindInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    minHeight: 80,
+    textAlignVertical: "top",
+    marginBottom: 16,
+  },
+  remindSendBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  remindSendBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });
