@@ -161,6 +161,172 @@ Panel Trenera - Polska marka
   }
 }
 
+interface SendWelcomeEmailParams {
+  email: string;
+  firstName: string;
+  trainerName: string;
+}
+
+export async function sendWelcomeEmail({ email, firstName, trainerName }: SendWelcomeEmailParams): Promise<boolean> {
+  try {
+    console.log('[EMAIL] Sending welcome email to client:', email);
+    const { client, fromEmail } = await getResendClient();
+    const baseUrl = getBaseUrl();
+    const loginUrl = `${baseUrl}/`;
+
+    const result = await client.emails.send({
+      from: fromEmail,
+      to: email,
+      subject: 'Witaj w Panel Trenera!',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Witaj w Panel Trenera</title>
+        </head>
+        <body style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #0d9488; margin: 0; font-size: 28px;">Panel Trenera</h1>
+          </div>
+
+          <div style="background-color: #f8fafc; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
+            <h2 style="color: #1e293b; margin-top: 0;">Cześć ${firstName}!</h2>
+
+            <p>Zaakceptowałeś/aś zaproszenie od trenera <strong>${trainerName}</strong> i dołączyłeś/aś do Panel Trenera. Twój trener może teraz śledzić Twoje postępy i zarządzać Twoim treningiem.</p>
+
+            <p>Zaloguj się do aplikacji, aby zobaczyć swój plan treningowy:</p>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${loginUrl}"
+                 style="display: inline-block; background-color: #0d9488; color: white; text-decoration: none; padding: 14px 30px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                Zaloguj się
+              </a>
+            </div>
+
+            <p style="color: #64748b; font-size: 14px;">
+              Jeśli przycisk nie działa, skopiuj i wklej ten link do przeglądarki:<br>
+              <a href="${loginUrl}" style="color: #0d9488; word-break: break-all;">${loginUrl}</a>
+            </p>
+          </div>
+
+          <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+            <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+              Panel Trenera - Polska marka<br>
+              © ${new Date().getFullYear()} Wszelkie prawa zastrzeżone
+            </p>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+Cześć ${firstName}!
+
+Zaakceptowałeś/aś zaproszenie od trenera ${trainerName} i dołączyłeś/aś do Panel Trenera. Twój trener może teraz śledzić Twoje postępy i zarządzać Twoim treningiem.
+
+Zaloguj się do aplikacji: ${loginUrl}
+
+Panel Trenera - Polska marka
+© ${new Date().getFullYear()} Wszelkie prawa zastrzeżone
+      `
+    });
+
+    console.log('[EMAIL] Welcome email sent to client:', email, 'Result:', JSON.stringify(result));
+    if (result.error) {
+      console.error('[EMAIL] Resend API error (welcome):', result.error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('[EMAIL] Failed to send welcome email:', error);
+    return false;
+  }
+}
+
+interface SendTrainerNotificationEmailParams {
+  email: string;
+  trainerFirstName: string;
+  clientName: string;
+}
+
+export async function sendTrainerNotificationEmail({ email, trainerFirstName, clientName }: SendTrainerNotificationEmailParams): Promise<boolean> {
+  try {
+    console.log('[EMAIL] Sending trainer notification email to:', email);
+    const { client, fromEmail } = await getResendClient();
+    const baseUrl = getBaseUrl();
+    const dashboardUrl = `${baseUrl}/`;
+
+    const result = await client.emails.send({
+      from: fromEmail,
+      to: email,
+      subject: `${clientName} dołączył/a do Twojego zespołu - Panel Trenera`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Nowy podopieczny</title>
+        </head>
+        <body style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #0d9488; margin: 0; font-size: 28px;">Panel Trenera</h1>
+          </div>
+
+          <div style="background-color: #f8fafc; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
+            <h2 style="color: #1e293b; margin-top: 0;">Cześć ${trainerFirstName}!</h2>
+
+            <p>Masz nowego podopiecznego! <strong>${clientName}</strong> zaakceptował/a Twoje zaproszenie i dołączył/a do Panel Trenera.</p>
+
+            <p>Możesz teraz zarządzać jego/jej planem treningowym w panelu trenera.</p>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${dashboardUrl}"
+                 style="display: inline-block; background-color: #0d9488; color: white; text-decoration: none; padding: 14px 30px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                Przejdź do panelu
+              </a>
+            </div>
+
+            <p style="color: #64748b; font-size: 14px;">
+              Jeśli przycisk nie działa, skopiuj i wklej ten link do przeglądarki:<br>
+              <a href="${dashboardUrl}" style="color: #0d9488; word-break: break-all;">${dashboardUrl}</a>
+            </p>
+          </div>
+
+          <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+            <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+              Panel Trenera - Polska marka<br>
+              © ${new Date().getFullYear()} Wszelkie prawa zastrzeżone
+            </p>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+Cześć ${trainerFirstName}!
+
+Masz nowego podopiecznego! ${clientName} zaakceptował/a Twoje zaproszenie i dołączył/a do Panel Trenera.
+
+Możesz teraz zarządzać jego/jej planem treningowym w panelu trenera: ${dashboardUrl}
+
+Panel Trenera - Polska marka
+© ${new Date().getFullYear()} Wszelkie prawa zastrzeżone
+      `
+    });
+
+    console.log('[EMAIL] Trainer notification email sent to:', email, 'Result:', JSON.stringify(result));
+    if (result.error) {
+      console.error('[EMAIL] Resend API error (trainer notification):', result.error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('[EMAIL] Failed to send trainer notification email:', error);
+    return false;
+  }
+}
+
 interface SendPasswordResetEmailParams {
   email: string;
   firstName: string;

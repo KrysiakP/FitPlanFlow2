@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "../storage";
 import { db } from "../db";
 import { setupAuth, isAuthenticated, hashPassword, comparePassword, getSessionFromStore, unsignSessionCookie } from "../auth";
-import { generateVerificationToken, getTokenExpiry, sendVerificationEmail, sendPasswordResetEmail, getPasswordResetTokenExpiry } from "../email";
+import { generateVerificationToken, getTokenExpiry, sendVerificationEmail, sendPasswordResetEmail, getPasswordResetTokenExpiry, sendWelcomeEmail, sendTrainerNotificationEmail } from "../email";
 // Object Storage - code adapted from javascript_object_storage blueprint
 import { ObjectStorageService, ObjectNotFoundError } from "../objectStorage";
 import { ObjectPermission } from "../objectAcl";
@@ -841,6 +841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const inv of pendingInvitations) {
           try {
             await storage.acceptInvitation(inv.id, user.id);
+            const clientName = `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email;
             // Notify trainer via push
             void sendPushToUserAndRecord(
               inv.trainerId,
@@ -849,6 +850,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
               { type: "invitation_accepted", clientId: user.id },
               "invitation_accepted"
             );
+            // Send welcome email to client and notification to trainer
+            const trainer = await storage.getUser(inv.trainerId).catch(() => null);
+            const trainerName = trainer
+              ? `${trainer.firstName ?? ""} ${trainer.lastName ?? ""}`.trim() || trainer.email
+              : "Twój trener";
+            if (user.email && user.firstName) {
+              void sendWelcomeEmail({
+                email: user.email,
+                firstName: user.firstName,
+                trainerName,
+              });
+            }
+            if (trainer?.email && trainer?.firstName) {
+              void sendTrainerNotificationEmail({
+                email: trainer.email,
+                trainerFirstName: trainer.firstName,
+                clientName,
+              });
+            }
           } catch (invErr) {
             console.warn("[MOBILE-REGISTER] Could not auto-accept invitation:", inv.id, invErr);
           }
@@ -3031,7 +3051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const invitationBefore = await storage.getInvitation(id);
         await storage.acceptInvitation(id, userId);
         res.status(200).json({ message: "Zaproszenie zaakceptowane" });
-        // Fire-and-forget push to trainer
+        // Fire-and-forget push and emails
         if (invitationBefore?.trainerId) {
           const clientName = `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || (user?.email ?? "Nowy klient");
           void sendPushToUserAndRecord(
@@ -3041,6 +3061,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
             { type: "invitation_accepted", clientId: userId },
             "invitation_accepted"
           );
+          // Fetch trainer data once for both emails
+          const trainer = await storage.getUser(invitationBefore.trainerId).catch(() => null);
+          const trainerName = trainer
+            ? `${trainer.firstName ?? ""} ${trainer.lastName ?? ""}`.trim() || trainer.email
+            : "Twój trener";
+          // Send welcome email to client
+          if (user?.email && user?.firstName) {
+            void sendWelcomeEmail({
+              email: user.email,
+              firstName: user.firstName,
+              trainerName,
+            });
+          }
+          // Send notification email to trainer (independent of client email condition)
+          if (trainer?.email && trainer?.firstName) {
+            void sendTrainerNotificationEmail({
+              email: trainer.email,
+              trainerFirstName: trainer.firstName,
+              clientName,
+            });
+          }
         }
       } catch (error) {
         if (error instanceof Error && error.message.includes("not found")) {
