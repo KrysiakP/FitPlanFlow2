@@ -19,6 +19,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (firstName: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -124,6 +125,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void registerPushToken();
   }, []);
 
+  const register = useCallback(async (firstName: string, email: string, password: string) => {
+    const res = await apiFetch("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ firstName, email, password }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({})) as { message?: string };
+      throw new Error(err.message ?? "Nie udało się zarejestrować konta");
+    }
+    const data: User = await res.json();
+    setUser(data);
+    await setStoredSession(true);
+    void registerPushToken();
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await apiFetch("/api/logout", { method: "POST" });
@@ -133,7 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

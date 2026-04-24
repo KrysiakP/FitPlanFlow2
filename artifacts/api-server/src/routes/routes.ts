@@ -765,6 +765,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Mobile-specific registration endpoint: skips email verification, auto-logs in
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const mobileRegisterSchema = z.object({
+        email: z.string().email("Nieprawidłowy adres email"),
+        password: z.string().min(6, "Hasło musi mieć co najmniej 6 znaków"),
+        firstName: z.string().min(1, "Imię jest wymagane"),
+      });
+
+      const validationResult = mobileRegisterSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({
+          message: "Nieprawidłowe dane wejściowe",
+          errors: validationResult.error.errors,
+        });
+      }
+
+      const { email, password, firstName } = validationResult.data;
+
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "Użytkownik z tym adresem email już istnieje" });
+      }
+
+      const hashedPassword = await hashPassword(password);
+
+      const user = await storage.createUser({
+        email,
+        password: hashedPassword,
+        firstName,
+        lastName: "",
+        role: "client",
+        trialEndsAt: null,
+        referredByTrainerId: null,
+        referralBonusDays: 0,
+        hasFreeAccess: false,
+        subscriptionCancelledAt: null,
+        emailVerified: true,
+        emailVerificationToken: null,
+        emailVerificationTokenExpiresAt: null,
+      });
+
+      // Auto-login: create session
+      req.session.userId = user.id;
+      await new Promise<void>((resolve, reject) =>
+        req.session.save((err) => (err ? reject(err) : resolve()))
+      );
+
+      const { password: _, ...userWithoutPassword } = user;
+      console.log("[MOBILE-REGISTER] User registered and logged in:", user.id);
+      return res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error in mobile register:", error);
+      return res.status(500).json({ message: "Nie udało się zarejestrować użytkownika" });
+    }
+  });
+
   app.post("/api/login", async (req, res) => {
     console.log("[LOGIN] Received login request:", { email: req.body?.email });
     try {

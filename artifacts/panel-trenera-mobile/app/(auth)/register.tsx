@@ -9,82 +9,47 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import * as LocalAuthentication from "expo-local-authentication";
-import { useAuth, hasStoredSession } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { login, refreshUser } = useAuth();
+  const { register } = useAuth();
+
+  const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [biometricLoading, setBiometricLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [biometricEnabled, setBiometricEnabled] = useState(false);
 
-  useEffect(() => {
-    void checkBiometrics();
-  }, []);
-
-  async function checkBiometrics() {
-    if (Platform.OS === "web") return;
-    const compatible = await LocalAuthentication.hasHardwareAsync();
-    const enrolled = await LocalAuthentication.isEnrolledAsync();
-    const hasSession = await hasStoredSession();
-    setBiometricAvailable(compatible && enrolled);
-    setBiometricEnabled(compatible && enrolled && hasSession);
+  function validate(): string | null {
+    if (!firstName.trim()) return "Podaj swoje imię";
+    if (!email.trim()) return "Podaj adres e-mail";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return "Nieprawidłowy adres e-mail";
+    if (password.length < 6) return "Hasło musi mieć co najmniej 6 znaków";
+    if (password !== confirmPassword) return "Hasła nie są zgodne";
+    return null;
   }
 
-  async function handleBiometricLogin() {
-    setBiometricLoading(true);
-    setError(null);
-    try {
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: "Zaloguj się do Panelu Trenera",
-        cancelLabel: "Anuluj",
-        fallbackLabel: "Użyj hasła",
-      });
-      if (result.success) {
-        await refreshUser();
-        // refreshUser either restores the user from the persisted session cookie
-        // or clears hasStoredSession and sets user to null if the session expired.
-        const stillHasSession = await hasStoredSession();
-        if (!stillHasSession) {
-          setBiometricEnabled(false);
-          setError("Sesja wygasła. Zaloguj się ponownie e-mailem i hasłem.");
-          return;
-        }
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.replace("/");
-      } else if (result.error !== "user_cancel") {
-        setError("Biometria nieudana. Użyj e-maila i hasła.");
-      }
-    } catch {
-      setError("Biometria niedostępna.");
-    } finally {
-      setBiometricLoading(false);
-    }
-  }
-
-  async function handleLogin() {
-    if (!email || !password) {
-      setError("Podaj e-mail i hasło");
+  async function handleRegister() {
+    const validationError = validate();
+    if (validationError) {
+      setError(validationError);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      await login(email.trim().toLowerCase(), password);
-      // login() sets hasStoredSession flag — biometric becomes available next launch
+      await register(firstName.trim(), email.trim().toLowerCase(), password);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/");
     } catch (e: unknown) {
@@ -105,18 +70,22 @@ export default function LoginScreen() {
         <ScrollView
           contentContainerStyle={[
             styles.content,
-            { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24 },
+            { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 },
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <View style={[styles.logoBox, { backgroundColor: colors.primary }]}>
-              <Text style={styles.logoText}>PT</Text>
-            </View>
-            <Text style={[styles.appName, { color: colors.foreground }]}>Panel Trenera</Text>
-            <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
-              Profesjonalne zarządzanie treningami
+            <Pressable
+              onPress={() => router.back()}
+              style={styles.backBtn}
+              testID="button-back"
+            >
+              <Ionicons name="arrow-back" size={22} color={colors.foreground} />
+            </Pressable>
+            <Text style={[styles.title, { color: colors.foreground }]}>Utwórz konto</Text>
+            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+              Zarejestruj się, aby uzyskać dostęp do swojego planu
             </Text>
           </View>
 
@@ -132,6 +101,23 @@ export default function LoginScreen() {
                 <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
               </View>
             )}
+
+            <View style={styles.field}>
+              <Text style={[styles.label, { color: colors.mutedForeground }]}>Imię</Text>
+              <View style={[styles.inputWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Ionicons name="person-outline" size={18} color={colors.mutedForeground} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: colors.foreground }]}
+                  placeholder="Twoje imię"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  testID="input-first-name"
+                />
+              </View>
+            </View>
 
             <View style={styles.field}>
               <Text style={[styles.label, { color: colors.mutedForeground }]}>Adres e-mail</Text>
@@ -157,7 +143,7 @@ export default function LoginScreen() {
                 <Ionicons name="lock-closed-outline" size={18} color={colors.mutedForeground} style={styles.inputIcon} />
                 <TextInput
                   style={[styles.input, { color: colors.foreground }]}
-                  placeholder="••••••••"
+                  placeholder="Min. 6 znaków"
                   placeholderTextColor={colors.mutedForeground}
                   value={password}
                   onChangeText={setPassword}
@@ -179,51 +165,56 @@ export default function LoginScreen() {
               </View>
             </View>
 
+            <View style={styles.field}>
+              <Text style={[styles.label, { color: colors.mutedForeground }]}>Powtórz hasło</Text>
+              <View style={[styles.inputWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Ionicons name="lock-closed-outline" size={18} color={colors.mutedForeground} style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { color: colors.foreground }]}
+                  placeholder="Powtórz hasło"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPass}
+                  autoCapitalize="none"
+                  testID="input-confirm-password"
+                />
+                <Pressable
+                  onPress={() => setShowConfirmPass(!showConfirmPass)}
+                  style={styles.eyeBtn}
+                  testID="button-toggle-confirm-password"
+                >
+                  <Ionicons
+                    name={showConfirmPass ? "eye-off-outline" : "eye-outline"}
+                    size={18}
+                    color={colors.mutedForeground}
+                  />
+                </Pressable>
+              </View>
+            </View>
+
             <Pressable
-              onPress={handleLogin}
+              onPress={handleRegister}
               disabled={loading}
               style={({ pressed }) => [
-                styles.loginBtn,
+                styles.registerBtn,
                 { backgroundColor: colors.primary, opacity: pressed || loading ? 0.85 : 1 },
               ]}
-              testID="button-login"
+              testID="button-register"
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.loginBtnText}>Zaloguj się</Text>
+                <Text style={styles.registerBtnText}>Zarejestruj się</Text>
               )}
             </Pressable>
 
-            {biometricEnabled && (
-              <Pressable
-                onPress={handleBiometricLogin}
-                disabled={biometricLoading}
-                style={({ pressed }) => [
-                  styles.biometricBtn,
-                  { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed || biometricLoading ? 0.8 : 1 },
-                ]}
-                testID="button-biometric-login"
-              >
-                {biometricLoading ? (
-                  <ActivityIndicator color={colors.primary} />
-                ) : (
-                  <>
-                    <Ionicons name="finger-print" size={22} color={colors.primary} />
-                    <Text style={[styles.biometricText, { color: colors.foreground }]}>
-                      Zaloguj biometrycznie
-                    </Text>
-                  </>
-                )}
-              </Pressable>
-            )}
-
             <View style={[styles.divider, { borderColor: colors.border }]}>
               <Text style={[styles.dividerText, { color: colors.mutedForeground }]}>
-                Nie masz konta?{" "}
+                Masz już konto?{" "}
               </Text>
-              <Pressable onPress={() => router.replace("/(auth)/register")} testID="button-go-register">
-                <Text style={[styles.linkText, { color: colors.primary }]}>Zarejestruj się</Text>
+              <Pressable onPress={() => router.replace("/(auth)/login")} testID="button-go-login">
+                <Text style={[styles.linkText, { color: colors.primary }]}>Zaloguj się</Text>
               </Pressable>
             </View>
           </View>
@@ -240,32 +231,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   header: {
-    alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 32,
   },
-  logoBox: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
+  backBtn: {
+    marginBottom: 20,
+    alignSelf: "flex-start",
+    padding: 4,
   },
-  logoText: {
-    color: "#fff",
+  title: {
     fontSize: 28,
     fontFamily: "Inter_700Bold",
-    letterSpacing: 1,
+    marginBottom: 8,
   },
-  appName: {
-    fontSize: 28,
-    fontFamily: "Inter_700Bold",
-    marginBottom: 6,
-  },
-  tagline: {
+  subtitle: {
     fontSize: 14,
     fontFamily: "Inter_400Regular",
-    textAlign: "center",
+    lineHeight: 20,
   },
   form: {
     gap: 16,
@@ -310,29 +291,16 @@ const styles = StyleSheet.create({
   eyeBtn: {
     padding: 4,
   },
-  loginBtn: {
+  registerBtn: {
     height: 52,
     borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 8,
   },
-  loginBtnText: {
+  registerBtnText: {
     color: "#fff",
     fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
-  },
-  biometricBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    height: 52,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  biometricText: {
-    fontSize: 15,
     fontFamily: "Inter_600SemiBold",
   },
   divider: {
