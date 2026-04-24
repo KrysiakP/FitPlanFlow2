@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -75,11 +76,18 @@ export default function OnboardingScreen() {
     try {
       await saveOnboarding(phone, selectedGoal ?? "");
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      // Non-critical — continue anyway
-    } finally {
       setSaving(false);
       router.replace("/");
+    } catch {
+      setSaving(false);
+      Alert.alert(
+        "Nie udało się zapisać",
+        "Wystąpił problem podczas zapisywania Twoich danych. Możesz spróbować ponownie lub pominąć ten krok.",
+        [
+          { text: "Spróbuj ponownie", onPress: handleContinue },
+          { text: "Pomiń", style: "cancel", onPress: () => router.replace("/") },
+        ]
+      );
     }
   }
 
