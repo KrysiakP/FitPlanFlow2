@@ -25,3 +25,21 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+
+## Artifacts
+
+- **Panel Trenera** (`artifacts/panel-trenera`) — Web dashboard for trainers (React + Vite)
+- **API Server** (`artifacts/api-server`) — Express 5 REST API with session-cookie auth
+- **Panel Trenera Mobile** (`artifacts/panel-trenera-mobile`) — Expo mobile app (iOS + Android + web), trainer & client roles
+
+## Mobile App (Expo)
+
+- Auth uses **session-cookie** via `credentials: "include"` — no bearer tokens.
+- `EXPO_PUBLIC_DOMAIN` — must be set to the API server's public URL (e.g. `https://<repl>.replit.app`) for **production EAS builds**. In development, the app auto-detects `REPLIT_DEV_DOMAIN` at runtime (see `artifacts/panel-trenera-mobile/lib/api.ts`).
+- Biometric login uses `expo-local-authentication` + `expo-secure-store`; tracks session availability via `HAS_SESSION_KEY` flag (not a stored credential).
+- CORS on the API is restricted to `*.replit.dev`, `*.replit.app`, `*.repl.co`, and `localhost`.
+
+## Notes
+
+- `mobile_tokens` DB table and associated storage methods are kept but unused — the bearer-token mobile auth flow was removed. The table can be dropped in a future cleanup migration.
+- Pre-existing TypeScript errors exist in `artifacts/api-server/src` (non-blocking — esbuild bundles successfully).

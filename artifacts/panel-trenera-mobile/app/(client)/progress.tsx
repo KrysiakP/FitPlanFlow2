@@ -15,6 +15,11 @@ import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { apiGet } from "@/lib/api";
 
+interface ExerciseLogItem {
+  id: string;
+  loggedAt: string;
+}
+
 type Colors = ReturnType<typeof useColors>;
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
 
@@ -55,8 +60,35 @@ export default function ProgressScreen() {
     retry: 1,
   });
 
+  const { data: logsData } = useQuery<ExerciseLogItem[]>({
+    queryKey: ["exercise-logs-all", user?.id],
+    queryFn: () => apiGet<ExerciseLogItem[]>("/api/exercise-logs"),
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
+  });
+
   const entries = data ? [data] : [];
   const latest = data ?? null;
+
+  // Group exercise logs into daily workout counts for the last 14 days
+  const workoutActivity = (() => {
+    const days: { label: string; key: string; count: number }[] = [];
+    const now = new Date();
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const label = d.toLocaleDateString("pl-PL", { weekday: "short" }).slice(0, 2);
+      days.push({ label: i % 2 === 0 ? label : "", key, count: 0 });
+    }
+    (logsData ?? []).forEach((log) => {
+      const key = new Date(log.loggedAt).toISOString().slice(0, 10);
+      const day = days.find((d) => d.key === key);
+      if (day) day.count += 1;
+    });
+    return days;
+  })();
+  const maxCount = Math.max(...workoutActivity.map((d) => d.count), 1);
 
   return (
     <ScrollView
@@ -74,16 +106,51 @@ export default function ProgressScreen() {
 
       {isLoading ? (
         <ActivityIndicator color={colors.primary} style={styles.loader} />
-      ) : entries.length === 0 ? (
-        <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Ionicons name="trending-up-outline" size={36} color={colors.mutedForeground} />
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Brak wpisów</Text>
-          <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
-            Nie masz jeszcze zapisanych żadnych pomiarów.
-          </Text>
-        </View>
       ) : (
         <>
+          {/* Workout activity bar chart — shown regardless of progress entry existence */}
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            Aktywność treningowa (14 dni)
+          </Text>
+          <View style={[chartStyles.container, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={chartStyles.bars}>
+              {workoutActivity.map((day) => (
+                <View key={day.key} style={chartStyles.barCol}>
+                  <View style={chartStyles.barWrap}>
+                    <View
+                      style={[
+                        chartStyles.bar,
+                        {
+                          backgroundColor: day.count > 0 ? colors.primary : colors.border,
+                          height: Math.max(4, (day.count / maxCount) * 80),
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={[chartStyles.barLabel, { color: colors.mutedForeground }]}>
+                    {day.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <View style={[chartStyles.legend, { borderTopColor: colors.border }]}>
+              <View style={[chartStyles.legendDot, { backgroundColor: colors.primary }]} />
+              <Text style={[chartStyles.legendText, { color: colors.mutedForeground }]}>
+                Liczba zalogowanych ćwiczeń
+              </Text>
+            </View>
+          </View>
+
+          {!latest && (
+            <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Ionicons name="trending-up-outline" size={28} color={colors.mutedForeground} />
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Brak pomiarów</Text>
+              <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
+                Twój trener może dodać pomiary do Twojego profilu.
+              </Text>
+            </View>
+          )}
+
           {latest && (
             <>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
@@ -241,6 +308,18 @@ const metricStyles = StyleSheet.create({
   },
   value: { fontSize: 20, fontFamily: "Inter_700Bold" },
   label: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center" },
+});
+
+const chartStyles = StyleSheet.create({
+  container: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 24 },
+  bars: { flexDirection: "row", alignItems: "flex-end", height: 96, gap: 4 },
+  barCol: { flex: 1, alignItems: "center" },
+  barWrap: { flex: 1, justifyContent: "flex-end", width: "100%" },
+  bar: { borderRadius: 4, width: "100%" },
+  barLabel: { fontSize: 9, fontFamily: "Inter_400Regular", marginTop: 4, height: 12 },
+  legend: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10, paddingTop: 10, borderTopWidth: 1 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendText: { fontSize: 11, fontFamily: "Inter_400Regular" },
 });
 
 const hStyles = StyleSheet.create({

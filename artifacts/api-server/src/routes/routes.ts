@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "../storage";
 import { db } from "../db";
-import { setupAuth, isAuthenticated, hashPassword, comparePassword, getSessionFromStore, unsignSessionCookie, generateMobileToken, mobileTokenExpiresAt } from "../auth";
+import { setupAuth, isAuthenticated, hashPassword, comparePassword, getSessionFromStore, unsignSessionCookie } from "../auth";
 import { generateVerificationToken, getTokenExpiry, sendVerificationEmail, sendPasswordResetEmail, getPasswordResetTokenExpiry } from "../email";
 // Object Storage - code adapted from javascript_object_storage blueprint
 import { ObjectStorageService, ObjectNotFoundError } from "../objectStorage";
@@ -826,49 +826,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // Mobile bearer-token login — used by the Expo app instead of session cookies
-  app.post("/api/auth/mobile-login", async (req, res) => {
-    try {
-      const validationResult = loginSchema.safeParse(req.body);
-      if (!validationResult.success) {
-        return res.status(400).json({ message: "Nieprawidłowe dane wejściowe" });
-      }
-      const { email, password } = validationResult.data;
-      const user = await storage.getUserByEmail(email);
-      if (!user) return res.status(401).json({ message: "Nieprawidłowy email lub hasło" });
-      const isValidPassword = await comparePassword(password, user.password);
-      if (!isValidPassword) return res.status(401).json({ message: "Nieprawidłowy email lub hasło" });
-      if (!user.emailVerified) {
-        return res.status(403).json({
-          message: "Twój adres email nie został jeszcze potwierdzony.",
-          requiresEmailVerification: true,
-          email: user.email,
-        });
-      }
-      const token = generateMobileToken();
-      const expiresAt = mobileTokenExpiresAt();
-      await storage.createMobileToken(user.id, token, expiresAt);
-      const { password: _, ...userWithoutPassword } = user;
-      res.json({ token, expiresAt: expiresAt.toISOString(), user: userWithoutPassword });
-    } catch (error) {
-      console.error("Error in mobile login:", error);
-      res.status(500).json({ message: "Nie udało się zalogować" });
-    }
-  });
-
-  // Mobile logout — revokes the bearer token
-  app.post("/api/auth/mobile-logout", isAuthenticated, async (req, res) => {
-    try {
-      const authHeader = req.headers.authorization;
-      if (authHeader?.startsWith("Bearer ")) {
-        await storage.deleteMobileToken(authHeader.slice(7));
-      }
-      res.json({ message: "Wylogowano pomyślnie" });
-    } catch (error) {
-      console.error("Error in mobile logout:", error);
-      res.status(500).json({ message: "Nie udało się wylogować" });
-    }
-  });
 
   // Push notification token registration
   app.post("/api/push-tokens", isAuthenticated, async (req, res) => {

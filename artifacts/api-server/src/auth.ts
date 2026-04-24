@@ -3,7 +3,6 @@ import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
 import bcrypt from "bcryptjs";
 import cookieSignature from "cookie-signature";
-import { randomBytes } from "crypto";
 import { storage } from "./storage";
 import type { User } from "@workspace/db";
 
@@ -78,35 +77,8 @@ export async function comparePassword(password: string, hash: string): Promise<b
   return bcrypt.compare(password, hash);
 }
 
-const MOBILE_TOKEN_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
-
-export function generateMobileToken(): string {
-  return randomBytes(48).toString("hex");
-}
-
-export function mobileTokenExpiresAt(): Date {
-  return new Date(Date.now() + MOBILE_TOKEN_TTL_MS);
-}
-
-export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  // 1. Check session cookie (web)
-  if (req.session.userId) {
-    return next();
-  }
-  // 2. Check Authorization: Bearer <token> (mobile)
-  const authHeader = req.headers.authorization;
-  if (authHeader?.startsWith("Bearer ")) {
-    const raw = authHeader.slice(7);
-    try {
-      const record = await storage.getMobileTokenByToken(raw);
-      if (record && record.expiresAt > new Date()) {
-        req.session.userId = record.userId;
-        return next();
-      }
-    } catch {
-      // fall through to 401
-    }
-  }
+export const isAuthenticated: RequestHandler = (req, res, next) => {
+  if (req.session.userId) return next();
   return res.status(401).json({ message: "Unauthorized" });
 };
 
