@@ -977,6 +977,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk workout reminder — trainer sends reminder to all active clients
+  app.post("/api/trainer/clients/remind-all", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą wysyłać przypomnienia" });
+      }
+      const trainerClients = await storage.getTrainerClients(userId);
+      const message = (req.body?.message as string | undefined) ?? "Czas na trening! Nie zapomnij o dzisiejszej sesji.";
+      let sent = 0;
+      await Promise.all(
+        trainerClients.map(async (client) => {
+          if (isDemoId(client.id)) return;
+          try {
+            await sendPushToUserAndRecord(
+              client.id,
+              "Przypomnienie o treningu",
+              message,
+              { type: "workout_reminder", clientId: client.id },
+              "workout_reminder"
+            );
+            const tokens = await storage.getPushTokensByUser(client.id);
+            sent += tokens.length;
+          } catch {
+            // Skip individual client errors
+          }
+        })
+      );
+      res.json({ sent, total: trainerClients.length });
+    } catch (error) {
+      console.error("Error sending bulk reminder:", error);
+      res.status(500).json({ message: "Nie udało się wysłać przypomnień" });
+    }
+  });
+
   // Email verification endpoint
   app.get("/api/auth/verify-email", async (req, res) => {
     try {
@@ -2964,6 +3000,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/invitations/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą anulować zaproszenia" });
+      }
+      const { id } = req.params;
+      await storage.cancelInvitation(id, userId);
+      res.json({ message: "Zaproszenie anulowane" });
+    } catch (error) {
+      console.error("Error cancelling invitation:", error);
+      res.status(500).json({ message: "Nie udało się anulować zaproszenia" });
+    }
+  });
+
   app.post("/api/invitations/:id/accept", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
@@ -3285,6 +3337,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(sessions);
     } catch (error) {
       console.error("Error fetching workout sessions:", error);
+      res.status(500).json({ message: "Nie udało się pobrać sesji treningowych" });
+    }
+  });
+
+  // Trainer: get and update private notes about a client
+  app.get("/api/trainer/clients/:clientId/notes", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
+      }
+      const { clientId } = req.params;
+      const notes = await storage.getTrainerNotes(userId, clientId);
+      res.json({ notes });
+    } catch (error) {
+      console.error("Error fetching trainer notes:", error);
+      res.status(500).json({ message: "Nie udało się pobrać notatek" });
+    }
+  });
+
+  app.patch("/api/trainer/clients/:clientId/notes", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
+      }
+      const { clientId } = req.params;
+      const { notes } = req.body;
+      if (typeof notes !== "string") {
+        return res.status(400).json({ message: "Pole notes musi być tekstem" });
+      }
+      await storage.updateTrainerNotes(userId, clientId, notes);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating trainer notes:", error);
+      res.status(500).json({ message: "Nie udało się zaktualizować notatek" });
+    }
+  });
+
+  // Trainer: view a client's workout sessions
+  app.get("/api/trainer/clients/:clientId/workout-sessions", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
+      }
+
+      const { clientId } = req.params;
+
+      // Verify the client belongs to this trainer
+      const clients = await storage.getClientsByTrainerId(userId);
+      const isOwnClient = clients.some((c) => c.id === clientId);
+      if (!isOwnClient) {
+        return res.status(403).json({ message: "Brak dostępu do tego podopiecznego" });
+      }
+
+      const sessions = await storage.getClientWorkoutSessions(clientId);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error fetching client workout sessions for trainer:", error);
       res.status(500).json({ message: "Nie udało się pobrać sesji treningowych" });
     }
   });

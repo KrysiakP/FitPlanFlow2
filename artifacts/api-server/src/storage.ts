@@ -186,12 +186,15 @@ export interface IStorage {
   acceptInvitation(invitationId: string, clientId: string): Promise<void>;
   rejectInvitation(invitationId: string, clientId: string): Promise<void>;
   getTrainerInvitations(trainerId: string): Promise<PlanInvitation[]>;
-  
+  cancelInvitation(invitationId: string, trainerId: string): Promise<void>;
+
   // Client relationship operations
   getClientRelationship(trainerId: string, clientId: string): Promise<ClientRelationship | null>;
   hasActiveTrainer(clientId: string): Promise<boolean>;
   getTrainerForClient(clientId: string): Promise<User | null>;
   archiveClientRelationship(trainerId: string, clientId: string): Promise<void>;
+  getTrainerNotes(trainerId: string, clientId: string): Promise<string | null>;
+  updateTrainerNotes(trainerId: string, clientId: string, notes: string): Promise<void>;
   
   // Charity donation operations
   listCharityDonations(): Promise<CharityDonation[]>;
@@ -1559,7 +1562,20 @@ export class DatabaseStorage implements IStorage {
       .where(eq(planInvitations.trainerId, trainerId))
       .orderBy(desc(planInvitations.createdAt));
   }
-  
+
+  async cancelInvitation(invitationId: string, trainerId: string): Promise<void> {
+    await db
+      .update(planInvitations)
+      .set({ status: "cancelled" })
+      .where(
+        and(
+          eq(planInvitations.id, invitationId),
+          eq(planInvitations.trainerId, trainerId),
+          eq(planInvitations.status, "pending")
+        )
+      );
+  }
+
   // Client relationship operations
   async getClientRelationship(trainerId: string, clientId: string): Promise<ClientRelationship | null> {
     const [relationship] = await db
@@ -1643,6 +1659,34 @@ export class DatabaseStorage implements IStorage {
     });
   }
   
+  async getTrainerNotes(trainerId: string, clientId: string): Promise<string | null> {
+    const [rel] = await db
+      .select({ trainerNotes: clientRelationships.trainerNotes })
+      .from(clientRelationships)
+      .where(
+        and(
+          eq(clientRelationships.trainerId, trainerId),
+          eq(clientRelationships.clientId, clientId),
+          eq(clientRelationships.status, 'active')
+        )
+      )
+      .limit(1);
+    return rel?.trainerNotes ?? null;
+  }
+
+  async updateTrainerNotes(trainerId: string, clientId: string, notes: string): Promise<void> {
+    await db
+      .update(clientRelationships)
+      .set({ trainerNotes: notes })
+      .where(
+        and(
+          eq(clientRelationships.trainerId, trainerId),
+          eq(clientRelationships.clientId, clientId),
+          eq(clientRelationships.status, 'active')
+        )
+      );
+  }
+
   // Charity donation operations
   async listCharityDonations(): Promise<CharityDonation[]> {
     return await db

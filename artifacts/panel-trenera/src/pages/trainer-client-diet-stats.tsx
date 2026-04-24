@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { UtensilsCrossed, Flame, Droplet, ArrowLeft, AlertCircle } from "lucide-react";
+import { UtensilsCrossed, Flame, Droplet, ArrowLeft, AlertCircle, Zap, Beef, Wheat, CircleDot } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { DietPlan } from "@shared/schema";
 
@@ -222,6 +222,50 @@ export default function TrainerClientDietStats() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Macro Targets Card */}
+      <Card data-testid="card-macro-targets">
+        <CardHeader className="pb-3">
+          <CardTitle className="font-heading text-xl">Dzienne cele makroskładników</CardTitle>
+          <CardDescription>Cele zdefiniowane w planie: {activePlan.name}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-1" data-testid="macro-target-calories">
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Zap className="w-4 h-4 text-amber-500" />
+                Kalorie
+              </div>
+              <p className="text-2xl font-bold">{activePlan.targetCalories}</p>
+              <p className="text-xs text-muted-foreground">kcal / dzień</p>
+            </div>
+            <div className="space-y-1" data-testid="macro-target-protein">
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Beef className="w-4 h-4 text-red-500" />
+                Białko
+              </div>
+              <p className="text-2xl font-bold">{activePlan.targetProtein}g</p>
+              <p className="text-xs text-muted-foreground">gramów / dzień</p>
+            </div>
+            <div className="space-y-1" data-testid="macro-target-fat">
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <CircleDot className="w-4 h-4 text-yellow-500" />
+                Tłuszcze
+              </div>
+              <p className="text-2xl font-bold">{activePlan.targetFat}g</p>
+              <p className="text-xs text-muted-foreground">gramów / dzień</p>
+            </div>
+            <div className="space-y-1" data-testid="macro-target-carbs">
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Wheat className="w-4 h-4 text-green-600" />
+                Węglowodany
+              </div>
+              <p className="text-2xl font-bold">{activePlan.targetCarbs}g</p>
+              <p className="text-xs text-muted-foreground">gramów / dzień</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Chart Section (optional) */}
       {stats?.dailyStats && stats.dailyStats.length > 0 && (

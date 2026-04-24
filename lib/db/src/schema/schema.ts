@@ -194,6 +194,7 @@ export const clientRelationships = pgTable("client_relationships", {
   trainerId: varchar("trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   status: varchar("status", { length: 20 }).notNull().default("active"), // 'active' or 'archived'
+  trainerNotes: text("trainer_notes"), // private notes by the trainer about this client
   createdAt: timestamp("created_at").defaultNow().notNull(),
   archivedAt: timestamp("archived_at"),
 }, (table) => ({

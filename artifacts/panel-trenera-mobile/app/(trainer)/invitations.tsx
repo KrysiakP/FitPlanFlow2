@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -19,7 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet, apiPost, apiDelete } from "@/lib/api";
 
 interface Invitation {
   id: string;
@@ -75,6 +76,18 @@ export default function TrainerInvitationsScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setModalVisible(false);
       setEmail("");
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (invitationId: string) =>
+      apiDelete<{ message: string }>(`/api/invitations/${invitationId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invitations"] });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    },
+    onError: () => {
+      Alert.alert("Błąd", "Nie udało się anulować zaproszenia.");
     },
   });
 
@@ -138,6 +151,21 @@ export default function TrainerInvitationsScreen() {
                     invitation={inv}
                     colors={colors}
                     onShare={() => handleShare(inv)}
+                    onCancel={() => {
+                      Alert.alert(
+                        "Anuluj zaproszenie",
+                        `Czy na pewno chcesz anulować zaproszenie dla ${inv.clientEmail}?`,
+                        [
+                          { text: "Nie", style: "cancel" },
+                          {
+                            text: "Anuluj zaproszenie",
+                            style: "destructive",
+                            onPress: () => cancelMutation.mutate(inv.id),
+                          },
+                        ]
+                      );
+                    }}
+                    cancelling={cancelMutation.isPending && cancelMutation.variables === inv.id}
                   />
                 ))}
               </>
@@ -241,9 +269,11 @@ interface InvitationCardProps {
   invitation: Invitation;
   colors: Colors;
   onShare: () => void;
+  onCancel?: () => void;
+  cancelling?: boolean;
 }
 
-function InvitationCard({ invitation, colors, onShare }: InvitationCardProps) {
+function InvitationCard({ invitation, colors, onShare, onCancel, cancelling }: InvitationCardProps) {
   const statusColor: Record<string, string> = {
     pending: "#16a34a",
     accepted: "#0846ab",
@@ -276,9 +306,25 @@ function InvitationCard({ invitation, colors, onShare }: InvitationCardProps) {
           </View>
         </View>
         {invitation.status === "pending" && (
-          <Pressable onPress={onShare} style={styles.shareBtn} testID="button-share-invitation">
-            <Ionicons name="share-outline" size={20} color={colors.primary} />
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: 4 }}>
+            <Pressable onPress={onShare} style={styles.shareBtn} testID="button-share-invitation">
+              <Ionicons name="share-outline" size={20} color={colors.primary} />
+            </Pressable>
+            {onCancel && (
+              <Pressable
+                onPress={onCancel}
+                disabled={cancelling}
+                style={[styles.shareBtn, { opacity: cancelling ? 0.5 : 1 }]}
+                testID="button-cancel-pending-invitation"
+              >
+                {cancelling ? (
+                  <ActivityIndicator size="small" color="#e53935" />
+                ) : (
+                  <Ionicons name="close-circle-outline" size={20} color="#e53935" />
+                )}
+              </Pressable>
+            )}
+          </View>
         )}
       </View>
     </View>

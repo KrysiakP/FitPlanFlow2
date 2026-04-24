@@ -39,7 +39,21 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 - Biometric login uses `expo-local-authentication` + `expo-secure-store`; tracks session availability via `HAS_SESSION_KEY` flag (not a stored credential).
 - CORS on the API is restricted to `*.replit.dev`, `*.replit.app`, `*.repl.co`, and `localhost`.
 
+## Recent Features
+
+- **Trainer private notes** — `GET/PATCH /api/trainer/clients/:clientId/notes` + web & mobile UI
+- **Body measurements** — arm (`ramię`) and leg (`udo`) tracked in progress charts
+- **Diet view macro totals** — daily calorie/protein/fat/carb targets shown in diet tab
+- **Client phone & goal display** — shown in web clients page header and mobile trainer client detail
+- **Workout sessions tab** — trainer can see client's session history via `GET /api/trainer/clients/:clientId/workout-sessions`
+- **Elapsed session timer** — live timer displayed while training session is active (mobile)
+- **Last session weight pre-fill** — when logging a set, load is pre-filled from last session via `GET /api/exercises/:exerciseId/latest-log`
+- **Cancel invitation** — trainer can cancel pending invitations via `DELETE /api/invitations/:id`; UI in mobile invitations screen
+- **Bulk remind all** — trainer can notify all clients at once via `POST /api/trainer/clients/remind-all`; button in mobile clients list
+
 ## Notes
 
 - `mobile_tokens` DB table and associated storage methods are kept but unused — the bearer-token mobile auth flow was removed. The table can be dropped in a future cleanup migration.
 - Pre-existing TypeScript errors exist in `artifacts/api-server/src` (non-blocking — esbuild bundles successfully).
+- `trainer_notes` column added to `client_relationships` table via direct SQL ALTER TABLE (not drizzle-kit push).
+- `apiDelete` function added to `artifacts/panel-trenera-mobile/lib/api.ts`.

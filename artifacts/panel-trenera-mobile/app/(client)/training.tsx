@@ -369,6 +369,13 @@ export default function TrainingScreen() {
   const [isResting, setIsResting] = useState(false);
   const restIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Elapsed session timer
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const elapsedIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Cache of last session logs per exercise: exerciseId -> { reps, load }
+  const lastSessionLogsRef = useRef<Record<string, { reps: number; load: string | null }>>({});
+
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const { data, isLoading, refetch, isRefetching } = useQuery<PlanAssignment>({
@@ -389,6 +396,12 @@ export default function TrainingScreen() {
     }
     setIsResting(false);
     setRestSeconds(0);
+    if (elapsedIntervalRef.current) {
+      clearInterval(elapsedIntervalRef.current);
+      elapsedIntervalRef.current = null;
+    }
+    setElapsedSeconds(0);
+    lastSessionLogsRef.current = {};
   }
 
   const sessionMutation = useMutation({
@@ -452,6 +465,7 @@ export default function TrainingScreen() {
   useEffect(() => {
     return () => {
       if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+      if (elapsedIntervalRef.current) clearInterval(elapsedIntervalRef.current);
     };
   }, []);
 
@@ -472,8 +486,14 @@ export default function TrainingScreen() {
     setSetLogs({});
     setLoggingTarget(null);
     stopRestTimer();
+    lastSessionLogsRef.current = {};
+    setElapsedSeconds(0);
     setSessionStartTime(Date.now());
     setSessionActive(true);
+    if (elapsedIntervalRef.current) clearInterval(elapsedIntervalRef.current);
+    elapsedIntervalRef.current = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }
 
@@ -498,12 +518,48 @@ export default function TrainingScreen() {
     }
   }
 
-  function handleStartLog(exerciseId: string, setNumber: number) {
+  async function handleStartLog(exerciseId: string, setNumber: number) {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const exercise = exercises.find((ex) => ex.id === exerciseId);
-    setLoggingTarget({ exerciseId, setNumber });
-    setLoggingState({ reps: exercise?.reps ?? "", load: exercise?.weight ?? "" });
     if (isResting) stopRestTimer();
+
+    // Determine pre-fill values: current session set logs > last session cache > plan defaults
+    const currentSessionLog = setLogs[exerciseId];
+    let prefillReps = exercise?.reps ?? "";
+    let prefillLoad = exercise?.weight ?? "";
+
+    if (currentSessionLog) {
+      // Use the most recently logged set in current session
+      const setNums = Object.keys(currentSessionLog).map(Number).sort((a, b) => b - a);
+      if (setNums.length > 0) {
+        const lastSet = currentSessionLog[setNums[0]];
+        prefillReps = String(lastSet.reps);
+        prefillLoad = lastSet.load ?? "";
+      }
+    } else {
+      // Try to fetch last session's log for this exercise
+      let cached = lastSessionLogsRef.current[exerciseId];
+      if (!cached) {
+        try {
+          const log = await apiGet<{ reps: number; load: string | null } | null>(
+            `/api/exercises/${exerciseId}/latest-log`
+          );
+          if (log) {
+            lastSessionLogsRef.current[exerciseId] = { reps: log.reps, load: log.load };
+            cached = lastSessionLogsRef.current[exerciseId];
+          }
+        } catch {
+          // Ignore fetch errors — just use plan defaults
+        }
+      }
+      if (cached) {
+        prefillReps = String(cached.reps);
+        prefillLoad = cached.load ?? "";
+      }
+    }
+
+    setLoggingTarget({ exerciseId, setNumber });
+    setLoggingState({ reps: prefillReps, load: prefillLoad });
   }
 
   function handleConfirmLog() {
@@ -621,9 +677,15 @@ export default function TrainingScreen() {
                   {currentWorkout.name}
                 </Text>
                 {sessionActive && (
-                  <Text style={[styles.sessionProgress, { color: colors.mutedForeground }]}>
-                    {doneCount}/{exercises.length} ćwiczeń
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 2 }}>
+                    <Text style={[styles.sessionProgress, { color: colors.mutedForeground }]}>
+                      {doneCount}/{exercises.length} ćwiczeń
+                    </Text>
+                    <Text style={[styles.sessionProgress, { color: colors.primary, fontFamily: "Inter_600SemiBold" }]}
+                          testID="text-elapsed-timer">
+                      {formatTimer(elapsedSeconds)}
+                    </Text>
+                  </View>
                 )}
               </View>
               <Pressable

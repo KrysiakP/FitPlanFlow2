@@ -19,7 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { StatsCard } from "@/components/StatsCard";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet, apiPost, apiPatch } from "@/lib/api";
 
 interface ClientPlan {
   id: string;
@@ -33,6 +33,8 @@ interface ClientFromList {
   firstName: string;
   lastName: string;
   profileImageUrl?: string | null;
+  phone?: string | null;
+  goal?: string | null;
   assignment?: { plan?: ClientPlan | null } | null;
 }
 
@@ -62,7 +64,9 @@ export default function ClientDetailScreen() {
 
   const [assignModalVisible, setAssignModalVisible] = useState(false);
   const [remindModalVisible, setRemindModalVisible] = useState(false);
+  const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [customMessage, setCustomMessage] = useState("");
+  const [notesText, setNotesText] = useState("");
 
   const { data: progress, isLoading: loadingProgress, refetch, isRefetching } = useQuery<ProgressEntry[]>({
     queryKey: ["client-progress", id],
@@ -82,6 +86,25 @@ export default function ClientDetailScreen() {
     queryKey: ["training-plans"],
     queryFn: () => apiGet<TrainingPlan[]>("/api/plans"),
     enabled: assignModalVisible,
+  });
+
+  const { data: trainerNotesData } = useQuery<{ notes: string | null }>({
+    queryKey: ["trainer-notes", id],
+    queryFn: () => apiGet<{ notes: string | null }>(`/api/trainer/clients/${id}/notes`),
+    enabled: !!id,
+  });
+
+  const updateNotesMutation = useMutation({
+    mutationFn: (notes: string) =>
+      apiPatch(`/api/trainer/clients/${id}/notes`, { notes }),
+    onSuccess: () => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ["trainer-notes", id] });
+      setNotesModalVisible(false);
+    },
+    onError: () => {
+      Alert.alert("Błąd", "Nie udało się zapisać notatek.");
+    },
   });
 
   const assignMutation = useMutation({
@@ -131,9 +154,27 @@ export default function ClientDetailScreen() {
 
         {clientData && (
           <View style={styles.clientHeader}>
-            <Text style={[styles.clientName, { color: colors.foreground }]}>
-              {clientData.firstName} {clientData.lastName}
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.clientName, { color: colors.foreground }]}>
+                {clientData.firstName} {clientData.lastName}
+              </Text>
+              {(clientData.phone || clientData.goal) && (
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 4 }}>
+                  {clientData.phone && (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <Ionicons name="call-outline" size={13} color={colors.mutedForeground} />
+                      <Text style={{ fontSize: 13, color: colors.mutedForeground }}>{clientData.phone}</Text>
+                    </View>
+                  )}
+                  {clientData.goal && (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <Ionicons name="trophy-outline" size={13} color={colors.mutedForeground} />
+                      <Text style={{ fontSize: 13, color: colors.mutedForeground }} numberOfLines={1}>{clientData.goal}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
             <Pressable
               onPress={() => { if (!remindMutation.isPending) setRemindModalVisible(true); }}
               disabled={remindMutation.isPending}
@@ -144,7 +185,7 @@ export default function ClientDetailScreen() {
               testID="button-send-reminder"
             >
               <Ionicons name="notifications-outline" size={18} color={colors.primary} />
-              <Text style={[styles.remindBtnText, { color: colors.primary }]}>Przypomnij o treningu</Text>
+              <Text style={[styles.remindBtnText, { color: colors.primary }]}>Przypomnij</Text>
             </Pressable>
           </View>
         )}
@@ -210,6 +251,33 @@ export default function ClientDetailScreen() {
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak historii pomiarów</Text>
           </View>
         )}
+
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 24, marginBottom: 8 }}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 0, marginBottom: 0 }]}>Notatki prywatne</Text>
+          <Pressable
+            onPress={() => {
+              setNotesText(trainerNotesData?.notes ?? "");
+              setNotesModalVisible(true);
+            }}
+            style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+            testID="button-edit-notes"
+          >
+            <Text style={{ fontSize: 14, color: colors.primary }}>
+              {trainerNotesData?.notes ? "Edytuj" : "Dodaj"}
+            </Text>
+          </Pressable>
+        </View>
+        {trainerNotesData?.notes ? (
+          <View style={[styles.progressRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={{ fontSize: 14, color: colors.foreground, flexShrink: 1 }} testID="text-trainer-notes">
+              {trainerNotesData.notes}
+            </Text>
+          </View>
+        ) : (
+          <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak notatek</Text>
+          </View>
+        )}
       </ScrollView>
 
       <Modal
@@ -269,6 +337,62 @@ export default function ClientDetailScreen() {
               )}
               <Text style={styles.remindSendBtnText}>
                 {remindMutation.isPending ? "Wysyłanie…" : "Wyślij przypomnienie"}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={notesModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { if (!updateNotesMutation.isPending) setNotesModalVisible(false); }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.modalTitleRow}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Notatki prywatne</Text>
+              <Pressable
+                onPress={() => { if (!updateNotesMutation.isPending) setNotesModalVisible(false); }}
+                testID="button-close-notes-modal"
+              >
+                <Ionicons name="close" size={22} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+            <Text style={[styles.remindModalHint, { color: colors.mutedForeground }]}>
+              Widoczne tylko dla Ciebie. Możesz zapisać kontuzje, preferencje, obserwacje itp.
+            </Text>
+            <TextInput
+              style={[
+                styles.remindInput,
+                { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, minHeight: 100 },
+              ]}
+              placeholder="Twoje notatki o kliencie..."
+              placeholderTextColor={colors.mutedForeground}
+              value={notesText}
+              onChangeText={setNotesText}
+              multiline
+              numberOfLines={5}
+              maxLength={2000}
+              testID="input-trainer-notes"
+            />
+            <Pressable
+              onPress={() => { if (!updateNotesMutation.isPending) updateNotesMutation.mutate(notesText); }}
+              disabled={updateNotesMutation.isPending}
+              style={({ pressed }) => [
+                styles.remindSendBtn,
+                { backgroundColor: colors.primary, opacity: (updateNotesMutation.isPending || pressed) ? 0.75 : 1 },
+              ]}
+              testID="button-save-notes"
+            >
+              {updateNotesMutation.isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="save-outline" size={16} color="#fff" />
+              )}
+              <Text style={styles.remindSendBtnText}>
+                {updateNotesMutation.isPending ? "Zapisywanie…" : "Zapisz notatki"}
               </Text>
             </Pressable>
           </View>

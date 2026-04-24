@@ -1,6 +1,8 @@
 import {
   ActivityIndicator,
+  Alert,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -9,14 +11,15 @@ import {
   View,
 } from "react-native";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { ClientCard } from "@/components/ClientCard";
-import { apiGet } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
 
 interface ClientWithPlan {
   id: string;
@@ -42,6 +45,20 @@ export default function TrainerClientsScreen() {
     enabled: !!user?.id,
   });
 
+  const remindAllMutation = useMutation({
+    mutationFn: () => apiPost<{ sent: number; total: number }>("/api/trainer/clients/remind-all", {}),
+    onSuccess: (res) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        "Przypomnienia wysłane",
+        `Wysłano powiadomienia push do ${res.total} podopiecznych.`
+      );
+    },
+    onError: () => {
+      Alert.alert("Błąd", "Nie udało się wysłać przypomnień.");
+    },
+  });
+
   const clients = (data ?? []).filter((c) => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -60,6 +77,33 @@ export default function TrainerClientsScreen() {
           <View style={[styles.countBadge, { backgroundColor: colors.primary + "1a" }]}>
             <Text style={[styles.countText, { color: colors.primary }]}>{data?.length ?? 0}</Text>
           </View>
+          <View style={{ flex: 1 }} />
+          {(data?.length ?? 0) > 0 && (
+            <Pressable
+              onPress={() => {
+                Alert.alert(
+                  "Przypomnij wszystkim",
+                  "Wyślij powiadomienie push o treningu do wszystkich podopiecznych?",
+                  [
+                    { text: "Anuluj", style: "cancel" },
+                    {
+                      text: "Wyślij",
+                      onPress: () => { if (!remindAllMutation.isPending) remindAllMutation.mutate(); },
+                    },
+                  ]
+                );
+              }}
+              disabled={remindAllMutation.isPending}
+              style={({ pressed }) => ({ opacity: (remindAllMutation.isPending || pressed) ? 0.6 : 1 })}
+              testID="button-remind-all-clients"
+            >
+              {remindAllMutation.isPending ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Ionicons name="notifications-outline" size={22} color={colors.primary} />
+              )}
+            </Pressable>
+          )}
         </View>
         <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Ionicons name="search-outline" size={18} color={colors.mutedForeground} />

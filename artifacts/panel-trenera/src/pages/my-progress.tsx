@@ -53,12 +53,14 @@ export default function MyProgress() {
 
   // Prepare measurements chart data
   const measurementData = sortedReports
-    .filter(r => r.chest || r.waist || r.hips)
+    .filter(r => r.chest || r.waist || r.hips || r.arm || r.leg)
     .map(r => ({
       date: format(new Date(r.reportDate), "dd.MM", { locale: pl }),
       klatka: r.chest ? parseNumericValue(r.chest) : null,
       talia: r.waist ? parseNumericValue(r.waist) : null,
       biodro: r.hips ? parseNumericValue(r.hips) : null,
+      ramię: r.arm ? parseNumericValue(r.arm) : null,
+      udo: r.leg ? parseNumericValue(r.leg) : null,
     }));
 
   if (isLoadingReports || isLoadingLogs) {
@@ -249,6 +251,24 @@ export default function MyProgress() {
                     stroke="#ffc658" 
                     strokeWidth={2}
                     name="Biodro (cm)"
+                  />
+                )}
+                {measurementData.some(d => d["ramię"]) && (
+                  <Line 
+                    type="monotone" 
+                    dataKey="ramię" 
+                    stroke="#ff7f7f" 
+                    strokeWidth={2}
+                    name="Ramię (cm)"
+                  />
+                )}
+                {measurementData.some(d => d.udo) && (
+                  <Line 
+                    type="monotone" 
+                    dataKey="udo" 
+                    stroke="#a78bfa" 
+                    strokeWidth={2}
+                    name="Udo (cm)"
                   />
                 )}
               </LineChart>

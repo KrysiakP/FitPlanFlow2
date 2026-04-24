@@ -23,12 +23,15 @@ import {
   AlertCircle,
   Activity,
   ArrowLeft,
-  BarChart3
+  BarChart3,
+  Clock,
+  CheckCircle2,
+  Play
 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, eachWeekOfInterval, subWeeks, parseISO } from "date-fns";
 import { pl } from "date-fns/locale";
 import { Link } from "wouter";
-import type { WeeklyReport, ExerciseLog, User, Exercise } from "@shared/schema";
+import type { WeeklyReport, ExerciseLog, User, Exercise, WorkoutSession } from "@shared/schema";
 import { 
   LineChart, 
   Line, 
@@ -81,6 +84,14 @@ const measurementChartConfig = {
     label: "Biodro",
     color: "hsl(var(--chart-4))",
   },
+  "ramię": {
+    label: "Ramię",
+    color: "hsl(var(--chart-3))",
+  },
+  udo: {
+    label: "Udo",
+    color: "hsl(var(--chart-5))",
+  },
 } satisfies ChartConfig;
 
 const workoutChartConfig = {
@@ -120,6 +131,11 @@ export default function TrainerClientProgress() {
     enabled: !!clientId,
   });
 
+  const { data: workoutSessions } = useQuery<WorkoutSession[]>({
+    queryKey: [`/api/trainer/clients/${clientId}/workout-sessions`],
+    enabled: !!clientId,
+  });
+
   const sortedReports = useMemo(() => {
     if (!reports) return [];
     return [...reports].sort((a, b) => new Date(a.reportDate).getTime() - new Date(b.reportDate).getTime());
@@ -140,13 +156,15 @@ export default function TrainerClientProgress() {
 
   const measurementData = useMemo(() => {
     return sortedReports
-      .filter(r => r.chest || r.waist || r.hips)
+      .filter(r => r.chest || r.waist || r.hips || r.arm || r.leg)
       .map(r => ({
         date: format(new Date(r.reportDate), "dd.MM", { locale: pl }),
         fullDate: format(new Date(r.reportDate), "d MMMM yyyy", { locale: pl }),
         klatka: r.chest ? parseNumericValue(r.chest) : null,
         talia: r.waist ? parseNumericValue(r.waist) : null,
         biodro: r.hips ? parseNumericValue(r.hips) : null,
+        ramię: r.arm ? parseNumericValue(r.arm) : null,
+        udo: r.leg ? parseNumericValue(r.leg) : null,
       }));
   }, [sortedReports]);
 
@@ -447,7 +465,7 @@ export default function TrainerClientProgress() {
           )}
 
           <Tabs defaultValue="weight" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5">
               <TabsTrigger value="weight" data-testid="tab-weight">
                 <Weight className="w-4 h-4 mr-2" />
                 Waga
@@ -463,6 +481,10 @@ export default function TrainerClientProgress() {
               <TabsTrigger value="performance" data-testid="tab-performance">
                 <Dumbbell className="w-4 h-4 mr-2" />
                 Siła
+              </TabsTrigger>
+              <TabsTrigger value="sessions" data-testid="tab-sessions">
+                <Play className="w-4 h-4 mr-2" />
+                Sesje
               </TabsTrigger>
             </TabsList>
 
@@ -600,6 +622,26 @@ export default function TrainerClientProgress() {
                             type="monotone" 
                             dataKey="biodro" 
                             stroke="var(--color-biodro)" 
+                            strokeWidth={2}
+                            dot={{ r: 3 }}
+                            activeDot={{ r: 5 }}
+                          />
+                        )}
+                        {measurementData.some(d => d["ramię"]) && (
+                          <Line 
+                            type="monotone" 
+                            dataKey="ramię" 
+                            stroke="var(--color-ramię)" 
+                            strokeWidth={2}
+                            dot={{ r: 3 }}
+                            activeDot={{ r: 5 }}
+                          />
+                        )}
+                        {measurementData.some(d => d.udo) && (
+                          <Line 
+                            type="monotone" 
+                            dataKey="udo" 
+                            stroke="var(--color-udo)" 
                             strokeWidth={2}
                             dot={{ r: 3 }}
                             activeDot={{ r: 5 }}
@@ -825,6 +867,111 @@ export default function TrainerClientProgress() {
                     Podopieczny nie zarejestrował jeszcze żadnych ćwiczeń z obciążeniem.
                   </AlertDescription>
                 </Alert>
+              )}
+            </TabsContent>
+
+            <TabsContent value="sessions" className="mt-6">
+              {!workoutSessions || workoutSessions.length === 0 ? (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Brak sesji treningowych</AlertTitle>
+                  <AlertDescription>
+                    Podopieczny nie ukończył jeszcze żadnej sesji treningowej w aplikacji mobilnej.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-primary/10">
+                            <CheckCircle2 className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-2xl font-bold">{workoutSessions.length}</p>
+                            <p className="text-sm text-muted-foreground">Ukończonych sesji</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-primary/10">
+                            <Clock className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-2xl font-bold">
+                              {Math.round(
+                                workoutSessions.reduce((sum, s) => sum + (s.durationSeconds ?? 0), 0) / 60
+                              )} min
+                            </p>
+                            <p className="text-sm text-muted-foreground">Łączny czas</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-primary/10">
+                            <Dumbbell className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-2xl font-bold">
+                              {Math.round(
+                                workoutSessions.reduce((s, sess) =>
+                                  s + (sess.totalExercises > 0 ? (sess.exercisesCompleted / sess.totalExercises) * 100 : 0), 0
+                                ) / workoutSessions.length
+                              )}%
+                            </p>
+                            <p className="text-sm text-muted-foreground">Śr. ukończenie</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {workoutSessions.map((session) => {
+                    const completionPct = session.totalExercises > 0
+                      ? Math.round((session.exercisesCompleted / session.totalExercises) * 100)
+                      : 0;
+                    const durationMin = Math.round((session.durationSeconds ?? 0) / 60);
+                    return (
+                      <Card key={session.id} data-testid={`card-session-${session.id}`}>
+                        <CardContent className="pt-4 pb-4">
+                          <div className="flex items-center justify-between gap-4 flex-wrap">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 rounded-lg bg-primary/10">
+                                <Play className="w-4 h-4 text-primary" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm">
+                                  {session.completedAt
+                                    ? format(new Date(session.completedAt), "d MMM yyyy, HH:mm", { locale: pl })
+                                    : "—"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {durationMin} min · {session.exercisesCompleted}/{session.totalExercises} ćwiczeń
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="w-24 h-2 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className="h-full bg-primary rounded-full"
+                                  style={{ width: `${completionPct}%` }}
+                                />
+                              </div>
+                              <span className="text-sm font-medium w-10 text-right">{completionPct}%</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
               )}
             </TabsContent>
           </Tabs>

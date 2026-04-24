@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -62,6 +63,7 @@ import {
   Plus,
   Trash2,
   Info,
+  Phone,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -84,6 +86,8 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
   const [isProgressOpen, setIsProgressOpen] = useState(true);
   const [isMedicalOpen, setIsMedicalOpen] = useState(false);
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [notesText, setNotesText] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { data: clientProgress, isLoading: isLoadingProgress } = useQuery<ClientProgress | null>({
@@ -109,6 +113,25 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
   const { data: availablePlans = [], isLoading: isLoadingPlans } = useQuery<PlanWithDetails[]>({
     queryKey: ["/api/plans"],
     enabled: isPlanDialogOpen,
+  });
+
+  const { data: trainerNotesData } = useQuery<{ notes: string | null }>({
+    queryKey: [`/api/trainer/clients/${client.id}/notes`],
+    enabled: !!client.id && !client.isDemo,
+  });
+
+  const updateNotesMutation = useMutation({
+    mutationFn: async (notes: string) => {
+      return await apiRequest("PATCH", `/api/trainer/clients/${client.id}/notes`, { notes });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/trainer/clients/${client.id}/notes`] });
+      setIsEditingNotes(false);
+      toast({ title: "Notatki zapisane" });
+    },
+    onError: () => {
+      toast({ title: "Błąd", description: "Nie udało się zapisać notatek", variant: "destructive" });
+    },
   });
 
   const latestReport = reports && reports.length > 0 
@@ -236,6 +259,22 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
           <p className="text-muted-foreground text-sm md:text-base mt-1 truncate" data-testid={`text-client-email-${client.id}`}>
             {client.email}
           </p>
+          {(client.phone || client.goal) && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+              {client.phone && (
+                <span className="flex items-center gap-1 text-sm text-muted-foreground" data-testid={`text-client-phone-${client.id}`}>
+                  <Phone className="w-3.5 h-3.5" />
+                  {client.phone}
+                </span>
+              )}
+              {client.goal && (
+                <span className="flex items-center gap-1 text-sm text-muted-foreground" data-testid={`text-client-goal-${client.id}`}>
+                  <Target className="w-3.5 h-3.5" />
+                  {client.goal}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -678,6 +717,68 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
           )}
         </CollapsibleContent>
       </Collapsible>
+
+      <Separator />
+
+      {!client.isDemo && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <h3 className="font-heading font-semibold text-base md:text-lg flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 md:w-5 md:h-5" />
+              Notatki prywatne
+            </h3>
+            {!isEditingNotes ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setNotesText(trainerNotesData?.notes ?? "");
+                  setIsEditingNotes(true);
+                }}
+                data-testid={`button-edit-notes-${client.id}`}
+              >
+                {trainerNotesData?.notes ? "Edytuj" : "Dodaj notatkę"}
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => updateNotesMutation.mutate(notesText ?? "")}
+                  disabled={updateNotesMutation.isPending}
+                  data-testid={`button-save-notes-${client.id}`}
+                >
+                  Zapisz
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditingNotes(false)}
+                  data-testid={`button-cancel-notes-${client.id}`}
+                >
+                  Anuluj
+                </Button>
+              </div>
+            )}
+          </div>
+          {isEditingNotes ? (
+            <Textarea
+              value={notesText ?? ""}
+              onChange={(e) => setNotesText(e.target.value)}
+              placeholder="Notatki widoczne tylko dla Ciebie (np. kontuzje, preferencje, cele)..."
+              rows={4}
+              data-testid={`textarea-notes-${client.id}`}
+            />
+          ) : trainerNotesData?.notes ? (
+            <p className="text-sm whitespace-pre-wrap text-muted-foreground" data-testid={`text-notes-display-${client.id}`}>
+              {trainerNotesData.notes}
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground/60 italic" data-testid={`text-notes-empty-${client.id}`}>
+              Brak notatek. Kliknij „Dodaj notatkę", aby zapisać swoje obserwacje.
+            </p>
+          )}
+        </div>
+      )}
 
       <Separator />
 
