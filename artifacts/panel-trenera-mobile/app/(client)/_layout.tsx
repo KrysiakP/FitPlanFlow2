@@ -26,6 +26,10 @@ function NativeClientTabs() {
         <Icon sf={{ default: "chart.line.uptrend.xyaxis", selected: "chart.line.uptrend.xyaxis" }} />
         <Label>Postępy</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="notifications">
+        <Icon sf={{ default: "bell", selected: "bell.fill" }} />
+        <Label>Powiadomienia</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person", selected: "person.fill" }} />
         <Label>Profil</Label>
@@ -93,6 +97,14 @@ function ClassicClientTabs() {
           title: "Postępy",
           tabBarIcon: ({ color }) =>
             isIOS ? <SymbolView name="chart.line.uptrend.xyaxis" tintColor={color} size={22} /> : <Feather name="trending-up" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: "Powiadomienia",
+          tabBarIcon: ({ color }) =>
+            isIOS ? <SymbolView name="bell.fill" tintColor={color} size={22} /> : <Ionicons name="notifications-outline" size={22} color={color} />,
         }}
       />
       <Tabs.Screen

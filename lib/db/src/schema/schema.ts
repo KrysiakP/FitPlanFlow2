@@ -467,8 +467,25 @@ export const pushTokens = pgTable("push_tokens", {
   uniqueUserToken: uniqueIndex("push_tokens_user_token_unique").on(table.userId, table.token),
 }));
 
+// Push notification history - stores all sent push notifications for review
+export const pushNotificationHistory = pgTable("push_notification_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  type: varchar("type", { length: 50 }), // e.g. 'new_message', 'plan_assigned', 'workout_reminder', 'weekly_report', 'invitation_accepted', 'payment'
+  isRead: boolean("is_read").default(false).notNull(),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("push_notification_history_user_idx").on(table.userId),
+  createdAtIdx: index("push_notification_history_created_at_idx").on(table.createdAt),
+}));
+
 export type MobileToken = typeof mobileTokens.$inferSelect;
 export type PushToken = typeof pushTokens.$inferSelect;
+export type PushNotificationHistory = typeof pushNotificationHistory.$inferSelect;
+export type InsertPushNotificationHistory = typeof pushNotificationHistory.$inferInsert;
 
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({

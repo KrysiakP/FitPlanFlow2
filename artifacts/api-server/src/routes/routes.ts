@@ -68,6 +68,27 @@ async function sendExpoPush(tokens: string[], title: string, body: string, data?
   }
 }
 
+async function sendPushToUserAndRecord(
+  userId: string,
+  title: string,
+  body: string,
+  data?: Record<string, string>,
+  notificationType?: string
+): Promise<void> {
+  const [tokens] = await Promise.all([
+    storage.getPushTokensByUser(userId),
+    storage.createPushNotificationHistory({
+      userId,
+      title,
+      body,
+      type: notificationType ?? data?.type ?? null,
+    }).catch((err: unknown) => console.error("Failed to record push history:", err)),
+  ]);
+  if (tokens.length > 0) {
+    void sendExpoPush(tokens.map((t) => t.token), title, body, data);
+  }
+}
+
 // Helper function to extract tier from Stripe subscription
 function getTierFromSubscription(subscription: Stripe.Subscription): string {
   // First check metadata
@@ -821,15 +842,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             await storage.acceptInvitation(inv.id, user.id);
             // Notify trainer via push
-            const trainerTokens = await storage.getPushTokensByUser(inv.trainerId);
-            if (trainerTokens.length > 0) {
-              void sendExpoPush(
-                trainerTokens.map((t) => t.token),
-                "Nowy podopieczny!",
-                `${user.firstName} zaakceptował(a) Twoje zaproszenie i dołączył(a) do aplikacji.`,
-                { type: "invitation_accepted", clientId: user.id }
-              );
-            }
+            void sendPushToUserAndRecord(
+              inv.trainerId,
+              "Nowy podopieczny!",
+              `${user.firstName} zaakceptował(a) Twoje zaproszenie i dołączył(a) do aplikacji.`,
+              { type: "invitation_accepted", clientId: user.id },
+              "invitation_accepted"
+            );
           } catch (invErr) {
             console.warn("[MOBILE-REGISTER] Could not auto-accept invitation:", inv.id, invErr);
           }
@@ -942,7 +961,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!trainerClients.some((c) => c.id === clientId)) {
         return res.status(403).json({ message: "Możesz wysyłać przypomnienia tylko do własnych podopiecznych" });
       }
-      const tokens = await storage.getPushTokensByUser(clientId);
       const assignment = await storage.getClientAssignment(clientId);
       let planName = "swój plan treningowy";
       if (assignment?.planId) {
@@ -950,14 +968,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (plan?.name) planName = plan.name;
       }
       const message = (req.body?.message as string | undefined) ?? `Czas na trening: ${planName}!`;
-      if (tokens.length > 0) {
-        await sendExpoPush(
-          tokens.map((t) => t.token),
-          "Przypomnienie o treningu",
-          message,
-          { type: "workout_reminder", clientId }
-        );
-      }
+      await sendPushToUserAndRecord(clientId, "Przypomnienie o treningu", message, { type: "workout_reminder", clientId }, "workout_reminder");
+      const tokens = await storage.getPushTokensByUser(clientId);
       res.json({ sent: tokens.length });
     } catch (error) {
       console.error("Error sending workout reminder:", error);
@@ -2651,17 +2663,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(assignments);
       // Fire-and-forget push to each assigned client
       void Promise.all(
-        clientIds.map(async (clientId) => {
-          const tokens = await storage.getPushTokensByUser(clientId);
-          if (tokens.length > 0) {
-            void sendExpoPush(
-              tokens.map((t) => t.token),
-              "Nowy plan treningowy!",
-              `Twój trener przypisał Ci plan: ${plan.name}`,
-              { type: "plan_assigned", planId }
-            );
-          }
-        })
+        clientIds.map((clientId) =>
+          sendPushToUserAndRecord(
+            clientId,
+            "Nowy plan treningowy!",
+            `Twój trener przypisał Ci plan: ${plan.name}`,
+            { type: "plan_assigned", planId },
+            "plan_assigned"
+          )
+        )
       );
     } catch (error) {
       console.error("Error creating assignments:", error);
@@ -2971,16 +2981,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(200).json({ message: "Zaproszenie zaakceptowane" });
         // Fire-and-forget push to trainer
         if (invitationBefore?.trainerId) {
-          const trainerTokens = await storage.getPushTokensByUser(invitationBefore.trainerId);
-          if (trainerTokens.length > 0) {
-            const clientName = `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || (user?.email ?? "Nowy klient");
-            void sendExpoPush(
-              trainerTokens.map((t) => t.token),
-              "Nowy podopieczny!",
-              `${clientName} zaakceptował(a) Twoje zaproszenie.`,
-              { type: "invitation_accepted", clientId: userId }
-            );
-          }
+          const clientName = `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || (user?.email ?? "Nowy klient");
+          void sendPushToUserAndRecord(
+            invitationBefore.trainerId,
+            "Nowy podopieczny!",
+            `${clientName} zaakceptował(a) Twoje zaproszenie.`,
+            { type: "invitation_accepted", clientId: userId },
+            "invitation_accepted"
+          );
         }
       } catch (error) {
         if (error instanceof Error && error.message.includes("not found")) {
@@ -4850,6 +4858,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Wszystkie powiadomienia oznaczone jako przeczytane" });
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: "Nie udało się oznaczyć powiadomień jako przeczytane" });
+    }
+  });
+
+  // Push notification history (all users)
+  app.get("/api/notifications/mine", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const limit = Math.min(parseInt(req.query.limit as string ?? "50", 10) || 50, 100);
+      const history = await storage.getPushNotificationHistoryForUser(userId, limit);
+      const unreadCount = await storage.getUnreadPushNotificationCount(userId);
+      res.json({ notifications: history, unreadCount });
+    } catch (error) {
+      console.error("Error fetching notification history:", error);
+      res.status(500).json({ message: "Nie udało się pobrać historii powiadomień" });
+    }
+  });
+
+  app.patch("/api/notifications/mine/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { id } = req.params;
+      const notification = await storage.markPushNotificationRead(id, userId);
+      res.json(notification);
+    } catch (error: any) {
+      if (error.message === "Powiadomienie nie znalezione") {
+        return res.status(404).json({ message: error.message });
+      }
+      console.error("Error marking notification read:", error);
+      res.status(500).json({ message: "Nie udało się oznaczyć powiadomienia jako przeczytane" });
+    }
+  });
+
+  app.patch("/api/notifications/mine/read-all", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      await storage.markAllPushNotificationsRead(userId);
+      res.json({ message: "Wszystkie powiadomienia oznaczone jako przeczytane" });
+    } catch (error) {
+      console.error("Error marking all notifications read:", error);
       res.status(500).json({ message: "Nie udało się oznaczyć powiadomień jako przeczytane" });
     }
   });

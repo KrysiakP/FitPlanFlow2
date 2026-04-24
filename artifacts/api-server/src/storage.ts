@@ -81,6 +81,9 @@ import {
   workoutSessions,
   type WorkoutSession,
   type InsertWorkoutSession,
+  pushNotificationHistory,
+  type PushNotificationHistory,
+  type InsertPushNotificationHistory,
 } from "@workspace/db";
 import { db } from "./db";
 import { eq, and, desc, or, isNull, sql, gte, lte, asc, inArray } from "drizzle-orm";
@@ -310,6 +313,13 @@ export interface IStorage {
   // Workout sessions
   createWorkoutSession(clientId: string, data: InsertWorkoutSession): Promise<WorkoutSession>;
   getClientWorkoutSessions(clientId: string): Promise<WorkoutSession[]>;
+
+  // Push notification history
+  createPushNotificationHistory(data: InsertPushNotificationHistory): Promise<PushNotificationHistory>;
+  getPushNotificationHistoryForUser(userId: string, limit?: number): Promise<PushNotificationHistory[]>;
+  markPushNotificationRead(id: string, userId: string): Promise<PushNotificationHistory>;
+  markAllPushNotificationsRead(userId: string): Promise<void>;
+  getUnreadPushNotificationCount(userId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2803,6 +2813,46 @@ export class DatabaseStorage implements IStorage {
       .from(workoutSessions)
       .where(eq(workoutSessions.clientId, clientId))
       .orderBy(desc(workoutSessions.completedAt));
+  }
+
+  // Push notification history
+  async createPushNotificationHistory(data: InsertPushNotificationHistory): Promise<PushNotificationHistory> {
+    const [record] = await db.insert(pushNotificationHistory).values(data).returning();
+    return record;
+  }
+
+  async getPushNotificationHistoryForUser(userId: string, limit: number = 50): Promise<PushNotificationHistory[]> {
+    return db
+      .select()
+      .from(pushNotificationHistory)
+      .where(eq(pushNotificationHistory.userId, userId))
+      .orderBy(desc(pushNotificationHistory.createdAt))
+      .limit(limit);
+  }
+
+  async markPushNotificationRead(id: string, userId: string): Promise<PushNotificationHistory> {
+    const [record] = await db
+      .update(pushNotificationHistory)
+      .set({ isRead: true, readAt: new Date() })
+      .where(and(eq(pushNotificationHistory.id, id), eq(pushNotificationHistory.userId, userId)))
+      .returning();
+    if (!record) throw new Error("Powiadomienie nie znalezione");
+    return record;
+  }
+
+  async markAllPushNotificationsRead(userId: string): Promise<void> {
+    await db
+      .update(pushNotificationHistory)
+      .set({ isRead: true, readAt: new Date() })
+      .where(and(eq(pushNotificationHistory.userId, userId), eq(pushNotificationHistory.isRead, false)));
+  }
+
+  async getUnreadPushNotificationCount(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(pushNotificationHistory)
+      .where(and(eq(pushNotificationHistory.userId, userId), eq(pushNotificationHistory.isRead, false)));
+    return result[0]?.count ?? 0;
   }
 }
 
