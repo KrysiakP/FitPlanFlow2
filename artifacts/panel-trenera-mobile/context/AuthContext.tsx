@@ -19,7 +19,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (firstName: string, email: string, password: string) => Promise<void>;
+  register: (firstName: string, email: string, password: string, role?: "client" | "trainer") => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -125,10 +125,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void registerPushToken();
   }, []);
 
-  const register = useCallback(async (firstName: string, email: string, password: string) => {
+  const register = useCallback(async (firstName: string, email: string, password: string, role: "client" | "trainer" = "client") => {
     const res = await apiFetch("/api/auth/register", {
       method: "POST",
-      body: JSON.stringify({ firstName, email, password }),
+      body: JSON.stringify({ firstName, email, password, role }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({})) as { message?: string };

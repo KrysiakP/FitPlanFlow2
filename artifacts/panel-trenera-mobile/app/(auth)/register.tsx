@@ -22,6 +22,7 @@ export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const { register } = useAuth();
 
+  const [role, setRole] = useState<"client" | "trainer">("client");
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,9 +50,9 @@ export default function RegisterScreen() {
     setLoading(true);
     setError(null);
     try {
-      await register(firstName.trim(), email.trim().toLowerCase(), password);
+      await register(firstName.trim(), email.trim().toLowerCase(), password, role);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace("/(auth)/onboarding");
+      router.replace(role === "trainer" ? "/(trainer)" : "/(auth)/onboarding");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Wystąpił błąd. Spróbuj ponownie.";
       setError(msg);
@@ -90,6 +91,40 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.form}>
+            <View style={styles.rolePicker}>
+              {(["client", "trainer"] as const).map((r) => {
+                const selected = role === r;
+                return (
+                  <Pressable
+                    key={r}
+                    onPress={() => setRole(r)}
+                    style={[
+                      styles.roleCard,
+                      {
+                        borderColor: selected ? colors.primary : colors.border,
+                        backgroundColor: selected ? colors.primary + "14" : colors.card,
+                      },
+                    ]}
+                    testID={`button-role-${r}`}
+                  >
+                    <Ionicons
+                      name={r === "trainer" ? "barbell-outline" : "person-outline"}
+                      size={24}
+                      color={selected ? colors.primary : colors.mutedForeground}
+                    />
+                    <Text
+                      style={[
+                        styles.roleLabel,
+                        { color: selected ? colors.primary : colors.foreground },
+                      ]}
+                    >
+                      {r === "trainer" ? "Trener" : "Podopieczny"}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
             {error && (
               <View
                 style={[
@@ -250,6 +285,23 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: 16,
+  },
+  rolePicker: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  roleCard: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  roleLabel: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
   },
   errorBox: {
     flexDirection: "row",

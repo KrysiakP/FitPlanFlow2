@@ -1,5 +1,4 @@
 import {
-  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -9,8 +8,6 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
-
-const WEB_PANEL_URL = "https://paneltrenera.pl";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -61,7 +58,7 @@ export default function WelcomeScreen() {
           ]}
           testID="button-go-register"
         >
-          <Text style={styles.primaryBtnText}>Zarejestruj się jako klient</Text>
+          <Text style={styles.primaryBtnText}>Zarejestruj się</Text>
         </Pressable>
 
         <Pressable
@@ -72,23 +69,8 @@ export default function WelcomeScreen() {
           ]}
           testID="button-go-login"
         >
-          <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>Mam już konto</Text>
+          <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>Zaloguj się</Text>
         </Pressable>
-
-        <View style={[styles.trainerRow, { borderTopColor: colors.border }]}>
-          <Ionicons name="barbell-outline" size={14} color={colors.mutedForeground} />
-          <Text style={[styles.trainerText, { color: colors.mutedForeground }]}>
-            Jesteś trenerem?{" "}
-          </Text>
-          <Pressable
-            onPress={() => void Linking.openURL(WEB_PANEL_URL)}
-            testID="button-trainer-login"
-          >
-            <Text style={[styles.trainerLink, { color: colors.primary }]}>
-              Otwórz panel na paneltrenera.pl
-            </Text>
-          </Pressable>
-        </View>
       </View>
     </View>
   );
@@ -177,23 +159,6 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: {
     fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
-  },
-  trainerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    flexWrap: "wrap",
-  },
-  trainerText: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-  },
-  trainerLink: {
-    fontSize: 13,
     fontFamily: "Inter_600SemiBold",
   },
 });

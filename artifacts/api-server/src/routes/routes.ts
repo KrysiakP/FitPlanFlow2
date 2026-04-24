@@ -794,6 +794,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email: z.string().email("Nieprawidłowy adres email"),
         password: z.string().min(6, "Hasło musi mieć co najmniej 6 znaków"),
         firstName: z.string().min(1, "Imię jest wymagane"),
+        role: z.enum(["client", "trainer"]).optional().default("client"),
       });
 
       const validationResult = mobileRegisterSchema.safeParse(req.body);
@@ -804,7 +805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { email, password, firstName } = validationResult.data;
+      const { email, password, firstName, role } = validationResult.data;
 
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
@@ -818,7 +819,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: hashedPassword,
         firstName,
         lastName: "",
-        role: "client",
+        role,
         trialEndsAt: null,
         referredByTrainerId: null,
         referralBonusDays: 0,
