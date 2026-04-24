@@ -38,19 +38,10 @@ const GOAL_OPTIONS: GoalOption[] = [
 async function saveOnboarding(phone: string, goal: string): Promise<void> {
   if (phone.trim()) {
     const profileRes = await apiFetch("/api/profile", {
-      method: "POST",
+      method: "PUT",
       body: JSON.stringify({ phone: phone.trim() }),
     });
-    if (profileRes.status === 400) {
-      // Profile already exists — update via PUT
-      const putRes = await apiFetch("/api/profile", {
-        method: "PUT",
-        body: JSON.stringify({ phone: phone.trim() }),
-      });
-      if (!putRes.ok) throw new Error(`Profile update failed: ${putRes.status}`);
-    } else if (!profileRes.ok) {
-      throw new Error(`Profile save failed: ${profileRes.status}`);
-    }
+    if (!profileRes.ok) throw new Error(`Profile save failed: ${profileRes.status}`);
   }
 
   if (goal) {
