@@ -2267,7 +2267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const updatedProfile = await storage.updateUserProfile(userId, validationResult.data);
+      const updatedProfile = await storage.upsertUserProfile(userId, validationResult.data);
       res.json(updatedProfile);
     } catch (error) {
       console.error("Error updating profile:", error);

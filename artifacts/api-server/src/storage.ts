@@ -146,6 +146,7 @@ export interface IStorage {
   getUserProfile(userId: string): Promise<UserProfile | undefined>;
   createUserProfile(profile: InsertUserProfile): Promise<UserProfile>;
   updateUserProfile(userId: string, data: Partial<InsertUserProfile>): Promise<UserProfile>;
+  upsertUserProfile(userId: string, data: Partial<InsertUserProfile>): Promise<UserProfile>;
   
   // Client progress operations
   getClientProgress(clientId: string): Promise<ClientProgress | undefined>;
@@ -984,6 +985,18 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userProfiles.userId, userId))
       .returning();
     return updated;
+  }
+
+  async upsertUserProfile(userId: string, data: Partial<InsertUserProfile>): Promise<UserProfile> {
+    const [profile] = await db
+      .insert(userProfiles)
+      .values({ ...data, userId })
+      .onConflictDoUpdate({
+        target: userProfiles.userId,
+        set: { ...data, updatedAt: new Date() },
+      })
+      .returning();
+    return profile;
   }
 
   // Client progress operations
