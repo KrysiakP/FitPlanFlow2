@@ -29,7 +29,7 @@ export default function TrainerPlansScreen() {
 
   const { data, isLoading, refetch, isRefetching } = useQuery<TrainingPlan[]>({
     queryKey: ["training-plans"],
-    queryFn: () => apiGet<TrainingPlan[]>("/api/training-plans", bearerToken),
+    queryFn: () => apiGet<TrainingPlan[]>("/api/plans", bearerToken),
     enabled: !!user?.id,
   });
 

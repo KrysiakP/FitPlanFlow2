@@ -34,7 +34,7 @@ export default function ClientDashboard() {
 
   const { data: assignment, isLoading, refetch, isRefetching } = useQuery<Assignment>({
     queryKey: ["client-assignment"],
-    queryFn: () => apiGet<Assignment>(`/api/plan-assignment/${user?.id}`, bearerToken),
+    queryFn: () => apiGet<Assignment>("/api/client/assignment", bearerToken),
     enabled: !!user?.id,
     retry: 1,
   });

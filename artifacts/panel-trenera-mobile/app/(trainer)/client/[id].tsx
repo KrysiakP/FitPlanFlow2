@@ -17,16 +17,19 @@ import { useColors } from "@/hooks/useColors";
 import { StatsCard } from "@/components/StatsCard";
 import { apiGet } from "@/lib/api";
 
-interface ClientDetail {
+interface ClientPlan {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
+interface ClientFromList {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
   profileImageUrl?: string | null;
-}
-
-interface PlanAssignment {
-  plan?: { id: string; name: string; description?: string | null } | null;
+  assignment?: { plan?: ClientPlan | null } | null;
 }
 
 interface ProgressEntry {
@@ -49,15 +52,17 @@ export default function ClientDetailScreen() {
 
   const { data: progress, isLoading: loadingProgress, refetch, isRefetching } = useQuery<ProgressEntry[]>({
     queryKey: ["client-progress", id],
-    queryFn: () => apiGet<ProgressEntry[]>(`/api/client-progress/${id}`, bearerToken),
+    queryFn: () => apiGet<ProgressEntry[]>(`/api/trainer/clients/${id}/progress`, bearerToken),
     enabled: !!id,
   });
 
-  const { data: assignment, isLoading: loadingPlan } = useQuery<PlanAssignment>({
-    queryKey: ["plan-assignment", id],
-    queryFn: () => apiGet<PlanAssignment>(`/api/plan-assignment/${id}`, bearerToken),
+  const { data: clientsList } = useQuery<ClientFromList[]>({
+    queryKey: ["trainer-clients"],
+    queryFn: () => apiGet<ClientFromList[]>("/api/trainer/clients", bearerToken),
     enabled: !!id,
   });
+  const clientData = clientsList?.find((c) => c.id === id);
+  const assignment = clientData?.assignment ?? null;
 
   const latestProgress = progress?.[0];
 
@@ -74,7 +79,7 @@ export default function ClientDetailScreen() {
       </Pressable>
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Aktywny plan</Text>
-      {loadingPlan ? (
+      {!clientsList ? (
         <ActivityIndicator color={colors.primary} />
       ) : (
         <View style={[styles.planCard, { backgroundColor: colors.primary }]}>

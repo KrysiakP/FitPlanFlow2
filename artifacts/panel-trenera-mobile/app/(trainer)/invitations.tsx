@@ -1,5 +1,7 @@
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -7,8 +9,10 @@ import {
   Share,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,14 +23,15 @@ import { apiGet, apiPost } from "@/lib/api";
 
 interface Invitation {
   id: string;
-  email: string;
+  clientEmail: string;
   status: string;
   createdAt: string;
-  expiresAt: string;
-  token?: string;
+  expiresAt?: string | null;
+  token?: string | null;
 }
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr?: string | null) {
+  if (!dateStr) return "–";
   try {
     return new Date(dateStr).toLocaleDateString("pl-PL", {
       day: "numeric",
@@ -52,6 +57,9 @@ export default function TrainerInvitationsScreen() {
   const qc = useQueryClient();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
+  const [modalVisible, setModalVisible] = useState(false);
+  const [email, setEmail] = useState("");
+
   const { data, isLoading, refetch, isRefetching } = useQuery<Invitation[]>({
     queryKey: ["invitations"],
     queryFn: () => apiGet<Invitation[]>("/api/invitations", bearerToken),
@@ -60,11 +68,13 @@ export default function TrainerInvitationsScreen() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (email: string) =>
-      apiPost<Invitation>("/api/invitations", { email }, bearerToken),
+    mutationFn: (clientEmail: string) =>
+      apiPost<Invitation>("/api/invitations/send", { clientEmail }, bearerToken),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invitations"] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setModalVisible(false);
+      setEmail("");
     },
   });
 
@@ -80,78 +90,148 @@ export default function TrainerInvitationsScreen() {
     });
   }
 
+  function handleCreate() {
+    const trimmed = email.trim();
+    if (!trimmed) return;
+    createMutation.mutate(trimmed);
+  }
+
   return (
-    <ScrollView
-      style={[styles.root, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.content, { paddingTop: 16, paddingBottom: insets.bottom + 30 }]}
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={[styles.infoCard, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}>
-        <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
-        <Text style={[styles.infoText, { color: colors.foreground }]}>
-          Zaproś klientów, wysyłając im link zaproszenia. Klient zarejestruje się i automatycznie zostanie przypisany do Ciebie.
-        </Text>
-      </View>
-
-      <Pressable
-        onPress={() => createMutation.mutate("")}
-        style={({ pressed }) => [
-          styles.createBtn,
-          { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
-        ]}
-        testID="button-create-invitation"
+    <>
+      <ScrollView
+        style={[styles.root, { backgroundColor: colors.background }]}
+        contentContainerStyle={[styles.content, { paddingTop: 16, paddingBottom: insets.bottom + 30 }]}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
+        showsVerticalScrollIndicator={false}
       >
-        <Ionicons name="add" size={20} color="#fff" />
-        <Text style={styles.createBtnText}>Nowe zaproszenie na paneltrenera.pl</Text>
-      </Pressable>
+        <View style={[styles.infoCard, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}>
+          <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
+          <Text style={[styles.infoText, { color: colors.foreground }]}>
+            Zaproś klientów podając ich e-mail. Klient otrzyma link i automatycznie zostanie przypisany do Ciebie.
+          </Text>
+        </View>
 
-      {isLoading ? (
-        <ActivityIndicator color={colors.primary} style={styles.loader} />
-      ) : (
-        <>
-          {pending.length > 0 && (
-            <>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-                Aktywne ({pending.length})
+        <Pressable
+          onPress={() => setModalVisible(true)}
+          style={({ pressed }) => [
+            styles.createBtn,
+            { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+          ]}
+          testID="button-create-invitation"
+        >
+          <Ionicons name="add" size={20} color="#fff" />
+          <Text style={styles.createBtnText}>Wyślij zaproszenie</Text>
+        </Pressable>
+
+        {isLoading ? (
+          <ActivityIndicator color={colors.primary} style={styles.loader} />
+        ) : (
+          <>
+            {pending.length > 0 && (
+              <>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+                  Aktywne ({pending.length})
+                </Text>
+                {pending.map((inv) => (
+                  <InvitationCard
+                    key={inv.id}
+                    invitation={inv}
+                    colors={colors}
+                    onShare={() => handleShare(inv)}
+                  />
+                ))}
+              </>
+            )}
+
+            {others.length > 0 && (
+              <>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Historia</Text>
+                {others.map((inv) => (
+                  <InvitationCard
+                    key={inv.id}
+                    invitation={inv}
+                    colors={colors}
+                    onShare={() => handleShare(inv)}
+                  />
+                ))}
+              </>
+            )}
+
+            {invitations.length === 0 && (
+              <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Ionicons name="mail-outline" size={36} color={colors.mutedForeground} />
+                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Brak zaproszeń</Text>
+                <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
+                  Wyślij zaproszenie do klienta, podając jego adres e-mail.
+                </Text>
+              </View>
+            )}
+          </>
+        )}
+      </ScrollView>
+
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nowe zaproszenie</Text>
+            <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>
+              Adres e-mail klienta
+            </Text>
+            <TextInput
+              style={[styles.emailInput, { backgroundColor: colors.background, color: colors.foreground, borderColor: colors.border }]}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="klient@example.com"
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              testID="input-invitation-email"
+            />
+            {createMutation.isError && (
+              <Text style={styles.errorText}>
+                {(createMutation.error as Error)?.message ?? "Błąd wysyłania zaproszenia"}
               </Text>
-              {pending.map((inv) => (
-                <InvitationCard
-                  key={inv.id}
-                  invitation={inv}
-                  colors={colors}
-                  onShare={() => handleShare(inv)}
-                />
-              ))}
-            </>
-          )}
-
-          {others.length > 0 && (
-            <>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Historia</Text>
-              {others.map((inv) => (
-                <InvitationCard
-                  key={inv.id}
-                  invitation={inv}
-                  colors={colors}
-                  onShare={() => handleShare(inv)}
-                />
-              ))}
-            </>
-          )}
-
-          {invitations.length === 0 && (
-            <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Ionicons name="mail-outline" size={36} color={colors.mutedForeground} />
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Brak zaproszeń</Text>
-              <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
-                Zarządzaj zaproszeniami w pełnym panelu na paneltrenera.pl
-              </Text>
+            )}
+            <View style={styles.modalBtns}>
+              <Pressable
+                onPress={() => { setModalVisible(false); setEmail(""); }}
+                style={({ pressed }) => [styles.cancelBtn, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+                testID="button-cancel-invitation"
+              >
+                <Text style={[styles.cancelBtnText, { color: colors.foreground }]}>Anuluj</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleCreate}
+                disabled={!email.trim() || createMutation.isPending}
+                style={({ pressed }) => [
+                  styles.sendBtn,
+                  {
+                    backgroundColor: colors.primary,
+                    opacity: (!email.trim() || createMutation.isPending || pressed) ? 0.65 : 1,
+                  },
+                ]}
+                testID="button-send-invitation"
+              >
+                {createMutation.isPending ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.sendBtnText}>Wyślij</Text>
+                )}
+              </Pressable>
             </View>
-          )}
-        </>
-      )}
-    </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </>
   );
 }
 
@@ -180,7 +260,7 @@ function InvitationCard({ invitation, colors, onShare }: InvitationCardProps) {
         </View>
         <View style={styles.invInfo}>
           <Text style={[styles.invEmail, { color: colors.foreground }]}>
-            {invitation.email || "Zaproszenie ogólne"}
+            {invitation.clientEmail || "Zaproszenie ogólne"}
           </Text>
           <View style={styles.invMeta}>
             <View style={[styles.statusBadge, { backgroundColor: color + "18" }]}>
@@ -188,9 +268,11 @@ function InvitationCard({ invitation, colors, onShare }: InvitationCardProps) {
                 {STATUS_LABELS[invitation.status] ?? invitation.status}
               </Text>
             </View>
-            <Text style={[styles.invDate, { color: colors.mutedForeground }]}>
-              Wygasa: {formatDate(invitation.expiresAt)}
-            </Text>
+            {invitation.expiresAt && (
+              <Text style={[styles.invDate, { color: colors.mutedForeground }]}>
+                Wygasa: {formatDate(invitation.expiresAt)}
+              </Text>
+            )}
           </View>
         </View>
         {invitation.status === "pending" && (
@@ -247,9 +329,50 @@ const styles = StyleSheet.create({
   invIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: "center", alignItems: "center" },
   invInfo: { flex: 1, gap: 6 },
   invEmail: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  invMeta: { flexDirection: "row", alignItems: "center", gap: 8 },
+  invMeta: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
   statusText: { fontSize: 11, fontFamily: "Inter_500Medium" },
   invDate: { fontSize: 11, fontFamily: "Inter_400Regular" },
   shareBtn: { padding: 6 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalBox: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderWidth: 1,
+    padding: 24,
+    gap: 14,
+  },
+  modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  modalLabel: { fontSize: 13, fontFamily: "Inter_500Medium", marginBottom: -6 },
+  emailInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+  },
+  errorText: { fontSize: 13, color: "#e53935", fontFamily: "Inter_400Regular" },
+  modalBtns: { flexDirection: "row", gap: 12, marginTop: 4 },
+  cancelBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cancelBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  sendBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sendBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });

@@ -50,7 +50,7 @@ export default function ProgressScreen() {
 
   const { data, isLoading, refetch, isRefetching } = useQuery<ProgressEntry[]>({
     queryKey: ["client-progress", user?.id],
-    queryFn: () => apiGet<ProgressEntry[]>(`/api/client-progress/${user?.id}`, bearerToken),
+    queryFn: () => apiGet<ProgressEntry[]>("/api/client/progress", bearerToken),
     enabled: !!user?.id,
     retry: 1,
   });

@@ -40,7 +40,7 @@ export default function TrainerClientsScreen() {
 
   const { data, isLoading, refetch, isRefetching } = useQuery<ClientWithPlan[]>({
     queryKey: ["trainer-clients"],
-    queryFn: () => apiGet<ClientWithPlan[]>("/api/clients", bearerToken),
+    queryFn: () => apiGet<ClientWithPlan[]>("/api/trainer/clients", bearerToken),
     enabled: !!user?.id,
   });
 
