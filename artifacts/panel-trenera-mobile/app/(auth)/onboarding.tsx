@@ -41,25 +41,24 @@ async function saveOnboarding(phone: string, goal: string): Promise<void> {
       method: "POST",
       body: JSON.stringify({ phone: phone.trim() }),
     });
-    if (!profileRes.ok && profileRes.status !== 400) {
-      // 400 means profile already exists — try PUT instead
-      await apiFetch("/api/profile", {
+    if (profileRes.status === 400) {
+      // Profile already exists — update via PUT
+      const putRes = await apiFetch("/api/profile", {
         method: "PUT",
         body: JSON.stringify({ phone: phone.trim() }),
       });
-    } else if (profileRes.status === 400) {
-      await apiFetch("/api/profile", {
-        method: "PUT",
-        body: JSON.stringify({ phone: phone.trim() }),
-      });
+      if (!putRes.ok) throw new Error(`Profile update failed: ${putRes.status}`);
+    } else if (!profileRes.ok) {
+      throw new Error(`Profile save failed: ${profileRes.status}`);
     }
   }
 
   if (goal) {
-    await apiFetch("/api/client/progress", {
+    const progressRes = await apiFetch("/api/client/progress", {
       method: "PUT",
       body: JSON.stringify({ goal }),
     });
+    if (!progressRes.ok) throw new Error(`Progress save failed: ${progressRes.status}`);
   }
 }
 

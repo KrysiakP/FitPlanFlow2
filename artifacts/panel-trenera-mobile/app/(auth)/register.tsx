@@ -14,7 +14,7 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { useAuth, isOnboardingDone } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
 export default function RegisterScreen() {
@@ -51,8 +51,7 @@ export default function RegisterScreen() {
     try {
       await register(firstName.trim(), email.trim().toLowerCase(), password);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      const alreadyOnboarded = await isOnboardingDone();
-      router.replace(alreadyOnboarded ? "/" : "/(auth)/onboarding");
+      router.replace("/(auth)/onboarding");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Wystąpił błąd. Spróbuj ponownie.";
       setError(msg);
