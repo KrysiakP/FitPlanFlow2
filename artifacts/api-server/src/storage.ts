@@ -174,6 +174,7 @@ export interface IStorage {
   
   // Plan invitation operations
   createInvitation(trainerId: string, data: InsertPlanInvitationInput): Promise<PlanInvitation>;
+  getInvitation(invitationId: string): Promise<PlanInvitation | null>;
   getClientInvitations(clientEmail: string): Promise<PlanInvitation[]>;
   acceptInvitation(invitationId: string, clientId: string): Promise<void>;
   rejectInvitation(invitationId: string, clientId: string): Promise<void>;
@@ -1348,6 +1349,15 @@ export class DatabaseStorage implements IStorage {
     return invitation;
   }
   
+  async getInvitation(invitationId: string): Promise<PlanInvitation | null> {
+    const [row] = await db
+      .select()
+      .from(planInvitations)
+      .where(eq(planInvitations.id, invitationId))
+      .limit(1);
+    return row ?? null;
+  }
+
   async getClientInvitations(clientEmail: string): Promise<PlanInvitation[]> {
     return await db
       .select()

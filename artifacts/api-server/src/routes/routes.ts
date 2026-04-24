@@ -53,6 +53,20 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-11-20.acacia' as any 
 });
 
+async function sendExpoPush(tokens: string[], title: string, body: string, data?: Record<string, string>) {
+  if (tokens.length === 0) return;
+  const messages = tokens.map((to) => ({ to, sound: "default" as const, title, body, data: data ?? {} }));
+  try {
+    await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json", "accept-encoding": "gzip, deflate" },
+      body: JSON.stringify(messages),
+    });
+  } catch (err) {
+    console.error("Push send error:", err);
+  }
+}
+
 // Helper function to extract tier from Stripe subscription
 function getTierFromSubscription(subscription: Stripe.Subscription): string {
   // First check metadata
@@ -2557,6 +2571,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const assignments = await storage.createBulkAssignments(planId, clientIds);
       res.json(assignments);
+      // Fire-and-forget push to each assigned client
+      void Promise.all(
+        clientIds.map(async (clientId) => {
+          const tokens = await storage.getPushTokensByUser(clientId);
+          if (tokens.length > 0) {
+            void sendExpoPush(
+              tokens.map((t) => t.token),
+              "Nowy plan treningowy!",
+              `Twój trener przypisał Ci plan: ${plan.name}`,
+              { type: "plan_assigned", planId }
+            );
+          }
+        })
+      );
     } catch (error) {
       console.error("Error creating assignments:", error);
       res.status(500).json({ message: "Failed to create assignments" });
@@ -2860,8 +2888,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       
       try {
+        const invitationBefore = await storage.getInvitation(id);
         await storage.acceptInvitation(id, userId);
         res.status(200).json({ message: "Zaproszenie zaakceptowane" });
+        // Fire-and-forget push to trainer
+        if (invitationBefore?.trainerId) {
+          const trainerTokens = await storage.getPushTokensByUser(invitationBefore.trainerId);
+          if (trainerTokens.length > 0) {
+            const clientName = `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || user?.email ?? "Nowy klient";
+            void sendExpoPush(
+              trainerTokens.map((t) => t.token),
+              "Nowy podopieczny!",
+              `${clientName} zaakceptował(a) Twoje zaproszenie.`,
+              { type: "invitation_accepted", clientId: userId }
+            );
+          }
+        }
       } catch (error) {
         if (error instanceof Error && error.message.includes("not found")) {
           return res.status(404).json({ message: "Zaproszenie nie zostało znalezione" });
