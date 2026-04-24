@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
-import { apiFetch } from "@/context/AuthContext";
+import { apiFetch, markOnboardingDone } from "@/context/AuthContext";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -75,6 +75,7 @@ export default function OnboardingScreen() {
     setSaving(true);
     try {
       await saveOnboarding(phone, selectedGoal ?? "");
+      await markOnboardingDone();
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSaving(false);
       router.replace("/");
@@ -92,6 +93,7 @@ export default function OnboardingScreen() {
   }
 
   function handleSkip() {
+    void markOnboardingDone();
     router.replace("/");
   }
 
