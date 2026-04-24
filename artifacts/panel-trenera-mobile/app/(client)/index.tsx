@@ -9,13 +9,14 @@ import {
   Text,
   View,
 } from "react-native";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { StatsCard } from "@/components/StatsCard";
-import { apiGet } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
 
 type Colors = ReturnType<typeof useColors>;
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
@@ -27,17 +28,63 @@ interface Assignment {
   } | null;
 }
 
+interface InvitationTrainer {
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+interface PendingInvitation {
+  id: string;
+  clientEmail: string;
+  status: string;
+  createdAt: string;
+  trainer?: InvitationTrainer;
+}
+
 export default function ClientDashboard() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const qc = useQueryClient();
 
-  const { data: assignment, isLoading, refetch, isRefetching } = useQuery<Assignment>({
+  const { data: assignment, isLoading, refetch: refetchAssignment, isRefetching } = useQuery<Assignment>({
     queryKey: ["client-assignment"],
     queryFn: () => apiGet<Assignment>("/api/client/assignment"),
     enabled: !!user?.id,
     retry: 1,
   });
+
+  const { data: invitations, refetch: refetchInvitations } = useQuery<PendingInvitation[]>({
+    queryKey: ["client-invitations"],
+    queryFn: () => apiGet<PendingInvitation[]>("/api/invitations"),
+    enabled: !!user?.id,
+    retry: 1,
+  });
+
+  const pendingInvitations = (invitations ?? []).filter((i) => i.status === "pending");
+
+  const acceptMutation = useMutation({
+    mutationFn: (id: string) => apiPost(`/api/invitations/${id}/accept`, {}),
+    onSuccess: () => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ["client-invitations"] });
+      qc.invalidateQueries({ queryKey: ["client-assignment"] });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (id: string) => apiPost(`/api/invitations/${id}/reject`, {}),
+    onSuccess: () => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      qc.invalidateQueries({ queryKey: ["client-invitations"] });
+    },
+  });
+
+  function handleRefresh() {
+    void refetchAssignment();
+    void refetchInvitations();
+  }
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -49,7 +96,7 @@ export default function ClientDashboard() {
         { paddingTop: topPad + 16, paddingBottom: insets.bottom + 90 },
       ]}
       refreshControl={
-        <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />
+        <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor={colors.primary} />
       }
       showsVerticalScrollIndicator={false}
     >
@@ -66,6 +113,75 @@ export default function ClientDashboard() {
           </Text>
         </View>
       </View>
+
+      {pendingInvitations.length > 0 && (
+        <View style={styles.invitationsSection}>
+          <View style={styles.invitationsTitleRow}>
+            <Ionicons name="mail" size={18} color={colors.primary} />
+            <Text style={[styles.invitationsTitle, { color: colors.foreground }]}>
+              Zaproszenia od trenerów ({pendingInvitations.length})
+            </Text>
+          </View>
+          {pendingInvitations.map((inv) => {
+            const trainerName = inv.trainer
+              ? `${inv.trainer.firstName} ${inv.trainer.lastName}`.trim() || inv.trainer.email
+              : "Trener";
+            const isAccepting = acceptMutation.isPending && acceptMutation.variables === inv.id;
+            const isRejecting = rejectMutation.isPending && rejectMutation.variables === inv.id;
+            return (
+              <View
+                key={inv.id}
+                style={[styles.invCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                testID={`card-invitation-${inv.id}`}
+              >
+                <View style={[styles.invIconWrap, { backgroundColor: colors.primary + "18" }]}>
+                  <Ionicons name="person-circle-outline" size={28} color={colors.primary} />
+                </View>
+                <View style={styles.invInfo}>
+                  <Text style={[styles.invTrainerName, { color: colors.foreground }]}>
+                    {trainerName}
+                  </Text>
+                  <Text style={[styles.invDesc, { color: colors.mutedForeground }]}>
+                    zaprasza Cię jako podopiecznego
+                  </Text>
+                </View>
+                <View style={styles.invActions}>
+                  <Pressable
+                    onPress={() => rejectMutation.mutate(inv.id)}
+                    disabled={isAccepting || isRejecting}
+                    style={({ pressed }) => [
+                      styles.rejectBtn,
+                      { borderColor: colors.border, opacity: (isRejecting || pressed) ? 0.6 : 1 },
+                    ]}
+                    testID={`button-reject-invitation-${inv.id}`}
+                  >
+                    {isRejecting ? (
+                      <ActivityIndicator size="small" color={colors.mutedForeground} />
+                    ) : (
+                      <Ionicons name="close" size={18} color={colors.mutedForeground} />
+                    )}
+                  </Pressable>
+                  <Pressable
+                    onPress={() => acceptMutation.mutate(inv.id)}
+                    disabled={isAccepting || isRejecting}
+                    style={({ pressed }) => [
+                      styles.acceptBtn,
+                      { backgroundColor: colors.primary, opacity: (isAccepting || pressed) ? 0.7 : 1 },
+                    ]}
+                    testID={`button-accept-invitation-${inv.id}`}
+                  >
+                    {isAccepting ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.acceptBtnText}>Akceptuj</Text>
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
 
       <View style={[styles.planCard, { backgroundColor: colors.primary }]}>
         <View style={styles.planTop}>
@@ -162,6 +278,72 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   avatarText: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  invitationsSection: {
+    marginBottom: 20,
+    gap: 10,
+  },
+  invitationsTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  invitationsTitle: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+  },
+  invCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  invIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  invInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  invTrainerName: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+  },
+  invDesc: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+  },
+  invActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  rejectBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  acceptBtn: {
+    height: 36,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  acceptBtnText: {
+    color: "#fff",
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+  },
   planCard: {
     borderRadius: 16,
     padding: 20,

@@ -813,6 +813,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.session.save((err) => (err ? reject(err) : resolve()))
       );
 
+      // Auto-accept any pending invitations for this email
+      try {
+        const pendingInvitations = await storage.getClientInvitations(email);
+        for (const inv of pendingInvitations) {
+          try {
+            await storage.acceptInvitation(inv.id, user.id);
+            // Notify trainer via push
+            const trainerTokens = await storage.getPushTokensByUser(inv.trainerId);
+            if (trainerTokens.length > 0) {
+              void sendExpoPush(
+                trainerTokens.map((t) => t.token),
+                "Nowy podopieczny!",
+                `${user.firstName} zaakceptował(a) Twoje zaproszenie i dołączył(a) do aplikacji.`,
+                { type: "invitation_accepted", clientId: user.id }
+              );
+            }
+          } catch (invErr) {
+            console.warn("[MOBILE-REGISTER] Could not auto-accept invitation:", inv.id, invErr);
+          }
+        }
+      } catch (invLookupErr) {
+        console.warn("[MOBILE-REGISTER] Could not look up invitations:", invLookupErr);
+      }
+
       const { password: _, ...userWithoutPassword } = user;
       console.log("[MOBILE-REGISTER] User registered and logged in:", user.id);
       return res.status(201).json(userWithoutPassword);
