@@ -809,7 +809,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         const { password: _, ...userWithoutPassword } = user;
         console.log("[LOGIN] Session saved successfully for user:", user.id);
-        res.json(userWithoutPassword);
+        // Include session cookie in response body for mobile clients that cannot
+        // reliably read Set-Cookie headers (React Native)
+        const setCookieHeader = res.getHeader("Set-Cookie");
+        let sessionCookie: string | null = null;
+        const headers = Array.isArray(setCookieHeader)
+          ? setCookieHeader
+          : setCookieHeader ? [setCookieHeader as string] : [];
+        const sidEntry = headers.find((h) => h.startsWith("connect.sid="));
+        if (sidEntry) {
+          sessionCookie = sidEntry.split(";")[0]; // just "connect.sid=<value>"
+        }
+        res.json({ ...userWithoutPassword, _sessionCookie: sessionCookie });
       });
     } catch (error) {
       console.error("Error logging in:", error);

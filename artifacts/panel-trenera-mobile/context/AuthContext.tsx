@@ -18,7 +18,7 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  bearerToken: string | null;
+  sessionCookie: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -26,51 +26,51 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const TOKEN_KEY = "pt_mobile_token";
+const COOKIE_KEY = "pt_session_cookie";
 const BASE_URL = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
 
-async function getStoredToken(): Promise<string | null> {
-  if (Platform.OS === "web") return localStorage.getItem(TOKEN_KEY);
-  return SecureStore.getItemAsync(TOKEN_KEY);
+async function getStoredCookie(): Promise<string | null> {
+  if (Platform.OS === "web") return localStorage.getItem(COOKIE_KEY);
+  return SecureStore.getItemAsync(COOKIE_KEY);
 }
 
-async function storeToken(token: string): Promise<void> {
+async function storeCookie(cookie: string): Promise<void> {
   if (Platform.OS === "web") {
-    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(COOKIE_KEY, cookie);
     return;
   }
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
+  await SecureStore.setItemAsync(COOKIE_KEY, cookie);
 }
 
-async function clearToken(): Promise<void> {
+async function clearCookie(): Promise<void> {
   if (Platform.OS === "web") {
-    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(COOKIE_KEY);
     return;
   }
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  await SecureStore.deleteItemAsync(COOKIE_KEY);
 }
 
 export async function apiFetch(
   path: string,
   options: RequestInit = {},
-  token?: string | null
+  cookie?: string | null
 ): Promise<Response> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
   };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+  if (cookie) {
+    headers["Cookie"] = cookie;
   }
   return fetch(`${BASE_URL}${path}`, {
     ...options,
     headers,
-    credentials: "omit",
+    credentials: "include",
   });
 }
 
-async function registerPushToken(token: string | null): Promise<void> {
-  if (Platform.OS === "web" || !token) return;
+async function registerPushToken(cookie: string | null): Promise<void> {
+  if (Platform.OS === "web" || !cookie) return;
   try {
     const { status: existing } = await Notifications.getPermissionsAsync();
     let status = existing;
@@ -83,7 +83,7 @@ async function registerPushToken(token: string | null): Promise<void> {
     await apiFetch(
       "/api/push-tokens",
       { method: "POST", body: JSON.stringify({ token: pushToken.data, platform: Platform.OS }) },
-      token
+      cookie
     );
   } catch {
     // push tokens are optional — fail silently
@@ -93,22 +93,22 @@ async function registerPushToken(token: string | null): Promise<void> {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [bearerToken, setBearerToken] = useState<string | null>(null);
+  const [sessionCookie, setSessionCookie] = useState<string | null>(null);
 
-  const fetchUser = useCallback(async (token: string | null) => {
-    if (!token) {
+  const fetchUser = useCallback(async (cookie: string | null) => {
+    if (!cookie) {
       setUser(null);
       return;
     }
     try {
-      const res = await apiFetch("/api/auth/user", {}, token);
+      const res = await apiFetch("/api/auth/user", {}, cookie);
       if (res.ok) {
         const data: User = await res.json();
         setUser(data);
       } else {
         setUser(null);
-        setBearerToken(null);
-        await clearToken();
+        setSessionCookie(null);
+        await clearCookie();
       }
     } catch {
       setUser(null);
@@ -116,21 +116,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshUser = useCallback(async () => {
-    const token = await getStoredToken();
-    await fetchUser(token);
+    const cookie = await getStoredCookie();
+    await fetchUser(cookie);
   }, [fetchUser]);
 
   useEffect(() => {
     void (async () => {
-      const token = await getStoredToken();
-      setBearerToken(token);
-      await fetchUser(token);
+      const cookie = await getStoredCookie();
+      setSessionCookie(cookie);
+      await fetchUser(cookie);
       setIsLoading(false);
     })();
   }, [fetchUser]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await apiFetch("/api/auth/mobile-login", {
+    const res = await apiFetch("/api/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
@@ -138,26 +138,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const err = await res.json().catch(() => ({})) as { message?: string };
       throw new Error(err.message ?? "Nieprawidłowe dane logowania");
     }
-    const data = await res.json() as { token: string; user: User };
-    await storeToken(data.token);
-    setBearerToken(data.token);
-    setUser(data.user);
-    void registerPushToken(data.token);
+    const data = await res.json() as User & { _sessionCookie?: string | null };
+    const { _sessionCookie, ...userFields } = data;
+
+    // Use session cookie from response body (React Native cannot reliably read Set-Cookie headers)
+    const cookie = _sessionCookie ?? null;
+    if (cookie) {
+      await storeCookie(cookie);
+      setSessionCookie(cookie);
+    }
+    setUser(userFields);
+    void registerPushToken(cookie);
   }, []);
 
   const logout = useCallback(async () => {
     try {
-      if (bearerToken) {
-        await apiFetch("/api/auth/mobile-logout", { method: "POST" }, bearerToken);
+      if (sessionCookie) {
+        await apiFetch("/api/logout", { method: "POST" }, sessionCookie);
       }
     } catch { /* ignore */ }
     setUser(null);
-    setBearerToken(null);
-    await clearToken();
-  }, [bearerToken]);
+    setSessionCookie(null);
+    await clearCookie();
+  }, [sessionCookie]);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, bearerToken, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, isLoading, sessionCookie, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

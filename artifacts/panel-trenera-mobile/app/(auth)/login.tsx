@@ -109,7 +109,7 @@ export default function LoginScreen() {
         >
           <View style={styles.header}>
             <View style={[styles.logoBox, { backgroundColor: colors.primary }]}>
-              <Ionicons name="barbell" size={32} color="#fff" />
+              <Text style={styles.logoText}>PT</Text>
             </View>
             <Text style={[styles.appName, { color: colors.foreground }]}>Panel Trenera</Text>
             <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
@@ -244,6 +244,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 16,
+  },
+  logoText: {
+    color: "#fff",
+    fontSize: 28,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1,
   },
   appName: {
     fontSize: 28,

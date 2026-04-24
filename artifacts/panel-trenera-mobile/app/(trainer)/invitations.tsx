@@ -53,7 +53,7 @@ const STATUS_LABELS: Record<string, string> = {
 export default function TrainerInvitationsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, bearerToken } = useAuth();
+  const { user, sessionCookie } = useAuth();
   const qc = useQueryClient();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -62,14 +62,14 @@ export default function TrainerInvitationsScreen() {
 
   const { data, isLoading, refetch, isRefetching } = useQuery<Invitation[]>({
     queryKey: ["invitations"],
-    queryFn: () => apiGet<Invitation[]>("/api/invitations", bearerToken),
+    queryFn: () => apiGet<Invitation[]>("/api/invitations", sessionCookie),
     enabled: !!user?.id,
     retry: 1,
   });
 
   const createMutation = useMutation({
     mutationFn: (clientEmail: string) =>
-      apiPost<Invitation>("/api/invitations/send", { clientEmail }, bearerToken),
+      apiPost<Invitation>("/api/invitations/send", { clientEmail }, sessionCookie),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invitations"] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

@@ -57,7 +57,7 @@ export default function ClientDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { bearerToken } = useAuth();
+  const { sessionCookie } = useAuth();
   const qc = useQueryClient();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -65,13 +65,13 @@ export default function ClientDetailScreen() {
 
   const { data: progress, isLoading: loadingProgress, refetch, isRefetching } = useQuery<ProgressEntry[]>({
     queryKey: ["client-progress", id],
-    queryFn: () => apiGet<ProgressEntry[]>(`/api/trainer/clients/${id}/progress`, bearerToken),
+    queryFn: () => apiGet<ProgressEntry[]>(`/api/trainer/clients/${id}/progress`, sessionCookie),
     enabled: !!id,
   });
 
   const { data: clientsList } = useQuery<ClientFromList[]>({
     queryKey: ["trainer-clients"],
-    queryFn: () => apiGet<ClientFromList[]>("/api/trainer/clients", bearerToken),
+    queryFn: () => apiGet<ClientFromList[]>("/api/trainer/clients", sessionCookie),
     enabled: !!id,
   });
   const clientData = clientsList?.find((c) => c.id === id);
@@ -79,13 +79,13 @@ export default function ClientDetailScreen() {
 
   const { data: plans } = useQuery<TrainingPlan[]>({
     queryKey: ["training-plans"],
-    queryFn: () => apiGet<TrainingPlan[]>("/api/plans", bearerToken),
+    queryFn: () => apiGet<TrainingPlan[]>("/api/plans", sessionCookie),
     enabled: assignModalVisible,
   });
 
   const assignMutation = useMutation({
     mutationFn: ({ planId }: { planId: string }) =>
-      apiPost("/api/assignments/bulk", { planId, clientIds: [id] }, bearerToken),
+      apiPost("/api/assignments/bulk", { planId, clientIds: [id] }, sessionCookie),
     onSuccess: () => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ["trainer-clients"] });
@@ -94,7 +94,7 @@ export default function ClientDetailScreen() {
   });
 
   const remindMutation = useMutation({
-    mutationFn: () => apiPost(`/api/trainer/clients/${id}/remind`, {}, bearerToken),
+    mutationFn: () => apiPost(`/api/trainer/clients/${id}/remind`, {}, sessionCookie),
     onSuccess: (result: unknown) => {
       const sent = (result as { sent?: number })?.sent ?? 0;
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

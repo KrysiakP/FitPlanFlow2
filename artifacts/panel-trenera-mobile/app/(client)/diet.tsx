@@ -55,7 +55,7 @@ const WATER_STEP_ML = 250;
 export default function DietScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { bearerToken } = useAuth();
+  const { sessionCookie } = useAuth();
   const queryClient = useQueryClient();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -64,7 +64,7 @@ export default function DietScreen() {
 
   const { data, isLoading, refetch, isRefetching } = useQuery<DietPlan | null>({
     queryKey: ["diet-plan"],
-    queryFn: () => apiGet<DietPlan | null>("/api/client/diet", bearerToken),
+    queryFn: () => apiGet<DietPlan | null>("/api/client/diet", sessionCookie),
     retry: 1,
   });
 
@@ -80,7 +80,7 @@ export default function DietScreen() {
           waterLiters: waterMl / 1000,
           mealCheckmarks,
         },
-        bearerToken
+        sessionCookie
       );
     },
     onSuccess: () => {
