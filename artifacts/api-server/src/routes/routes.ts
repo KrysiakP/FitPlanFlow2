@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "../storage";
 import { db } from "../db";
 import { setupAuth, isAuthenticated, hashPassword, comparePassword, getSessionFromStore, unsignSessionCookie } from "../auth";
-import { generateVerificationToken, getTokenExpiry, sendVerificationEmail, sendPasswordResetEmail, getPasswordResetTokenExpiry, sendWelcomeEmail, sendTrainerNotificationEmail } from "../email";
+import { generateVerificationToken, getTokenExpiry, sendVerificationEmail, sendPasswordResetEmail, getPasswordResetTokenExpiry, sendWelcomeEmail, sendTrainerNotificationEmail, sendTrainerWelcomeEmail } from "../email";
 // Object Storage - code adapted from javascript_object_storage blueprint
 import { ObjectStorageService, ObjectNotFoundError } from "../objectStorage";
 import { ObjectPermission } from "../objectAcl";
@@ -876,6 +876,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } catch (invLookupErr) {
         console.warn("[MOBILE-REGISTER] Could not look up invitations:", invLookupErr);
+      }
+
+      // Send welcome email to newly registered trainers
+      if (role === "trainer" && user.email && user.firstName) {
+        void sendTrainerWelcomeEmail({
+          email: user.email,
+          firstName: user.firstName,
+        });
       }
 
       const { password: _, ...userWithoutPassword } = user;
