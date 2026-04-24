@@ -432,6 +432,21 @@ export const notifications = pgTable("notifications", {
   uniqueNotification: uniqueIndex("unique_trainer_payment_type").on(table.trainerId, table.paymentId, table.type),
 }));
 
+// Workout sessions - completed training sessions logged by clients
+export const workoutSessions = pgTable("workout_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  workoutId: varchar("workout_id").notNull().references(() => workouts.id, { onDelete: "cascade" }),
+  planId: varchar("plan_id").notNull().references(() => trainingPlans.id, { onDelete: "cascade" }),
+  exercisesCompleted: integer("exercises_completed").notNull().default(0),
+  totalExercises: integer("total_exercises").notNull().default(0),
+  durationSeconds: integer("duration_seconds"),
+  completedAt: timestamp("completed_at").defaultNow().notNull(),
+}, (table) => ({
+  clientIdx: index("workout_sessions_client_idx").on(table.clientId),
+  completedAtIdx: index("workout_sessions_completed_at_idx").on(table.completedAt),
+}));
+
 export const mobileTokens = pgTable("mobile_tokens", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -1078,3 +1093,11 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type InsertGlobalExerciseInput = z.infer<typeof insertGlobalExerciseSchema>;
 export type GlobalExercise = typeof globalExercises.$inferSelect;
+
+export const insertWorkoutSessionSchema = createInsertSchema(workoutSessions).omit({
+  id: true,
+  clientId: true,
+  completedAt: true,
+});
+export type InsertWorkoutSession = z.infer<typeof insertWorkoutSessionSchema>;
+export type WorkoutSession = typeof workoutSessions.$inferSelect;

@@ -36,6 +36,7 @@ import {
   insertMedicalTestSchema,
   insertClientPaymentSchema,
   insertMessageSchema,
+  insertWorkoutSessionSchema,
   sessions,
 } from "@workspace/db";
 import { z } from "zod";
@@ -3211,6 +3212,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching exercise logs:", error);
       res.status(500).json({ message: "Nie udało się pobrać logów ćwiczeń" });
+    }
+  });
+
+  // Workout sessions endpoints
+  app.post("/api/workout-sessions", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko klienci mogą zapisywać sesje treningowe" });
+      }
+
+      const validation = insertWorkoutSessionSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ message: "Nieprawidłowe dane sesji", errors: validation.error.errors });
+      }
+
+      const { workoutId, planId, exercisesCompleted, totalExercises, durationSeconds } = validation.data;
+
+      // Sanity-check numeric fields
+      if (durationSeconds < 0) {
+        return res.status(400).json({ message: "Czas trwania sesji nie może być ujemny" });
+      }
+      if (totalExercises < 0 || exercisesCompleted < 0) {
+        return res.status(400).json({ message: "Liczba ćwiczeń nie może być ujemna" });
+      }
+      if (exercisesCompleted > totalExercises) {
+        return res.status(400).json({ message: "Liczba ukończonych ćwiczeń przekracza łączną liczbę ćwiczeń" });
+      }
+
+      // Verify the client has an active assignment to the given planId
+      const assignment = await storage.getClientAssignment(userId);
+      if (!assignment || assignment.planId !== planId) {
+        return res.status(403).json({ message: "Plan treningowy nie należy do Ciebie" });
+      }
+
+      // Verify the workoutId belongs to this plan
+      const planWorkouts = await storage.getWorkoutsByPlanId(planId);
+      const workoutBelongsToPlan = planWorkouts.some((w) => w.id === workoutId);
+      if (!workoutBelongsToPlan) {
+        return res.status(403).json({ message: "Trening nie należy do Twojego planu" });
+      }
+
+      const session = await storage.createWorkoutSession(userId, validation.data);
+      res.status(201).json(session);
+    } catch (error) {
+      console.error("Error saving workout session:", error);
+      res.status(500).json({ message: "Nie udało się zapisać sesji treningowej" });
+    }
+  });
+
+  app.get("/api/workout-sessions", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko klienci mogą pobierać sesje treningowe" });
+      }
+
+      const sessions = await storage.getClientWorkoutSessions(userId);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error fetching workout sessions:", error);
+      res.status(500).json({ message: "Nie udało się pobrać sesji treningowych" });
     }
   });
 

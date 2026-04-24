@@ -20,6 +20,16 @@ interface ExerciseLogItem {
   loggedAt: string;
 }
 
+interface WorkoutSessionItem {
+  id: string;
+  workoutId: string;
+  planId: string;
+  exercisesCompleted: number;
+  totalExercises: number;
+  durationSeconds: number | null;
+  completedAt: string;
+}
+
 type Colors = ReturnType<typeof useColors>;
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
 
@@ -47,6 +57,24 @@ function formatDate(dateStr: string) {
   }
 }
 
+function formatDuration(seconds: number | null): string {
+  if (!seconds || seconds <= 0) return "";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}h ${m}min`;
+  if (m > 0) return `${m}min ${s > 0 ? `${s}s` : ""}`.trim();
+  return `${s}s`;
+}
+
+function formatTime(dateStr: string) {
+  try {
+    return new Date(dateStr).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
 export default function ProgressScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -67,10 +95,17 @@ export default function ProgressScreen() {
     staleTime: 1000 * 60 * 5,
   });
 
+  const { data: sessionsData } = useQuery<WorkoutSessionItem[]>({
+    queryKey: ["workout-sessions", user?.id],
+    queryFn: () => apiGet<WorkoutSessionItem[]>("/api/workout-sessions"),
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 2,
+  });
+
   const entries = data ? [data] : [];
   const latest = data ?? null;
+  const sessions = sessionsData ?? [];
 
-  // Group exercise logs into daily workout counts for the last 14 days
   const workoutActivity = (() => {
     const days: { label: string; key: string; count: number }[] = [];
     const now = new Date();
@@ -108,7 +143,6 @@ export default function ProgressScreen() {
         <ActivityIndicator color={colors.primary} style={styles.loader} />
       ) : (
         <>
-          {/* Workout activity bar chart — shown regardless of progress entry existence */}
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
             Aktywność treningowa (14 dni)
           </Text>
@@ -218,7 +252,6 @@ export default function ProgressScreen() {
             </>
           )}
 
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Historia</Text>
           {entries.map((entry) => (
             <View
               key={entry.id}
@@ -248,6 +281,65 @@ export default function ProgressScreen() {
               )}
             </View>
           ))}
+
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Historia treningów</Text>
+          {sessions.length === 0 ? (
+            <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Ionicons name="barbell-outline" size={28} color={colors.mutedForeground} />
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Brak ukończonych treningów</Text>
+              <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
+                Ukończone treningi pojawią się tutaj po zakończeniu sesji.
+              </Text>
+            </View>
+          ) : (
+            sessions.map((session) => {
+              const pct = session.totalExercises > 0
+                ? Math.round((session.exercisesCompleted / session.totalExercises) * 100)
+                : 0;
+              const duration = formatDuration(session.durationSeconds);
+              const isComplete = session.exercisesCompleted === session.totalExercises;
+              return (
+                <View
+                  key={session.id}
+                  style={[sessionStyles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  testID={`card-session-${session.id}`}
+                >
+                  <View style={sessionStyles.header}>
+                    <View style={[sessionStyles.iconWrap, { backgroundColor: isComplete ? "#16a34a1a" : colors.primary + "1a" }]}>
+                      <Ionicons
+                        name={isComplete ? "checkmark-circle-outline" : "partly-sunny-outline"}
+                        size={20}
+                        color={isComplete ? "#16a34a" : colors.primary}
+                      />
+                    </View>
+                    <View style={sessionStyles.info}>
+                      <Text style={[sessionStyles.date, { color: colors.foreground }]}>
+                        {formatDate(session.completedAt)}
+                      </Text>
+                      <Text style={[sessionStyles.time, { color: colors.mutedForeground }]}>
+                        {formatTime(session.completedAt)}
+                        {duration ? `  ·  ${duration}` : ""}
+                      </Text>
+                    </View>
+                    <View style={[sessionStyles.badge, { backgroundColor: isComplete ? "#16a34a1a" : colors.accent }]}>
+                      <Text style={[sessionStyles.badgeText, { color: isComplete ? "#16a34a" : colors.mutedForeground }]}>
+                        {pct}%
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={[sessionStyles.progressBar, { backgroundColor: colors.border }]}>
+                    <View style={sessionStyles.progressFlex}>
+                      <View style={{ flex: pct, backgroundColor: isComplete ? "#16a34a" : colors.primary, borderRadius: 4 }} />
+                      <View style={{ flex: Math.max(0, 100 - pct) }} />
+                    </View>
+                  </View>
+                  <Text style={[sessionStyles.exercises, { color: colors.mutedForeground }]}>
+                    {session.exercisesCompleted}/{session.totalExercises} ćwiczeń ukończonych
+                  </Text>
+                </View>
+              );
+            })
+          )}
         </>
       )}
     </ScrollView>
@@ -310,6 +402,63 @@ const metricStyles = StyleSheet.create({
   label: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center" },
 });
 
+const sessionStyles = StyleSheet.create({
+  card: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 10,
+    gap: 10,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  info: {
+    flex: 1,
+    gap: 2,
+  },
+  date: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+  },
+  time: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+  },
+  badge: {
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  badgeText: {
+    fontSize: 13,
+    fontFamily: "Inter_700Bold",
+  },
+  progressBar: {
+    height: 6,
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  progressFlex: {
+    flex: 1,
+    flexDirection: "row" as const,
+    height: 6,
+  },
+  exercises: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+  },
+});
+
 const chartStyles = StyleSheet.create({
   container: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 24 },
   bars: { flexDirection: "row", alignItems: "flex-end", height: 96, gap: 4 },
@@ -338,6 +487,7 @@ const styles = StyleSheet.create({
     padding: 32,
     alignItems: "center",
     gap: 12,
+    marginBottom: 10,
   },
   emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
   emptyDesc: {

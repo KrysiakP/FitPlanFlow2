@@ -78,6 +78,9 @@ import {
   type MobileToken,
   pushTokens,
   type PushToken,
+  workoutSessions,
+  type WorkoutSession,
+  type InsertWorkoutSession,
 } from "@workspace/db";
 import { db } from "./db";
 import { eq, and, desc, or, isNull, sql, gte, lte, asc, inArray } from "drizzle-orm";
@@ -303,6 +306,10 @@ export interface IStorage {
   upsertPushToken(userId: string, token: string, platform: string): Promise<PushToken>;
   getPushTokensByUser(userId: string): Promise<PushToken[]>;
   deletePushToken(userId: string, token: string): Promise<void>;
+
+  // Workout sessions
+  createWorkoutSession(clientId: string, data: InsertWorkoutSession): Promise<WorkoutSession>;
+  getClientWorkoutSessions(clientId: string): Promise<WorkoutSession[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2779,6 +2786,23 @@ export class DatabaseStorage implements IStorage {
 
   async deletePushToken(userId: string, token: string): Promise<void> {
     await db.delete(pushTokens).where(and(eq(pushTokens.userId, userId), eq(pushTokens.token, token)));
+  }
+
+  // Workout sessions
+  async createWorkoutSession(clientId: string, data: InsertWorkoutSession): Promise<WorkoutSession> {
+    const [session] = await db
+      .insert(workoutSessions)
+      .values({ ...data, clientId })
+      .returning();
+    return session;
+  }
+
+  async getClientWorkoutSessions(clientId: string): Promise<WorkoutSession[]> {
+    return db
+      .select()
+      .from(workoutSessions)
+      .where(eq(workoutSessions.clientId, clientId))
+      .orderBy(desc(workoutSessions.completedAt));
   }
 }
 
