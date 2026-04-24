@@ -25,7 +25,26 @@ app.use(
     },
   }),
 );
-app.use(cors({ credentials: true, origin: true }));
+app.use(
+  cors({
+    credentials: true,
+    origin(origin, callback) {
+      // No origin header: native mobile apps and server-to-server calls — allow.
+      if (!origin) return callback(null, true);
+
+      // Allow Replit dev/prod/preview domains and localhost.
+      const trusted =
+        /\.replit\.dev$/.test(origin) ||
+        /\.replit\.app$/.test(origin) ||
+        /\.repl\.co$/.test(origin) ||
+        /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
+        /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin);
+
+      if (trusted) return callback(null, true);
+      return callback(new Error("CORS: origin not allowed"));
+    },
+  })
+);
 // Stripe webhooks require raw body for signature verification — must come before express.json()
 app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
 app.use(express.json());
