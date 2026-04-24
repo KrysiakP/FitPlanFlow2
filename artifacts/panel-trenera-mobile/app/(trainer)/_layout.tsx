@@ -78,7 +78,7 @@ export default function TrainerLayout() {
     { name: "plans", title: "Plany treningowe", icon: "clipboard-outline", iconFocused: "clipboard" },
     { name: "invitations", title: "Zaproszenia", icon: "mail-outline", iconFocused: "mail" },
     { name: "profile", title: "Profil i subskrypcja", icon: "person-circle-outline", iconFocused: "person-circle" },
-    { name: "client", title: "Klient", icon: "person-outline", iconFocused: "person", hidden: true },
+    { name: "client/[id]", title: "Klient", icon: "person-outline", iconFocused: "person", hidden: true },
   ];
 
   return (

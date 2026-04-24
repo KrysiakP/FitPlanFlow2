@@ -207,7 +207,7 @@ function ExerciseRow({
 export default function TrainingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { sessionCookie } = useAuth();
+  const { bearerToken } = useAuth();
   const queryClient = useQueryClient();
 
   const [activeWorkout, setActiveWorkout] = useState<string | null>(null);
@@ -220,7 +220,7 @@ export default function TrainingScreen() {
 
   const { data, isLoading, refetch, isRefetching } = useQuery<PlanAssignment>({
     queryKey: ["client-assignment"],
-    queryFn: () => apiGet<PlanAssignment>("/api/client/assignment", sessionCookie),
+    queryFn: () => apiGet<PlanAssignment>("/api/client/assignment", bearerToken),
   });
 
   const logMutation = useMutation({
@@ -228,7 +228,7 @@ export default function TrainingScreen() {
       return apiPost(
         `/api/exercises/${exerciseId}/log`,
         { reps, load: load || undefined, setNumber: 1 },
-        sessionCookie
+        bearerToken
       );
     },
     onSuccess: (_data, variables) => {
