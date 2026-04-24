@@ -51,7 +51,7 @@ export default function RegisterScreen() {
     try {
       await register(firstName.trim(), email.trim().toLowerCase(), password);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace("/");
+      router.replace("/(auth)/onboarding");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Wystąpił błąd. Spróbuj ponownie.";
       setError(msg);

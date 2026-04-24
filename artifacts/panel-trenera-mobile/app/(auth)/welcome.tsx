@@ -58,7 +58,7 @@ export default function WelcomeScreen() {
           ]}
           testID="button-go-register"
         >
-          <Text style={styles.primaryBtnText}>Zarejestruj się</Text>
+          <Text style={styles.primaryBtnText}>Zarejestruj się jako klient</Text>
         </Pressable>
 
         <Pressable
@@ -69,8 +69,23 @@ export default function WelcomeScreen() {
           ]}
           testID="button-go-login"
         >
-          <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>Zaloguj się</Text>
+          <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>Mam już konto</Text>
         </Pressable>
+
+        <View style={[styles.trainerRow, { borderTopColor: colors.border }]}>
+          <Ionicons name="barbell-outline" size={14} color={colors.mutedForeground} />
+          <Text style={[styles.trainerText, { color: colors.mutedForeground }]}>
+            Jesteś trenerem?{" "}
+          </Text>
+          <Pressable
+            onPress={() => router.push("/(auth)/login")}
+            testID="button-trainer-login"
+          >
+            <Text style={[styles.trainerLink, { color: colors.primary }]}>
+              Zaloguj się tutaj
+            </Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -159,6 +174,23 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: {
     fontSize: 16,
+    fontFamily: "Inter_600SemiBold",
+  },
+  trainerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    flexWrap: "wrap",
+  },
+  trainerText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+  },
+  trainerLink: {
+    fontSize: 13,
     fontFamily: "Inter_600SemiBold",
   },
 });
