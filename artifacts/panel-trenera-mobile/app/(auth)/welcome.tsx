@@ -1,4 +1,5 @@
 import {
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -8,6 +9,8 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
+
+const WEB_PANEL_URL = "https://paneltrenera.pl";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -78,11 +81,11 @@ export default function WelcomeScreen() {
             Jesteś trenerem?{" "}
           </Text>
           <Pressable
-            onPress={() => router.push("/(auth)/login")}
+            onPress={() => void Linking.openURL(WEB_PANEL_URL)}
             testID="button-trainer-login"
           >
             <Text style={[styles.trainerLink, { color: colors.primary }]}>
-              Zaloguj się tutaj
+              Otwórz panel na paneltrenera.pl
             </Text>
           </Pressable>
         </View>
