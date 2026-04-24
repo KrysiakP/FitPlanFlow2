@@ -92,7 +92,7 @@ export default function RegisterScreen() {
 
           <View style={styles.form}>
             <View style={styles.rolePicker}>
-              {(["client", "trainer"] as const).map((r) => {
+              {(["trainer", "client"] as const).map((r) => {
                 const selected = role === r;
                 return (
                   <Pressable
