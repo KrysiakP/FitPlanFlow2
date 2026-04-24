@@ -9,23 +9,66 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import * as LocalAuthentication from "expo-local-authentication";
+import * as SecureStore from "expo-secure-store";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+
+const BIOMETRIC_AVAILABLE_KEY = "pt_biometric_enabled";
 
 export default function LoginScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { login } = useAuth();
+  const { login, refreshUser } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+
+  useEffect(() => {
+    void checkBiometrics();
+  }, []);
+
+  async function checkBiometrics() {
+    if (Platform.OS === "web") return;
+    const compatible = await LocalAuthentication.hasHardwareAsync();
+    const enrolled = await LocalAuthentication.isEnrolledAsync();
+    const enabled = await SecureStore.getItemAsync(BIOMETRIC_AVAILABLE_KEY);
+    setBiometricAvailable(compatible && enrolled);
+    setBiometricEnabled(compatible && enrolled && enabled === "true");
+  }
+
+  async function handleBiometricLogin() {
+    setBiometricLoading(true);
+    setError(null);
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Zaloguj się do Panelu Trenera",
+        cancelLabel: "Anuluj",
+        fallbackLabel: "Użyj hasła",
+      });
+      if (result.success) {
+        await refreshUser();
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace("/");
+      } else if (result.error !== "user_cancel") {
+        setError("Biometria nieudana. Użyj e-maila i hasła.");
+      }
+    } catch {
+      setError("Biometria niedostępna.");
+    } finally {
+      setBiometricLoading(false);
+    }
+  }
 
   async function handleLogin() {
     if (!email || !password) {
@@ -36,10 +79,14 @@ export default function LoginScreen() {
     setError(null);
     try {
       await login(email.trim().toLowerCase(), password);
+      if (Platform.OS !== "web" && biometricAvailable) {
+        await SecureStore.setItemAsync(BIOMETRIC_AVAILABLE_KEY, "true");
+      }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/");
-    } catch (e: any) {
-      setError(e.message ?? "Wystąpił błąd. Spróbuj ponownie.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Wystąpił błąd. Spróbuj ponownie.";
+      setError(msg);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -72,7 +119,12 @@ export default function LoginScreen() {
 
           <View style={styles.form}>
             {error && (
-              <View style={[styles.errorBox, { backgroundColor: colors.destructive + "18", borderColor: colors.destructive + "44" }]}>
+              <View
+                style={[
+                  styles.errorBox,
+                  { backgroundColor: colors.destructive + "18", borderColor: colors.destructive + "44" },
+                ]}
+              >
                 <Ionicons name="alert-circle-outline" size={16} color={colors.destructive} />
                 <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
               </View>
@@ -110,8 +162,16 @@ export default function LoginScreen() {
                   autoCapitalize="none"
                   testID="input-password"
                 />
-                <Pressable onPress={() => setShowPass(!showPass)} style={styles.eyeBtn} testID="button-toggle-password">
-                  <Ionicons name={showPass ? "eye-off-outline" : "eye-outline"} size={18} color={colors.mutedForeground} />
+                <Pressable
+                  onPress={() => setShowPass(!showPass)}
+                  style={styles.eyeBtn}
+                  testID="button-toggle-password"
+                >
+                  <Ionicons
+                    name={showPass ? "eye-off-outline" : "eye-outline"}
+                    size={18}
+                    color={colors.mutedForeground}
+                  />
                 </Pressable>
               </View>
             </View>
@@ -132,6 +192,29 @@ export default function LoginScreen() {
               )}
             </Pressable>
 
+            {biometricEnabled && (
+              <Pressable
+                onPress={handleBiometricLogin}
+                disabled={biometricLoading}
+                style={({ pressed }) => [
+                  styles.biometricBtn,
+                  { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed || biometricLoading ? 0.8 : 1 },
+                ]}
+                testID="button-biometric-login"
+              >
+                {biometricLoading ? (
+                  <ActivityIndicator color={colors.primary} />
+                ) : (
+                  <>
+                    <Ionicons name="finger-print" size={22} color={colors.primary} />
+                    <Text style={[styles.biometricText, { color: colors.foreground }]}>
+                      Zaloguj biometrycznie
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            )}
+
             <View style={[styles.divider, { borderColor: colors.border }]}>
               <Text style={[styles.dividerText, { color: colors.mutedForeground }]}>
                 Nie masz konta? Zarejestruj się na paneltrenera.pl
@@ -149,7 +232,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: {
     paddingHorizontal: 24,
-    gap: 0,
   },
   header: {
     alignItems: "center",
@@ -226,6 +308,19 @@ const styles = StyleSheet.create({
   loginBtnText: {
     color: "#fff",
     fontSize: 16,
+    fontFamily: "Inter_600SemiBold",
+  },
+  biometricBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    height: 52,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  biometricText: {
+    fontSize: 15,
     fontFamily: "Inter_600SemiBold",
   },
   divider: {

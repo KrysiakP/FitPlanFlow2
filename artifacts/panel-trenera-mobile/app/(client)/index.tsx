@@ -1,11 +1,13 @@
+import type { ComponentProps } from "react";
 import {
   ActivityIndicator,
+  Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
-  Platform,
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,12 +17,14 @@ import { useColors } from "@/hooks/useColors";
 import { StatsCard } from "@/components/StatsCard";
 import { apiGet } from "@/lib/api";
 
+type Colors = ReturnType<typeof useColors>;
+type IoniconsName = ComponentProps<typeof Ionicons>["name"];
+
 interface Assignment {
   plan?: {
     name: string;
     description?: string | null;
   } | null;
-  workout?: { name: string }[] | null;
 }
 
 export default function ClientDashboard() {
@@ -40,8 +44,13 @@ export default function ClientDashboard() {
   return (
     <ScrollView
       style={[styles.root, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.content, { paddingTop: topPad + 16, paddingBottom: insets.bottom + 90 }]}
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: topPad + 16, paddingBottom: insets.bottom + 90 },
+      ]}
+      refreshControl={
+        <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />
+      }
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
@@ -79,9 +88,24 @@ export default function ClientDashboard() {
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Podsumowanie</Text>
       <View style={styles.statsRow}>
-        <StatsCard label="Treningi" value="0" iconName="barbell-outline" color={colors.primary} />
-        <StatsCard label="Tydzień" value="1" iconName="calendar-outline" color="#16a34a" />
-        <StatsCard label="Postęp" value="0%" iconName="trending-up-outline" color="#d97706" />
+        <StatsCard
+          label="Treningi"
+          value="0"
+          iconName="barbell-outline"
+          color={colors.primary}
+        />
+        <StatsCard
+          label="Tydzień"
+          value="1"
+          iconName="calendar-outline"
+          color="#16a34a"
+        />
+        <StatsCard
+          label="Postęp"
+          value="0%"
+          iconName="trending-up-outline"
+          color="#d97706"
+        />
       </View>
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Szybki dostęp</Text>
@@ -95,12 +119,27 @@ export default function ClientDashboard() {
   );
 }
 
-function QuickCard({ icon, label, colors }: { icon: string; label: string; colors: any }) {
+interface QuickCardProps {
+  icon: IoniconsName;
+  label: string;
+  colors: Colors;
+}
+
+function QuickCard({ icon, label, colors }: QuickCardProps) {
   return (
-    <View style={[styles.quickCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Ionicons name={icon as any} size={24} color={colors.primary} />
+    <Pressable
+      style={({ pressed }) => [
+        styles.quickCard,
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+          opacity: pressed ? 0.8 : 1,
+        },
+      ]}
+    >
+      <Ionicons name={icon} size={24} color={colors.primary} />
       <Text style={[styles.quickLabel, { color: colors.foreground }]}>{label}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -130,9 +169,18 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   planTop: { flexDirection: "row", alignItems: "center", gap: 8 },
-  planLabel: { color: "rgba(255,255,255,0.8)", fontSize: 13, fontFamily: "Inter_500Medium" },
+  planLabel: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+  },
   planName: { color: "#fff", fontSize: 20, fontFamily: "Inter_700Bold" },
-  planDesc: { color: "rgba(255,255,255,0.75)", fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  planDesc: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 18,
+  },
   sectionTitle: { fontSize: 17, fontFamily: "Inter_700Bold", marginBottom: 12 },
   statsRow: { flexDirection: "row", gap: 10, marginBottom: 24 },
   quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 24 },

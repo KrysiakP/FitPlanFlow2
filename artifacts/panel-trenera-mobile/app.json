@@ -15,10 +15,24 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "pl.paneltrenera.app"
+      "bundleIdentifier": "pl.paneltrenera.app",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Użyj Face ID lub Touch ID, aby szybko się zalogować.",
+        "NSLocalAuthenticationUsageDescription": "Uwierzytelnianie biometryczne do bezpiecznego logowania."
+      }
     },
     "android": {
-      "package": "pl.paneltrenera.app"
+      "package": "pl.paneltrenera.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#0846ab"
+      },
+      "permissions": [
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -32,7 +46,16 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-local-authentication",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#0846ab",
+          "defaultChannel": "default"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import * as SecureStore from "expo-secure-store";
+import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
 export interface User {
@@ -70,6 +71,27 @@ export async function apiFetch(
   });
 }
 
+async function registerPushToken(cookie: string | null): Promise<void> {
+  if (Platform.OS === "web") return;
+  try {
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    let status = existing;
+    if (existing !== "granted") {
+      const { status: requested } = await Notifications.requestPermissionsAsync();
+      status = requested;
+    }
+    if (status !== "granted") return;
+    const token = await Notifications.getExpoPushTokenAsync();
+    await apiFetch(
+      "/api/push-tokens",
+      { method: "POST", body: JSON.stringify({ token: token.data, platform: Platform.OS }) },
+      cookie
+    );
+  } catch {
+    // push tokens are optional — fail silently
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -83,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await apiFetch("/api/auth/user", {}, cookie);
       if (res.ok) {
-        const data = await res.json();
+        const data: User = await res.json();
         setUser(data);
       } else {
         setUser(null);
@@ -96,11 +118,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshUser = useCallback(async () => {
-    await fetchUser(sessionCookie);
-  }, [sessionCookie, fetchUser]);
+    const cookie = await getStoredCookie();
+    await fetchUser(cookie);
+  }, [fetchUser]);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       const cookie = await getStoredCookie();
       setSessionCookie(cookie);
       await fetchUser(cookie);
@@ -114,8 +137,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify({ email, password }),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || "Nieprawidłowe dane logowania");
+      const err = await res.json().catch(() => ({})) as { message?: string };
+      throw new Error(err.message ?? "Nieprawidłowe dane logowania");
     }
     let cookie: string | null = null;
     if (Platform.OS !== "web") {
@@ -126,8 +149,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSessionCookie(cookie);
       }
     }
-    const data = await res.json();
-    setUser(data.user ?? data);
+    const data = await res.json() as { user?: User } | User;
+    const userData = "user" in data ? data.user ?? null : data;
+    setUser(userData as User | null);
+    void registerPushToken(cookie);
   }, []);
 
   const logout = useCallback(async () => {

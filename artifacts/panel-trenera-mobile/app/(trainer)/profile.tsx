@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import {
   Alert,
   Linking,
@@ -121,7 +122,15 @@ export default function TrainerProfileScreen() {
   );
 }
 
-function MenuRow({ icon, label, desc, colors, onPress }: any) {
+interface MenuRowProps {
+  icon: ComponentProps<typeof Ionicons>["name"];
+  label: string;
+  desc?: string;
+  colors: ReturnType<typeof useColors>;
+  onPress?: () => void;
+}
+
+function MenuRow({ icon, label, desc, colors, onPress }: MenuRowProps) {
   return (
     <Pressable
       onPress={onPress}

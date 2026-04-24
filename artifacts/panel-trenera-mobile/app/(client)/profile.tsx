@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import {
   Alert,
   Platform,
@@ -84,7 +85,15 @@ export default function ClientProfileScreen() {
   );
 }
 
-function MenuRow({ icon, label, desc, colors }: any) {
+interface MenuRowProps {
+  icon: ComponentProps<typeof Ionicons>["name"];
+  label: string;
+  desc?: string;
+  colors: ReturnType<typeof useColors>;
+  onPress?: () => void;
+}
+
+function MenuRow({ icon, label, desc, colors, onPress }: MenuRowProps) {
   return (
     <Pressable
       style={({ pressed }) => [
