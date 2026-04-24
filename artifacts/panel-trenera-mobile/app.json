@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Panel Trenera",
+    "slug": "panel-trenera-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "panel-trenera-mobile",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0846ab"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "pl.paneltrenera.app"
+    },
+    "android": {
+      "package": "pl.paneltrenera.app"
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://replit.com/"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
