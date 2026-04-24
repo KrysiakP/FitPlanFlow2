@@ -45,6 +45,7 @@ function RootLayoutNav() {
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(client)" />
       <Stack.Screen name="(trainer)" />
+      <Stack.Screen name="notifications" />
     </Stack>
   );
 }

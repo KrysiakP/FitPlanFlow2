@@ -98,6 +98,14 @@ export default function TrainerProfileScreen() {
       </View>
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ustawienia</Text>
+      <MenuRow
+        icon="notifications-outline"
+        label="Powiadomienia"
+        desc="Zarządzaj powiadomieniami push"
+        colors={colors}
+        onPress={() => router.push("/notifications")}
+        testID="button-notifications"
+      />
       <MenuRow icon="globe-outline" label="Panel trenera web" desc="Otwórz pełny panel w przeglądarce" colors={colors} onPress={() => Linking.openURL("https://paneltrenera.pl")} />
       <MenuRow icon="people-outline" label="Zaproś klienta" desc="Wyślij zaproszenie nowemu klientowi" colors={colors} onPress={() => Linking.openURL("https://paneltrenera.pl/zaproszenie")} />
       <MenuRow icon="shield-checkmark-outline" label="Prywatność i RODO" desc="Zarządzaj zgodami i danymi" colors={colors} />
@@ -128,12 +136,14 @@ interface MenuRowProps {
   desc?: string;
   colors: ReturnType<typeof useColors>;
   onPress?: () => void;
+  testID?: string;
 }
 
-function MenuRow({ icon, label, desc, colors, onPress }: MenuRowProps) {
+function MenuRow({ icon, label, desc, colors, onPress, testID }: MenuRowProps) {
   return (
     <Pressable
       onPress={onPress}
+      testID={testID}
       style={({ pressed }) => [
         styles.menuRow,
         { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },

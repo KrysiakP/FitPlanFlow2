@@ -62,6 +62,14 @@ export default function ClientProfileScreen() {
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ustawienia</Text>
 
+      <MenuRow
+        icon="notifications-outline"
+        label="Powiadomienia"
+        desc="Zarządzaj powiadomieniami push"
+        colors={colors}
+        onPress={() => router.push("/notifications")}
+        testID="button-notifications"
+      />
       <MenuRow icon="globe-outline" label="Zarządzaj kontem" desc="Otwórz Panel Trenera w przeglądarce" colors={colors} />
       <MenuRow icon="shield-checkmark-outline" label="Prywatność" desc="RODO i dane osobowe" colors={colors} />
       <MenuRow icon="help-circle-outline" label="Pomoc" desc="FAQ i kontakt z supportem" colors={colors} />
@@ -91,11 +99,14 @@ interface MenuRowProps {
   desc?: string;
   colors: ReturnType<typeof useColors>;
   onPress?: () => void;
+  testID?: string;
 }
 
-function MenuRow({ icon, label, desc, colors, onPress }: MenuRowProps) {
+function MenuRow({ icon, label, desc, colors, onPress, testID }: MenuRowProps) {
   return (
     <Pressable
+      onPress={onPress}
+      testID={testID}
       style={({ pressed }) => [
         styles.menuRow,
         { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
