@@ -48,15 +48,15 @@ export default function ProgressScreen() {
   const { user, bearerToken } = useAuth();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const { data, isLoading, refetch, isRefetching } = useQuery<ProgressEntry[]>({
+  const { data, isLoading, refetch, isRefetching } = useQuery<ProgressEntry | null>({
     queryKey: ["client-progress", user?.id],
-    queryFn: () => apiGet<ProgressEntry[]>("/api/client/progress", bearerToken),
+    queryFn: () => apiGet<ProgressEntry | null>("/api/client/progress", bearerToken),
     enabled: !!user?.id,
     retry: 1,
   });
 
-  const entries = data ?? [];
-  const latest = entries[0];
+  const entries = data ? [data] : [];
+  const latest = data ?? null;
 
   return (
     <ScrollView

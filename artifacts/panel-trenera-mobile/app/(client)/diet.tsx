@@ -50,10 +50,6 @@ interface DietPlan {
   supplements: Supplement[];
 }
 
-interface DietAssignment {
-  plan?: DietPlan | null;
-}
-
 const WATER_STEP_ML = 250;
 
 export default function DietScreen() {
@@ -66,16 +62,16 @@ export default function DietScreen() {
   const [waterMl, setWaterMl] = useState(0);
   const [eatenMeals, setEatenMeals] = useState<Set<string>>(new Set());
 
-  const { data, isLoading, refetch, isRefetching } = useQuery<DietAssignment>({
+  const { data, isLoading, refetch, isRefetching } = useQuery<DietPlan | null>({
     queryKey: ["diet-plan"],
-    queryFn: () => apiGet<DietAssignment>("/api/client/diet", bearerToken),
+    queryFn: () => apiGet<DietPlan | null>("/api/client/diet", bearerToken),
     retry: 1,
   });
 
   const logMutation = useMutation({
     mutationFn: async ({ planId }: { planId: string }) => {
       const today = new Date().toISOString().split("T")[0];
-      const mealCheckmarks = Array.from(eatenMeals).map((mealId) => ({ mealId, eaten: true }));
+      const mealCheckmarks = Array.from(eatenMeals).map((mealId) => ({ mealId, completed: true }));
       return apiPost(
         "/api/client/diet/log",
         {
@@ -117,7 +113,7 @@ export default function DietScreen() {
     setWaterMl((prev) => Math.max(0, prev - WATER_STEP_ML));
   }
 
-  const plan = data?.plan;
+  const plan = data ?? null;
 
   return (
     <ScrollView

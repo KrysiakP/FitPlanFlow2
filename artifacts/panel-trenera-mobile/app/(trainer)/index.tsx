@@ -18,17 +18,15 @@ import { useColors } from "@/hooks/useColors";
 import { ClientCard } from "@/components/ClientCard";
 import { apiGet } from "@/lib/api";
 
-interface ClientUser {
+interface ClientWithPlan {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
   role: string;
-}
-
-interface ClientWithPlan {
-  client: ClientUser;
-  planName?: string | null;
+  assignment?: {
+    plan?: { id: string; name: string } | null;
+  } | null;
 }
 
 export default function TrainerClientsScreen() {
@@ -48,9 +46,9 @@ export default function TrainerClientsScreen() {
     if (!search) return true;
     const q = search.toLowerCase();
     return (
-      c.client.firstName.toLowerCase().includes(q) ||
-      c.client.lastName.toLowerCase().includes(q) ||
-      c.client.email.toLowerCase().includes(q)
+      c.firstName.toLowerCase().includes(q) ||
+      c.lastName.toLowerCase().includes(q) ||
+      c.email.toLowerCase().includes(q)
     );
   });
 
@@ -101,11 +99,11 @@ export default function TrainerClientsScreen() {
         ) : (
           clients.map((c) => (
             <ClientCard
-              key={c.client.id}
-              name={`${c.client.firstName} ${c.client.lastName}`}
-              email={c.client.email}
-              planName={c.planName}
-              onPress={() => router.push(`/(trainer)/client/${c.client.id}`)}
+              key={c.id}
+              name={`${c.firstName} ${c.lastName}`}
+              email={c.email}
+              planName={c.assignment?.plan?.name ?? null}
+              onPress={() => router.push(`/(trainer)/client/${c.id}`)}
             />
           ))
         )}
