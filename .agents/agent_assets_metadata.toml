@@ -1,8 +1,2 @@
 uploads = []
 outputs = []
-
-[[generated]]
-id = "cqJKIDeNOiLUGQQvG6zsS"
-uri = "file://artifacts/panel-trenera-mobile/assets/images/icon.png"
-type = "image"
-title = "generated_image"

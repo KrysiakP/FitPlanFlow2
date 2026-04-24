@@ -887,6 +887,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Workout reminder push notification — trainer sends reminder to a client
+  app.post("/api/trainer/clients/:clientId/remind", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą wysyłać przypomnienia" });
+      }
+      const { clientId } = req.params;
+      if (isDemoId(clientId)) {
+        return res.json({ sent: 0, message: "Demo client — no push sent" });
+      }
+      const trainerClients = await storage.getTrainerClients(userId);
+      if (!trainerClients.some((c) => c.id === clientId)) {
+        return res.status(403).json({ message: "Możesz wysyłać przypomnienia tylko do własnych podopiecznych" });
+      }
+      const tokens = await storage.getPushTokensByUser(clientId);
+      const assignment = await storage.getClientAssignment(clientId);
+      let planName = "swój plan treningowy";
+      if (assignment?.planId) {
+        const plan = await storage.getTrainingPlan(assignment.planId);
+        if (plan?.name) planName = plan.name;
+      }
+      const message = (req.body?.message as string | undefined) ?? `Czas na trening: ${planName}!`;
+      if (tokens.length > 0) {
+        await sendExpoPush(
+          tokens.map((t) => t.token),
+          "Przypomnienie o treningu",
+          message,
+          { type: "workout_reminder", clientId }
+        );
+      }
+      res.json({ sent: tokens.length });
+    } catch (error) {
+      console.error("Error sending workout reminder:", error);
+      res.status(500).json({ message: "Nie udało się wysłać przypomnienia" });
+    }
+  });
+
   // Email verification endpoint
   app.get("/api/auth/verify-email", async (req, res) => {
     try {
@@ -2895,7 +2934,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (invitationBefore?.trainerId) {
           const trainerTokens = await storage.getPushTokensByUser(invitationBefore.trainerId);
           if (trainerTokens.length > 0) {
-            const clientName = `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || user?.email ?? "Nowy klient";
+            const clientName = `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() || (user?.email ?? "Nowy klient");
             void sendExpoPush(
               trainerTokens.map((t) => t.token),
               "Nowy podopieczny!",

@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Platform,
   Pressable,
@@ -9,6 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useState } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,7 +20,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { StatsCard } from "@/components/StatsCard";
 import { apiGet, apiPost } from "@/lib/api";
-import { useState } from "react";
 
 interface ClientPlan {
   id: string;
@@ -92,6 +93,23 @@ export default function ClientDetailScreen() {
     },
   });
 
+  const remindMutation = useMutation({
+    mutationFn: () => apiPost(`/api/trainer/clients/${id}/remind`, {}, bearerToken),
+    onSuccess: (result: unknown) => {
+      const sent = (result as { sent?: number })?.sent ?? 0;
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        "Przypomnienie wysłane",
+        sent > 0
+          ? "Podopieczny otrzymał powiadomienie push o treningu."
+          : "Podopieczny nie ma skonfigurowanych powiadomień push.",
+      );
+    },
+    onError: () => {
+      Alert.alert("Błąd", "Nie udało się wysłać przypomnienia.");
+    },
+  });
+
   const latestProgress = progress?.[0];
 
   return (
@@ -108,9 +126,26 @@ export default function ClientDetailScreen() {
         </Pressable>
 
         {clientData && (
-          <Text style={[styles.clientName, { color: colors.foreground }]}>
-            {clientData.firstName} {clientData.lastName}
-          </Text>
+          <View style={styles.clientHeader}>
+            <Text style={[styles.clientName, { color: colors.foreground }]}>
+              {clientData.firstName} {clientData.lastName}
+            </Text>
+            <Pressable
+              onPress={() => { if (!remindMutation.isPending) remindMutation.mutate(); }}
+              disabled={remindMutation.isPending}
+              style={({ pressed }) => [
+                styles.remindBtn,
+                { borderColor: colors.border, opacity: (remindMutation.isPending || pressed) ? 0.6 : 1 }
+              ]}
+              testID="button-send-reminder"
+            >
+              {remindMutation.isPending
+                ? <ActivityIndicator size="small" color={colors.primary} />
+                : <Ionicons name="notifications-outline" size={18} color={colors.primary} />
+              }
+              <Text style={[styles.remindBtnText, { color: colors.primary }]}>Przypomnienie</Text>
+            </Pressable>
+          </View>
         )}
 
         <View style={styles.planHeader}>
@@ -250,7 +285,10 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 20 },
   backBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 16 },
   backText: { fontSize: 15, fontFamily: "Inter_500Medium" },
-  clientName: { fontSize: 22, fontFamily: "Inter_700Bold", marginBottom: 20 },
+  clientHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20, gap: 12, flexWrap: "wrap" },
+  clientName: { fontSize: 22, fontFamily: "Inter_700Bold", flex: 1 },
+  remindBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
+  remindBtnText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   planHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
   sectionTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
   assignBtn: {
