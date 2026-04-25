@@ -1,6 +1,7 @@
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -37,6 +38,8 @@ export default function TrainerClientsScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [search, setSearch] = useState("");
+  const [remindAllModalVisible, setRemindAllModalVisible] = useState(false);
+  const [broadcastMessage, setBroadcastMessage] = useState("");
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const { data, isLoading, refetch, isRefetching } = useQuery<ClientWithPlan[]>({
@@ -46,13 +49,20 @@ export default function TrainerClientsScreen() {
   });
 
   const remindAllMutation = useMutation({
-    mutationFn: () => apiPost<{ sent: number; total: number }>("/api/trainer/clients/remind-all", {}),
+    mutationFn: (message: string) =>
+      apiPost<{ sent: number; total: number }>(
+        "/api/trainer/clients/remind-all",
+        message.trim() ? { message: message.trim() } : {}
+      ),
     onSuccess: (res) => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(
-        "Przypomnienia wysłane",
-        `Wysłano powiadomienia push do ${res.total} podopiecznych.`
-      );
+      setRemindAllModalVisible(false);
+      setBroadcastMessage("");
+      const detail =
+        res.sent > 0
+          ? `Próba wysyłki do ${res.total} podopiecznych. Dostarczono ${res.sent} powiadomień push.`
+          : `Wysłano do ${res.total} podopiecznych, ale żaden nie ma skonfigurowanych powiadomień push.`;
+      Alert.alert("Przypomnienia wysłane", detail);
     },
     onError: () => {
       Alert.alert("Błąd", "Nie udało się wysłać przypomnień.");
@@ -70,89 +80,156 @@ export default function TrainerClientsScreen() {
   });
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.headerSection, { paddingTop: topPad + 16, backgroundColor: colors.background }]}>
-        <View style={styles.titleRow}>
-          <Text style={[styles.pageTitle, { color: colors.foreground }]}>Klienci</Text>
-          <View style={[styles.countBadge, { backgroundColor: colors.primary + "1a" }]}>
-            <Text style={[styles.countText, { color: colors.primary }]}>{data?.length ?? 0}</Text>
+    <>
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
+        <View style={[styles.headerSection, { paddingTop: topPad + 16, backgroundColor: colors.background }]}>
+          <View style={styles.titleRow}>
+            <Text style={[styles.pageTitle, { color: colors.foreground }]}>Klienci</Text>
+            <View style={[styles.countBadge, { backgroundColor: colors.primary + "1a" }]}>
+              <Text style={[styles.countText, { color: colors.primary }]}>{data?.length ?? 0}</Text>
+            </View>
+            <View style={{ flex: 1 }} />
+            {(data?.length ?? 0) > 0 && (
+              <Pressable
+                onPress={() => {
+                  if (!remindAllMutation.isPending) setRemindAllModalVisible(true);
+                }}
+                disabled={remindAllMutation.isPending}
+                style={({ pressed }) => ({ opacity: (remindAllMutation.isPending || pressed) ? 0.6 : 1 })}
+                testID="button-remind-all-clients"
+              >
+                {remindAllMutation.isPending ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Ionicons name="notifications-outline" size={22} color={colors.primary} />
+                )}
+              </Pressable>
+            )}
           </View>
-          <View style={{ flex: 1 }} />
-          {(data?.length ?? 0) > 0 && (
-            <Pressable
-              onPress={() => {
-                Alert.alert(
-                  "Przypomnij wszystkim",
-                  "Wyślij powiadomienie push o treningu do wszystkich podopiecznych?",
-                  [
-                    { text: "Anuluj", style: "cancel" },
-                    {
-                      text: "Wyślij",
-                      onPress: () => { if (!remindAllMutation.isPending) remindAllMutation.mutate(); },
-                    },
-                  ]
-                );
-              }}
-              disabled={remindAllMutation.isPending}
-              style={({ pressed }) => ({ opacity: (remindAllMutation.isPending || pressed) ? 0.6 : 1 })}
-              testID="button-remind-all-clients"
-            >
-              {remindAllMutation.isPending ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <Ionicons name="notifications-outline" size={22} color={colors.primary} />
-              )}
-            </Pressable>
-          )}
+          <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Ionicons name="search-outline" size={18} color={colors.mutedForeground} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.foreground }]}
+              placeholder="Szukaj klientów..."
+              placeholderTextColor={colors.mutedForeground}
+              value={search}
+              onChangeText={setSearch}
+              autoCapitalize="none"
+              autoCorrect={false}
+              testID="input-search-clients"
+            />
+            {search.length > 0 && (
+              <Ionicons name="close-circle" size={18} color={colors.mutedForeground} onPress={() => setSearch("")} />
+            )}
+          </View>
         </View>
-        <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Ionicons name="search-outline" size={18} color={colors.mutedForeground} />
-          <TextInput
-            style={[styles.searchInput, { color: colors.foreground }]}
-            placeholder="Szukaj klientów..."
-            placeholderTextColor={colors.mutedForeground}
-            value={search}
-            onChangeText={setSearch}
-            autoCapitalize="none"
-            autoCorrect={false}
-            testID="input-search-clients"
-          />
-          {search.length > 0 && (
-            <Ionicons name="close-circle" size={18} color={colors.mutedForeground} onPress={() => setSearch("")} />
+
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 90 }]}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
+          showsVerticalScrollIndicator={false}
+        >
+          {isLoading ? (
+            <ActivityIndicator color={colors.primary} style={styles.loader} />
+          ) : clients.length === 0 ? (
+            <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Ionicons name="people-outline" size={36} color={colors.mutedForeground} />
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                {search ? "Brak wyników" : "Brak klientów"}
+              </Text>
+              <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
+                {search ? `Nie znaleziono klientów dla "${search}"` : "Zaproś pierwszego klienta przez stronę paneltrenera.pl"}
+              </Text>
+            </View>
+          ) : (
+            clients.map((c) => (
+              <ClientCard
+                key={c.id}
+                name={`${c.firstName} ${c.lastName}`}
+                email={c.email}
+                planName={c.assignment?.plan?.name ?? null}
+                onPress={() => router.push(`/(trainer)/client/${c.id}`)}
+              />
+            ))
           )}
-        </View>
+        </ScrollView>
       </View>
 
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 90 }]}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
-        showsVerticalScrollIndicator={false}
+      <Modal
+        visible={remindAllModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          if (!remindAllMutation.isPending) {
+            setRemindAllModalVisible(false);
+            setBroadcastMessage("");
+          }
+        }}
       >
-        {isLoading ? (
-          <ActivityIndicator color={colors.primary} style={styles.loader} />
-        ) : clients.length === 0 ? (
-          <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Ionicons name="people-outline" size={36} color={colors.mutedForeground} />
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-              {search ? "Brak wyników" : "Brak klientów"}
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.modalTitleRow}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Przypomnij wszystkim</Text>
+              <Pressable
+                onPress={() => {
+                  if (!remindAllMutation.isPending) {
+                    setRemindAllModalVisible(false);
+                    setBroadcastMessage("");
+                  }
+                }}
+                testID="button-close-remind-all-modal"
+              >
+                <Ionicons name="close" size={22} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+
+            <Text style={[styles.remindModalHint, { color: colors.mutedForeground }]}>
+              Opcjonalnie wpisz treść wiadomości. Jeśli pole będzie puste, zostanie użyta wiadomość domyślna. Powiadomienie trafi do wszystkich Twoich podopiecznych.
             </Text>
-            <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
-              {search ? `Nie znaleziono klientów dla "${search}"` : "Zaproś pierwszego klienta przez stronę paneltrenera.pl"}
-            </Text>
-          </View>
-        ) : (
-          clients.map((c) => (
-            <ClientCard
-              key={c.id}
-              name={`${c.firstName} ${c.lastName}`}
-              email={c.email}
-              planName={c.assignment?.plan?.name ?? null}
-              onPress={() => router.push(`/(trainer)/client/${c.id}`)}
+
+            <TextInput
+              style={[
+                styles.remindInput,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  color: colors.foreground,
+                },
+              ]}
+              placeholder="np. Pamiętaj o tygodniowym check-inie!"
+              placeholderTextColor={colors.mutedForeground}
+              value={broadcastMessage}
+              onChangeText={setBroadcastMessage}
+              multiline
+              numberOfLines={3}
+              maxLength={200}
+              testID="input-remind-all-message"
             />
-          ))
-        )}
-      </ScrollView>
-    </View>
+
+            <Pressable
+              onPress={() => {
+                if (!remindAllMutation.isPending) remindAllMutation.mutate(broadcastMessage);
+              }}
+              disabled={remindAllMutation.isPending}
+              style={({ pressed }) => [
+                styles.remindSendBtn,
+                { backgroundColor: colors.primary, opacity: (remindAllMutation.isPending || pressed) ? 0.75 : 1 },
+              ]}
+              testID="button-confirm-remind-all"
+            >
+              {remindAllMutation.isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="send-outline" size={16} color="#fff" />
+              )}
+              <Text style={styles.remindSendBtnText}>
+                {remindAllMutation.isPending ? "Wysyłanie…" : "Wyślij do wszystkich"}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -178,4 +255,34 @@ const styles = StyleSheet.create({
   emptyBox: { borderRadius: 16, borderWidth: 1, padding: 32, alignItems: "center", gap: 12 },
   emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
   emptyDesc: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  modalBox: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderWidth: 1,
+    padding: 20,
+    maxHeight: "70%",
+  },
+  modalTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
+  modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  remindModalHint: { fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 12, lineHeight: 18 },
+  remindInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    minHeight: 80,
+    textAlignVertical: "top",
+    marginBottom: 16,
+  },
+  remindSendBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  remindSendBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });
