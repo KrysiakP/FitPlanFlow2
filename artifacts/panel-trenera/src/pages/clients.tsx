@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -1009,10 +1009,35 @@ export default function Clients() {
   const [filter, setFilter] = useState<"all" | "with_plan" | "without_plan">("all");
   const [sortBy, setSortBy] = useState<"name" | "newest" | "oldest">("name");
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const knownClientIds = useRef<Set<string> | null>(null);
 
   const { data: clients = [], isLoading, error } = useQuery<ClientWithAssignment[]>({
     queryKey: ["/api/trainer/clients"],
+    refetchInterval: () =>
+      document.visibilityState === "visible" ? 30_000 : false,
+    refetchIntervalInBackground: false,
   });
+
+  useEffect(() => {
+    if (clients.length === 0 && knownClientIds.current === null) return;
+
+    if (knownClientIds.current === null) {
+      knownClientIds.current = new Set(clients.map((c) => c.id));
+      return;
+    }
+
+    const newClients = clients.filter((c) => !knownClientIds.current!.has(c.id));
+    newClients.forEach((c) => {
+      toast({
+        title: "Nowy podopieczny",
+        description: `${c.firstName ?? ""} ${c.lastName ?? ""} zaakceptował Twoje zaproszenie.`.trim(),
+        duration: 6000,
+      });
+    });
+
+    knownClientIds.current = new Set(clients.map((c) => c.id));
+  }, [clients]);
 
   const { data: stats } = useQuery<{
     totalPlans: number;
