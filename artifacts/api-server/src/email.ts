@@ -424,7 +424,7 @@ interface SendClientInvitationEmailParams {
   clientFirstName: string;
   trainerName: string;
   trainerFirstName: string;
-  appDownloadUrl: string;
+  appDownloadUrl?: string;
 }
 
 export async function sendClientInvitationEmail({
@@ -432,7 +432,7 @@ export async function sendClientInvitationEmail({
   clientFirstName,
   trainerName,
   trainerFirstName,
-  appDownloadUrl,
+  appDownloadUrl = "https://paneltrenera.pl/pobierz",
 }: SendClientInvitationEmailParams): Promise<boolean> {
   try {
     console.log('[EMAIL] Sending client invitation email to:', email);
