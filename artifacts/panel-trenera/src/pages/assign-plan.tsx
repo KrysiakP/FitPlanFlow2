@@ -39,6 +39,11 @@ export default function AssignPlan() {
   const { data: allInvitations } = useQuery<InvitationWithPlan[]>({
     queryKey: ["/api/invitations"],
     enabled: !!id,
+    refetchInterval: () =>
+      typeof document !== "undefined" && document.visibilityState === "visible"
+        ? 30_000
+        : false,
+    refetchIntervalInBackground: false,
   });
 
   const { data: clients = [] } = useQuery<User[]>({

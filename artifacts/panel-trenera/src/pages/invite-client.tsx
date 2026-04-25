@@ -2,7 +2,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
@@ -11,17 +13,73 @@ import { insertPlanInvitationSchema } from "@shared/schema";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, Crown, Send, CheckCircle } from "lucide-react";
+import { AlertCircle, Crown, Send, CheckCircle, Mail } from "lucide-react";
 import { Link } from "wouter";
-import type { TrainingPlan, InsertPlanInvitationInput } from "@shared/schema";
+import { useEffect, useRef } from "react";
+import { format } from "date-fns";
+import { pl } from "date-fns/locale";
+import type { TrainingPlan, InsertPlanInvitationInput, PlanInvitation } from "@shared/schema";
+
+type InvitationWithPlan = PlanInvitation & {
+  plan: TrainingPlan | null;
+};
+
+function getStatusBadge(status: string) {
+  switch (status) {
+    case "pending":
+      return <Badge variant="secondary" data-testid="badge-status-pending">Oczekujące</Badge>;
+    case "accepted":
+      return <Badge variant="default" data-testid="badge-status-accepted">Zaakceptowane</Badge>;
+    case "rejected":
+      return <Badge variant="destructive" data-testid="badge-status-rejected">Odrzucone</Badge>;
+    default:
+      return <Badge variant="outline">{status}</Badge>;
+  }
+}
 
 export default function InviteClient() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const knownStatuses = useRef<Map<string, string> | null>(null);
+  const invitationsInitialized = useRef(false);
 
   const { data: plans, isLoading: plansLoading } = useQuery<TrainingPlan[]>({
     queryKey: ["/api/plans"],
   });
+
+  const { data: invitations = [], isLoading: invitationsLoading, isSuccess: invitationsSuccess } =
+    useQuery<InvitationWithPlan[]>({
+      queryKey: ["/api/invitations"],
+      refetchInterval: () =>
+        typeof document !== "undefined" && document.visibilityState === "visible"
+          ? 30_000
+          : false,
+      refetchIntervalInBackground: false,
+    });
+
+  useEffect(() => {
+    if (!invitationsSuccess) return;
+
+    if (!invitationsInitialized.current) {
+      invitationsInitialized.current = true;
+      knownStatuses.current = new Map(invitations.map((inv) => [inv.id, inv.status]));
+      return;
+    }
+
+    const known = knownStatuses.current!;
+    invitations.forEach((inv) => {
+      const prev = known.get(inv.id);
+      if (prev === "pending" && inv.status === "accepted") {
+        toast({
+          title: "Zaproszenie zaakceptowane",
+          description: `${inv.clientEmail} zaakceptował Twoje zaproszenie.`,
+          duration: 6000,
+        });
+      }
+    });
+
+    knownStatuses.current = new Map(invitations.map((inv) => [inv.id, inv.status]));
+  }, [invitations, invitationsSuccess, toast]);
 
   const form = useForm<InsertPlanInvitationInput>({
     resolver: zodResolver(insertPlanInvitationSchema),
@@ -197,6 +255,51 @@ export default function InviteClient() {
               </div>
               </form>
             </Form>
+        </CardContent>
+      </Card>
+
+      <Card data-testid="card-sent-invitations">
+        <CardHeader>
+          <CardTitle className="font-heading flex items-center gap-2">
+            <Mail className="w-5 h-5" />
+            Wysłane zaproszenia
+          </CardTitle>
+          <CardDescription>
+            Lista Twoich zaproszeń i ich aktualny status — odświeżana automatycznie co 30 sekund
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {invitationsLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+            </div>
+          ) : invitations.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center" data-testid="text-no-invitations">
+              Nie wysłałeś jeszcze żadnych zaproszeń.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {invitations.map((invitation) => (
+                <div
+                  key={invitation.id}
+                  className="flex items-center justify-between p-4 rounded-lg border gap-4 flex-wrap"
+                  data-testid={`card-invitation-${invitation.id}`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate" data-testid={`text-invitation-email-${invitation.id}`}>
+                      {invitation.clientEmail}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {invitation.plan ? invitation.plan.name : "Bez planu"} &middot;{" "}
+                      {format(new Date(invitation.createdAt), "d MMM yyyy, HH:mm", { locale: pl })}
+                    </p>
+                  </div>
+                  <div>{getStatusBadge(invitation.status)}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
