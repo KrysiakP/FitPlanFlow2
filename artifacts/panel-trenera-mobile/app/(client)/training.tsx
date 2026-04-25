@@ -547,7 +547,7 @@ function ExerciseRow({
               onPress={() => onAddSet(exercise.id)}
               testID={`button-add-set-${exercise.id}`}
             >
-              <Ionicons name="add-circle-outline" size={16} color={colors.mutedForeground} />
+              <Ionicons name="add-outline" size={16} color={colors.mutedForeground} />
               <Text style={[styles.addSetText, { color: colors.mutedForeground }]}>
                 Dodaj serię
               </Text>
