@@ -211,6 +211,7 @@ export interface IStorage {
   
   // Diet Meals
   createDietMeal(meal: InsertDietMeal): Promise<DietMeal>;
+  getDietMealById(id: string): Promise<DietMeal | null>;
   getDietPlanMeals(planId: string): Promise<DietMeal[]>;
   getDietPlanMealsForDay(planId: string, dayOfWeek: number): Promise<DietMeal[]>;
   updateDietMeal(id: string, updates: Partial<InsertDietMeal>): Promise<DietMeal>;
@@ -218,6 +219,7 @@ export interface IStorage {
   deleteDietMealsByPlanId(planId: string): Promise<void>;
   
   // Diet Supplements
+  getDietSupplementById(id: string): Promise<DietSupplement | null>;
   getDietSupplements(dietPlanId: string): Promise<DietSupplement[]>;
   createDietSupplement(data: InsertDietSupplement): Promise<DietSupplement>;
   updateDietSupplement(id: string, data: Partial<InsertDietSupplement>): Promise<DietSupplement>;
@@ -1776,6 +1778,14 @@ export class DatabaseStorage implements IStorage {
     return dietMeal;
   }
   
+  async getDietMealById(id: string): Promise<DietMeal | null> {
+    const [meal] = await db
+      .select()
+      .from(dietMeals)
+      .where(eq(dietMeals.id, id));
+    return meal ?? null;
+  }
+
   async getDietPlanMeals(planId: string): Promise<DietMeal[]> {
     return await db
       .select()
@@ -1819,6 +1829,14 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Diet Supplements
+  async getDietSupplementById(id: string): Promise<DietSupplement | null> {
+    const [supplement] = await db
+      .select()
+      .from(dietSupplements)
+      .where(eq(dietSupplements.id, id));
+    return supplement ?? null;
+  }
+
   async getDietSupplements(dietPlanId: string): Promise<DietSupplement[]> {
     return await db
       .select()

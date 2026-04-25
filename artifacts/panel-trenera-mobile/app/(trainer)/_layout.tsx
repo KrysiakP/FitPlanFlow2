@@ -80,6 +80,7 @@ export default function TrainerLayout() {
     { name: "index", title: "Klienci", icon: "people-outline", iconFocused: "people" },
     { name: "plans", title: "Plany treningowe", icon: "clipboard-outline", iconFocused: "clipboard" },
     { name: "exercise-library", title: "Biblioteka ćwiczeń", icon: "barbell-outline", iconFocused: "barbell" },
+    { name: "diets", title: "Diety", icon: "nutrition-outline", iconFocused: "nutrition" },
     { name: "invitations", title: "Zaproszenia", icon: "mail-outline", iconFocused: "mail" },
     {
       name: "chat",
@@ -91,6 +92,7 @@ export default function TrainerLayout() {
     { name: "profile", title: "Profil i subskrypcja", icon: "person-circle-outline", iconFocused: "person-circle" },
     { name: "client/[id]", title: "Klient", icon: "person-outline", iconFocused: "person", hidden: true },
     { name: "plan/[id]", title: "Plan treningowy", icon: "clipboard-outline", iconFocused: "clipboard", hidden: true },
+    { name: "diet/[id]", title: "Plan diety", icon: "nutrition-outline", iconFocused: "nutrition", hidden: true },
   ];
 
   return (

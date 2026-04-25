@@ -3958,8 +3958,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko trenerzy mogą aktualizować posiłki" });
       }
 
-      const meals = await storage.getDietPlanMeals(req.body.planId);
-      const meal = meals.find(m => m.id === id);
+      const meal = await storage.getDietMealById(id);
       
       if (!meal) {
         return res.status(404).json({ message: "Posiłek nie został znaleziony" });
@@ -3998,15 +3997,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko trenerzy mogą usuwać posiłki" });
       }
 
-      const meals = await storage.getDietPlanMeals(req.body.planId || '');
-      const meal = meals.find(m => m.id === id);
+      const meal = await storage.getDietMealById(id);
       
-      if (meal) {
-        const plan = await storage.getDietPlanById(meal.planId);
-        
-        if (plan && plan.trainerId !== userId) {
-          return res.status(403).json({ message: "Nie masz uprawnień do tego posiłku" });
-        }
+      if (!meal) {
+        return res.status(404).json({ message: "Posiłek nie został znaleziony" });
+      }
+
+      const plan = await storage.getDietPlanById(meal.planId);
+      
+      if (!plan || plan.trainerId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego posiłku" });
       }
 
       await storage.deleteDietMeal(id);
@@ -4121,16 +4121,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko trenerzy mogą edytować suplementy" });
       }
 
-      // Get the supplement to check ownership
-      const supplements = await storage.getDietSupplements(req.body.dietPlanId || '');
-      const supplement = supplements.find(s => s.id === id);
+      const supplement = await storage.getDietSupplementById(id);
       
-      if (supplement) {
-        const plan = await storage.getDietPlanById(supplement.dietPlanId);
-        
-        if (!plan || plan.trainerId !== userId) {
-          return res.status(403).json({ message: "Nie masz uprawnień do tego suplementu" });
-        }
+      if (!supplement) {
+        return res.status(404).json({ message: "Suplement nie został znaleziony" });
+      }
+
+      const plan = await storage.getDietPlanById(supplement.dietPlanId);
+      
+      if (!plan || plan.trainerId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego suplementu" });
       }
 
       const validationResult = insertDietSupplementSchema.partial().safeParse(req.body);
@@ -4160,15 +4160,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko trenerzy mogą usuwać suplementy" });
       }
 
-      const supplements = await storage.getDietSupplements(req.body.dietPlanId || '');
-      const supplement = supplements.find(s => s.id === id);
+      const supplement = await storage.getDietSupplementById(id);
       
-      if (supplement) {
-        const plan = await storage.getDietPlanById(supplement.dietPlanId);
-        
-        if (!plan || plan.trainerId !== userId) {
-          return res.status(403).json({ message: "Nie masz uprawnień do tego suplementu" });
-        }
+      if (!supplement) {
+        return res.status(404).json({ message: "Suplement nie został znaleziony" });
+      }
+
+      const plan = await storage.getDietPlanById(supplement.dietPlanId);
+      
+      if (!plan || plan.trainerId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego suplementu" });
       }
 
       await storage.deleteDietSupplement(id);
