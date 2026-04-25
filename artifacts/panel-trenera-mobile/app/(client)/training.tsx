@@ -326,11 +326,13 @@ interface ExerciseRowProps {
   loggingState: LoggingState;
   sessionActive: boolean;
   colors: Colors;
+  extraSets: Record<string, number>;
   onStartLog: (exerciseId: string, setNumber: number) => void;
   onCancelLog: () => void;
   onChangeReps: (v: string) => void;
   onChangeLoad: (v: string) => void;
   onConfirmLog: () => void;
+  onAddSet: (exerciseId: string) => void;
 }
 
 function ExerciseRow({
@@ -342,11 +344,13 @@ function ExerciseRow({
   loggingState,
   sessionActive,
   colors,
+  extraSets,
   onStartLog,
   onCancelLog,
   onChangeReps,
   onChangeLoad,
   onConfirmLog,
+  onAddSet,
 }: ExerciseRowProps) {
   type Tag = { icon: ComponentProps<typeof Ionicons>["name"]; label: string };
   const tags: Tag[] = [];
@@ -354,7 +358,7 @@ function ExerciseRow({
   if (exercise.weight) tags.push({ icon: "barbell-outline", label: exercise.weight });
   if (exercise.restTime != null) tags.push({ icon: "timer-outline", label: `${exercise.restTime}s odpoczynku` });
 
-  const totalSets = exercise.sets ?? 1;
+  const totalSets = (exercise.sets ?? 1) + (extraSets[exercise.id] ?? 0);
   const doneSets = completedSets[exercise.id]?.size ?? 0;
   const allSetsCompleted = doneSets >= totalSets;
 
@@ -419,7 +423,7 @@ function ExerciseRow({
         </View>
       </View>
 
-      {/* Per-set rows — visible only when session active */}
+      {/* Per-set rows + add-set button — visible only when session active */}
       {sessionActive && (
         <View style={[styles.setList, { borderTopColor: colors.border }]}>
           {Array.from({ length: totalSets }, (_, i) => i + 1).map((setNum) => {
@@ -535,6 +539,20 @@ function ExerciseRow({
               </View>
             );
           })}
+
+          {/* Add extra set button — shown only when all planned sets are completed */}
+          {allSetsCompleted && (
+            <Pressable
+              style={[styles.addSetRow, { borderTopColor: colors.border }]}
+              onPress={() => onAddSet(exercise.id)}
+              testID={`button-add-set-${exercise.id}`}
+            >
+              <Ionicons name="add-circle-outline" size={16} color={colors.mutedForeground} />
+              <Text style={[styles.addSetText, { color: colors.mutedForeground }]}>
+                Dodaj serię
+              </Text>
+            </Pressable>
+          )}
         </View>
       )}
     </View>
@@ -608,10 +626,20 @@ export default function TrainingScreen() {
   const [restTotalSeconds, setRestTotalSeconds] = useState(0);
   const [isResting, setIsResting] = useState(false);
   const restIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Stable ref to latest handleStartLog so timer callbacks can call it without staleness
+  const handleStartLogRef = useRef<(exerciseId: string, setNumber: number) => Promise<void>>(
+    async () => { /* placeholder, overwritten before first use */ }
+  );
 
   // Elapsed session timer
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const elapsedIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Extra sets added by the client beyond the plan
+  const [extraSets, setExtraSets] = useState<Record<string, number>>({});
+
+  // Pending next set to auto-open after rest timer
+  const pendingNextSetRef = useRef<{ exerciseId: string; setNumber: number } | null>(null);
 
   // Cache of last session logs per exercise: exerciseId -> { reps, load }
   const lastSessionLogsRef = useRef<Record<string, { reps: number; load: string | null }>>({});
@@ -642,6 +670,8 @@ export default function TrainingScreen() {
     setSetLogs({});
     setLoggingTarget(null);
     setLoggingState({ reps: "", load: "" });
+    setExtraSets({});
+    pendingNextSetRef.current = null;
     if (restIntervalRef.current) {
       clearInterval(restIntervalRef.current);
       restIntervalRef.current = null;
@@ -698,6 +728,11 @@ export default function TrainingScreen() {
           restIntervalRef.current = null;
           setIsResting(false);
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          const nextSet = pendingNextSetRef.current;
+          if (nextSet) {
+            pendingNextSetRef.current = null;
+            setTimeout(() => void handleStartLogRef.current(nextSet.exerciseId, nextSet.setNumber), 300);
+          }
           return 0;
         }
         return prev - 1;
@@ -705,13 +740,22 @@ export default function TrainingScreen() {
     }, 1000);
   }
 
-  function stopRestTimer() {
+  function stopRestTimer(autoAdvance = false) {
     if (restIntervalRef.current) {
       clearInterval(restIntervalRef.current);
       restIntervalRef.current = null;
     }
     setIsResting(false);
     setRestSeconds(0);
+    if (autoAdvance) {
+      const nextSet = pendingNextSetRef.current;
+      if (nextSet) {
+        pendingNextSetRef.current = null;
+        setTimeout(() => void handleStartLogRef.current(nextSet.exerciseId, nextSet.setNumber), 100);
+      }
+    } else {
+      pendingNextSetRef.current = null;
+    }
   }
 
   useEffect(() => {
@@ -727,7 +771,7 @@ export default function TrainingScreen() {
   const exercises = (currentWorkout?.exercises ?? []).sort((a, b) => a.orderIndex - b.orderIndex);
 
   const doneCount = exercises.filter((ex) => {
-    const totalSets = ex.sets ?? 1;
+    const totalSets = (ex.sets ?? 1) + (extraSets[ex.id] ?? 0);
     return (completedSets[ex.id]?.size ?? 0) >= totalSets;
   }).length;
 
@@ -737,6 +781,8 @@ export default function TrainingScreen() {
     setCompletedSets({});
     setSetLogs({});
     setLoggingTarget(null);
+    setExtraSets({});
+    pendingNextSetRef.current = null;
     stopRestTimer();
     lastSessionLogsRef.current = {};
     setElapsedSeconds(0);
@@ -814,6 +860,9 @@ export default function TrainingScreen() {
     setLoggingState({ reps: prefillReps, load: prefillLoad });
   }
 
+  // Keep the ref to handleStartLog updated on every render
+  handleStartLogRef.current = handleStartLog;
+
   function handleConfirmLog() {
     if (!loggingTarget) return;
     const { exerciseId, setNumber } = loggingTarget;
@@ -824,6 +873,9 @@ export default function TrainingScreen() {
     }
     const load = loggingState.load;
     const exercise = exercises.find((ex) => ex.id === exerciseId);
+    const totalSetsForExercise = (exercise?.sets ?? 1) + (extraSets[exerciseId] ?? 0);
+    const nextSetNumber = setNumber + 1;
+    const hasNextSet = nextSetNumber <= totalSetsForExercise;
 
     logMutation.mutate(
       { exerciseId, setNumber, reps, load },
@@ -847,11 +899,25 @@ export default function TrainingScreen() {
           void queryClient.invalidateQueries({ queryKey: ["exercise-logs"] });
 
           if (exercise?.restTime && exercise.restTime > 0) {
+            if (hasNextSet) {
+              pendingNextSetRef.current = { exerciseId, setNumber: nextSetNumber };
+            }
             startRestTimer(exercise.restTime);
+          } else if (hasNextSet) {
+            setTimeout(() => void handleStartLogRef.current(exerciseId, nextSetNumber), 100);
           }
         },
       }
     );
+  }
+
+  function handleAddSet(exerciseId: string) {
+    const exercise = exercises.find((ex) => ex.id === exerciseId);
+    const currentExtra = extraSets[exerciseId] ?? 0;
+    const totalPlanned = exercise?.sets ?? 1;
+    const newSetNumber = totalPlanned + currentExtra + 1;
+    setExtraSets((prev) => ({ ...prev, [exerciseId]: currentExtra + 1 }));
+    void handleStartLog(exerciseId, newSetNumber);
   }
 
   const isSaving = sessionMutation.isPending;
@@ -972,7 +1038,7 @@ export default function TrainingScreen() {
             <RestTimer
               seconds={restSeconds}
               totalSeconds={restTotalSeconds}
-              onSkip={stopRestTimer}
+              onSkip={() => stopRestTimer(true)}
               colors={colors}
             />
           )}
@@ -991,6 +1057,7 @@ export default function TrainingScreen() {
                   loggingState={loggingState}
                   sessionActive={sessionActive}
                   colors={colors}
+                  extraSets={extraSets}
                   onStartLog={handleStartLog}
                   onCancelLog={() => {
                     setLoggingTarget(null);
@@ -999,6 +1066,7 @@ export default function TrainingScreen() {
                   onChangeReps={(v) => setLoggingState((s) => ({ ...s, reps: v }))}
                   onChangeLoad={(v) => setLoggingState((s) => ({ ...s, load: v }))}
                   onConfirmLog={handleConfirmLog}
+                  onAddSet={handleAddSet}
                 />
               ))}
             </>
@@ -1230,6 +1298,16 @@ const styles = StyleSheet.create({
   setChip: { borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },
   setChipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   setTapHint: { marginLeft: "auto" },
+  addSetRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    gap: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderStyle: "dashed",
+  },
+  addSetText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   logForm: { paddingHorizontal: 14, paddingBottom: 14, paddingTop: 8, gap: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   logFormTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   logInputRow: { flexDirection: "row", gap: 10 },
