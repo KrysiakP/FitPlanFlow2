@@ -1,6 +1,7 @@
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -11,7 +12,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -35,6 +36,7 @@ interface WeeklyReport {
   supplements?: string | null;
   mood?: string | null;
   thoughts?: string | null;
+  photoUrl?: string | null;
   viewedByTrainer?: boolean | null;
   createdAt: string;
 }
@@ -125,12 +127,6 @@ export default function ClientDetailScreen() {
       qc.invalidateQueries({ queryKey: ["trainer-unread-reports"] });
     },
   });
-
-  useEffect(() => {
-    if (!clientReports) return;
-    const unread = clientReports.filter((r) => !r.viewedByTrainer);
-    unread.forEach((r) => markViewedMutation.mutate(r.id));
-  }, [clientReports]);
 
   const updateNotesMutation = useMutation({
     mutationFn: (notes: string) =>
@@ -336,7 +332,12 @@ export default function ClientDetailScreen() {
           </View>
         ) : (
           [...(clientReports ?? [])].sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime()).map((report) => (
-            <TrainerReportCard key={report.id} report={report} colors={colors} />
+            <TrainerReportCard
+              key={report.id}
+              report={report}
+              colors={colors}
+              onMarkViewed={() => markViewedMutation.mutate(report.id)}
+            />
           ))
         )}
       </ScrollView>
@@ -618,14 +619,17 @@ const styles = StyleSheet.create({
   reportDetailRow: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
   reportDetailLabel: { fontSize: 13, fontFamily: "Inter_500Medium", minWidth: 110 },
   reportDetailValue: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
+  reportPhoto: { width: "100%", height: 200, borderRadius: 10 },
 });
 
 function TrainerReportCard({
   report,
   colors,
+  onMarkViewed,
 }: {
   report: WeeklyReport;
   colors: ReturnType<typeof useColors>;
+  onMarkViewed: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -641,7 +645,16 @@ function TrainerReportCard({
 
   return (
     <View style={[styles.reportCard, { backgroundColor: colors.card, borderColor: isNew ? colors.primary : colors.border }]} testID={`card-weekly-report-${report.id}`}>
-      <Pressable onPress={() => setExpanded((e) => !e)} style={styles.reportCardHeader}>
+      <Pressable
+        onPress={() => {
+          const willExpand = !expanded;
+          setExpanded(willExpand);
+          if (willExpand && isNew) {
+            onMarkViewed();
+          }
+        }}
+        style={styles.reportCardHeader}
+      >
         <View style={{ flex: 1 }}>
           <Text style={[styles.reportCardDate, { color: colors.foreground }]}>
             {formatDate(report.reportDate)}
@@ -704,6 +717,17 @@ function TrainerReportCard({
               <Text style={[styles.reportDetailValue, { color: colors.foreground }]}>{report.thoughts}</Text>
             </View>
           )}
+          {report.photoUrl ? (
+            <View style={{ marginTop: 4 }}>
+              <Text style={[styles.reportDetailLabel, { color: colors.mutedForeground, marginBottom: 6 }]}>Zdjęcie:</Text>
+              <Image
+                source={{ uri: report.photoUrl }}
+                style={styles.reportPhoto}
+                resizeMode="cover"
+                testID={`img-report-photo-${report.id}`}
+              />
+            </View>
+          ) : null}
         </View>
       )}
     </View>
