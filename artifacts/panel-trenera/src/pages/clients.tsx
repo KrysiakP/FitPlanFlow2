@@ -1013,14 +1013,18 @@ export default function Clients() {
   const knownClientIds = useRef<Set<string> | null>(null);
   const clientsInitialized = useRef(false);
 
-  const { data: clients = [], isLoading, error } = useQuery<ClientWithAssignment[]>({
+  const { data: clients = [], isLoading, isSuccess, error } = useQuery<ClientWithAssignment[]>({
     queryKey: ["/api/trainer/clients"],
     refetchInterval: () =>
-      document.visibilityState === "visible" ? 30_000 : false,
+      typeof document !== "undefined" && document.visibilityState === "visible"
+        ? 30_000
+        : false,
     refetchIntervalInBackground: false,
   });
 
   useEffect(() => {
+    if (!isSuccess) return;
+
     if (!clientsInitialized.current) {
       clientsInitialized.current = true;
       knownClientIds.current = new Set(clients.map((c) => c.id));
@@ -1038,7 +1042,7 @@ export default function Clients() {
     });
 
     knownClientIds.current = new Set(clients.map((c) => c.id));
-  }, [clients, toast]);
+  }, [clients, isSuccess, toast]);
 
   const { data: stats } = useQuery<{
     totalPlans: number;
