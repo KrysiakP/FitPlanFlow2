@@ -88,6 +88,8 @@ export default function TrainerLayout() {
       icon: "chatbubble-outline",
       iconFocused: "chatbubble",
     },
+    { name: "payments", title: "Płatności", icon: "wallet-outline", iconFocused: "wallet" },
+    { name: "referrals", title: "Polecenia", icon: "gift-outline", iconFocused: "gift" },
     { name: "notifications", title: "Powiadomienia", icon: "notifications-outline", iconFocused: "notifications" },
     { name: "profile", title: "Profil i subskrypcja", icon: "person-circle-outline", iconFocused: "person-circle" },
     { name: "client/[id]", title: "Klient", icon: "person-outline", iconFocused: "person", hidden: true },

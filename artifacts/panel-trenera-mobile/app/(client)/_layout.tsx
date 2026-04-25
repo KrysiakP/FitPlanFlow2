@@ -35,6 +35,10 @@ function NativeClientTabs() {
         <Icon sf={{ default: "message", selected: "message.fill" }} />
         <Label>{chatLabel}</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="referrals">
+        <Icon sf={{ default: "gift", selected: "gift.fill" }} />
+        <Label>Polecenia</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="notifications">
         <Icon sf={{ default: "bell", selected: "bell.fill" }} />
         <Label>Powiadomienia</Label>
@@ -118,6 +122,14 @@ function ClassicClientTabs() {
           tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? "99+" : unreadCount) : undefined,
           tabBarIcon: ({ color }) =>
             isIOS ? <SymbolView name="message.fill" tintColor={color} size={22} /> : <Ionicons name="chatbubble-outline" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="referrals"
+        options={{
+          title: "Polecenia",
+          tabBarIcon: ({ color }) =>
+            isIOS ? <SymbolView name="gift.fill" tintColor={color} size={22} /> : <Ionicons name="gift-outline" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
