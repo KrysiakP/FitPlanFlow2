@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "../storage";
 import { db } from "../db";
 import { setupAuth, isAuthenticated, hashPassword, comparePassword, getSessionFromStore, unsignSessionCookie } from "../auth";
-import { generateVerificationToken, getTokenExpiry, sendVerificationEmail, sendPasswordResetEmail, getPasswordResetTokenExpiry, sendWelcomeEmail, sendTrainerNotificationEmail, sendTrainerWelcomeEmail } from "../email";
+import { generateVerificationToken, getTokenExpiry, sendVerificationEmail, sendPasswordResetEmail, getPasswordResetTokenExpiry, sendWelcomeEmail, sendTrainerNotificationEmail, sendTrainerWelcomeEmail, sendClientInvitationEmail } from "../email";
 // Object Storage - code adapted from javascript_object_storage blueprint
 import { ObjectStorageService, ObjectNotFoundError } from "../objectStorage";
 import { ObjectPermission } from "../objectAcl";
@@ -2963,6 +2963,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const invitation = await storage.createInvitation(userId, validationResult.data);
       res.status(200).json(invitation);
+
+      // Fire-and-forget: send invitation email to the client
+      const clientEmail = validationResult.data.clientEmail;
+      if (clientEmail && user) {
+        void sendClientInvitationEmail({
+          email: clientEmail,
+          clientFirstName: validationResult.data.clientFirstName ?? "",
+          trainerName: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || "Trener",
+          trainerFirstName: user.firstName ?? "Twój trener",
+          appDownloadUrl: "https://paneltrenera.pl",
+        });
+      }
     } catch (error) {
       console.error("Error sending invitation:", error);
       res.status(500).json({ message: "Nie udało się wysłać zaproszenia" });

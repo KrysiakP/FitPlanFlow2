@@ -419,6 +419,107 @@ Panel Trenera - Polska marka
   }
 }
 
+interface SendClientInvitationEmailParams {
+  email: string;
+  clientFirstName: string;
+  trainerName: string;
+  trainerFirstName: string;
+  appDownloadUrl: string;
+}
+
+export async function sendClientInvitationEmail({
+  email,
+  clientFirstName,
+  trainerName,
+  trainerFirstName,
+  appDownloadUrl,
+}: SendClientInvitationEmailParams): Promise<boolean> {
+  try {
+    console.log('[EMAIL] Sending client invitation email to:', email);
+    const { client, fromEmail } = await getResendClient();
+
+    const greeting = clientFirstName ? `Cześć ${clientFirstName}!` : 'Cześć!';
+
+    const result = await client.emails.send({
+      from: fromEmail,
+      to: email,
+      subject: `${trainerFirstName} zaprasza Cię do Panel Trenera`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Zaproszenie do Panel Trenera</title>
+        </head>
+        <body style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #0d9488; margin: 0; font-size: 28px;">Panel Trenera</h1>
+          </div>
+
+          <div style="background-color: #f8fafc; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
+            <h2 style="color: #1e293b; margin-top: 0;">${greeting}</h2>
+
+            <p>Twój trener <strong>${trainerName}</strong> zaprasza Cię do korzystania z aplikacji <strong>Panel Trenera</strong>.</p>
+
+            <p>Dzięki Panel Trenera możesz:</p>
+            <ul style="color: #475569; padding-left: 20px;">
+              <li>Przeglądać swój plan treningowy i wykonywać sesje treningowe</li>
+              <li>Śledzić postępy i statystyki treningów</li>
+              <li>Otrzymywać plany dietetyczne od trenera</li>
+              <li>Komunikować się z trenerem w jednym miejscu</li>
+            </ul>
+
+            <p>Pobierz aplikację i zarejestruj się — Twój trener połączy się z Tobą automatycznie po akceptacji zaproszenia.</p>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${appDownloadUrl}"
+                 style="display: inline-block; background-color: #0d9488; color: white; text-decoration: none; padding: 14px 30px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                Pobierz aplikację
+              </a>
+            </div>
+
+            <p style="color: #64748b; font-size: 14px;">
+              Jeśli przycisk nie działa, skopiuj i wklej ten link do przeglądarki:<br>
+              <a href="${appDownloadUrl}" style="color: #0d9488; word-break: break-all;">${appDownloadUrl}</a>
+            </p>
+          </div>
+
+          <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+            <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+              Panel Trenera - Polska marka<br>
+              © ${new Date().getFullYear()} Wszelkie prawa zastrzeżone
+            </p>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+${greeting}
+
+Twój trener ${trainerName} zaprasza Cię do korzystania z aplikacji Panel Trenera.
+
+Pobierz aplikację i zarejestruj się — Twój trener połączy się z Tobą automatycznie po akceptacji zaproszenia.
+
+Pobierz aplikację: ${appDownloadUrl}
+
+Panel Trenera - Polska marka
+© ${new Date().getFullYear()} Wszelkie prawa zastrzeżone
+      `,
+    });
+
+    console.log('[EMAIL] Client invitation email sent to:', email, 'Result:', JSON.stringify(result));
+    if (result.error) {
+      console.error('[EMAIL] Resend API error (client invitation):', result.error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('[EMAIL] Failed to send client invitation email:', error);
+    return false;
+  }
+}
+
 interface SendPasswordResetEmailParams {
   email: string;
   firstName: string;
