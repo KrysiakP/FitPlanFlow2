@@ -1011,6 +1011,7 @@ export default function Clients() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const knownClientIds = useRef<Set<string> | null>(null);
+  const clientsInitialized = useRef(false);
 
   const { data: clients = [], isLoading, error } = useQuery<ClientWithAssignment[]>({
     queryKey: ["/api/trainer/clients"],
@@ -1020,14 +1021,14 @@ export default function Clients() {
   });
 
   useEffect(() => {
-    if (clients.length === 0 && knownClientIds.current === null) return;
-
-    if (knownClientIds.current === null) {
+    if (!clientsInitialized.current) {
+      clientsInitialized.current = true;
       knownClientIds.current = new Set(clients.map((c) => c.id));
       return;
     }
 
-    const newClients = clients.filter((c) => !knownClientIds.current!.has(c.id));
+    const known = knownClientIds.current!;
+    const newClients = clients.filter((c) => !known.has(c.id));
     newClients.forEach((c) => {
       toast({
         title: "Nowy podopieczny",
@@ -1037,7 +1038,7 @@ export default function Clients() {
     });
 
     knownClientIds.current = new Set(clients.map((c) => c.id));
-  }, [clients]);
+  }, [clients, toast]);
 
   const { data: stats } = useQuery<{
     totalPlans: number;
