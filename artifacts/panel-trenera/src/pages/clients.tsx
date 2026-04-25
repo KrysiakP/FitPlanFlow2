@@ -70,7 +70,9 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
-import type { User as UserType, PlanAssignment, TrainingPlan, ClientProgress, WeeklyReport, UserProfile, MedicalTest } from "@shared/schema";
+import type { User as UserType, PlanAssignment, TrainingPlan, ClientProgress, WeeklyReport, UserProfile, MedicalTest, WorkoutSession } from "@shared/schema";
+
+type WorkoutSessionWithDetails = WorkoutSession & { workoutName: string | null };
 
 type ClientWithAssignment = UserType & {
   assignment?: PlanAssignment & { plan: TrainingPlan };
@@ -85,6 +87,7 @@ type PlanWithDetails = TrainingPlan & {
 function ClientDetails({ client }: { client: ClientWithAssignment }) {
   const [isProgressOpen, setIsProgressOpen] = useState(true);
   const [isMedicalOpen, setIsMedicalOpen] = useState(false);
+  const [isSessionsOpen, setIsSessionsOpen] = useState(true);
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesText, setNotesText] = useState<string | null>(null);
@@ -117,6 +120,11 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
 
   const { data: trainerNotesData } = useQuery<{ notes: string | null }>({
     queryKey: [`/api/trainer/clients/${client.id}/notes`],
+    enabled: !!client.id && !client.isDemo,
+  });
+
+  const { data: workoutSessionsData, isLoading: isLoadingSessions } = useQuery<WorkoutSessionWithDetails[]>({
+    queryKey: [`/api/trainer/clients/${client.id}/workout-sessions`],
     enabled: !!client.id && !client.isDemo,
   });
 
@@ -778,6 +786,93 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
             </p>
           )}
         </div>
+      )}
+
+      {!client.isDemo && (
+        <>
+          <Separator />
+
+          <Collapsible open={isSessionsOpen} onOpenChange={setIsSessionsOpen}>
+            <CollapsibleTrigger asChild>
+              <button
+                className="flex items-center justify-between w-full text-left"
+                data-testid={`button-toggle-sessions-${client.id}`}
+              >
+                <h3 className="font-heading font-semibold text-base md:text-lg flex items-center gap-2">
+                  <Dumbbell className="w-4 h-4 md:w-5 md:h-5" />
+                  Sesje treningowe
+                  {workoutSessionsData && workoutSessionsData.length > 0 && (
+                    <Badge variant="secondary" className="text-xs" data-testid={`badge-sessions-count-${client.id}`}>
+                      {workoutSessionsData.length}
+                    </Badge>
+                  )}
+                </h3>
+                <ChevronDown
+                  className={`w-4 h-4 text-muted-foreground transition-transform ${isSessionsOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-3">
+              {isLoadingSessions ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              ) : !workoutSessionsData || workoutSessionsData.length === 0 ? (
+                <p className="text-sm text-muted-foreground/60 italic" data-testid={`text-sessions-empty-${client.id}`}>
+                  Brak ukończonych sesji treningowych.
+                </p>
+              ) : (
+                <div className="space-y-2" data-testid={`list-sessions-${client.id}`}>
+                  {workoutSessionsData.map((session) => {
+                    const durationMin = session.durationSeconds != null
+                      ? Math.floor(session.durationSeconds / 60)
+                      : null;
+                    return (
+                      <Card key={session.id} data-testid={`card-session-${session.id}`}>
+                        <CardContent className="py-3 px-4">
+                          <div className="flex items-start justify-between gap-3 flex-wrap">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate" data-testid={`text-session-workout-${session.id}`}>
+                                {session.workoutName ?? "Nieznany trening"}
+                              </p>
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground" data-testid={`text-session-date-${session.id}`}>
+                                  <Calendar className="w-3 h-3" />
+                                  {format(new Date(session.completedAt), "d MMM yyyy, HH:mm", { locale: pl })}
+                                </span>
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground" data-testid={`text-session-exercises-${session.id}`}>
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  {session.exercisesCompleted}/{session.totalExercises} ćwiczeń
+                                </span>
+                                {durationMin !== null && (
+                                  <span className="flex items-center gap-1 text-xs text-muted-foreground" data-testid={`text-session-duration-${session.id}`}>
+                                    <Activity className="w-3 h-3" />
+                                    {durationMin} min
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            {session.totalExercises > 0 && (
+                              <Badge
+                                variant={session.exercisesCompleted >= session.totalExercises ? "default" : "secondary"}
+                                className="shrink-0 text-xs"
+                                data-testid={`badge-session-completion-${session.id}`}
+                              >
+                                {session.exercisesCompleted >= session.totalExercises ? "Ukończony" : "Częściowy"}
+                              </Badge>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        </>
       )}
 
       <Separator />

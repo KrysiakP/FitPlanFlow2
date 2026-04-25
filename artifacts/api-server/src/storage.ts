@@ -315,7 +315,7 @@ export interface IStorage {
 
   // Workout sessions
   createWorkoutSession(clientId: string, data: InsertWorkoutSession): Promise<WorkoutSession>;
-  getClientWorkoutSessions(clientId: string): Promise<WorkoutSession[]>;
+  getClientWorkoutSessions(clientId: string): Promise<(WorkoutSession & { workoutName: string | null })[]>;
 
   // Push notification history
   createPushNotificationHistory(data: InsertPushNotificationHistory): Promise<PushNotificationHistory>;
@@ -2853,12 +2853,24 @@ export class DatabaseStorage implements IStorage {
     return session;
   }
 
-  async getClientWorkoutSessions(clientId: string): Promise<WorkoutSession[]> {
-    return db
-      .select()
+  async getClientWorkoutSessions(clientId: string): Promise<(WorkoutSession & { workoutName: string | null })[]> {
+    const rows = await db
+      .select({
+        id: workoutSessions.id,
+        clientId: workoutSessions.clientId,
+        workoutId: workoutSessions.workoutId,
+        planId: workoutSessions.planId,
+        exercisesCompleted: workoutSessions.exercisesCompleted,
+        totalExercises: workoutSessions.totalExercises,
+        durationSeconds: workoutSessions.durationSeconds,
+        completedAt: workoutSessions.completedAt,
+        workoutName: workouts.name,
+      })
       .from(workoutSessions)
+      .leftJoin(workouts, eq(workoutSessions.workoutId, workouts.id))
       .where(eq(workoutSessions.clientId, clientId))
       .orderBy(desc(workoutSessions.completedAt));
+    return rows;
   }
 
   // Push notification history
