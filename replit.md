@@ -35,7 +35,7 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 ## Mobile App (Expo)
 
 - Auth uses **session-cookie** via `credentials: "include"` — no bearer tokens.
-- `EXPO_PUBLIC_DOMAIN` — must be set to the API server's public URL (e.g. `https://<repl>.replit.app`) for **production EAS builds**. In development, the app auto-detects `REPLIT_DEV_DOMAIN` at runtime (see `artifacts/panel-trenera-mobile/lib/api.ts`).
+- `EXPO_PUBLIC_DOMAIN` — must be set to the API server's **bare domain** (e.g. `paneltrenera.pl` or `<repl>.replit.app`, **without** `https://`) for **production EAS builds**. The app prepends `https://` itself in `context/AuthContext.tsx`. In development, the app auto-detects `REPLIT_DEV_DOMAIN` at runtime.
 - Biometric login uses `expo-local-authentication` + `expo-secure-store`; tracks session availability via `HAS_SESSION_KEY` flag (not a stored credential).
 - CORS on the API is restricted to `*.replit.dev`, `*.replit.app`, `*.repl.co`, and `localhost`.
 

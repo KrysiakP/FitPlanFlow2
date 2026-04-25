@@ -30,7 +30,22 @@ const AuthContext = createContext<AuthContextType | null>(null);
 // The native HTTP cookie store (NSHTTPCookieStorage / Android CookieManager)
 // manages the actual session cookie automatically when credentials:"include" is used.
 export const HAS_SESSION_KEY = "pt_has_session";
-const BASE_URL = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+
+function buildBaseUrl(): string {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+  if (!domain) {
+    console.warn("[AuthContext] EXPO_PUBLIC_DOMAIN is not set — API calls will fail in production.");
+  }
+  const bare = domain.replace(/^https?:\/\//i, "");
+  if (bare !== domain) {
+    console.warn(
+      `[AuthContext] EXPO_PUBLIC_DOMAIN should be a bare domain (e.g. "paneltrenera.pl"), not a full URL. Stripped protocol automatically.`
+    );
+  }
+  return `https://${bare}`;
+}
+
+const BASE_URL = buildBaseUrl();
 
 export async function hasStoredSession(): Promise<boolean> {
   if (Platform.OS === "web") return !!localStorage.getItem(HAS_SESSION_KEY);
