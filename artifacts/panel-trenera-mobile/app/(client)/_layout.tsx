@@ -43,6 +43,10 @@ function NativeClientTabs() {
         <Icon sf={{ default: "bell", selected: "bell.fill" }} />
         <Label>Powiadomienia</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="medical-tests">
+        <Icon sf={{ default: "cross.case", selected: "cross.case.fill" }} />
+        <Label>Badania</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person", selected: "person.fill" }} />
         <Label>Profil</Label>
@@ -138,6 +142,14 @@ function ClassicClientTabs() {
           title: "Powiadomienia",
           tabBarIcon: ({ color }) =>
             isIOS ? <SymbolView name="bell.fill" tintColor={color} size={22} /> : <Ionicons name="notifications-outline" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="medical-tests"
+        options={{
+          title: "Badania",
+          tabBarIcon: ({ color }) =>
+            isIOS ? <SymbolView name="cross.case.fill" tintColor={color} size={22} /> : <Ionicons name="medical-outline" size={22} color={color} />,
         }}
       />
       <Tabs.Screen

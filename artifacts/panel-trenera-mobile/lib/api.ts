@@ -30,8 +30,9 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
   return res.json();
 }
 
-export async function apiDelete<T>(path: string): Promise<T> {
+export async function apiDelete<T = void>(path: string): Promise<T> {
   const res = await apiFetch(path, { method: "DELETE" });
   if (!res.ok) throw new Error(`API ${path} error: ${res.status}`);
+  if (res.status === 204) return undefined as T;
   return res.json();
 }

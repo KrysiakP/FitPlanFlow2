@@ -22,6 +22,29 @@ import { useColors } from "@/hooks/useColors";
 import { StatsCard } from "@/components/StatsCard";
 import { apiGet, apiPost, apiPatch } from "@/lib/api";
 
+interface MedicalTest {
+  id: string;
+  testName: string;
+  testType?: string | null;
+  testDate: string;
+  orderingProvider?: string | null;
+  resultValue?: string | null;
+  unit?: string | null;
+  referenceRange?: string | null;
+  notes?: string | null;
+}
+
+const TEST_TYPE_LABELS: Record<string, string> = {
+  blood: "Badanie krwi",
+  hormone: "Badanie hormonalne",
+  cardio: "Badanie kardiologiczne",
+  other: "Inne",
+};
+
+function getTestTypeLabel(type?: string | null): string {
+  return TEST_TYPE_LABELS[type ?? ""] ?? "Inne";
+}
+
 interface WeeklyReport {
   id: string;
   reportDate: string;
@@ -87,6 +110,7 @@ export default function ClientDetailScreen() {
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [customMessage, setCustomMessage] = useState("");
   const [notesText, setNotesText] = useState("");
+  const [activeTab, setActiveTab] = useState<"progress" | "reports" | "tests">("progress");
 
   const { data: progress, isLoading: loadingProgress, refetch, isRefetching } = useQuery<ProgressEntry[]>({
     queryKey: ["client-progress", id],
@@ -117,6 +141,12 @@ export default function ClientDetailScreen() {
   const { data: clientReports, isLoading: loadingReports } = useQuery<WeeklyReport[]>({
     queryKey: ["client-weekly-reports", id],
     queryFn: () => apiGet<WeeklyReport[]>(`/api/clients/${id}/reports`),
+    enabled: !!id,
+  });
+
+  const { data: medicalTests, isLoading: loadingMedicalTests } = useQuery<MedicalTest[]>({
+    queryKey: ["client-medical-tests", id],
+    queryFn: () => apiGet<MedicalTest[]>(`/api/clients/${id}/medical-tests`),
     enabled: !!id,
   });
 
@@ -250,95 +280,153 @@ export default function ClientDetailScreen() {
           </View>
         )}
 
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ostatni pomiar</Text>
-        {loadingProgress ? (
-          <ActivityIndicator color={colors.primary} />
-        ) : latestProgress ? (
+        <View style={[styles.tabBar, { borderColor: colors.border }]}>
+          {(
+            [
+              { key: "progress", label: "Postępy" },
+              { key: "reports", label: "Raporty" },
+              { key: "tests", label: "Badania" },
+            ] as const
+          ).map((tab) => {
+            const isActive = activeTab === tab.key;
+            const badgeCount =
+              tab.key === "reports"
+                ? (clientReports ?? []).filter((r) => !r.viewedByTrainer).length
+                : 0;
+            return (
+              <Pressable
+                key={tab.key}
+                onPress={() => setActiveTab(tab.key)}
+                style={({ pressed }) => [
+                  styles.tabItem,
+                  isActive && { borderBottomColor: colors.primary, borderBottomWidth: 2 },
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
+                testID={`button-tab-${tab.key}`}
+              >
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    { color: isActive ? colors.primary : colors.mutedForeground },
+                    isActive && { fontFamily: "Inter_700Bold" },
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+                {badgeCount > 0 && (
+                  <View style={[styles.tabBadge, { backgroundColor: colors.primary }]}>
+                    <Text style={styles.tabBadgeText}>{badgeCount}</Text>
+                  </View>
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {activeTab === "progress" && (
           <>
-            <Text style={[styles.dateLabel, { color: colors.mutedForeground }]}>{formatDate(latestProgress.date)}</Text>
-            <View style={styles.statsRow}>
-              {latestProgress.weight != null && (
-                <StatsCard label="Waga (kg)" value={latestProgress.weight} iconName="scale-outline" color={colors.primary} />
-              )}
-              {latestProgress.bodyFat != null && (
-                <StatsCard label="Tkanka (%)" value={latestProgress.bodyFat} iconName="body-outline" color="#d97706" />
-              )}
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ostatni pomiar</Text>
+            {loadingProgress ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : latestProgress ? (
+              <>
+                <Text style={[styles.dateLabel, { color: colors.mutedForeground }]}>{formatDate(latestProgress.date)}</Text>
+                <View style={styles.statsRow}>
+                  {latestProgress.weight != null && (
+                    <StatsCard label="Waga (kg)" value={latestProgress.weight} iconName="scale-outline" color={colors.primary} />
+                  )}
+                  {latestProgress.bodyFat != null && (
+                    <StatsCard label="Tkanka (%)" value={latestProgress.bodyFat} iconName="body-outline" color="#d97706" />
+                  )}
+                </View>
+              </>
+            ) : (
+              <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak pomiarów</Text>
+              </View>
+            )}
+
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Historia postępów</Text>
+            {(progress ?? []).slice(0, 10).map((e) => (
+              <View key={e.id} style={[styles.progressRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Ionicons name="calendar-outline" size={14} color={colors.primary} />
+                <Text style={[styles.progressDate, { color: colors.foreground }]}>{formatDate(e.date)}</Text>
+                {e.weight != null && <Text style={[styles.progressValue, { color: colors.mutedForeground }]}>{e.weight} kg</Text>}
+                {e.bodyFat != null && <Text style={[styles.progressValue, { color: colors.mutedForeground }]}>{e.bodyFat}% TT</Text>}
+              </View>
+            ))}
+            {(progress ?? []).length === 0 && !loadingProgress && (
+              <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak historii pomiarów</Text>
+              </View>
+            )}
+
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 24, marginBottom: 8 }}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 0, marginBottom: 0 }]}>Notatki prywatne</Text>
+              <Pressable
+                onPress={() => {
+                  setNotesText(trainerNotesData?.notes ?? "");
+                  setNotesModalVisible(true);
+                }}
+                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+                testID="button-edit-notes"
+              >
+                <Text style={{ fontSize: 14, color: colors.primary }}>
+                  {trainerNotesData?.notes ? "Edytuj" : "Dodaj"}
+                </Text>
+              </Pressable>
             </View>
+            {trainerNotesData?.notes ? (
+              <View style={[styles.progressRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={{ fontSize: 14, color: colors.foreground, flexShrink: 1 }} testID="text-trainer-notes">
+                  {trainerNotesData.notes}
+                </Text>
+              </View>
+            ) : (
+              <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak notatek</Text>
+              </View>
+            )}
           </>
-        ) : (
-          <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak pomiarów</Text>
-          </View>
         )}
 
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Historia postępów</Text>
-        {(progress ?? []).slice(0, 10).map((e) => (
-          <View key={e.id} style={[styles.progressRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Ionicons name="calendar-outline" size={14} color={colors.primary} />
-            <Text style={[styles.progressDate, { color: colors.foreground }]}>{formatDate(e.date)}</Text>
-            {e.weight != null && <Text style={[styles.progressValue, { color: colors.mutedForeground }]}>{e.weight} kg</Text>}
-            {e.bodyFat != null && <Text style={[styles.progressValue, { color: colors.mutedForeground }]}>{e.bodyFat}% TT</Text>}
-          </View>
-        ))}
-        {(progress ?? []).length === 0 && !loadingProgress && (
-          <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak historii pomiarów</Text>
-          </View>
+        {activeTab === "reports" && (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Raporty tygodniowe</Text>
+            {loadingReports ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (clientReports ?? []).length === 0 ? (
+              <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak raportów tygodniowych</Text>
+              </View>
+            ) : (
+              [...(clientReports ?? [])].sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime()).map((report) => (
+                <TrainerReportCard
+                  key={report.id}
+                  report={report}
+                  colors={colors}
+                  onMarkViewed={() => markViewedMutation.mutate(report.id)}
+                />
+              ))
+            )}
+          </>
         )}
 
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 24, marginBottom: 8 }}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 0, marginBottom: 0 }]}>Notatki prywatne</Text>
-          <Pressable
-            onPress={() => {
-              setNotesText(trainerNotesData?.notes ?? "");
-              setNotesModalVisible(true);
-            }}
-            style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
-            testID="button-edit-notes"
-          >
-            <Text style={{ fontSize: 14, color: colors.primary }}>
-              {trainerNotesData?.notes ? "Edytuj" : "Dodaj"}
-            </Text>
-          </Pressable>
-        </View>
-        {trainerNotesData?.notes ? (
-          <View style={[styles.progressRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={{ fontSize: 14, color: colors.foreground, flexShrink: 1 }} testID="text-trainer-notes">
-              {trainerNotesData.notes}
-            </Text>
-          </View>
-        ) : (
-          <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak notatek</Text>
-          </View>
-        )}
-
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 24, marginBottom: 8 }}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Raporty tygodniowe</Text>
-          {(clientReports ?? []).filter((r) => !r.viewedByTrainer).length > 0 && (
-            <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
-              <Text style={styles.unreadBadgeText}>
-                {(clientReports ?? []).filter((r) => !r.viewedByTrainer).length} nowe
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {loadingReports ? (
-          <ActivityIndicator color={colors.primary} />
-        ) : (clientReports ?? []).length === 0 ? (
-          <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak raportów tygodniowych</Text>
-          </View>
-        ) : (
-          [...(clientReports ?? [])].sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime()).map((report) => (
-            <TrainerReportCard
-              key={report.id}
-              report={report}
-              colors={colors}
-              onMarkViewed={() => markViewedMutation.mutate(report.id)}
-            />
-          ))
+        {activeTab === "tests" && (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Badania medyczne</Text>
+            {loadingMedicalTests ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (medicalTests ?? []).length === 0 ? (
+              <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak badań medycznych</Text>
+              </View>
+            ) : (
+              [...(medicalTests ?? [])].sort((a, b) => new Date(b.testDate).getTime() - new Date(a.testDate).getTime()).map((test) => (
+                <TrainerMedicalTestCard key={test.id} test={test} colors={colors} />
+              ))
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -606,6 +694,23 @@ const styles = StyleSheet.create({
   remindSendBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
   unreadBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
   unreadBadgeText: { color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  tabBar: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  tabItem: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    gap: 6,
+  },
+  tabLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  tabBadge: { borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1 },
+  tabBadgeText: { color: "#fff", fontSize: 11, fontFamily: "Inter_600SemiBold" },
   reportCard: { borderRadius: 12, borderWidth: 1, marginBottom: 10, overflow: "hidden" },
   reportCardHeader: { flexDirection: "row", alignItems: "center", padding: 14, gap: 10 },
   reportCardDate: { flex: 1, fontSize: 14, fontFamily: "Inter_600SemiBold" },
@@ -621,6 +726,71 @@ const styles = StyleSheet.create({
   reportDetailValue: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
   reportPhoto: { width: "100%", height: 200, borderRadius: 10 },
 });
+
+function TrainerMedicalTestCard({
+  test,
+  colors,
+}: {
+  test: MedicalTest;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <View
+      style={[styles.reportCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+      testID={`card-medical-test-trainer-${test.id}`}
+    >
+      <Pressable onPress={() => setExpanded((v) => !v)} style={styles.reportCardHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.reportCardDate, { color: colors.foreground }]}>{test.testName}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 }}>
+            <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
+              {new Date(test.testDate).toLocaleDateString("pl-PL")}
+            </Text>
+            <View style={{ backgroundColor: colors.primary + "18", borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2 }}>
+              <Text style={{ fontSize: 11, color: colors.primary, fontFamily: "Inter_500Medium" }}>
+                {getTestTypeLabel(test.testType)}
+              </Text>
+            </View>
+          </View>
+        </View>
+        <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={18} color={colors.mutedForeground} />
+      </Pressable>
+
+      {expanded && (
+        <View style={[styles.reportCardBody, { borderTopColor: colors.border }]}>
+          {test.resultValue != null && test.resultValue !== "" && (
+            <View style={styles.reportDetailRow}>
+              <Text style={[styles.reportDetailLabel, { color: colors.mutedForeground }]}>Wynik:</Text>
+              <Text style={[styles.reportDetailValue, { color: colors.foreground }]}>
+                {test.resultValue}{test.unit ? ` ${test.unit}` : ""}
+              </Text>
+            </View>
+          )}
+          {test.referenceRange != null && test.referenceRange !== "" && (
+            <View style={styles.reportDetailRow}>
+              <Text style={[styles.reportDetailLabel, { color: colors.mutedForeground }]}>Zakres ref.:</Text>
+              <Text style={[styles.reportDetailValue, { color: colors.foreground }]}>{test.referenceRange}</Text>
+            </View>
+          )}
+          {test.orderingProvider != null && test.orderingProvider !== "" && (
+            <View style={styles.reportDetailRow}>
+              <Text style={[styles.reportDetailLabel, { color: colors.mutedForeground }]}>Lekarz:</Text>
+              <Text style={[styles.reportDetailValue, { color: colors.foreground }]}>{test.orderingProvider}</Text>
+            </View>
+          )}
+          {test.notes != null && test.notes !== "" && (
+            <View style={styles.reportDetailRow}>
+              <Text style={[styles.reportDetailLabel, { color: colors.mutedForeground }]}>Notatki:</Text>
+              <Text style={[styles.reportDetailValue, { color: colors.foreground }]}>{test.notes}</Text>
+            </View>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
 
 function TrainerReportCard({
   report,
