@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import * as Haptics from "expo-haptics";
+import { useUnreadCount } from "@/hooks/useChat";
 
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
 
@@ -64,6 +65,8 @@ function TrainerDrawerContent(props: DrawerContentComponentProps) {
 
 export default function TrainerLayout() {
   const colors = useColors();
+  const { data: unreadData } = useUnreadCount();
+  const unreadCount = unreadData?.count ?? 0;
 
   type DrawerScreen = {
     name: string;
@@ -77,6 +80,12 @@ export default function TrainerLayout() {
     { name: "index", title: "Klienci", icon: "people-outline", iconFocused: "people" },
     { name: "plans", title: "Plany treningowe", icon: "clipboard-outline", iconFocused: "clipboard" },
     { name: "invitations", title: "Zaproszenia", icon: "mail-outline", iconFocused: "mail" },
+    {
+      name: "chat",
+      title: unreadCount > 0 ? `Wiadomości (${unreadCount})` : "Wiadomości",
+      icon: "chatbubble-outline",
+      iconFocused: "chatbubble",
+    },
     { name: "notifications", title: "Powiadomienia", icon: "notifications-outline", iconFocused: "notifications" },
     { name: "profile", title: "Profil i subskrypcja", icon: "person-circle-outline", iconFocused: "person-circle" },
     { name: "client/[id]", title: "Klient", icon: "person-outline", iconFocused: "person", hidden: true },
