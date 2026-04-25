@@ -47,6 +47,10 @@ function NativeClientTabs() {
         <Icon sf={{ default: "cross.case", selected: "cross.case.fill" }} />
         <Label>Badania</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="weekly-report">
+        <Icon sf={{ default: "doc.text", selected: "doc.text.fill" }} />
+        <Label>Raport</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person", selected: "person.fill" }} />
         <Label>Profil</Label>
@@ -153,16 +157,20 @@ function ClassicClientTabs() {
         }}
       />
       <Tabs.Screen
+        name="weekly-report"
+        options={{
+          title: "Raport",
+          tabBarIcon: ({ color }) =>
+            isIOS ? <SymbolView name="doc.text.fill" tintColor={color} size={22} /> : <Ionicons name="document-text-outline" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: "Profil",
           tabBarIcon: ({ color }) =>
             isIOS ? <SymbolView name="person.fill" tintColor={color} size={22} /> : <Ionicons name="person-outline" size={22} color={color} />,
         }}
-      />
-      <Tabs.Screen
-        name="weekly-report"
-        options={{ href: null }}
       />
     </Tabs>
   );
