@@ -82,7 +82,7 @@ export default function TrainerLayout() {
     { name: "invitations", title: "Zaproszenia", icon: "mail-outline", iconFocused: "mail" },
     {
       name: "chat",
-      title: unreadCount > 0 ? `Wiadomości (${unreadCount})` : "Wiadomości",
+      title: "Wiadomości",
       icon: "chatbubble-outline",
       iconFocused: "chatbubble",
     },
@@ -117,9 +117,19 @@ export default function TrainerLayout() {
             drawerItemStyle: s.hidden
               ? { display: "none" }
               : { borderRadius: 10, marginHorizontal: 8, marginVertical: 2 },
-            drawerIcon: ({ focused, color }) => (
-              <Ionicons name={focused ? s.iconFocused : s.icon} size={22} color={color} />
-            ),
+            drawerIcon: ({ focused, color }) =>
+              s.name === "chat" && unreadCount > 0 ? (
+                <View style={{ position: "relative" }}>
+                  <Ionicons name={focused ? "chatbubble" : "chatbubble-outline"} size={22} color={color} />
+                  <View style={styles.chatBadge}>
+                    <Text style={styles.chatBadgeText}>
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <Ionicons name={focused ? s.iconFocused : s.icon} size={22} color={color} />
+              ),
           }}
         />
       ))}
@@ -159,4 +169,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   logoutText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  chatBadge: {
+    position: "absolute",
+    top: -5,
+    right: -7,
+    backgroundColor: "#ef4444",
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 3,
+  },
+  chatBadgeText: { color: "#fff", fontSize: 10, fontFamily: "Inter_700Bold" },
 });

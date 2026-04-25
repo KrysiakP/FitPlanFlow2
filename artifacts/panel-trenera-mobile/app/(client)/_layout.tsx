@@ -9,6 +9,10 @@ import { useColors } from "@/hooks/useColors";
 import { useUnreadCount } from "@/hooks/useChat";
 
 function NativeClientTabs() {
+  const { data: unreadData } = useUnreadCount();
+  const unreadCount = unreadData?.count ?? 0;
+  const chatLabel = unreadCount > 0 ? `Czat (${unreadCount > 99 ? "99+" : unreadCount})` : "Czat";
+
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
@@ -29,7 +33,7 @@ function NativeClientTabs() {
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="chat">
         <Icon sf={{ default: "message", selected: "message.fill" }} />
-        <Label>Czat</Label>
+        <Label>{chatLabel}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="notifications">
         <Icon sf={{ default: "bell", selected: "bell.fill" }} />
