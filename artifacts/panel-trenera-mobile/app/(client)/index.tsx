@@ -13,6 +13,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { StatsCard } from "@/components/StatsCard";
@@ -226,10 +227,10 @@ export default function ClientDashboard() {
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Szybki dostęp</Text>
       <View style={styles.quickGrid}>
-        <QuickCard icon="barbell-outline" label="Plan treningowy" colors={colors} />
-        <QuickCard icon="nutrition-outline" label="Dieta" colors={colors} />
-        <QuickCard icon="trending-up-outline" label="Postępy" colors={colors} />
-        <QuickCard icon="chatbubble-outline" label="Wiadomości" colors={colors} />
+        <QuickCard icon="barbell-outline" label="Plan treningowy" colors={colors} onPress={() => router.push("/(client)/training")} />
+        <QuickCard icon="nutrition-outline" label="Dieta" colors={colors} onPress={() => router.push("/(client)/diet")} />
+        <QuickCard icon="trending-up-outline" label="Postępy" colors={colors} onPress={() => router.push("/(client)/progress")} />
+        <QuickCard icon="document-text-outline" label="Raport tyg." colors={colors} onPress={() => router.push("/(client)/weekly-report")} />
       </View>
     </ScrollView>
   );
@@ -239,11 +240,13 @@ interface QuickCardProps {
   icon: IoniconsName;
   label: string;
   colors: Colors;
+  onPress?: () => void;
 }
 
-function QuickCard({ icon, label, colors }: QuickCardProps) {
+function QuickCard({ icon, label, colors, onPress }: QuickCardProps) {
   return (
     <Pressable
+      onPress={onPress}
       style={({ pressed }) => [
         styles.quickCard,
         {

@@ -50,6 +50,7 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 - **Last session weight pre-fill** — when logging a set, load is pre-filled from last session via `GET /api/exercises/:exerciseId/latest-log`
 - **Cancel invitation** — trainer can cancel pending invitations via `DELETE /api/invitations/:id`; UI in mobile invitations screen
 - **Bulk remind all** — trainer can notify all clients at once via `POST /api/trainer/clients/remind-all`; button in mobile clients list
+- **Weekly reports on mobile** — client can create/edit reports (`(client)/weekly-report.tsx`, hidden tab, accessible via quick-access card); trainer sees all client reports with unread badge in `(trainer)/client/[id].tsx`; unread reports marked as viewed automatically
 
 ## Notes
 

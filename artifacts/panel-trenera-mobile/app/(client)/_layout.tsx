@@ -136,6 +136,10 @@ function ClassicClientTabs() {
             isIOS ? <SymbolView name="person.fill" tintColor={color} size={22} /> : <Ionicons name="person-outline" size={22} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="weekly-report"
+        options={{ href: null }}
+      />
     </Tabs>
   );
 }

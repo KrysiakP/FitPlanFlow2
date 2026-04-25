@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,6 +20,24 @@ import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { StatsCard } from "@/components/StatsCard";
 import { apiGet, apiPost, apiPatch } from "@/lib/api";
+
+interface WeeklyReport {
+  id: string;
+  reportDate: string;
+  weight?: string | null;
+  saturation?: string | null;
+  chest?: string | null;
+  waist?: string | null;
+  hips?: string | null;
+  arm?: string | null;
+  leg?: string | null;
+  cardio?: string | null;
+  supplements?: string | null;
+  mood?: string | null;
+  thoughts?: string | null;
+  viewedByTrainer?: boolean | null;
+  createdAt: string;
+}
 
 interface ClientPlan {
   id: string;
@@ -93,6 +111,26 @@ export default function ClientDetailScreen() {
     queryFn: () => apiGet<{ notes: string | null }>(`/api/trainer/clients/${id}/notes`),
     enabled: !!id,
   });
+
+  const { data: clientReports, isLoading: loadingReports } = useQuery<WeeklyReport[]>({
+    queryKey: ["client-weekly-reports", id],
+    queryFn: () => apiGet<WeeklyReport[]>(`/api/clients/${id}/reports`),
+    enabled: !!id,
+  });
+
+  const markViewedMutation = useMutation({
+    mutationFn: (reportId: string) => apiPost(`/api/reports/${reportId}/mark-as-viewed`, {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["client-weekly-reports", id] });
+      qc.invalidateQueries({ queryKey: ["trainer-unread-reports"] });
+    },
+  });
+
+  useEffect(() => {
+    if (!clientReports) return;
+    const unread = clientReports.filter((r) => !r.viewedByTrainer);
+    unread.forEach((r) => markViewedMutation.mutate(r.id));
+  }, [clientReports]);
 
   const updateNotesMutation = useMutation({
     mutationFn: (notes: string) =>
@@ -277,6 +315,29 @@ export default function ClientDetailScreen() {
           <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak notatek</Text>
           </View>
+        )}
+
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 24, marginBottom: 8 }}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Raporty tygodniowe</Text>
+          {(clientReports ?? []).filter((r) => !r.viewedByTrainer).length > 0 && (
+            <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
+              <Text style={styles.unreadBadgeText}>
+                {(clientReports ?? []).filter((r) => !r.viewedByTrainer).length} nowe
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {loadingReports ? (
+          <ActivityIndicator color={colors.primary} />
+        ) : (clientReports ?? []).length === 0 ? (
+          <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak raportów tygodniowych</Text>
+          </View>
+        ) : (
+          [...(clientReports ?? [])].sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime()).map((report) => (
+            <TrainerReportCard key={report.id} report={report} colors={colors} />
+          ))
         )}
       </ScrollView>
 
@@ -542,4 +603,109 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   remindSendBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  unreadBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
+  unreadBadgeText: { color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  reportCard: { borderRadius: 12, borderWidth: 1, marginBottom: 10, overflow: "hidden" },
+  reportCardHeader: { flexDirection: "row", alignItems: "center", padding: 14, gap: 10 },
+  reportCardDate: { flex: 1, fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  reportCardRight: { flexDirection: "row", alignItems: "center", gap: 10 },
+  reportNewDot: { width: 8, height: 8, borderRadius: 4 },
+  reportCardBody: { borderTopWidth: 1, padding: 14, gap: 8 },
+  reportMetricGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  reportMetric: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 6, alignItems: "center", minWidth: 70 },
+  reportMetricLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  reportMetricValue: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginTop: 2 },
+  reportDetailRow: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
+  reportDetailLabel: { fontSize: 13, fontFamily: "Inter_500Medium", minWidth: 110 },
+  reportDetailValue: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
 });
+
+function TrainerReportCard({
+  report,
+  colors,
+}: {
+  report: WeeklyReport;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const measurements = [
+    { label: "Klatka", value: report.chest },
+    { label: "Talia", value: report.waist },
+    { label: "Biodro", value: report.hips },
+    { label: "Ramię", value: report.arm },
+    { label: "Udo", value: report.leg },
+  ].filter((m) => m.value);
+
+  const isNew = !report.viewedByTrainer;
+
+  return (
+    <View style={[styles.reportCard, { backgroundColor: colors.card, borderColor: isNew ? colors.primary : colors.border }]} testID={`card-weekly-report-${report.id}`}>
+      <Pressable onPress={() => setExpanded((e) => !e)} style={styles.reportCardHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.reportCardDate, { color: colors.foreground }]}>
+            {formatDate(report.reportDate)}
+          </Text>
+          {report.weight && (
+            <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 1 }}>
+              Waga: {report.weight}
+            </Text>
+          )}
+        </View>
+        <View style={styles.reportCardRight}>
+          {isNew && <View style={[styles.reportNewDot, { backgroundColor: colors.primary }]} />}
+          <Ionicons
+            name={expanded ? "chevron-up" : "chevron-down"}
+            size={18}
+            color={colors.mutedForeground}
+          />
+        </View>
+      </Pressable>
+
+      {expanded && (
+        <View style={[styles.reportCardBody, { borderTopColor: colors.border }]}>
+          {report.saturation && (
+            <View style={styles.reportDetailRow}>
+              <Text style={[styles.reportDetailLabel, { color: colors.mutedForeground }]}>Nasycenie:</Text>
+              <Text style={[styles.reportDetailValue, { color: colors.foreground }]}>{report.saturation}</Text>
+            </View>
+          )}
+          {measurements.length > 0 && (
+            <View style={styles.reportMetricGrid}>
+              {measurements.map((m) => (
+                <View key={m.label} style={[styles.reportMetric, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <Text style={[styles.reportMetricLabel, { color: colors.mutedForeground }]}>{m.label}</Text>
+                  <Text style={[styles.reportMetricValue, { color: colors.foreground }]}>{m.value} cm</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          {report.cardio && (
+            <View style={styles.reportDetailRow}>
+              <Text style={[styles.reportDetailLabel, { color: colors.mutedForeground }]}>Cardio:</Text>
+              <Text style={[styles.reportDetailValue, { color: colors.foreground }]}>{report.cardio}</Text>
+            </View>
+          )}
+          {report.supplements && (
+            <View style={styles.reportDetailRow}>
+              <Text style={[styles.reportDetailLabel, { color: colors.mutedForeground }]}>Suplementacja:</Text>
+              <Text style={[styles.reportDetailValue, { color: colors.foreground }]}>{report.supplements}</Text>
+            </View>
+          )}
+          {report.mood && (
+            <View style={styles.reportDetailRow}>
+              <Text style={[styles.reportDetailLabel, { color: colors.mutedForeground }]}>Samopoczucie:</Text>
+              <Text style={[styles.reportDetailValue, { color: colors.foreground }]}>{report.mood}</Text>
+            </View>
+          )}
+          {report.thoughts && (
+            <View style={styles.reportDetailRow}>
+              <Text style={[styles.reportDetailLabel, { color: colors.mutedForeground }]}>Przemyślenia:</Text>
+              <Text style={[styles.reportDetailValue, { color: colors.foreground }]}>{report.thoughts}</Text>
+            </View>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
