@@ -186,7 +186,7 @@ export interface IStorage {
   acceptInvitation(invitationId: string, clientId: string): Promise<void>;
   rejectInvitation(invitationId: string, clientId: string): Promise<void>;
   getTrainerInvitations(trainerId: string): Promise<PlanInvitation[]>;
-  cancelInvitation(invitationId: string, trainerId: string): Promise<void>;
+  cancelInvitation(invitationId: string, trainerId: string): Promise<boolean>;
 
   // Client relationship operations
   getClientRelationship(trainerId: string, clientId: string): Promise<ClientRelationship | null>;
@@ -1563,8 +1563,8 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(planInvitations.createdAt));
   }
 
-  async cancelInvitation(invitationId: string, trainerId: string): Promise<void> {
-    await db
+  async cancelInvitation(invitationId: string, trainerId: string): Promise<boolean> {
+    const result = await db
       .update(planInvitations)
       .set({ status: "cancelled" })
       .where(
@@ -1573,7 +1573,9 @@ export class DatabaseStorage implements IStorage {
           eq(planInvitations.trainerId, trainerId),
           eq(planInvitations.status, "pending")
         )
-      );
+      )
+      .returning({ id: planInvitations.id });
+    return result.length > 0;
   }
 
   // Client relationship operations

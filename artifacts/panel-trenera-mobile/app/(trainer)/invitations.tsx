@@ -316,6 +316,8 @@ function InvitationCard({ invitation, colors, onShare, onCancel, cancelling }: I
                 disabled={cancelling}
                 style={[styles.shareBtn, { opacity: cancelling ? 0.5 : 1 }]}
                 testID="button-cancel-pending-invitation"
+                accessibilityLabel="Anuluj zaproszenie"
+                accessibilityRole="button"
               >
                 {cancelling ? (
                   <ActivityIndicator size="small" color="#e53935" />

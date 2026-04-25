@@ -3049,7 +3049,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko trenerzy mogą anulować zaproszenia" });
       }
       const { id } = req.params;
-      await storage.cancelInvitation(id, userId);
+      const cancelled = await storage.cancelInvitation(id, userId);
+      if (!cancelled) {
+        return res.status(404).json({ message: "Zaproszenie nie zostało znalezione lub nie można go anulować" });
+      }
       res.json({ message: "Zaproszenie anulowane" });
     } catch (error) {
       console.error("Error cancelling invitation:", error);
