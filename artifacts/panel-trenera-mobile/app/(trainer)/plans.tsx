@@ -1,6 +1,7 @@
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -200,63 +201,69 @@ export default function TrainerPlansScreen() {
         animationType="slide"
         onRequestClose={() => setCreateModalVisible(false)}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setCreateModalVisible(false)}
-        />
-        <View style={[styles.modalSheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + 24 }]}>
-          <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
-          <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nowy plan treningowy</Text>
-
-          <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Nazwa planu *</Text>
-          <TextInput
-            style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-            placeholder="np. Plan siłowy 3x w tygodniu"
-            placeholderTextColor={colors.mutedForeground}
-            value={newPlanName}
-            onChangeText={setNewPlanName}
-            autoFocus
-            testID="input-new-plan-name"
+        <KeyboardAvoidingView
+          style={styles.modalKav}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setCreateModalVisible(false)}
           />
+          <View style={[styles.modalSheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + 24 }]}>
+            <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nowy plan treningowy</Text>
 
-          <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Opis (opcjonalnie)</Text>
-          <TextInput
-            style={[styles.textInput, styles.textArea, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-            placeholder="Opisz cel i zakres planu"
-            placeholderTextColor={colors.mutedForeground}
-            value={newPlanDesc}
-            onChangeText={setNewPlanDesc}
-            multiline
-            numberOfLines={3}
-            testID="input-new-plan-desc"
-          />
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Nazwa planu *</Text>
+            <TextInput
+              style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              placeholder="np. Plan siłowy 3x w tygodniu"
+              placeholderTextColor={colors.mutedForeground}
+              value={newPlanName}
+              onChangeText={setNewPlanName}
+              autoFocus
+              returnKeyType="next"
+              testID="input-new-plan-name"
+            />
 
-          <View style={styles.modalActions}>
-            <TouchableOpacity
-              style={[styles.btnSecondary, { borderColor: colors.border }]}
-              onPress={() => {
-                setCreateModalVisible(false);
-                setNewPlanName("");
-                setNewPlanDesc("");
-              }}
-              testID="button-cancel-create-plan"
-            >
-              <Text style={[styles.btnSecondaryText, { color: colors.foreground }]}>Anuluj</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.btnPrimary, { backgroundColor: colors.primary, opacity: createMutation.isPending ? 0.7 : 1 }]}
-              onPress={handleCreate}
-              disabled={createMutation.isPending}
-              testID="button-confirm-create-plan"
-            >
-              {createMutation.isPending ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.btnPrimaryText}>Utwórz plan</Text>
-              )}
-            </TouchableOpacity>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Opis (opcjonalnie)</Text>
+            <TextInput
+              style={[styles.textInput, styles.textArea, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              placeholder="Opisz cel i zakres planu"
+              placeholderTextColor={colors.mutedForeground}
+              value={newPlanDesc}
+              onChangeText={setNewPlanDesc}
+              multiline
+              numberOfLines={3}
+              testID="input-new-plan-desc"
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.btnSecondary, { borderColor: colors.border }]}
+                onPress={() => {
+                  setCreateModalVisible(false);
+                  setNewPlanName("");
+                  setNewPlanDesc("");
+                }}
+                testID="button-cancel-create-plan"
+              >
+                <Text style={[styles.btnSecondaryText, { color: colors.foreground }]}>Anuluj</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btnPrimary, { backgroundColor: colors.primary, opacity: createMutation.isPending ? 0.7 : 1 }]}
+                onPress={handleCreate}
+                disabled={createMutation.isPending}
+                testID="button-confirm-create-plan"
+              >
+                {createMutation.isPending ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.btnPrimaryText}>Utwórz plan</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -285,7 +292,7 @@ const styles = StyleSheet.create({
   planFooter: { flexDirection: "row", alignItems: "center", gap: 6, borderTopWidth: 1, paddingHorizontal: 16, paddingVertical: 10 },
   planFooterText: { fontSize: 12, fontFamily: "Inter_400Regular" },
   fab: { position: "absolute", right: 20, width: 56, height: 56, borderRadius: 28, justifyContent: "center", alignItems: "center", elevation: 4, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
+  modalKav: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
   modalSheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingTop: 12, gap: 12 },
   modalHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 8 },
   modalTitle: { fontSize: 20, fontFamily: "Inter_700Bold", marginBottom: 4 },

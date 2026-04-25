@@ -526,38 +526,48 @@ export default function PlanDetailScreen() {
         animationType="slide"
         onRequestClose={() => setAddWorkoutVisible(false)}
       >
-        <Pressable style={styles.overlay} onPress={() => setAddWorkoutVisible(false)} />
-        <View style={[styles.sheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + 24 }]}>
-          <View style={[styles.handle, { backgroundColor: colors.border }]} />
-          <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Nowy trening</Text>
-          <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Nazwa treningu</Text>
-          <TextInput
-            style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-            placeholder="np. Trening A — górna partia"
-            placeholderTextColor={colors.mutedForeground}
-            value={newWorkoutName}
-            onChangeText={setNewWorkoutName}
-            autoFocus
-            testID="input-new-workout-name"
-          />
-          <View style={styles.sheetActions}>
-            <TouchableOpacity style={[styles.btnSecondary, { borderColor: colors.border }]} onPress={() => { setAddWorkoutVisible(false); setNewWorkoutName(""); }}>
-              <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Anuluj</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.btnPrimary, { backgroundColor: colors.primary, opacity: addWorkoutMutation.isPending ? 0.7 : 1 }]}
-              onPress={() => {
+        <KeyboardAvoidingView
+          style={styles.kavSheet}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setAddWorkoutVisible(false)} />
+          <View style={[styles.sheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + 24 }]}>
+            <View style={[styles.handle, { backgroundColor: colors.border }]} />
+            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Nowy trening</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Nazwa treningu</Text>
+            <TextInput
+              style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              placeholder="np. Trening A — górna partia"
+              placeholderTextColor={colors.mutedForeground}
+              value={newWorkoutName}
+              onChangeText={setNewWorkoutName}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={() => {
                 const name = newWorkoutName.trim();
-                if (!name) { Alert.alert("Błąd", "Podaj nazwę treningu."); return; }
-                addWorkoutMutation.mutate(name);
+                if (name) addWorkoutMutation.mutate(name);
               }}
-              disabled={addWorkoutMutation.isPending}
-              testID="button-confirm-add-workout"
-            >
-              {addWorkoutMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Dodaj</Text>}
-            </TouchableOpacity>
+              testID="input-new-workout-name"
+            />
+            <View style={styles.sheetActions}>
+              <TouchableOpacity style={[styles.btnSecondary, { borderColor: colors.border }]} onPress={() => { setAddWorkoutVisible(false); setNewWorkoutName(""); }}>
+                <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Anuluj</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btnPrimary, { backgroundColor: colors.primary, opacity: addWorkoutMutation.isPending ? 0.7 : 1 }]}
+                onPress={() => {
+                  const name = newWorkoutName.trim();
+                  if (!name) { Alert.alert("Błąd", "Podaj nazwę treningu."); return; }
+                  addWorkoutMutation.mutate(name);
+                }}
+                disabled={addWorkoutMutation.isPending}
+                testID="button-confirm-add-workout"
+              >
+                {addWorkoutMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Dodaj</Text>}
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal
@@ -566,7 +576,10 @@ export default function PlanDetailScreen() {
         animationType="slide"
         onRequestClose={() => setAddExerciseMode(null)}
       >
-        <View style={{ flex: 1, justifyContent: "flex-end" }}>
+        <KeyboardAvoidingView
+          style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setAddExerciseMode(null)} />
           <View style={[styles.sheetTall, { backgroundColor: colors.card, paddingBottom: insets.bottom + 16 }]}>
             <View style={[styles.handle, { backgroundColor: colors.border }]} />
@@ -619,7 +632,7 @@ export default function PlanDetailScreen() {
               <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Zamknij</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal
@@ -628,69 +641,78 @@ export default function PlanDetailScreen() {
         animationType="slide"
         onRequestClose={() => setAddExerciseMode(null)}
       >
-        <Pressable style={styles.overlay} onPress={() => setAddExerciseMode(null)} />
-        <View style={[styles.sheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + 24 }]}>
-          <View style={[styles.handle, { backgroundColor: colors.border }]} />
-          <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Dodaj ćwiczenie</Text>
+        <KeyboardAvoidingView
+          style={styles.kavSheet}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setAddExerciseMode(null)} />
+          <View style={[styles.sheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + 24 }]}>
+            <View style={[styles.handle, { backgroundColor: colors.border }]} />
+            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Dodaj ćwiczenie</Text>
 
-          <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Nazwa ćwiczenia *</Text>
-          <TextInput
-            style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-            placeholder="np. Wyciskanie sztangi"
-            placeholderTextColor={colors.mutedForeground}
-            value={manualName}
-            onChangeText={setManualName}
-            autoFocus
-            testID="input-manual-exercise-name"
-          />
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Nazwa ćwiczenia *</Text>
+            <TextInput
+              style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              placeholder="np. Wyciskanie sztangi"
+              placeholderTextColor={colors.mutedForeground}
+              value={manualName}
+              onChangeText={setManualName}
+              autoFocus
+              returnKeyType="next"
+              testID="input-manual-exercise-name"
+            />
 
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Serie</Text>
-              <TextInput
-                style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-                value={manualSets}
-                onChangeText={setManualSets}
-                keyboardType="numeric"
-                testID="input-manual-sets"
-              />
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Serie</Text>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                  value={manualSets}
+                  onChangeText={setManualSets}
+                  keyboardType="numeric"
+                  returnKeyType="next"
+                  testID="input-manual-sets"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Powtórzenia</Text>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                  value={manualReps}
+                  onChangeText={setManualReps}
+                  keyboardType="numeric"
+                  returnKeyType="next"
+                  testID="input-manual-reps"
+                />
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Powtórzenia</Text>
-              <TextInput
-                style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-                value={manualReps}
-                onChangeText={setManualReps}
-                keyboardType="numeric"
-                testID="input-manual-reps"
-              />
+
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Obciążenie (opcjonalnie)</Text>
+            <TextInput
+              style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              placeholder="np. 60 kg, własna masa ciała"
+              placeholderTextColor={colors.mutedForeground}
+              value={manualLoad}
+              onChangeText={setManualLoad}
+              returnKeyType="done"
+              testID="input-manual-load"
+            />
+
+            <View style={styles.sheetActions}>
+              <TouchableOpacity style={[styles.btnSecondary, { borderColor: colors.border }]} onPress={() => setAddExerciseMode(null)}>
+                <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Anuluj</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btnPrimary, { backgroundColor: colors.primary, opacity: addExerciseMutation.isPending ? 0.7 : 1 }]}
+                onPress={handleAddManual}
+                disabled={addExerciseMutation.isPending}
+                testID="button-confirm-add-manual"
+              >
+                {addExerciseMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Dodaj</Text>}
+              </TouchableOpacity>
             </View>
           </View>
-
-          <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Obciążenie (opcjonalnie)</Text>
-          <TextInput
-            style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-            placeholder="np. 60 kg, własna masa ciała"
-            placeholderTextColor={colors.mutedForeground}
-            value={manualLoad}
-            onChangeText={setManualLoad}
-            testID="input-manual-load"
-          />
-
-          <View style={styles.sheetActions}>
-            <TouchableOpacity style={[styles.btnSecondary, { borderColor: colors.border }]} onPress={() => setAddExerciseMode(null)}>
-              <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Anuluj</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.btnPrimary, { backgroundColor: colors.primary, opacity: addExerciseMutation.isPending ? 0.7 : 1 }]}
-              onPress={handleAddManual}
-              disabled={addExerciseMutation.isPending}
-              testID="button-confirm-add-manual"
-            >
-              {addExerciseMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Dodaj</Text>}
-            </TouchableOpacity>
-          </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal
@@ -699,60 +721,68 @@ export default function PlanDetailScreen() {
         animationType="slide"
         onRequestClose={() => setEditExercise(null)}
       >
-        <Pressable style={styles.overlay} onPress={() => setEditExercise(null)} />
-        <View style={[styles.sheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + 24 }]}>
-          <View style={[styles.handle, { backgroundColor: colors.border }]} />
-          <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
-            {editExercise?.exercise.name}
-          </Text>
+        <KeyboardAvoidingView
+          style={styles.kavSheet}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setEditExercise(null)} />
+          <View style={[styles.sheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + 24 }]}>
+            <View style={[styles.handle, { backgroundColor: colors.border }]} />
+            <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
+              {editExercise?.exercise.name}
+            </Text>
 
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Serie</Text>
-              <TextInput
-                style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-                value={editSets}
-                onChangeText={setEditSets}
-                keyboardType="numeric"
-                testID="input-edit-sets"
-              />
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Serie</Text>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                  value={editSets}
+                  onChangeText={setEditSets}
+                  keyboardType="numeric"
+                  returnKeyType="next"
+                  testID="input-edit-sets"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Powtórzenia</Text>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                  value={editReps}
+                  onChangeText={setEditReps}
+                  keyboardType="numeric"
+                  returnKeyType="next"
+                  testID="input-edit-reps"
+                />
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Powtórzenia</Text>
-              <TextInput
-                style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-                value={editReps}
-                onChangeText={setEditReps}
-                keyboardType="numeric"
-                testID="input-edit-reps"
-              />
+
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Obciążenie (opcjonalnie)</Text>
+            <TextInput
+              style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              placeholder="np. 60 kg"
+              placeholderTextColor={colors.mutedForeground}
+              value={editLoad}
+              onChangeText={setEditLoad}
+              returnKeyType="done"
+              testID="input-edit-load"
+            />
+
+            <View style={styles.sheetActions}>
+              <TouchableOpacity style={[styles.btnSecondary, { borderColor: colors.border }]} onPress={() => setEditExercise(null)}>
+                <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Anuluj</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btnPrimary, { backgroundColor: colors.primary, opacity: updateExerciseMutation.isPending ? 0.7 : 1 }]}
+                onPress={handleSaveExercise}
+                disabled={updateExerciseMutation.isPending}
+                testID="button-save-exercise"
+              >
+                {updateExerciseMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Zapisz</Text>}
+              </TouchableOpacity>
             </View>
           </View>
-
-          <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Obciążenie (opcjonalnie)</Text>
-          <TextInput
-            style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-            placeholder="np. 60 kg"
-            placeholderTextColor={colors.mutedForeground}
-            value={editLoad}
-            onChangeText={setEditLoad}
-            testID="input-edit-load"
-          />
-
-          <View style={styles.sheetActions}>
-            <TouchableOpacity style={[styles.btnSecondary, { borderColor: colors.border }]} onPress={() => setEditExercise(null)}>
-              <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Anuluj</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.btnPrimary, { backgroundColor: colors.primary, opacity: updateExerciseMutation.isPending ? 0.7 : 1 }]}
-              onPress={handleSaveExercise}
-              disabled={updateExerciseMutation.isPending}
-              testID="button-save-exercise"
-            >
-              {updateExerciseMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Zapisz</Text>}
-            </TouchableOpacity>
-          </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </KeyboardAvoidingView>
   );
@@ -792,7 +822,7 @@ const styles = StyleSheet.create({
   addExBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
   addExBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   emptyExercises: { padding: 16, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
+  kavSheet: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
   sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingTop: 12, gap: 10 },
   sheetTall: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingTop: 12, gap: 8, maxHeight: "80%" },
   handle: { width: 40, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 8 },
