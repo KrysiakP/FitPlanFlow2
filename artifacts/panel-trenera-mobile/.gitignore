@@ -19,6 +19,9 @@ android/
 *.key
 *.mobileprovision
 
+# EAS / Google Play credentials
+google-services-key.json
+
 # Metro
 .metro-health-check*
 
