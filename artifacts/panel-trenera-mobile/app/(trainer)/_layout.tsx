@@ -90,6 +90,7 @@ export default function TrainerLayout() {
     { name: "notifications", title: "Powiadomienia", icon: "notifications-outline", iconFocused: "notifications" },
     { name: "profile", title: "Profil i subskrypcja", icon: "person-circle-outline", iconFocused: "person-circle" },
     { name: "client/[id]", title: "Klient", icon: "person-outline", iconFocused: "person", hidden: true },
+    { name: "plan/[id]", title: "Plan treningowy", icon: "clipboard-outline", iconFocused: "clipboard", hidden: true },
   ];
 
   return (
