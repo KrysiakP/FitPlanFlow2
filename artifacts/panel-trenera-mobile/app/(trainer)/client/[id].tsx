@@ -87,11 +87,15 @@ interface TrainingPlan {
   description?: string | null;
 }
 
-interface ProgressEntry {
+interface ClientProgressData {
   id: string;
-  date: string;
-  weight?: number | null;
-  bodyFat?: number | null;
+  weight?: string | null;
+  height?: string | null;
+  goal?: string | null;
+  mood?: string | null;
+  completedWorkouts?: number | null;
+  notes?: string | null;
+  lastUpdated?: string | null;
 }
 
 function formatDate(d: string) {
@@ -112,9 +116,9 @@ export default function ClientDetailScreen() {
   const [notesText, setNotesText] = useState("");
   const [activeTab, setActiveTab] = useState<"progress" | "reports" | "tests">("progress");
 
-  const { data: progress, isLoading: loadingProgress, refetch, isRefetching } = useQuery<ProgressEntry[]>({
+  const { data: progress, isLoading: loadingProgress, refetch, isRefetching } = useQuery<ClientProgressData>({
     queryKey: ["client-progress", id],
-    queryFn: () => apiGet<ProgressEntry[]>(`/api/trainer/clients/${id}/progress`),
+    queryFn: () => apiGet<ClientProgressData>(`/api/trainer/clients/${id}/progress`),
     enabled: !!id,
   });
 
@@ -201,7 +205,7 @@ export default function ClientDetailScreen() {
     },
   });
 
-  const latestProgress = progress?.[0];
+  const latestProgress = progress ?? null;
 
   return (
     <>
@@ -325,39 +329,45 @@ export default function ClientDetailScreen() {
 
         {activeTab === "progress" && (
           <>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ostatni pomiar</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Aktualne dane</Text>
             {loadingProgress ? (
               <ActivityIndicator color={colors.primary} />
             ) : latestProgress ? (
               <>
-                <Text style={[styles.dateLabel, { color: colors.mutedForeground }]}>{formatDate(latestProgress.date)}</Text>
+                {latestProgress.lastUpdated && (
+                  <Text style={[styles.dateLabel, { color: colors.mutedForeground }]}>
+                    Zaktualizowano: {formatDate(latestProgress.lastUpdated)}
+                  </Text>
+                )}
                 <View style={styles.statsRow}>
                   {latestProgress.weight != null && (
-                    <StatsCard label="Waga (kg)" value={latestProgress.weight} iconName="scale-outline" color={colors.primary} />
+                    <StatsCard label="Waga" value={latestProgress.weight} iconName="scale-outline" color={colors.primary} />
                   )}
-                  {latestProgress.bodyFat != null && (
-                    <StatsCard label="Tkanka (%)" value={latestProgress.bodyFat} iconName="body-outline" color="#d97706" />
+                  {latestProgress.height != null && (
+                    <StatsCard label="Wzrost" value={latestProgress.height} iconName="body-outline" color="#d97706" />
+                  )}
+                  {latestProgress.completedWorkouts != null && (
+                    <StatsCard label="Treningi" value={latestProgress.completedWorkouts} iconName="barbell-outline" color="#16a34a" />
                   )}
                 </View>
+                {latestProgress.goal != null && (
+                  <View style={[styles.progressRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Ionicons name="trophy-outline" size={14} color={colors.primary} />
+                    <Text style={[styles.progressDate, { color: colors.mutedForeground }]}>Cel:</Text>
+                    <Text style={[styles.progressValue, { color: colors.foreground, flex: 1 }]}>{latestProgress.goal}</Text>
+                  </View>
+                )}
+                {latestProgress.mood != null && (
+                  <View style={[styles.progressRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Ionicons name="happy-outline" size={14} color={colors.primary} />
+                    <Text style={[styles.progressDate, { color: colors.mutedForeground }]}>Samopoczucie:</Text>
+                    <Text style={[styles.progressValue, { color: colors.foreground, flex: 1 }]}>{latestProgress.mood}</Text>
+                  </View>
+                )}
               </>
             ) : (
               <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak pomiarów</Text>
-              </View>
-            )}
-
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Historia postępów</Text>
-            {(progress ?? []).slice(0, 10).map((e) => (
-              <View key={e.id} style={[styles.progressRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Ionicons name="calendar-outline" size={14} color={colors.primary} />
-                <Text style={[styles.progressDate, { color: colors.foreground }]}>{formatDate(e.date)}</Text>
-                {e.weight != null && <Text style={[styles.progressValue, { color: colors.mutedForeground }]}>{e.weight} kg</Text>}
-                {e.bodyFat != null && <Text style={[styles.progressValue, { color: colors.mutedForeground }]}>{e.bodyFat}% TT</Text>}
-              </View>
-            ))}
-            {(progress ?? []).length === 0 && !loadingProgress && (
-              <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak historii pomiarów</Text>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak danych postępów</Text>
               </View>
             )}
 
