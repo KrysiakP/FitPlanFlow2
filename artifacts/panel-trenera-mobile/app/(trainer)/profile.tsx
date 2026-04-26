@@ -303,6 +303,24 @@ export default function TrainerProfileScreen() {
         );
       })}
 
+      {user?.isAdmin && (
+        <>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Administrator</Text>
+          <View style={[styles.adminBanner, { backgroundColor: "#fef3c718", borderColor: "#f59e0b40" }]}>
+            <Ionicons name="shield-checkmark" size={16} color="#f59e0b" />
+            <Text style={[styles.adminBannerText, { color: "#b45309" }]}>Tryb administratora platformy</Text>
+          </View>
+          <MenuRow
+            icon="business-outline"
+            label="Siłownie"
+            desc="Twórz i zarządzaj kontami siłowni"
+            colors={colors}
+            onPress={() => router.push("/(trainer)/admin-gyms")}
+            testID="button-admin-gyms"
+          />
+        </>
+      )}
+
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ustawienia</Text>
       <MenuRow
         icon="notifications-outline"
@@ -415,4 +433,6 @@ const styles = StyleSheet.create({
   planFeatureText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
   planCta: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 11, borderRadius: 12 },
   planCtaText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  adminBanner: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 10 },
+  adminBannerText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
 });

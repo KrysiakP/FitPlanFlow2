@@ -9,7 +9,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "../objectStorage";
 import { ObjectPermission } from "../objectAcl";
 import { WebSocketServer, WebSocket } from "ws";
 import { parse as parseCookie } from "cookie";
-import { sql } from "drizzle-orm";
+import { sql, eq, and, or, inArray, desc, gte, lt, ne } from "drizzle-orm";
 import {
   insertTrainingPlanSchema,
   insertWorkoutSchema,
@@ -38,6 +38,12 @@ import {
   insertMessageSchema,
   insertWorkoutSessionSchema,
   sessions,
+  gyms,
+  gymTrainers,
+  insertGymSchema,
+  clientRelationships,
+  workoutSessions,
+  trainingPlans,
 } from "@workspace/db";
 import { z } from "zod";
 import multer from "multer";
@@ -5367,6 +5373,552 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Set the broadcast function for use in message endpoint
   broadcastMessageFn = broadcastMessage;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // GYM (SIŁOWNIA) SYSTEM
+  // ─────────────────────────────────────────────────────────────────────────
+
+  function requireGymOwner(req: any, res: any, next: any) {
+    const user = req.user as any;
+    if (!user || user.role !== "gym_owner") {
+      return res.status(403).json({ message: "Dostęp tylko dla właścicieli siłowni" });
+    }
+    next();
+  }
+
+  // ── ADMIN: Manage gyms ────────────────────────────────────────────────────
+
+  // GET /api/admin/gyms — list all gyms
+  app.get("/api/admin/gyms", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const allGyms = await db
+        .select({
+          id: gyms.id,
+          name: gyms.name,
+          contactEmail: gyms.contactEmail,
+          phone: gyms.phone,
+          address: gyms.address,
+          planTier: gyms.planTier,
+          maxTrainers: gyms.maxTrainers,
+          logoUrl: gyms.logoUrl,
+          createdAt: gyms.createdAt,
+          ownerEmail: users.email,
+          ownerFirstName: users.firstName,
+          ownerLastName: users.lastName,
+        })
+        .from(gyms)
+        .leftJoin(users, eq(users.id, gyms.ownerId))
+        .orderBy(desc(gyms.createdAt));
+
+      // Count trainers per gym
+      const gymIds = allGyms.map((g) => g.id);
+      const trainerCounts: Record<string, number> = {};
+      if (gymIds.length > 0) {
+        const counts = await db
+          .select({ gymId: gymTrainers.gymId, count: sql<number>`count(*)::int` })
+          .from(gymTrainers)
+          .where(eq(gymTrainers.status, "active"))
+          .groupBy(gymTrainers.gymId);
+        counts.forEach((c) => { trainerCounts[c.gymId] = c.count; });
+      }
+
+      res.json(allGyms.map((g) => ({ ...g, trainerCount: trainerCounts[g.id] ?? 0 })));
+    } catch (error) {
+      console.error("Error fetching gyms:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // POST /api/admin/gyms — create gym + gym_owner user
+  app.post("/api/admin/gyms", isAuthenticated, requireAdmin, async (req, res) => {
+    const schema = z.object({
+      gymName: z.string().min(2),
+      ownerEmail: z.string().email(),
+      ownerFirstName: z.string().min(1),
+      ownerLastName: z.string().min(1),
+      ownerPassword: z.string().min(6),
+      planTier: z.enum(["starter", "pro", "enterprise"]).default("starter"),
+      maxTrainers: z.number().int().min(1).max(500).default(5),
+      contactEmail: z.string().email().optional(),
+      phone: z.string().optional(),
+      address: z.string().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Nieprawidłowe dane", errors: parsed.error.flatten() });
+    const { gymName, ownerEmail, ownerFirstName, ownerLastName, ownerPassword, planTier, maxTrainers, contactEmail, phone, address } = parsed.data;
+
+    try {
+      // Check email uniqueness
+      const existing = await db.select().from(users).where(eq(users.email, ownerEmail)).limit(1);
+      if (existing.length > 0) return res.status(409).json({ message: "Użytkownik z tym adresem e-mail już istnieje" });
+
+      const hashed = await hashPassword(ownerPassword);
+      const [ownerUser] = await db.insert(users).values({
+        email: ownerEmail,
+        password: hashed,
+        firstName: ownerFirstName,
+        lastName: ownerLastName,
+        role: "gym_owner",
+        emailVerified: true,
+      }).returning();
+
+      const [gym] = await db.insert(gyms).values({
+        name: gymName,
+        ownerId: ownerUser.id,
+        contactEmail: contactEmail ?? ownerEmail,
+        phone: phone ?? null,
+        address: address ?? null,
+        planTier,
+        maxTrainers,
+      }).returning();
+
+      res.status(201).json({ gym, owner: { id: ownerUser.id, email: ownerUser.email } });
+    } catch (error) {
+      console.error("Error creating gym:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // PATCH /api/admin/gyms/:id — update gym plan/limits
+  app.patch("/api/admin/gyms/:id", isAuthenticated, requireAdmin, async (req, res) => {
+    const schema = z.object({
+      name: z.string().min(2).optional(),
+      planTier: z.enum(["starter", "pro", "enterprise"]).optional(),
+      maxTrainers: z.number().int().min(1).max(500).optional(),
+      contactEmail: z.string().email().optional(),
+      phone: z.string().optional(),
+      address: z.string().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Nieprawidłowe dane" });
+    try {
+      const [updated] = await db.update(gyms).set({ ...parsed.data, updatedAt: new Date() })
+        .where(eq(gyms.id, req.params.id)).returning();
+      if (!updated) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating gym:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // DELETE /api/admin/gyms/:id
+  app.delete("/api/admin/gyms/:id", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const [deleted] = await db.delete(gyms).where(eq(gyms.id, req.params.id)).returning();
+      if (!deleted) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting gym:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // ── GYM OWNER: Own gym management ─────────────────────────────────────────
+
+  // Helper: get gym for current gym_owner
+  async function getOwnerGym(userId: string) {
+    const [gym] = await db.select().from(gyms).where(eq(gyms.ownerId, userId)).limit(1);
+    return gym ?? null;
+  }
+
+  // GET /api/gym/me — gym info + summary stats
+  app.get("/api/gym/me", isAuthenticated, requireGymOwner, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const gym = await getOwnerGym(user.id);
+      if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+
+      const [activeCount] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(gymTrainers)
+        .where(and(eq(gymTrainers.gymId, gym.id), eq(gymTrainers.status, "active")));
+
+      const [invitedCount] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(gymTrainers)
+        .where(and(eq(gymTrainers.gymId, gym.id), eq(gymTrainers.status, "invited")));
+
+      // Total clients across all gym trainers
+      const trainerRows = await db
+        .select({ trainerId: gymTrainers.trainerId })
+        .from(gymTrainers)
+        .where(and(eq(gymTrainers.gymId, gym.id), eq(gymTrainers.status, "active")));
+      const trainerIds = trainerRows.map((r) => r.trainerId).filter(Boolean) as string[];
+
+      let totalClients = 0;
+      if (trainerIds.length > 0) {
+        const [clientRes] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(clientRelationships)
+          .where(and(inArray(clientRelationships.trainerId, trainerIds), eq(clientRelationships.status, "active")));
+        totalClients = clientRes?.count ?? 0;
+      }
+
+      res.json({
+        ...gym,
+        stats: {
+          activeTrainers: activeCount?.count ?? 0,
+          invitedTrainers: invitedCount?.count ?? 0,
+          totalClients,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching gym:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // GET /api/gym/trainers — list trainers with per-trainer stats
+  app.get("/api/gym/trainers", isAuthenticated, requireGymOwner, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const gym = await getOwnerGym(user.id);
+      if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+
+      const rows = await db
+        .select({
+          id: gymTrainers.id,
+          status: gymTrainers.status,
+          inviteEmail: gymTrainers.inviteEmail,
+          inviteCode: gymTrainers.inviteCode,
+          invitedAt: gymTrainers.invitedAt,
+          joinedAt: gymTrainers.joinedAt,
+          trainerId: gymTrainers.trainerId,
+          trainerEmail: users.email,
+          trainerFirstName: users.firstName,
+          trainerLastName: users.lastName,
+          trainerProfileImageUrl: users.profileImageUrl,
+          trainerClientCount: users.clientCount,
+          trainerSubscriptionTier: users.subscriptionTier,
+          trainerCreatedAt: users.createdAt,
+        })
+        .from(gymTrainers)
+        .leftJoin(users, eq(users.id, gymTrainers.trainerId))
+        .where(eq(gymTrainers.gymId, gym.id))
+        .orderBy(desc(gymTrainers.invitedAt));
+
+      // Get session counts for last 30 days per trainer
+      const activeTrainerIds = rows
+        .filter((r) => r.trainerId && r.status === "active")
+        .map((r) => r.trainerId as string);
+
+      const sessionCounts: Record<string, number> = {};
+      if (activeTrainerIds.length > 0) {
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        // Get sessions via client relationships
+        const clientRels = await db
+          .select({ trainerId: clientRelationships.trainerId, clientId: clientRelationships.clientId })
+          .from(clientRelationships)
+          .where(and(inArray(clientRelationships.trainerId, activeTrainerIds), eq(clientRelationships.status, "active")));
+
+        const clientsByTrainer: Record<string, string[]> = {};
+        clientRels.forEach((r) => {
+          if (!clientsByTrainer[r.trainerId]) clientsByTrainer[r.trainerId] = [];
+          clientsByTrainer[r.trainerId].push(r.clientId);
+        });
+
+        const allClientIds = clientRels.map((r) => r.clientId);
+        if (allClientIds.length > 0) {
+          const sessions = await db
+            .select({ clientId: workoutSessions.clientId, count: sql<number>`count(*)::int` })
+            .from(workoutSessions)
+            .where(and(inArray(workoutSessions.clientId, allClientIds), gte(workoutSessions.completedAt, thirtyDaysAgo)))
+            .groupBy(workoutSessions.clientId);
+
+          sessions.forEach((s) => {
+            for (const [trainerId, clientIds] of Object.entries(clientsByTrainer)) {
+              if (clientIds.includes(s.clientId)) {
+                sessionCounts[trainerId] = (sessionCounts[trainerId] ?? 0) + s.count;
+              }
+            }
+          });
+        }
+      }
+
+      res.json(
+        rows.map((r) => ({
+          ...r,
+          sessionsLast30Days: sessionCounts[r.trainerId ?? ""] ?? 0,
+        }))
+      );
+    } catch (error) {
+      console.error("Error fetching gym trainers:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // POST /api/gym/trainers/invite — invite trainer by email
+  app.post("/api/gym/trainers/invite", isAuthenticated, requireGymOwner, async (req, res) => {
+    const schema = z.object({ email: z.string().email() });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Nieprawidłowy adres e-mail" });
+
+    try {
+      const user = req.user as any;
+      const gym = await getOwnerGym(user.id);
+      if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+
+      // Check trainer limit
+      const [countRow] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(gymTrainers)
+        .where(and(eq(gymTrainers.gymId, gym.id), inArray(gymTrainers.status, ["active", "invited"])));
+      if ((countRow?.count ?? 0) >= gym.maxTrainers) {
+        return res.status(409).json({ message: `Osiągnięto limit trenerów (${gym.maxTrainers}) dla Twojego pakietu` });
+      }
+
+      // Check if already invited
+      const existing = await db
+        .select()
+        .from(gymTrainers)
+        .where(and(eq(gymTrainers.gymId, gym.id), eq(gymTrainers.inviteEmail, parsed.data.email.toLowerCase())))
+        .limit(1);
+      if (existing.length > 0) return res.status(409).json({ message: "Ten trener jest już zaproszony lub aktywny" });
+
+      // Check if user with this email exists as trainer
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(and(eq(users.email, parsed.data.email.toLowerCase()), eq(users.role, "trainer")))
+        .limit(1);
+
+      const inviteCode = randomUUID().replace(/-/g, "").substring(0, 8).toUpperCase();
+      const [entry] = await db.insert(gymTrainers).values({
+        gymId: gym.id,
+        trainerId: existingUser?.id ?? null,
+        status: existingUser ? "active" : "invited",
+        inviteEmail: parsed.data.email.toLowerCase(),
+        inviteCode,
+        joinedAt: existingUser ? new Date() : null,
+      }).returning();
+
+      res.status(201).json(entry);
+    } catch (error) {
+      console.error("Error inviting trainer:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // PATCH /api/gym/trainers/:id/status — activate/suspend
+  app.patch("/api/gym/trainers/:id/status", isAuthenticated, requireGymOwner, async (req, res) => {
+    const schema = z.object({ status: z.enum(["active", "suspended"]) });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Nieprawidłowy status" });
+
+    try {
+      const user = req.user as any;
+      const gym = await getOwnerGym(user.id);
+      if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+
+      const [updated] = await db
+        .update(gymTrainers)
+        .set({ status: parsed.data.status })
+        .where(and(eq(gymTrainers.id, req.params.id), eq(gymTrainers.gymId, gym.id)))
+        .returning();
+      if (!updated) return res.status(404).json({ message: "Trener nie znaleziony" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating trainer status:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // DELETE /api/gym/trainers/:id — remove trainer from gym
+  app.delete("/api/gym/trainers/:id", isAuthenticated, requireGymOwner, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const gym = await getOwnerGym(user.id);
+      if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+
+      const [deleted] = await db
+        .delete(gymTrainers)
+        .where(and(eq(gymTrainers.id, req.params.id), eq(gymTrainers.gymId, gym.id)))
+        .returning();
+      if (!deleted) return res.status(404).json({ message: "Trener nie znaleziony" });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error removing trainer:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // GET /api/gym/trainer/:trainerId/detail — detailed trainer analytics
+  app.get("/api/gym/trainer/:trainerId/detail", isAuthenticated, requireGymOwner, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const gym = await getOwnerGym(user.id);
+      if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+
+      // Verify this trainer belongs to the gym
+      const [membership] = await db
+        .select()
+        .from(gymTrainers)
+        .where(and(eq(gymTrainers.gymId, gym.id), eq(gymTrainers.trainerId, req.params.trainerId)))
+        .limit(1);
+      if (!membership) return res.status(404).json({ message: "Trener nie należy do tej siłowni" });
+
+      const [trainer] = await db.select().from(users).where(eq(users.id, req.params.trainerId)).limit(1);
+      if (!trainer) return res.status(404).json({ message: "Trener nie znaleziony" });
+
+      // Get clients
+      const clients = await db
+        .select({
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+          profileImageUrl: users.profileImageUrl,
+          status: clientRelationships.status,
+          createdAt: clientRelationships.createdAt,
+        })
+        .from(clientRelationships)
+        .leftJoin(users, eq(users.id, clientRelationships.clientId))
+        .where(eq(clientRelationships.trainerId, req.params.trainerId))
+        .orderBy(desc(clientRelationships.createdAt));
+
+      const activeClientIds = clients.filter((c) => c.status === "active").map((c) => c.id);
+
+      // Sessions last 30 days
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      let sessionsLast30 = 0;
+      if (activeClientIds.length > 0) {
+        const [sRow] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(workoutSessions)
+          .where(and(inArray(workoutSessions.clientId, activeClientIds), gte(workoutSessions.completedAt, thirtyDaysAgo)));
+        sessionsLast30 = sRow?.count ?? 0;
+      }
+
+      // Plans created
+      const [plansRow] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(trainingPlans)
+        .where(eq(trainingPlans.trainerId, req.params.trainerId));
+
+      // Sessions per week for last 8 weeks (chart data)
+      const weeklyData: { week: string; sessions: number }[] = [];
+      if (activeClientIds.length > 0) {
+        for (let w = 7; w >= 0; w--) {
+          const from = new Date(Date.now() - (w + 1) * 7 * 24 * 60 * 60 * 1000);
+          const to = new Date(Date.now() - w * 7 * 24 * 60 * 60 * 1000);
+          const [wRow] = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(workoutSessions)
+            .where(and(inArray(workoutSessions.clientId, activeClientIds), gte(workoutSessions.completedAt, from), lt(workoutSessions.completedAt, to)));
+          const label = `${from.getDate()}.${from.getMonth() + 1}`;
+          weeklyData.push({ week: label, sessions: wRow?.count ?? 0 });
+        }
+      }
+
+      res.json({
+        trainer: {
+          id: trainer.id,
+          email: trainer.email,
+          firstName: trainer.firstName,
+          lastName: trainer.lastName,
+          profileImageUrl: trainer.profileImageUrl,
+          clientCount: trainer.clientCount,
+          subscriptionTier: trainer.subscriptionTier,
+          createdAt: trainer.createdAt,
+        },
+        membership,
+        stats: {
+          activeClients: activeClientIds.length,
+          totalClients: clients.length,
+          sessionsLast30,
+          plansCount: plansRow?.count ?? 0,
+        },
+        clients: clients.slice(0, 20),
+        weeklySessionChart: weeklyData,
+      });
+    } catch (error) {
+      console.error("Error fetching trainer detail:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // GET /api/gym/analytics — overall gym analytics
+  app.get("/api/gym/analytics", isAuthenticated, requireGymOwner, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const gym = await getOwnerGym(user.id);
+      if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+
+      const trainerRows = await db
+        .select({ trainerId: gymTrainers.trainerId })
+        .from(gymTrainers)
+        .where(and(eq(gymTrainers.gymId, gym.id), eq(gymTrainers.status, "active")));
+      const trainerIds = trainerRows.map((r) => r.trainerId).filter(Boolean) as string[];
+
+      let totalClients = 0;
+      let totalSessions = 0;
+      let totalPlans = 0;
+      const trainerBreakdown: any[] = [];
+
+      if (trainerIds.length > 0) {
+        for (const tid of trainerIds) {
+          const [trainer] = await db.select({ firstName: users.firstName, lastName: users.lastName, clientCount: users.clientCount }).from(users).where(eq(users.id, tid)).limit(1);
+          const [rels] = await db.select({ count: sql<number>`count(*)::int` }).from(clientRelationships).where(and(eq(clientRelationships.trainerId, tid), eq(clientRelationships.status, "active")));
+          const clientIds = (await db.select({ clientId: clientRelationships.clientId }).from(clientRelationships).where(and(eq(clientRelationships.trainerId, tid), eq(clientRelationships.status, "active")))).map((r) => r.clientId);
+          let sessionCount = 0;
+          if (clientIds.length > 0) {
+            const [sRow] = await db.select({ count: sql<number>`count(*)::int` }).from(workoutSessions).where(inArray(workoutSessions.clientId, clientIds));
+            sessionCount = sRow?.count ?? 0;
+          }
+          const [plansRow] = await db.select({ count: sql<number>`count(*)::int` }).from(trainingPlans).where(eq(trainingPlans.trainerId, tid));
+          const activeClients = rels?.count ?? 0;
+          totalClients += activeClients;
+          totalSessions += sessionCount;
+          totalPlans += plansRow?.count ?? 0;
+          trainerBreakdown.push({ trainerId: tid, name: trainer ? `${trainer.firstName} ${trainer.lastName}` : "—", activeClients, sessionCount, plansCount: plansRow?.count ?? 0 });
+        }
+      }
+
+      res.json({
+        gymId: gym.id,
+        gymName: gym.name,
+        planTier: gym.planTier,
+        maxTrainers: gym.maxTrainers,
+        activeTrainers: trainerIds.length,
+        totalClients,
+        totalSessions,
+        totalPlans,
+        trainerBreakdown,
+      });
+    } catch (error) {
+      console.error("Error fetching gym analytics:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // Public lookup: GET /api/gym/join/:code — trainer joins gym via invite code
+  app.post("/api/gym/join/:code", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (user.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy mogą dołączyć do siłowni" });
+
+      const [invite] = await db
+        .select()
+        .from(gymTrainers)
+        .where(and(eq(gymTrainers.inviteCode, req.params.code.toUpperCase()), eq(gymTrainers.status, "invited")))
+        .limit(1);
+      if (!invite) return res.status(404).json({ message: "Kod zaproszenia nieaktywny lub nieprawidłowy" });
+      if (invite.inviteEmail !== user.email) return res.status(403).json({ message: "Ten kod zaproszenia jest przeznaczony dla innego adresu e-mail" });
+
+      const [updated] = await db
+        .update(gymTrainers)
+        .set({ trainerId: user.id, status: "active", joinedAt: new Date() })
+        .where(eq(gymTrainers.id, invite.id))
+        .returning();
+      res.json(updated);
+    } catch (error) {
+      console.error("Error joining gym:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   return httpServer;
 }

@@ -1084,6 +1084,44 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Hasło jest wymagane"),
 });
 
+// ─── GYM (Siłownia) SYSTEM ────────────────────────────────────────────────────
+
+// Gym accounts — created by admin, owned by gym_owner users
+export const gyms = pgTable("gyms", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 255 }).notNull(),
+  ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  contactEmail: varchar("contact_email", { length: 255 }),
+  phone: varchar("phone", { length: 50 }),
+  address: text("address"),
+  planTier: varchar("plan_tier", { length: 50 }).default("starter").notNull(), // 'starter' (5 trenerów) | 'pro' (15) | 'enterprise' (nieograniczone)
+  maxTrainers: integer("max_trainers").default(5).notNull(),
+  logoUrl: varchar("logo_url"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Trainers belonging to a gym
+export const gymTrainers = pgTable("gym_trainers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  gymId: varchar("gym_id").notNull().references(() => gyms.id, { onDelete: "cascade" }),
+  trainerId: varchar("trainer_id").references(() => users.id, { onDelete: "cascade" }), // null = pending invite (user not yet registered)
+  status: varchar("status", { length: 20 }).default("invited").notNull(), // 'invited' | 'active' | 'suspended'
+  inviteEmail: varchar("invite_email", { length: 255 }).notNull(),
+  inviteCode: varchar("invite_code", { length: 16 }),
+  invitedAt: timestamp("invited_at").defaultNow().notNull(),
+  joinedAt: timestamp("joined_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertGymSchema = createInsertSchema(gyms).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertGymTrainerSchema = createInsertSchema(gymTrainers).omit({ id: true, createdAt: true, invitedAt: true });
+
+export type Gym = typeof gyms.$inferSelect;
+export type GymTrainer = typeof gymTrainers.$inferSelect;
+export type InsertGymInput = z.infer<typeof insertGymSchema>;
+export type InsertGymTrainerInput = z.infer<typeof insertGymTrainerSchema>;
+
 export type InsertTrainingPlanInput = z.infer<typeof insertTrainingPlanSchema>;
 export type InsertWorkoutInput = z.infer<typeof insertWorkoutSchema>;
 export type InsertExerciseInput = z.infer<typeof insertExerciseSchema>;

@@ -8,11 +8,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import * as Haptics from "expo-haptics";
-import { useUnreadCount } from "@/hooks/useChat";
 
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
 
-function TrainerDrawerContent(props: DrawerContentComponentProps) {
+function GymDrawerContent(props: DrawerContentComponentProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
@@ -33,7 +32,7 @@ function TrainerDrawerContent(props: DrawerContentComponentProps) {
           </View>
           <View style={styles.headerInfo}>
             <Text style={styles.headerName}>{user?.firstName} {user?.lastName}</Text>
-            <Text style={styles.headerRole}>Trener</Text>
+            <Text style={styles.headerRole}>Siłownia</Text>
           </View>
         </View>
       </View>
@@ -53,7 +52,7 @@ function TrainerDrawerContent(props: DrawerContentComponentProps) {
             styles.logoutBtn,
             { backgroundColor: colors.destructive + "18", opacity: pressed ? 0.7 : 1 },
           ]}
-          testID="button-logout"
+          testID="button-logout-gym"
         >
           <Ionicons name="log-out-outline" size={20} color={colors.destructive} />
           <Text style={[styles.logoutText, { color: colors.destructive }]}>Wyloguj się</Text>
@@ -63,10 +62,8 @@ function TrainerDrawerContent(props: DrawerContentComponentProps) {
   );
 }
 
-export default function TrainerLayout() {
+export default function GymLayout() {
   const colors = useColors();
-  const { data: unreadData } = useUnreadCount();
-  const unreadCount = unreadData?.count ?? 0;
 
   type DrawerScreen = {
     name: string;
@@ -77,30 +74,16 @@ export default function TrainerLayout() {
   };
 
   const screens: DrawerScreen[] = [
-    { name: "index", title: "Klienci", icon: "people-outline", iconFocused: "people" },
-    { name: "plans", title: "Plany treningowe", icon: "clipboard-outline", iconFocused: "clipboard" },
-    { name: "exercise-library", title: "Biblioteka ćwiczeń", icon: "barbell-outline", iconFocused: "barbell" },
-    { name: "diets", title: "Diety", icon: "nutrition-outline", iconFocused: "nutrition" },
-    { name: "invitations", title: "Zaproszenia", icon: "mail-outline", iconFocused: "mail" },
-    {
-      name: "chat",
-      title: "Wiadomości",
-      icon: "chatbubble-outline",
-      iconFocused: "chatbubble",
-    },
-    { name: "payments", title: "Płatności", icon: "wallet-outline", iconFocused: "wallet" },
-    { name: "referrals", title: "Polecenia", icon: "gift-outline", iconFocused: "gift" },
-    { name: "notifications", title: "Powiadomienia", icon: "notifications-outline", iconFocused: "notifications" },
-    { name: "profile", title: "Profil i subskrypcja", icon: "person-circle-outline", iconFocused: "person-circle" },
-    { name: "client/[id]", title: "Klient", icon: "person-outline", iconFocused: "person", hidden: true },
-    { name: "plan/[id]", title: "Plan treningowy", icon: "clipboard-outline", iconFocused: "clipboard", hidden: true },
-    { name: "diet/[id]", title: "Plan diety", icon: "nutrition-outline", iconFocused: "nutrition", hidden: true },
-    { name: "admin-gyms", title: "Admin — Siłownie", icon: "business-outline", iconFocused: "business", hidden: true },
+    { name: "index", title: "Panel główny", icon: "grid-outline", iconFocused: "grid" },
+    { name: "trainers", title: "Trenerzy", icon: "people-outline", iconFocused: "people" },
+    { name: "analytics", title: "Analityka", icon: "bar-chart-outline", iconFocused: "bar-chart" },
+    { name: "profile", title: "Profil siłowni", icon: "business-outline", iconFocused: "business" },
+    { name: "trainer/[id]", title: "Trener", icon: "person-outline", iconFocused: "person", hidden: true },
   ];
 
   return (
     <Drawer
-      drawerContent={(props) => <TrainerDrawerContent {...props} />}
+      drawerContent={(props) => <GymDrawerContent {...props} />}
       screenOptions={{
         headerShown: true,
         headerStyle: { backgroundColor: colors.background },
@@ -124,19 +107,9 @@ export default function TrainerLayout() {
             drawerItemStyle: s.hidden
               ? { display: "none" }
               : { borderRadius: 10, marginHorizontal: 8, marginVertical: 2 },
-            drawerIcon: ({ focused, color }) =>
-              s.name === "chat" && unreadCount > 0 ? (
-                <View style={{ position: "relative" }}>
-                  <Ionicons name={focused ? "chatbubble" : "chatbubble-outline"} size={22} color={color} />
-                  <View style={styles.chatBadge}>
-                    <Text style={styles.chatBadgeText}>
-                      {unreadCount > 9 ? "9+" : unreadCount}
-                    </Text>
-                  </View>
-                </View>
-              ) : (
-                <Ionicons name={focused ? s.iconFocused : s.icon} size={22} color={color} />
-              ),
+            drawerIcon: ({ focused, color }) => (
+              <Ionicons name={focused ? s.iconFocused : s.icon} size={22} color={color} />
+            ),
           }}
         />
       ))}
@@ -146,47 +119,15 @@ export default function TrainerLayout() {
 
 const styles = StyleSheet.create({
   drawerContainer: { flex: 1 },
-  drawerHeader: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
+  drawerHeader: { paddingHorizontal: 20, paddingBottom: 20 },
   avatarRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  avatar: { width: 52, height: 52, borderRadius: 26, justifyContent: "center", alignItems: "center" },
   avatarText: { color: "#fff", fontSize: 20, fontFamily: "Inter_700Bold" },
   headerInfo: { flex: 1 },
   headerName: { color: "#fff", fontSize: 16, fontFamily: "Inter_700Bold" },
   headerRole: { color: "rgba(255,255,255,0.75)", fontSize: 13, fontFamily: "Inter_400Regular" },
   scrollContent: { paddingTop: 8 },
-  drawerFooter: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-  },
-  logoutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 14,
-    borderRadius: 12,
-  },
+  drawerFooter: { paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1 },
+  logoutBtn: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 12 },
   logoutText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  chatBadge: {
-    position: "absolute",
-    top: -5,
-    right: -7,
-    backgroundColor: "#ef4444",
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 3,
-  },
-  chatBadgeText: { color: "#fff", fontSize: 10, fontFamily: "Inter_700Bold" },
 });
