@@ -9,7 +9,8 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
@@ -21,6 +22,7 @@ import {
   useMarkAsRead,
   type ChatMessage,
 } from "@/hooks/useChat";
+
 function formatMessageTime(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
@@ -38,6 +40,15 @@ function formatMessageTime(dateStr: string): string {
     date.getDate() === yesterday.getDate();
   if (isYesterday) return `wczoraj ${hhmm}`;
   return date.toLocaleDateString("pl-PL", { day: "numeric", month: "short" }) + `, ${hhmm}`;
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 }
 
 function MessageBubble({
@@ -123,17 +134,23 @@ export default function ClientChatScreen() {
     );
   }
 
+  // No trainer relationship at all
   if (!conversation) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background, paddingTop: topPad }]}>
-        <Ionicons name="chatbubble-outline" size={48} color={colors.mutedForeground} />
-        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Brak konwersacji</Text>
+        <View style={[styles.emptyIconBox, { backgroundColor: colors.primary + "14" }]}>
+          <Ionicons name="chatbubble-ellipses-outline" size={36} color={colors.primary} />
+        </View>
+        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Brak trenera</Text>
         <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
-          Twój trener pojawi się tutaj po nawiązaniu współpracy.
+          Gdy trener zaprosi Cię do współpracy, tutaj będziesz mógł się z nim kontaktować.
         </Text>
       </View>
     );
   }
+
+  const trainerInitials = getInitials(conversation.partnerName);
+  const hasMessages = messages.length > 0;
 
   return (
     <KeyboardAvoidingView
@@ -141,9 +158,10 @@ export default function ClientChatScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
+      {/* Chat header */}
       <View style={[styles.chatHeader, { paddingTop: topPad + 12, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
         <View style={[styles.avatarSmall, { backgroundColor: colors.primary + "20" }]}>
-          <Ionicons name="person-outline" size={18} color={colors.primary} />
+          <Text style={[styles.avatarSmallText, { color: colors.primary }]}>{trainerInitials}</Text>
         </View>
         <View>
           <Text style={[styles.chatHeaderName, { color: colors.foreground }]}>
@@ -153,6 +171,7 @@ export default function ClientChatScreen() {
         </View>
       </View>
 
+      {/* Messages list */}
       <FlatList
         ref={flatListRef}
         data={messages}
@@ -171,21 +190,28 @@ export default function ClientChatScreen() {
         )}
         ListEmptyComponent={
           <View style={styles.emptyMessages}>
+            <View style={[styles.emptyIconBox, { backgroundColor: colors.primary + "12" }]}>
+              <Ionicons name="chatbubble-ellipses-outline" size={32} color={colors.primary} />
+            </View>
+            <Text style={[styles.emptyMessagesTitle, { color: colors.foreground }]}>
+              Napisz do {conversation.partnerName.split(" ")[0]}
+            </Text>
             <Text style={[styles.emptyMessagesText, { color: colors.mutedForeground }]}>
-              Brak wiadomości. Napisz pierwszą wiadomość!
+              Masz pytanie o plan, dietę lub trening?{"\n"}Twój trener jest tutaj, żeby pomóc.
             </Text>
           </View>
         }
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
       />
 
+      {/* Input row */}
       <View style={[styles.inputRow, { borderTopColor: colors.border, backgroundColor: colors.background, paddingBottom: insets.bottom + 8 }]}>
         <TextInput
           style={[
             styles.input,
             { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground },
           ]}
-          placeholder="Napisz wiadomość..."
+          placeholder={hasMessages ? "Napisz wiadomość..." : `Napisz do ${conversation.partnerName.split(" ")[0]}...`}
           placeholderTextColor={colors.mutedForeground}
           value={inputText}
           onChangeText={setInputText}
@@ -220,9 +246,22 @@ export default function ClientChatScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12, paddingHorizontal: 32 },
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 14,
+    paddingHorizontal: 36,
+  },
+  emptyIconBox: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold", textAlign: "center" },
-  emptyDesc: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
+  emptyDesc: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22 },
   chatHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -232,15 +271,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   avatarSmall: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
   },
+  avatarSmallText: { fontSize: 14, fontFamily: "Inter_700Bold" },
   chatHeaderName: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
   chatHeaderRole: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  messageList: { paddingHorizontal: 16, paddingTop: 12, gap: 4 },
+  messageList: { paddingHorizontal: 16, paddingTop: 12, gap: 4, flexGrow: 1 },
   bubbleRow: { marginVertical: 3 },
   bubbleRowOwn: { alignItems: "flex-end" },
   bubbleRowOther: { alignItems: "flex-start" },
@@ -253,8 +293,15 @@ const styles = StyleSheet.create({
   },
   bubbleText: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 21 },
   bubbleTime: { fontSize: 11, fontFamily: "Inter_400Regular", textAlign: "right" },
-  emptyMessages: { flex: 1, paddingVertical: 40, alignItems: "center" },
-  emptyMessagesText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  emptyMessages: {
+    flex: 1,
+    paddingVertical: 48,
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 32,
+  },
+  emptyMessagesTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold", textAlign: "center" },
+  emptyMessagesText: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
   inputRow: {
     flexDirection: "row",
     alignItems: "flex-end",

@@ -2,6 +2,7 @@ import {
   ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -24,6 +25,7 @@ import {
   type Conversation,
   type ChatMessage,
 } from "@/hooks/useChat";
+
 function formatMessageTime(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
@@ -43,6 +45,15 @@ function formatMessageTime(dateStr: string): string {
   return date.toLocaleDateString("pl-PL", { day: "numeric", month: "short" }) + `, ${hhmm}`;
 }
 
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
 function ConversationItem({
   conversation,
   onPress,
@@ -52,13 +63,6 @@ function ConversationItem({
   onPress: () => void;
   colors: ReturnType<typeof useColors>;
 }) {
-  const initials = conversation.partnerName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-
   return (
     <Pressable
       onPress={onPress}
@@ -69,7 +73,9 @@ function ConversationItem({
       testID={`button-conversation-${conversation.partnerId}`}
     >
       <View style={[styles.convAvatar, { backgroundColor: colors.primary + "20" }]}>
-        <Text style={[styles.convAvatarText, { color: colors.primary }]}>{initials}</Text>
+        <Text style={[styles.convAvatarText, { color: colors.primary }]}>
+          {getInitials(conversation.partnerName)}
+        </Text>
       </View>
       <View style={styles.convInfo}>
         <Text style={[styles.convName, { color: colors.foreground }]} numberOfLines={1}>
@@ -81,7 +87,7 @@ function ConversationItem({
           </Text>
         ) : (
           <Text style={[styles.convLastMsg, { color: colors.mutedForeground }]}>
-            Brak wiadomości
+            Napisz pierwszą wiadomość
           </Text>
         )}
       </View>
@@ -144,6 +150,7 @@ export default function TrainerChatScreen() {
   const { user } = useAuth();
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [inputText, setInputText] = useState("");
+  const [composeOpen, setComposeOpen] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -172,6 +179,7 @@ export default function TrainerChatScreen() {
   function handleSelectConversation(conv: Conversation) {
     setSelected(conv);
     setInputText("");
+    setComposeOpen(false);
   }
 
   function handleBack() {
@@ -190,6 +198,16 @@ export default function TrainerChatScreen() {
       clientId: selected.clientId,
     });
   }
+
+  // Sort conversations: those with messages first (by recency), then without (alphabetically)
+  const sortedForCompose = [...conversations].sort((a, b) => {
+    if (a.lastMessageAt && b.lastMessageAt) {
+      return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
+    }
+    if (a.lastMessageAt) return -1;
+    if (b.lastMessageAt) return 1;
+    return a.partnerName.localeCompare(b.partnerName, "pl");
+  });
 
   if (selected) {
     return (
@@ -212,13 +230,15 @@ export default function TrainerChatScreen() {
             <Ionicons name="arrow-back" size={24} color={colors.primary} />
           </Pressable>
           <View style={[styles.avatarSmall, { backgroundColor: colors.primary + "20" }]}>
-            <Ionicons name="person-outline" size={18} color={colors.primary} />
+            <Text style={[styles.avatarSmallText, { color: colors.primary }]}>
+              {getInitials(selected.partnerName)}
+            </Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.chatHeaderName, { color: colors.foreground }]}>
               {selected.partnerName}
             </Text>
-            <Text style={[styles.chatHeaderRole, { color: colors.mutedForeground }]}>Klient</Text>
+            <Text style={[styles.chatHeaderRole, { color: colors.mutedForeground }]}>Podopieczny</Text>
           </View>
         </View>
 
@@ -238,8 +258,9 @@ export default function TrainerChatScreen() {
             )}
             ListEmptyComponent={
               <View style={styles.emptyMessages}>
+                <Ionicons name="chatbubble-ellipses-outline" size={32} color={colors.mutedForeground} />
                 <Text style={[styles.emptyMessagesText, { color: colors.mutedForeground }]}>
-                  Brak wiadomości. Napisz pierwszą wiadomość!
+                  Napisz pierwszą wiadomość do {selected.partnerName.split(" ")[0]}
                 </Text>
               </View>
             }
@@ -311,6 +332,20 @@ export default function TrainerChatScreen() {
             </Text>
           </View>
         )}
+        <View style={{ flex: 1 }} />
+        {conversations.length > 0 && (
+          <Pressable
+            onPress={() => setComposeOpen(true)}
+            style={({ pressed }) => [
+              styles.composeBtn,
+              { backgroundColor: colors.primary + "14", opacity: pressed ? 0.7 : 1 },
+            ]}
+            testID="button-compose-message"
+          >
+            <Ionicons name="create-outline" size={20} color={colors.primary} />
+            <Text style={[styles.composeBtnText, { color: colors.primary }]}>Nowa</Text>
+          </Pressable>
+        )}
       </View>
 
       {convsLoading ? (
@@ -320,9 +355,9 @@ export default function TrainerChatScreen() {
       ) : conversations.length === 0 ? (
         <View style={[styles.emptyBox, { paddingTop: 60 }]}>
           <Ionicons name="chatbubbles-outline" size={48} color={colors.mutedForeground} />
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Brak konwersacji</Text>
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Brak podopiecznych</Text>
           <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
-            Konwersacje pojawią się tutaj, gdy klienci zaczną pisać wiadomości.
+            Zaproś podopiecznych do aplikacji, żeby móc się z nimi komunikować.
           </Text>
         </View>
       ) : (
@@ -343,6 +378,73 @@ export default function TrainerChatScreen() {
           ))}
         </ScrollView>
       )}
+
+      {/* Compose modal — pick a client to message */}
+      <Modal
+        visible={composeOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setComposeOpen(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setComposeOpen(false)}
+        >
+          <Pressable
+            style={[styles.modalSheet, { backgroundColor: colors.background }]}
+            onPress={() => {/* prevent close on sheet tap */}}
+          >
+            <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+                Nowa wiadomość
+              </Text>
+              <Pressable
+                onPress={() => setComposeOpen(false)}
+                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+                testID="button-close-compose"
+              >
+                <Ionicons name="close" size={24} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+            <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>
+              Wybierz podopiecznego
+            </Text>
+            <ScrollView
+              style={styles.modalList}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+            >
+              {sortedForCompose.map((conv) => (
+                <Pressable
+                  key={conv.partnerId}
+                  onPress={() => handleSelectConversation(conv)}
+                  style={({ pressed }) => [
+                    styles.modalItem,
+                    { borderColor: colors.border, backgroundColor: pressed ? colors.card : "transparent" },
+                  ]}
+                  testID={`button-compose-client-${conv.partnerId}`}
+                >
+                  <View style={[styles.convAvatar, { backgroundColor: colors.primary + "20" }]}>
+                    <Text style={[styles.convAvatarText, { color: colors.primary }]}>
+                      {getInitials(conv.partnerName)}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.convName, { color: colors.foreground }]}>
+                      {conv.partnerName}
+                    </Text>
+                    <Text style={[styles.convLastMsg, { color: colors.mutedForeground }]}>
+                      {conv.lastMessage ?? "Brak wiadomości — napisz pierwszy"}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -361,6 +463,15 @@ const styles = StyleSheet.create({
   listTitle: { fontSize: 22, fontFamily: "Inter_700Bold" },
   countBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
   countText: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  composeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+  composeBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   convList: { paddingHorizontal: 16, paddingTop: 10, gap: 8 },
   convItem: {
     flexDirection: "row",
@@ -407,6 +518,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  avatarSmallText: { fontSize: 13, fontFamily: "Inter_700Bold" },
   chatHeaderName: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
   chatHeaderRole: { fontSize: 12, fontFamily: "Inter_400Regular" },
   messageList: { paddingHorizontal: 16, paddingTop: 12, gap: 4 },
@@ -422,7 +534,7 @@ const styles = StyleSheet.create({
   },
   bubbleText: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 21 },
   bubbleTime: { fontSize: 11, fontFamily: "Inter_400Regular", textAlign: "right" },
-  emptyMessages: { flex: 1, paddingVertical: 40, alignItems: "center" },
+  emptyMessages: { flex: 1, paddingVertical: 40, alignItems: "center", gap: 10 },
   emptyMessagesText: { fontSize: 14, fontFamily: "Inter_400Regular" },
   inputRow: {
     flexDirection: "row",
@@ -452,4 +564,47 @@ const styles = StyleSheet.create({
   emptyBox: { flex: 1, alignItems: "center", gap: 12, paddingHorizontal: 32 },
   emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold", textAlign: "center" },
   emptyDesc: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
+  // Modal
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "80%",
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  modalSubtitle: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  modalList: { paddingHorizontal: 16 },
+  modalItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
 });
