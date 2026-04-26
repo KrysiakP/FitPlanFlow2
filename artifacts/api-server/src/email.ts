@@ -419,12 +419,16 @@ Panel Trenera - Polska marka
   }
 }
 
+const IOS_APP_URL = "https://apps.apple.com/pl/app/panel-trenera/id6746818671";
+const ANDROID_APP_URL = "https://play.google.com/store/apps/details?id=com.paneltrenera.app";
+
 interface SendClientInvitationEmailParams {
   email: string;
   clientFirstName: string;
   trainerName: string;
   trainerFirstName: string;
-  appDownloadUrl?: string;
+  iosUrl?: string;
+  androidUrl?: string;
 }
 
 export async function sendClientInvitationEmail({
@@ -432,7 +436,8 @@ export async function sendClientInvitationEmail({
   clientFirstName,
   trainerName,
   trainerFirstName,
-  appDownloadUrl = "https://paneltrenera.pl/pobierz",
+  iosUrl = IOS_APP_URL,
+  androidUrl = ANDROID_APP_URL,
 }: SendClientInvitationEmailParams): Promise<boolean> {
   try {
     console.log('[EMAIL] Sending client invitation email to:', email);
@@ -454,7 +459,7 @@ export async function sendClientInvitationEmail({
         </head>
         <body style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #0d9488; margin: 0; font-size: 28px;">Panel Trenera</h1>
+            <h1 style="color: #0846ab; margin: 0; font-size: 28px;">Panel Trenera</h1>
           </div>
 
           <div style="background-color: #f8fafc; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
@@ -470,18 +475,32 @@ export async function sendClientInvitationEmail({
               <li>Komunikować się z trenerem w jednym miejscu</li>
             </ul>
 
-            <p>Pobierz aplikację i zarejestruj się — Twój trener połączy się z Tobą automatycznie po akceptacji zaproszenia.</p>
+            <p>Pobierz aplikację i zarejestruj się przy użyciu tego samego adresu e-mail — Twój trener połączy się z Tobą automatycznie.</p>
 
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${appDownloadUrl}"
-                 style="display: inline-block; background-color: #0d9488; color: white; text-decoration: none; padding: 14px 30px; border-radius: 8px; font-weight: 600; font-size: 16px;">
-                Pobierz aplikację
-              </a>
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center">
+                <tr>
+                  <td style="padding-right: 10px;">
+                    <a href="${iosUrl}"
+                       style="display: inline-block; background-color: #000000; color: white; text-decoration: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; font-size: 14px; line-height: 1.3; text-align: left; min-width: 140px;">
+                      <span style="display: block; font-size: 10px; font-weight: 400; opacity: 0.85; margin-bottom: 2px;">Pobierz w</span>
+                      <span style="display: block; font-size: 16px;">&#xF8FF; App Store</span>
+                    </a>
+                  </td>
+                  <td style="padding-left: 10px;">
+                    <a href="${androidUrl}"
+                       style="display: inline-block; background-color: #000000; color: white; text-decoration: none; padding: 12px 20px; border-radius: 10px; font-weight: 600; font-size: 14px; line-height: 1.3; text-align: left; min-width: 140px;">
+                      <span style="display: block; font-size: 10px; font-weight: 400; opacity: 0.85; margin-bottom: 2px;">Pobierz w</span>
+                      <span style="display: block; font-size: 16px;">&#x25B6; Google Play</span>
+                    </a>
+                  </td>
+                </tr>
+              </table>
             </div>
 
-            <p style="color: #64748b; font-size: 14px;">
-              Jeśli przycisk nie działa, skopiuj i wklej ten link do przeglądarki:<br>
-              <a href="${appDownloadUrl}" style="color: #0d9488; word-break: break-all;">${appDownloadUrl}</a>
+            <p style="color: #64748b; font-size: 13px; text-align: center;">
+              iPhone / iPad: <a href="${iosUrl}" style="color: #0846ab; word-break: break-all;">${iosUrl}</a><br>
+              Android: <a href="${androidUrl}" style="color: #0846ab; word-break: break-all;">${androidUrl}</a>
             </p>
           </div>
 
@@ -499,9 +518,13 @@ ${greeting}
 
 Twój trener ${trainerName} zaprasza Cię do korzystania z aplikacji Panel Trenera.
 
-Pobierz aplikację i zarejestruj się — Twój trener połączy się z Tobą automatycznie po akceptacji zaproszenia.
+Pobierz aplikację i zarejestruj się przy użyciu tego samego adresu e-mail — Twój trener połączy się z Tobą automatycznie.
 
-Pobierz aplikację: ${appDownloadUrl}
+iPhone / iPad (App Store):
+${iosUrl}
+
+Android (Google Play):
+${androidUrl}
 
 Panel Trenera - Polska marka
 © ${new Date().getFullYear()} Wszelkie prawa zastrzeżone

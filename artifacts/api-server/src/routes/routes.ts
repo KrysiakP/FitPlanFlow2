@@ -2997,7 +2997,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           clientFirstName: validationResult.data.clientFirstName ?? "",
           trainerName: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || "Trener",
           trainerFirstName: user.firstName ?? "Twój trener",
-          appDownloadUrl: "https://paneltrenera.pl",
         });
       }
     } catch (error) {
