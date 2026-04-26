@@ -182,6 +182,7 @@ export interface IStorage {
   // Plan invitation operations
   createInvitation(trainerId: string, data: InsertPlanInvitationInput): Promise<PlanInvitation>;
   getInvitation(invitationId: string): Promise<PlanInvitation | null>;
+  getInvitationByCode(code: string): Promise<PlanInvitation | null>;
   getClientInvitations(clientEmail: string): Promise<PlanInvitation[]>;
   acceptInvitation(invitationId: string, clientId: string): Promise<void>;
   rejectInvitation(invitationId: string, clientId: string): Promise<void>;
@@ -1320,6 +1321,15 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Plan invitation operations
+  private generateInvitationCode(): string {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // bez 0/O, 1/I/L
+    let code = "";
+    for (let i = 0; i < 8; i++) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return code;
+  }
+
   async createInvitation(trainerId: string, data: InsertPlanInvitationInput): Promise<PlanInvitation> {
     const clientEmail = data.clientEmail.toLowerCase();
     const { planId } = data;
@@ -1371,17 +1381,43 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
+    // Generuj unikalny kod (retry przy kolizji)
+    let invitationCode: string | null = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const candidate = this.generateInvitationCode();
+      const [existing] = await db
+        .select({ id: planInvitations.id })
+        .from(planInvitations)
+        .where(eq(planInvitations.invitationCode, candidate))
+        .limit(1);
+      if (!existing) {
+        invitationCode = candidate;
+        break;
+      }
+    }
+
     const [invitation] = await db
       .insert(planInvitations)
       .values({
         trainerId,
         clientEmail,
+        clientFirstName: data.clientFirstName ?? null,
         planId: planId || null,
         status: "pending",
+        invitationCode,
       })
       .returning();
     
     return invitation;
+  }
+
+  async getInvitationByCode(code: string): Promise<PlanInvitation | null> {
+    const [row] = await db
+      .select()
+      .from(planInvitations)
+      .where(eq(planInvitations.invitationCode, code.toUpperCase()))
+      .limit(1);
+    return row ?? null;
   }
   
   async getInvitation(invitationId: string): Promise<PlanInvitation | null> {

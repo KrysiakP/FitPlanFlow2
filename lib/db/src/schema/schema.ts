@@ -209,8 +209,10 @@ export const planInvitations = pgTable("plan_invitations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   trainerId: varchar("trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   clientEmail: varchar("client_email").notNull(), // email podopiecznego
+  clientFirstName: varchar("client_first_name", { length: 100 }), // imię podopiecznego (opcjonalne)
   planId: varchar("plan_id").references(() => trainingPlans.id, { onDelete: "cascade" }), // NULLABLE - zaproszenie może być bez planu
   status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, accepted, rejected
+  invitationCode: varchar("invitation_code", { length: 8 }).unique(), // krótki unikalny kod do rejestracji
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -928,10 +930,12 @@ export const insertPlanInvitationSchema = createInsertSchema(planInvitations).om
   id: true,
   trainerId: true,
   status: true,
+  invitationCode: true, // generowany po stronie serwera
   createdAt: true,
   updatedAt: true,
 }).extend({
   planId: z.string().uuid().optional().nullable(), // planId is optional - can invite without plan
+  clientFirstName: z.string().max(100).optional().nullable(),
 });
 
 export const insertCharityDonationSchema = createInsertSchema(charityDonations).omit({

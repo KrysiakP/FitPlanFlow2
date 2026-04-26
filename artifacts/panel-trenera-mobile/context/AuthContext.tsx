@@ -169,10 +169,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void registerPushToken();
   }, []);
 
-  const register = useCallback(async (firstName: string, email: string, password: string, role: "client" | "trainer" = "client", lastName?: string) => {
+  const register = useCallback(async (firstName: string, email: string, password: string, role: "client" | "trainer" = "client", lastName?: string, invitationCode?: string) => {
     const res = await apiFetch("/api/auth/register", {
       method: "POST",
-      body: JSON.stringify({ firstName, lastName: lastName ?? "", email, password, role }),
+      body: JSON.stringify({ firstName, lastName: lastName ?? "", email, password, role, ...(invitationCode ? { invitationCode } : {}) }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({})) as { message?: string };

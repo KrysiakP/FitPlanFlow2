@@ -796,6 +796,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: z.string().min(1, "Imię jest wymagane"),
         lastName: z.string().optional().default(""),
         role: z.enum(["client", "trainer"]).optional().default("client"),
+        invitationCode: z.string().optional(),
       });
 
       const validationResult = mobileRegisterSchema.safeParse(req.body);
@@ -806,7 +807,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { email, password, firstName, lastName, role } = validationResult.data;
+      const { email, password, firstName, lastName, role, invitationCode } = validationResult.data;
+
+      // Jeśli podano kod zaproszenia — waliduj że email zgadza się z zaproszonym emailem
+      if (invitationCode) {
+        const invitation = await storage.getInvitationByCode(invitationCode);
+        if (!invitation) {
+          return res.status(400).json({ message: "Nieprawidłowy kod zaproszenia" });
+        }
+        if (invitation.status !== "pending") {
+          return res.status(400).json({ message: "To zaproszenie zostało już wykorzystane" });
+        }
+        if (invitation.clientEmail.toLowerCase() !== email.toLowerCase()) {
+          return res.status(400).json({
+            message: `Musisz zarejestrować się na adres e-mail: ${invitation.clientEmail}`,
+          });
+        }
+      }
 
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
@@ -2997,11 +3014,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
           clientFirstName: validationResult.data.clientFirstName ?? "",
           trainerName: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || "Trener",
           trainerFirstName: user.firstName ?? "Twój trener",
+          invitationCode: invitation.invitationCode ?? undefined,
         });
       }
     } catch (error) {
       console.error("Error sending invitation:", error);
       res.status(500).json({ message: "Nie udało się wysłać zaproszenia" });
+    }
+  });
+
+  // Public endpoint: lookup invitation by code (no auth required)
+  app.get("/api/invitations/lookup/:code", async (req, res) => {
+    try {
+      const code = (req.params.code ?? "").toUpperCase().trim();
+      if (!code || code.length !== 8) {
+        return res.status(400).json({ message: "Nieprawidłowy kod zaproszenia" });
+      }
+      const invitation = await storage.getInvitationByCode(code);
+      if (!invitation) {
+        return res.status(404).json({ message: "Nie znaleziono zaproszenia o tym kodzie" });
+      }
+      if (invitation.status !== "pending") {
+        return res.status(410).json({ message: "To zaproszenie zostało już wykorzystane" });
+      }
+      const trainer = await storage.getUser(invitation.trainerId);
+      const trainerName = trainer
+        ? `${trainer.firstName ?? ""} ${trainer.lastName ?? ""}`.trim() || trainer.email
+        : "Twój trener";
+      return res.json({
+        email: invitation.clientEmail,
+        clientFirstName: invitation.clientFirstName ?? null,
+        trainerName,
+      });
+    } catch (error) {
+      console.error("Error looking up invitation:", error);
+      res.status(500).json({ message: "Błąd serwera" });
     }
   });
 

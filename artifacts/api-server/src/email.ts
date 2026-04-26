@@ -427,6 +427,7 @@ interface SendClientInvitationEmailParams {
   clientFirstName: string;
   trainerName: string;
   trainerFirstName: string;
+  invitationCode?: string;
   iosUrl?: string;
   androidUrl?: string;
 }
@@ -436,6 +437,7 @@ export async function sendClientInvitationEmail({
   clientFirstName,
   trainerName,
   trainerFirstName,
+  invitationCode,
   iosUrl = IOS_APP_URL,
   androidUrl = ANDROID_APP_URL,
 }: SendClientInvitationEmailParams): Promise<boolean> {
@@ -475,7 +477,14 @@ export async function sendClientInvitationEmail({
               <li>Komunikować się z trenerem w jednym miejscu</li>
             </ul>
 
-            <p>Pobierz aplikację i zarejestruj się przy użyciu tego samego adresu e-mail — Twój trener połączy się z Tobą automatycznie.</p>
+            ${invitationCode ? `
+            <div style="background-color: #e8f0fc; border-radius: 10px; padding: 20px 24px; margin: 24px 0; text-align: center;">
+              <p style="margin: 0 0 8px 0; color: #0846ab; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;">Twój kod zaproszenia</p>
+              <p style="margin: 0; font-size: 32px; font-weight: 800; letter-spacing: 0.25em; color: #0846ab; font-family: 'Courier New', monospace;">${invitationCode}</p>
+              <p style="margin: 12px 0 0 0; color: #475569; font-size: 12px;">Wpisz ten kod podczas rejestracji, aby automatycznie dołączyć do swojego trenera.</p>
+              <p style="margin: 4px 0 0 0; color: #64748b; font-size: 12px;">Rejestracja musi być dokonana na adres: <strong>${email}</strong></p>
+            </div>
+            ` : `<p>Pobierz aplikację i zarejestruj się przy użyciu adresu e-mail <strong>${email}</strong> — Twój trener połączy się z Tobą automatycznie.</p>`}
 
             <div style="text-align: center; margin: 30px 0;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center">
@@ -518,7 +527,7 @@ ${greeting}
 
 Twój trener ${trainerName} zaprasza Cię do korzystania z aplikacji Panel Trenera.
 
-Pobierz aplikację i zarejestruj się przy użyciu tego samego adresu e-mail — Twój trener połączy się z Tobą automatycznie.
+${invitationCode ? `Twój kod zaproszenia: ${invitationCode}\nWpisz go podczas rejestracji w aplikacji. Rejestracja musi być dokonana na adres: ${email}` : `Pobierz aplikację i zarejestruj się przy użyciu adresu e-mail ${email} — Twój trener połączy się z Tobą automatycznie.`}
 
 iPhone / iPad (App Store):
 ${iosUrl}

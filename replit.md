@@ -52,6 +52,7 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 - **Bulk remind all** — trainer can notify all clients at once via `POST /api/trainer/clients/remind-all`; button in mobile clients list
 - **Weekly reports on mobile** — client can create/edit reports (`(client)/weekly-report.tsx`, hidden tab, accessible via quick-access card); trainer sees all client reports with unread badge in `(trainer)/client/[id].tsx`; unread reports marked as viewed automatically
 - **Terms of Service** — full Polish terms screen at `app/(auth)/terms.tsx`; registration requires checkbox acceptance before account creation (`app/(auth)/register.tsx`)
+- **Invitation code enforcement** — trainer invitations now generate an 8-char unique code (`invitation_code` in `plan_invitations` table); code is shown prominently in the invitation email; registration screen has an optional "Kod zaproszenia" field that auto-looks up the invitation, pre-fills and locks the email address to match the invited email, and shows a "Zaproszenie potwierdzone" banner with trainer name; server validates email/code match on `POST /api/auth/register`; public `GET /api/invitations/lookup/:code` endpoint added
 
 ## Notes
 
