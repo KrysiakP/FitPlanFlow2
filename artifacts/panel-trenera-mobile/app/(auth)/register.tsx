@@ -23,7 +23,7 @@ export default function RegisterScreen() {
   const { register } = useAuth();
 
   const [role, setRole] = useState<"client" | "trainer">("client");
-  const [firstName, setFirstName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -33,7 +33,7 @@ export default function RegisterScreen() {
   const [error, setError] = useState<string | null>(null);
 
   function validate(): string | null {
-    if (!firstName.trim()) return "Podaj swoje imię";
+    if (!fullName.trim()) return "Podaj swoje imię i nazwisko";
     if (!email.trim()) return "Podaj adres e-mail";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return "Nieprawidłowy adres e-mail";
     if (password.length < 6) return "Hasło musi mieć co najmniej 6 znaków";
@@ -50,7 +50,10 @@ export default function RegisterScreen() {
     setLoading(true);
     setError(null);
     try {
-      await register(firstName.trim(), email.trim().toLowerCase(), password, role);
+      const parts = fullName.trim().split(/\s+/);
+      const firstName = parts[0] ?? "";
+      const lastName = parts.slice(1).join(" ");
+      await register(firstName, email.trim().toLowerCase(), password, role, lastName);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace(role === "trainer" ? "/(trainer)" : "/(auth)/onboarding");
     } catch (e: unknown) {
@@ -138,18 +141,19 @@ export default function RegisterScreen() {
             )}
 
             <View style={styles.field}>
-              <Text style={[styles.label, { color: colors.mutedForeground }]}>Imię</Text>
+              <Text style={[styles.label, { color: colors.mutedForeground }]}>Imię i nazwisko</Text>
               <View style={[styles.inputWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Ionicons name="person-outline" size={18} color={colors.mutedForeground} style={styles.inputIcon} />
                 <TextInput
                   style={[styles.input, { color: colors.foreground }]}
-                  placeholder="Twoje imię"
+                  placeholder="np. Jan Kowalski"
                   placeholderTextColor={colors.mutedForeground}
-                  value={firstName}
-                  onChangeText={setFirstName}
+                  value={fullName}
+                  onChangeText={setFullName}
                   autoCapitalize="words"
                   autoCorrect={false}
-                  testID="input-first-name"
+                  returnKeyType="next"
+                  testID="input-full-name"
                 />
               </View>
             </View>
