@@ -797,6 +797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: z.string().optional().default(""),
         role: z.enum(["client", "trainer"]).optional().default("client"),
         invitationCode: z.string().optional(),
+        referralCode: z.string().optional(),
       });
 
       const validationResult = mobileRegisterSchema.safeParse(req.body);
@@ -807,7 +808,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { email, password, firstName, lastName, role, invitationCode } = validationResult.data;
+      const { email, password, firstName, lastName, role, invitationCode, referralCode: referralCodeStr } = validationResult.data;
 
       // Jeśli podano kod zaproszenia — waliduj że email zgadza się z zaproszonym emailem
       if (invitationCode) {
@@ -825,6 +826,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Jeśli podano kod polecający — zweryfikuj jego istnienie
+      let resolvedReferralCode = null;
+      if (referralCodeStr) {
+        const normalized = referralCodeStr.trim().toUpperCase();
+        resolvedReferralCode = await storage.getReferralCodeByCode(normalized);
+        if (!resolvedReferralCode) {
+          console.warn(`[MOBILE-REGISTER] Invalid referral code attempted: ${normalized}`);
+          // Don't block registration - silently ignore invalid referral code
+        }
+      }
+
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
         return res.status(400).json({ message: "Użytkownik z tym adresem email już istnieje" });
@@ -839,7 +851,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName,
         role,
         trialEndsAt: null,
-        referredByTrainerId: null,
+        referredByTrainerId: resolvedReferralCode ? resolvedReferralCode.trainerId : null,
         referralBonusDays: 0,
         hasFreeAccess: false,
         subscriptionCancelledAt: null,
@@ -853,6 +865,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await new Promise<void>((resolve, reject) =>
         req.session.save((err) => (err ? reject(err) : resolve()))
       );
+
+      // Process referral event if a valid referral code was used
+      if (resolvedReferralCode) {
+        try {
+          const ipAddress = req.ip || req.headers['x-forwarded-for'] as string || req.socket.remoteAddress;
+          const validation = await storage.validateReferralEvent(
+            resolvedReferralCode.trainerId,
+            user.id,
+            email,
+            ipAddress
+          );
+
+          if (!validation.valid) {
+            console.warn(`[MOBILE-REGISTER][SECURITY] Referral validation failed for user ${user.id}: ${validation.reason}`);
+          } else {
+            const emailHash = require('crypto').createHash('sha256').update(email.toLowerCase()).digest('hex');
+            await storage.createReferralEvent({
+              referralCodeId: resolvedReferralCode.id,
+              referrerTrainerId: resolvedReferralCode.trainerId,
+              referredUserId: user.id,
+              referredRole: role as 'trainer' | 'client',
+              status: 'pending',
+              metadata: {
+                ipAddress,
+                emailHash,
+                registeredAt: new Date().toISOString(),
+                source: 'mobile',
+              },
+            });
+            await storage.updateReferralCodeLastUsed(resolvedReferralCode.id);
+            console.log(`[MOBILE-REGISTER] Referral event created for user ${user.id} via code ${resolvedReferralCode.code}`);
+          }
+        } catch (refErr) {
+          console.warn("[MOBILE-REGISTER] Could not create referral event:", refErr);
+        }
+      }
 
       // Auto-accept any pending invitations for this email
       try {
@@ -5004,16 +5052,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Referral system routes (trainers only)
+  // Referral system routes
+  // Public: validate a referral code (used during registration)
+  app.get("/api/referrals/lookup/:code", async (req, res) => {
+    try {
+      const code = (req.params.code ?? "").trim().toUpperCase();
+      if (!code) return res.status(400).json({ message: "Podaj kod polecający" });
+
+      const referralCode = await storage.getReferralCodeByCode(code);
+      if (!referralCode) {
+        return res.status(404).json({ message: "Nie znaleziono kodu polecającego" });
+      }
+
+      const referrer = await storage.getUser(referralCode.trainerId);
+      if (!referrer) {
+        return res.status(404).json({ message: "Nie znaleziono kodu polecającego" });
+      }
+
+      const referrerName = `${referrer.firstName ?? ""} ${referrer.lastName ?? ""}`.trim() || referrer.email;
+      res.json({ referrerName, code: referralCode.code });
+    } catch (error) {
+      console.error("Error looking up referral code:", error);
+      res.status(500).json({ message: "Nie udało się sprawdzić kodu polecającego" });
+    }
+  });
+
   app.get("/api/referrals/my-code", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const user = await storage.getUser(userId);
-      
-      if (user?.role !== 'trainer') {
-        return res.status(403).json({ message: "Tylko trenerzy mogą mieć kody polecające" });
-      }
-
       const referralCode = await storage.ensureReferralCode(userId);
       res.json(referralCode);
     } catch (error) {
@@ -5025,12 +5091,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/referrals/my-stats", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const user = await storage.getUser(userId);
-      
-      if (user?.role !== 'trainer') {
-        return res.status(403).json({ message: "Tylko trenerzy mają statystyki poleceń" });
-      }
-
       const stats = await storage.getTrainerReferralStats(userId);
       res.json(stats);
     } catch (error) {
@@ -5042,12 +5102,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/referrals/my-referrals", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const user = await storage.getUser(userId);
-      
-      if (user?.role !== 'trainer') {
-        return res.status(403).json({ message: "Tylko trenerzy mogą przeglądać swoje polecenia" });
-      }
-
       const referrals = await storage.listTrainerReferrals(userId);
       res.json(referrals);
     } catch (error) {

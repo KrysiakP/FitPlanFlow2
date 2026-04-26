@@ -19,7 +19,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (firstName: string, email: string, password: string, role?: "client" | "trainer", lastName?: string) => Promise<void>;
+  register: (firstName: string, email: string, password: string, role?: "client" | "trainer", lastName?: string, invitationCode?: string, referralCode?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -169,10 +169,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void registerPushToken();
   }, []);
 
-  const register = useCallback(async (firstName: string, email: string, password: string, role: "client" | "trainer" = "client", lastName?: string, invitationCode?: string) => {
+  const register = useCallback(async (firstName: string, email: string, password: string, role: "client" | "trainer" = "client", lastName?: string, invitationCode?: string, referralCode?: string) => {
     const res = await apiFetch("/api/auth/register", {
       method: "POST",
-      body: JSON.stringify({ firstName, lastName: lastName ?? "", email, password, role, ...(invitationCode ? { invitationCode } : {}) }),
+      body: JSON.stringify({
+        firstName,
+        lastName: lastName ?? "",
+        email,
+        password,
+        role,
+        ...(invitationCode ? { invitationCode } : {}),
+        ...(referralCode ? { referralCode } : {}),
+      }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({})) as { message?: string };

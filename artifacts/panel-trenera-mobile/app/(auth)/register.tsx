@@ -42,13 +42,33 @@ export default function RegisterScreen() {
   const [codeChecking, setCodeChecking] = useState(false);
   const [codeError, setCodeError] = useState<string | null>(null);
 
+  const [referralCode, setReferralCode] = useState("");
+  const [referralInfo, setReferralInfo] = useState<{ referrerName: string } | null>(null);
+  const [referralChecking, setReferralChecking] = useState(false);
+  const [referralError, setReferralError] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const emailInputRef = useRef<TextInput>(null);
 
-  // Auto-lookup when code reaches 8 characters
+  // Clear code fields when switching role
   useEffect(() => {
+    if (role === "trainer") {
+      setInvitationCode("");
+      setInvitationInfo(null);
+      setCodeError(null);
+    } else {
+      setReferralCode("");
+      setReferralInfo(null);
+      setReferralError(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
+
+  // Auto-lookup invitation code when it reaches 8 characters (client only)
+  useEffect(() => {
+    if (role !== "client") return;
     const code = invitationCode.trim().toUpperCase();
     if (code.length !== 8) {
       if (invitationInfo) {
@@ -89,7 +109,42 @@ export default function RegisterScreen() {
     void lookup();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invitationCode]);
+  }, [invitationCode, role]);
+
+  // Auto-lookup referral code when it reaches 8 characters (trainer only)
+  useEffect(() => {
+    if (role !== "trainer") return;
+    const code = referralCode.trim().toUpperCase();
+    if (code.length !== 8) {
+      setReferralInfo(null);
+      setReferralError(null);
+      return;
+    }
+    let cancelled = false;
+    async function lookup() {
+      setReferralChecking(true);
+      setReferralError(null);
+      try {
+        const res = await apiFetch(`/api/referrals/lookup/${code}`);
+        if (cancelled) return;
+        if (res.ok) {
+          const data: { referrerName: string } = await res.json();
+          setReferralInfo(data);
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } else {
+          setReferralError("Nie znaleziono kodu polecającego");
+          setReferralInfo(null);
+        }
+      } catch {
+        if (!cancelled) setReferralError("Nie udało się sprawdzić kodu");
+      } finally {
+        if (!cancelled) setReferralChecking(false);
+      }
+    }
+    void lookup();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [referralCode, role]);
 
   function validate(): string | null {
     if (!fullName.trim()) return "Podaj swoje imię i nazwisko";
@@ -116,8 +171,9 @@ export default function RegisterScreen() {
       const parts = fullName.trim().split(/\s+/);
       const firstName = parts[0] ?? "";
       const lastName = parts.slice(1).join(" ");
-      const code = invitationCode.trim().toUpperCase() || undefined;
-      await register(firstName, email.trim().toLowerCase(), password, role, lastName, code);
+      const invCode = role === "client" ? (invitationCode.trim().toUpperCase() || undefined) : undefined;
+      const refCode = role === "trainer" ? (referralCode.trim().toUpperCase() || undefined) : undefined;
+      await register(firstName, email.trim().toLowerCase(), password, role, lastName, invCode, refCode);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace(role === "trainer" ? "/(trainer)" : "/(auth)/onboarding");
     } catch (e: unknown) {
@@ -194,86 +250,176 @@ export default function RegisterScreen() {
               })}
             </View>
 
-            {/* Invitation code section */}
-            <View style={styles.field}>
-              <Text style={[styles.label, { color: colors.mutedForeground }]}>
-                Kod zaproszenia od trenera{" "}
-                <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>
-                  (opcjonalnie)
-                </Text>
-              </Text>
-              <View
-                style={[
-                  styles.inputWrap,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: invitationInfo
-                      ? colors.primary
-                      : codeError
-                      ? colors.destructive
-                      : colors.border,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name="ticket-outline"
-                  size={18}
-                  color={
-                    invitationInfo
-                      ? colors.primary
-                      : codeError
-                      ? colors.destructive
-                      : colors.mutedForeground
-                  }
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={[styles.input, { color: colors.foreground, letterSpacing: 2 }]}
-                  placeholder="np. AB12CD34"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={invitationCode}
-                  onChangeText={(t) => setInvitationCode(t.toUpperCase().slice(0, 8))}
-                  autoCapitalize="characters"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                  maxLength={8}
-                  testID="input-invitation-code"
-                />
-                {codeChecking && (
-                  <ActivityIndicator size="small" color={colors.mutedForeground} />
-                )}
-                {invitationInfo && !codeChecking && (
-                  <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                )}
-                {codeError && !codeChecking && (
-                  <Ionicons name="close-circle" size={20} color={colors.destructive} />
-                )}
-              </View>
-              {codeError && (
-                <Text style={[styles.fieldError, { color: colors.destructive }]}>
-                  {codeError}
-                </Text>
-              )}
-            </View>
-
-            {/* Trainer banner — visible when valid invitation code entered */}
-            {invitationInfo && (
-              <View
-                style={[
-                  styles.trainerBanner,
-                  { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" },
-                ]}
-              >
-                <Ionicons name="person-circle-outline" size={22} color={colors.primary} />
-                <View style={styles.bannerText}>
-                  <Text style={[styles.bannerTitle, { color: colors.primary }]}>
-                    Zaproszenie potwierdzone
+            {/* Invitation code — only for client role */}
+            {role === "client" && (
+              <>
+                <View style={styles.field}>
+                  <Text style={[styles.label, { color: colors.mutedForeground }]}>
+                    Kod zaproszenia od trenera{" "}
+                    <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>
+                      (opcjonalnie)
+                    </Text>
                   </Text>
-                  <Text style={[styles.bannerSub, { color: colors.mutedForeground }]}>
-                    Twój trener: {invitationInfo.trainerName}
-                  </Text>
+                  <View
+                    style={[
+                      styles.inputWrap,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: invitationInfo
+                          ? colors.primary
+                          : codeError
+                          ? colors.destructive
+                          : colors.border,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="ticket-outline"
+                      size={18}
+                      color={
+                        invitationInfo
+                          ? colors.primary
+                          : codeError
+                          ? colors.destructive
+                          : colors.mutedForeground
+                      }
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={[styles.input, { color: colors.foreground, letterSpacing: 2 }]}
+                      placeholder="np. AB12CD34"
+                      placeholderTextColor={colors.mutedForeground}
+                      value={invitationCode}
+                      onChangeText={(t) => setInvitationCode(t.toUpperCase().slice(0, 8))}
+                      autoCapitalize="characters"
+                      autoCorrect={false}
+                      returnKeyType="next"
+                      maxLength={8}
+                      testID="input-invitation-code"
+                    />
+                    {codeChecking && (
+                      <ActivityIndicator size="small" color={colors.mutedForeground} />
+                    )}
+                    {invitationInfo && !codeChecking && (
+                      <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                    )}
+                    {codeError && !codeChecking && (
+                      <Ionicons name="close-circle" size={20} color={colors.destructive} />
+                    )}
+                  </View>
+                  {codeError && (
+                    <Text style={[styles.fieldError, { color: colors.destructive }]}>
+                      {codeError}
+                    </Text>
+                  )}
                 </View>
-              </View>
+
+                {/* Trainer banner — visible when valid invitation code entered */}
+                {invitationInfo && (
+                  <View
+                    style={[
+                      styles.trainerBanner,
+                      { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" },
+                    ]}
+                  >
+                    <Ionicons name="person-circle-outline" size={22} color={colors.primary} />
+                    <View style={styles.bannerText}>
+                      <Text style={[styles.bannerTitle, { color: colors.primary }]}>
+                        Zaproszenie potwierdzone
+                      </Text>
+                      <Text style={[styles.bannerSub, { color: colors.mutedForeground }]}>
+                        Twój trener: {invitationInfo.trainerName}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </>
+            )}
+
+            {/* Referral code — only for trainer role */}
+            {role === "trainer" && (
+              <>
+                <View style={styles.field}>
+                  <Text style={[styles.label, { color: colors.mutedForeground }]}>
+                    Kod polecający{" "}
+                    <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>
+                      (opcjonalnie)
+                    </Text>
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputWrap,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: referralInfo
+                          ? colors.primary
+                          : referralError
+                          ? colors.destructive
+                          : colors.border,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="gift-outline"
+                      size={18}
+                      color={
+                        referralInfo
+                          ? colors.primary
+                          : referralError
+                          ? colors.destructive
+                          : colors.mutedForeground
+                      }
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={[styles.input, { color: colors.foreground, letterSpacing: 2 }]}
+                      placeholder="np. AB12CD34"
+                      placeholderTextColor={colors.mutedForeground}
+                      value={referralCode}
+                      onChangeText={(t) => setReferralCode(t.toUpperCase().slice(0, 8))}
+                      autoCapitalize="characters"
+                      autoCorrect={false}
+                      returnKeyType="next"
+                      maxLength={8}
+                      testID="input-referral-code"
+                    />
+                    {referralChecking && (
+                      <ActivityIndicator size="small" color={colors.mutedForeground} />
+                    )}
+                    {referralInfo && !referralChecking && (
+                      <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                    )}
+                    {referralError && !referralChecking && (
+                      <Ionicons name="close-circle" size={20} color={colors.destructive} />
+                    )}
+                  </View>
+                  {referralError && (
+                    <Text style={[styles.fieldError, { color: colors.destructive }]}>
+                      {referralError}
+                    </Text>
+                  )}
+                </View>
+
+                {/* Referrer banner — visible when valid referral code entered */}
+                {referralInfo && (
+                  <View
+                    style={[
+                      styles.trainerBanner,
+                      { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" },
+                    ]}
+                  >
+                    <Ionicons name="gift-outline" size={22} color={colors.primary} />
+                    <View style={styles.bannerText}>
+                      <Text style={[styles.bannerTitle, { color: colors.primary }]}>
+                        Kod polecający potwierdzony
+                      </Text>
+                      <Text style={[styles.bannerSub, { color: colors.mutedForeground }]}>
+                        Polecony przez: {referralInfo.referrerName}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </>
             )}
 
             {error && (
