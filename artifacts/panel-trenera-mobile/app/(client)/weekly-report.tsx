@@ -110,6 +110,7 @@ export default function WeeklyReportScreen() {
   const [photoMimeType, setPhotoMimeType] = useState<string>("image/jpeg");
   const [hasNewUpload, setHasNewUpload] = useState(false);
   const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
+  const [photoRemoved, setPhotoRemoved] = useState(false);
 
   const { data: reports, isLoading, refetch, isRefetching } = useQuery<WeeklyReport[]>({
     queryKey: ["client-reports"],
@@ -125,7 +126,7 @@ export default function WeeklyReportScreen() {
         uploadedObjectPath = objectPath;
       }
 
-      const payload = {
+      const payload: Record<string, unknown> = {
         reportDate: new Date(data.reportDate),
         weight: data.weight || null,
         saturation: data.saturation || null,
@@ -139,6 +140,10 @@ export default function WeeklyReportScreen() {
         mood: data.mood || null,
         thoughts: data.thoughts || null,
       };
+
+      if (photoRemoved && !hasNewUpload) {
+        payload.photoUrl = null;
+      }
 
       let report: WeeklyReport;
       if (editingId) {
@@ -253,6 +258,13 @@ export default function WeeklyReportScreen() {
     setHasNewUpload(false);
   }
 
+  function removeExistingPhoto() {
+    setExistingPhotoUrl(null);
+    setPhotoUri(null);
+    setHasNewUpload(false);
+    setPhotoRemoved(true);
+  }
+
   function openNew() {
     setEditingId(null);
     setForm(EMPTY_FORM);
@@ -260,6 +272,7 @@ export default function WeeklyReportScreen() {
     setPhotoUri(null);
     setHasNewUpload(false);
     setExistingPhotoUrl(null);
+    setPhotoRemoved(false);
     setModalVisible(true);
   }
 
@@ -282,6 +295,7 @@ export default function WeeklyReportScreen() {
     setPhotoUri(null);
     setHasNewUpload(false);
     setExistingPhotoUrl(report.photoUrl ?? null);
+    setPhotoRemoved(false);
     setModalVisible(true);
   }
 
@@ -292,6 +306,7 @@ export default function WeeklyReportScreen() {
     setPhotoUri(null);
     setHasNewUpload(false);
     setExistingPhotoUrl(null);
+    setPhotoRemoved(false);
   }
 
   function handleSave() {
@@ -554,7 +569,7 @@ export default function WeeklyReportScreen() {
                       <Ionicons name="image-outline" size={16} color={colors.primary} />
                       <Text style={[styles.photoActionText, { color: colors.primary }]}>Zmień zdjęcie</Text>
                     </Pressable>
-                    {hasNewUpload && (
+                    {hasNewUpload ? (
                       <Pressable
                         onPress={cancelNewPhoto}
                         style={[styles.photoActionBtn, { backgroundColor: colors.card, borderColor: colors.border, flex: 1 }]}
@@ -562,6 +577,15 @@ export default function WeeklyReportScreen() {
                       >
                         <Ionicons name="close-outline" size={16} color={colors.mutedForeground} />
                         <Text style={[styles.photoActionText, { color: colors.mutedForeground }]}>Anuluj</Text>
+                      </Pressable>
+                    ) : (
+                      <Pressable
+                        onPress={removeExistingPhoto}
+                        style={[styles.photoActionBtn, { backgroundColor: colors.card, borderColor: colors.border, flex: 1 }]}
+                        testID="button-remove-photo"
+                      >
+                        <Ionicons name="trash-outline" size={16} color={colors.destructive} />
+                        <Text style={[styles.photoActionText, { color: colors.destructive }]}>Usuń zdjęcie</Text>
                       </Pressable>
                     )}
                   </View>
