@@ -195,12 +195,16 @@ export default function TrainerPaymentsScreen() {
     retry: 1,
   });
 
-  const { data: clients = [] } = useQuery<TrainerClient[]>({
+  const { data: rawClients = [] } = useQuery<TrainerClient[]>({
     queryKey: ["trainer-clients"],
     queryFn: () => apiGet<TrainerClient[]>("/api/trainer/clients"),
     enabled: !!user?.id,
     retry: 1,
   });
+
+  // Filter out demo clients — they cannot be used for real payment records
+  const clients = rawClients.filter((c) => !c.id.startsWith("demo-"));
+  const hasRealClients = clients.length > 0;
 
   const createMutation = useMutation({
     mutationFn: (data: { clientId: string; amount: number; dueDate: string; notes: string }) =>
@@ -414,6 +418,19 @@ export default function TrainerPaymentsScreen() {
           >
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nowa płatność</Text>
 
+            {!hasRealClients ? (
+              <View style={styles.noClientsBox}>
+                <Ionicons name="people-outline" size={32} color={colors.mutedForeground} />
+                <Text style={[styles.noClientsText, { color: colors.foreground }]}>
+                  Brak podopiecznych
+                </Text>
+                <Text style={[styles.noClientsDesc, { color: colors.mutedForeground }]}>
+                  Zaproś podopiecznych do aplikacji, żeby móc dodawać im płatności.
+                </Text>
+              </View>
+            ) : (
+              <>
+
             <View style={styles.fieldGroup}>
               <Text style={[styles.label, { color: colors.mutedForeground }]}>Klient</Text>
               <Pressable
@@ -475,6 +492,9 @@ export default function TrainerPaymentsScreen() {
               </Text>
             )}
 
+              </>
+            )}
+
             <View style={styles.modalBtns}>
               <Pressable
                 onPress={() => { setModalVisible(false); setForm({ clientId: "", amount: "", dueDate: toDateInputValue(new Date()), notes: "" }); }}
@@ -483,18 +503,20 @@ export default function TrainerPaymentsScreen() {
               >
                 <Text style={[styles.cancelBtnText, { color: colors.foreground }]}>Anuluj</Text>
               </Pressable>
-              <Pressable
-                onPress={handleCreate}
-                disabled={createMutation.isPending}
-                style={({ pressed }) => [styles.submitBtn, { backgroundColor: colors.primary, opacity: createMutation.isPending || pressed ? 0.65 : 1 }]}
-                testID="button-submit-payment"
-              >
-                {createMutation.isPending ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.submitBtnText}>Dodaj płatność</Text>
-                )}
-              </Pressable>
+              {hasRealClients && (
+                <Pressable
+                  onPress={handleCreate}
+                  disabled={createMutation.isPending}
+                  style={({ pressed }) => [styles.submitBtn, { backgroundColor: colors.primary, opacity: createMutation.isPending || pressed ? 0.65 : 1 }]}
+                  testID="button-submit-payment"
+                >
+                  {createMutation.isPending ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.submitBtnText}>Dodaj płatność</Text>
+                  )}
+                </Pressable>
+              )}
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -638,6 +660,14 @@ const styles = StyleSheet.create({
     minHeight: 80,
   },
   errorText: { fontSize: 13, color: "#ef4444", fontFamily: "Inter_400Regular" },
+  noClientsBox: {
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+  },
+  noClientsText: { fontSize: 16, fontFamily: "Inter_600SemiBold", textAlign: "center" },
+  noClientsDesc: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
   modalBtns: { flexDirection: "row", gap: 12, marginTop: 4 },
   cancelBtn: {
     flex: 1,
