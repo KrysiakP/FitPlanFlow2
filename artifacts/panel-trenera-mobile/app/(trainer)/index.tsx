@@ -1,6 +1,7 @@
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -12,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -37,9 +38,13 @@ export default function TrainerClientsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [remindAllModalVisible, setRemindAllModalVisible] = useState(false);
   const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const { data, isLoading, refetch, isRefetching } = useQuery<ClientWithPlan[]>({
@@ -69,6 +74,49 @@ export default function TrainerClientsScreen() {
     },
   });
 
+  const inviteMutation = useMutation({
+    mutationFn: (clientEmail: string) =>
+      apiPost<{ id: string }>("/api/invitations/send", { clientEmail }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invitations"] });
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setInviteModalVisible(false);
+      setInviteEmail("");
+      setInviteError(null);
+    },
+    onError: (err: Error) => {
+      const msg = err?.message ?? "";
+      if (msg.includes("401") || msg.toLowerCase().includes("unauthorized")) {
+        setInviteError("Sesja wygasła. Zaloguj się ponownie.");
+      } else if (msg.toLowerCase().includes("already") || msg.toLowerCase().includes("już")) {
+        setInviteError("Ten klient już otrzymał zaproszenie lub jest Twoim podopiecznym.");
+      } else {
+        setInviteError("Nie udało się wysłać zaproszenia. Spróbuj ponownie.");
+      }
+    },
+  });
+
+  function handleInviteOpen() {
+    setInviteEmail("");
+    setInviteError(null);
+    setInviteModalVisible(true);
+  }
+
+  function handleInviteSend() {
+    const trimmed = inviteEmail.trim();
+    if (!trimmed) {
+      setInviteError("Podaj adres e-mail klienta.");
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmed)) {
+      setInviteError("Podaj poprawny adres e-mail.");
+      return;
+    }
+    setInviteError(null);
+    inviteMutation.mutate(trimmed);
+  }
+
   const clients = (data ?? []).filter((c) => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -95,7 +143,7 @@ export default function TrainerClientsScreen() {
                   if (!remindAllMutation.isPending) setRemindAllModalVisible(true);
                 }}
                 disabled={remindAllMutation.isPending}
-                style={({ pressed }) => ({ opacity: (remindAllMutation.isPending || pressed) ? 0.6 : 1 })}
+                style={({ pressed }) => ({ opacity: (remindAllMutation.isPending || pressed) ? 0.6 : 1, marginRight: 14 })}
                 testID="button-remind-all-clients"
               >
                 {remindAllMutation.isPending ? (
@@ -105,6 +153,13 @@ export default function TrainerClientsScreen() {
                 )}
               </Pressable>
             )}
+            <Pressable
+              onPress={handleInviteOpen}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+              testID="button-invite-client-header"
+            >
+              <Ionicons name="person-add-outline" size={22} color={colors.primary} />
+            </Pressable>
           </View>
           <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Ionicons name="search-outline" size={18} color={colors.mutedForeground} />
@@ -138,8 +193,23 @@ export default function TrainerClientsScreen() {
                 {search ? "Brak wyników" : "Brak klientów"}
               </Text>
               <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
-                {search ? `Nie znaleziono klientów dla "${search}"` : "Zaproś pierwszego klienta przez stronę paneltrenera.pl"}
+                {search
+                  ? `Nie znaleziono klientów dla "${search}"`
+                  : "Zaproś pierwszego klienta podając jego adres e-mail."}
               </Text>
+              {!search && (
+                <Pressable
+                  onPress={handleInviteOpen}
+                  style={({ pressed }) => [
+                    styles.emptyInviteBtn,
+                    { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+                  ]}
+                  testID="button-invite-first-client"
+                >
+                  <Ionicons name="person-add-outline" size={18} color="#fff" />
+                  <Text style={styles.emptyInviteBtnText}>Zaproś klienta</Text>
+                </Pressable>
+              )}
             </View>
           ) : (
             clients.map((c) => (
@@ -154,6 +224,107 @@ export default function TrainerClientsScreen() {
           )}
         </ScrollView>
       </View>
+
+      <Modal
+        visible={inviteModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          if (!inviteMutation.isPending) {
+            setInviteModalVisible(false);
+            setInviteEmail("");
+            setInviteError(null);
+          }
+        }}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.modalTitleRow}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Zaproś klienta</Text>
+              <Pressable
+                onPress={() => {
+                  if (!inviteMutation.isPending) {
+                    setInviteModalVisible(false);
+                    setInviteEmail("");
+                    setInviteError(null);
+                  }
+                }}
+                testID="button-close-invite-modal"
+              >
+                <Ionicons name="close" size={22} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+
+            <Text style={[styles.inviteHint, { color: colors.mutedForeground }]}>
+              Podaj adres e-mail klienta. Otrzyma link i zostanie automatycznie przypisany do Ciebie.
+            </Text>
+
+            <TextInput
+              style={[
+                styles.inviteInput,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: inviteError ? "#e53935" : colors.border,
+                  color: colors.foreground,
+                },
+              ]}
+              placeholder="klient@example.com"
+              placeholderTextColor={colors.mutedForeground}
+              value={inviteEmail}
+              onChangeText={(t) => { setInviteEmail(t); setInviteError(null); }}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              testID="input-invite-email"
+            />
+
+            {inviteError && (
+              <Text style={styles.inviteErrorText}>{inviteError}</Text>
+            )}
+
+            <View style={styles.inviteModalBtns}>
+              <Pressable
+                onPress={() => {
+                  if (!inviteMutation.isPending) {
+                    setInviteModalVisible(false);
+                    setInviteEmail("");
+                    setInviteError(null);
+                  }
+                }}
+                style={({ pressed }) => [
+                  styles.inviteCancelBtn,
+                  { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+                ]}
+                testID="button-cancel-invite"
+              >
+                <Text style={[styles.inviteCancelBtnText, { color: colors.foreground }]}>Anuluj</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleInviteSend}
+                disabled={inviteMutation.isPending}
+                style={({ pressed }) => [
+                  styles.inviteSendBtn,
+                  { backgroundColor: colors.primary, opacity: (inviteMutation.isPending || pressed) ? 0.7 : 1 },
+                ]}
+                testID="button-send-invite"
+              >
+                {inviteMutation.isPending ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="send-outline" size={16} color="#fff" />
+                    <Text style={styles.inviteSendBtnText}>Wyślij</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <Modal
         visible={remindAllModalVisible}
@@ -285,4 +456,45 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   remindSendBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  emptyInviteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  emptyInviteBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  inviteHint: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, marginBottom: 4 },
+  inviteInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+    marginBottom: 4,
+  },
+  inviteErrorText: { fontSize: 13, color: "#e53935", fontFamily: "Inter_400Regular", marginBottom: 4 },
+  inviteModalBtns: { flexDirection: "row", gap: 12, marginTop: 8 },
+  inviteCancelBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  inviteCancelBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  inviteSendBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  inviteSendBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });
