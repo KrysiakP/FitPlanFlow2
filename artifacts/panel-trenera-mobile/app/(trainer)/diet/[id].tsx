@@ -905,7 +905,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   content: { paddingHorizontal: 20 },
-  planHeader: { borderRadius: 16, borderWidth: 1, marginBottom: 24, overflow: "hidden" },
+  planHeader: { borderRadius: 16, borderWidth: 1, marginBottom: 24 },
   planHeaderTop: { padding: 16 },
   planName: { fontSize: 20, fontFamily: "Inter_700Bold" },
   statusBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
