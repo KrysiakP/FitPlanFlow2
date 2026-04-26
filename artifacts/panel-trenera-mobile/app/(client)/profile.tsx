@@ -189,7 +189,7 @@ export default function ClientProfileScreen() {
         />
         <MenuRow icon="globe-outline" label="Zarządzaj kontem" desc="Otwórz Panel Trenera w przeglądarce" colors={colors} />
         <MenuRow icon="shield-checkmark-outline" label="Prywatność i RODO" desc="Zarządzaj zgodami i danymi" colors={colors} onPress={() => router.push("/(auth)/privacy")} testID="button-privacy" />
-        <MenuRow icon="help-circle-outline" label="Pomoc" desc="FAQ i kontakt z supportem" colors={colors} />
+        <MenuRow icon="help-circle-outline" label="Pomoc i kontakt" desc="FAQ i kontakt z supportem" colors={colors} onPress={() => router.push("/(auth)/help")} testID="button-help" />
 
         <Pressable
           onPress={handleLogout}
