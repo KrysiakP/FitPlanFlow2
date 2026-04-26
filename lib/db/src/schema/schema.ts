@@ -961,12 +961,12 @@ export const insertDietMealSchema = createInsertSchema(dietMeals).omit({
   dayOfWeek: z.coerce.number().int().min(1, "Dzień musi być między 1 a 7").max(7, "Dzień musi być między 1 a 7").default(1),
   orderIndex: z.coerce.number().int().min(1),
   name: z.string().min(1, "Nazwa posiłku jest wymagana"),
-  description: z.string().optional(),
-  suggestedTime: z.string().optional(),
-  calories: z.coerce.number().int().optional(),
-  protein: z.coerce.number().int().optional(),
-  fat: z.coerce.number().int().optional(),
-  carbs: z.coerce.number().int().optional(),
+  description: z.string().nullish(),
+  suggestedTime: z.string().nullish(),
+  calories: z.coerce.number().int().nullish(),
+  protein: z.coerce.number().int().nullish(),
+  fat: z.coerce.number().int().nullish(),
+  carbs: z.coerce.number().int().nullish(),
 });
 
 export const insertDailyHabitLogSchema = createInsertSchema(dailyHabitLogs).omit({
