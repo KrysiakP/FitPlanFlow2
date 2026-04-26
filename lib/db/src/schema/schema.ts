@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { pgTable, varchar, text, timestamp, integer, index, uniqueIndex, jsonb, boolean, date, numeric, pgEnum } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 // Session storage table - mandatory for Replit Auth
 export const sessions = pgTable(
