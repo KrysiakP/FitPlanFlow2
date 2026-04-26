@@ -1,6 +1,7 @@
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -17,8 +18,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { useColors } from "@/hooks/useColors";
-import { apiGet, apiPost, apiPatch } from "@/lib/api";
+import { apiGet, apiPost, apiPatch, uploadImageToObjectStorage, setReportPhoto } from "@/lib/api";
 
 interface WeeklyReport {
   id: string;
@@ -34,6 +36,8 @@ interface WeeklyReport {
   supplements?: string | null;
   mood?: string | null;
   thoughts?: string | null;
+  photoUrl?: string | null;
+  photoOriginalPath?: string | null;
   viewedByTrainer?: boolean | null;
   createdAt: string;
 }
@@ -102,13 +106,25 @@ export default function WeeklyReportScreen() {
   const [form, setForm] = useState<ReportFormData>(EMPTY_FORM);
   const [reportDate, setReportDate] = useState(getThisMonday());
 
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoMimeType, setPhotoMimeType] = useState<string>("image/jpeg");
+  const [hasNewUpload, setHasNewUpload] = useState(false);
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
+
   const { data: reports, isLoading, refetch, isRefetching } = useQuery<WeeklyReport[]>({
     queryKey: ["client-reports"],
     queryFn: () => apiGet<WeeklyReport[]>("/api/reports"),
   });
 
   const saveMutation = useMutation({
-    mutationFn: (data: ReportFormData & { reportDate: string }) => {
+    mutationFn: async (data: ReportFormData & { reportDate: string }) => {
+      let uploadedObjectPath: string | null = null;
+
+      if (hasNewUpload && photoUri) {
+        const { objectPath } = await uploadImageToObjectStorage(photoUri, photoMimeType);
+        uploadedObjectPath = objectPath;
+      }
+
       const payload = {
         reportDate: new Date(data.reportDate),
         weight: data.weight || null,
@@ -123,25 +139,75 @@ export default function WeeklyReportScreen() {
         mood: data.mood || null,
         thoughts: data.thoughts || null,
       };
+
+      let report: WeeklyReport;
       if (editingId) {
-        return apiPatch<WeeklyReport>(`/api/reports/${editingId}`, payload);
+        report = await apiPatch<WeeklyReport>(`/api/reports/${editingId}`, payload);
+      } else {
+        report = await apiPost<WeeklyReport>("/api/reports", payload);
       }
-      return apiPost<WeeklyReport>("/api/reports", payload);
+
+      if (hasNewUpload && uploadedObjectPath) {
+        try {
+          await setReportPhoto(report.id, uploadedObjectPath);
+        } catch (photoErr) {
+          console.error("Photo attach failed (report saved):", photoErr);
+          return { report, photoError: true };
+        }
+      }
+
+      return { report, photoError: false };
     },
-    onSuccess: () => {
+    onSuccess: ({ photoError }) => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ["client-reports"] });
       closeModal();
+      if (photoError) {
+        Alert.alert(
+          "Raport zapisany",
+          "Dane raportu zostały zapisane, ale nie udało się dołączyć zdjęcia. Spróbuj edytować raport i ponownie wybrać zdjęcie."
+        );
+      }
     },
     onError: (err) => {
       Alert.alert("Błąd", (err as Error).message || "Nie udało się zapisać raportu.");
     },
   });
 
+  async function pickPhoto() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Brak dostępu", "Zezwól na dostęp do galerii w ustawieniach urządzenia.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.85,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      const asset = result.assets[0];
+      setPhotoUri(asset.uri);
+      setPhotoMimeType(asset.mimeType ?? "image/jpeg");
+      setHasNewUpload(true);
+    }
+  }
+
+  function cancelNewPhoto() {
+    setPhotoUri(null);
+    setHasNewUpload(false);
+  }
+
   function openNew() {
     setEditingId(null);
     setForm(EMPTY_FORM);
     setReportDate(getThisMonday());
+    setPhotoUri(null);
+    setHasNewUpload(false);
+    setExistingPhotoUrl(null);
     setModalVisible(true);
   }
 
@@ -161,6 +227,9 @@ export default function WeeklyReportScreen() {
       thoughts: report.thoughts ?? "",
     });
     setReportDate(report.reportDate ? report.reportDate.slice(0, 10) : getThisMonday());
+    setPhotoUri(null);
+    setHasNewUpload(false);
+    setExistingPhotoUrl(report.photoUrl ?? null);
     setModalVisible(true);
   }
 
@@ -168,6 +237,9 @@ export default function WeeklyReportScreen() {
     setModalVisible(false);
     setEditingId(null);
     setForm(EMPTY_FORM);
+    setPhotoUri(null);
+    setHasNewUpload(false);
+    setExistingPhotoUrl(null);
   }
 
   function handleSave() {
@@ -177,6 +249,8 @@ export default function WeeklyReportScreen() {
     }
     saveMutation.mutate({ ...form, reportDate });
   }
+
+  const displayPhotoUri = photoUri ?? existingPhotoUrl;
 
   const sorted = reports ? [...reports].sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime()) : [];
 
@@ -409,6 +483,48 @@ export default function WeeklyReportScreen() {
                 testID="input-thoughts"
               />
 
+              <SectionLabel icon="camera-outline" label="Zdjęcie postępu" colors={colors} />
+
+              {displayPhotoUri ? (
+                <View style={styles.photoPreviewContainer}>
+                  <Image
+                    source={{ uri: displayPhotoUri }}
+                    style={styles.photoPreview}
+                    resizeMode="cover"
+                    testID="img-report-photo-preview"
+                  />
+                  <View style={styles.photoActions}>
+                    <Pressable
+                      onPress={pickPhoto}
+                      style={[styles.photoActionBtn, { backgroundColor: colors.card, borderColor: colors.border, flex: 1 }]}
+                      testID="button-change-photo"
+                    >
+                      <Ionicons name="image-outline" size={16} color={colors.primary} />
+                      <Text style={[styles.photoActionText, { color: colors.primary }]}>Zmień zdjęcie</Text>
+                    </Pressable>
+                    {hasNewUpload && (
+                      <Pressable
+                        onPress={cancelNewPhoto}
+                        style={[styles.photoActionBtn, { backgroundColor: colors.card, borderColor: colors.border, flex: 1 }]}
+                        testID="button-cancel-new-photo"
+                      >
+                        <Ionicons name="close-outline" size={16} color={colors.mutedForeground} />
+                        <Text style={[styles.photoActionText, { color: colors.mutedForeground }]}>Anuluj</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={pickPhoto}
+                  style={[styles.addPhotoBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  testID="button-add-photo"
+                >
+                  <Ionicons name="camera-outline" size={22} color={colors.primary} />
+                  <Text style={[styles.addPhotoText, { color: colors.primary }]}>Dodaj zdjęcie</Text>
+                </Pressable>
+              )}
+
               {saveMutation.isError && (
                 <Text style={styles.errorText}>
                   {(saveMutation.error as Error)?.message || "Błąd zapisu"}
@@ -467,6 +583,9 @@ function ReportCard({
           )}
         </View>
         <View style={styles.cardRight}>
+          {report.photoUrl && (
+            <Ionicons name="image-outline" size={16} color={colors.mutedForeground} />
+          )}
           {!report.viewedByTrainer && (
             <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
           )}
@@ -487,6 +606,14 @@ function ReportCard({
 
       {expanded && (
         <View style={[styles.cardBody, { borderTopColor: colors.border }]}>
+          {report.photoUrl && (
+            <Image
+              source={{ uri: report.photoUrl }}
+              style={styles.cardPhoto}
+              resizeMode="cover"
+              testID={`img-report-photo-${report.id}`}
+            />
+          )}
           {report.saturation && (
             <Row icon="battery-charging-outline" label="Nasycenie" value={report.saturation} colors={colors} />
           )}
@@ -596,6 +723,7 @@ const styles = StyleSheet.create({
   cardRight: { flexDirection: "row", alignItems: "center", gap: 12 },
   unreadDot: { width: 8, height: 8, borderRadius: 4 },
   cardBody: { borderTopWidth: 1, padding: 16, gap: 10 },
+  cardPhoto: { width: "100%", height: 200, borderRadius: 10 },
   measureGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   measureItem: {
     borderRadius: 8,
@@ -649,4 +777,29 @@ const styles = StyleSheet.create({
   groupTitle: { fontSize: 15, fontFamily: "Inter_700Bold", marginTop: 16, marginBottom: 4 },
   row: { flexDirection: "row", gap: 12 },
   errorText: { fontSize: 13, color: "#e53935", fontFamily: "Inter_400Regular", marginTop: 8 },
+  addPhotoBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 10,
+    borderStyle: "dashed",
+    paddingVertical: 20,
+    marginTop: 4,
+  },
+  addPhotoText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  photoPreviewContainer: { gap: 10, marginTop: 4 },
+  photoPreview: { width: "100%", height: 200, borderRadius: 10 },
+  photoActions: { flexDirection: "row", gap: 8 },
+  photoActionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+  },
+  photoActionText: { fontSize: 13, fontFamily: "Inter_500Medium" },
 });

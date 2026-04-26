@@ -49,6 +49,12 @@
       "expo-secure-store",
       "expo-local-authentication",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Zezwól aplikacji na dostęp do Twoich zdjęć, aby móc dołączyć zdjęcie postępu do raportu tygodniowego."
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
