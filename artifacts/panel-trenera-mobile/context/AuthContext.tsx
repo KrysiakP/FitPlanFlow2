@@ -31,6 +31,29 @@ const AuthContext = createContext<AuthContextType | null>(null);
 // manages the actual session cookie automatically when credentials:"include" is used.
 export const HAS_SESSION_KEY = "pt_has_session";
 
+// Mobile Bearer token — used as an alternative to session cookies to avoid
+// cross-site cookie blocking in Replit's iframe / web preview environment.
+const MOBILE_TOKEN_KEY = "pt_mobile_token";
+
+async function getMobileToken(): Promise<string | null> {
+  try {
+    if (Platform.OS === "web") return localStorage.getItem(MOBILE_TOKEN_KEY);
+    return await SecureStore.getItemAsync(MOBILE_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+async function storeMobileToken(token: string): Promise<void> {
+  if (Platform.OS === "web") { localStorage.setItem(MOBILE_TOKEN_KEY, token); return; }
+  await SecureStore.setItemAsync(MOBILE_TOKEN_KEY, token);
+}
+
+async function removeMobileToken(): Promise<void> {
+  if (Platform.OS === "web") { localStorage.removeItem(MOBILE_TOKEN_KEY); return; }
+  await SecureStore.deleteItemAsync(MOBILE_TOKEN_KEY);
+}
+
 function buildBaseUrl(): string {
   const domain = process.env.EXPO_PUBLIC_DOMAIN ?? "";
   if (!domain) {
@@ -67,10 +90,14 @@ async function setStoredSession(value: boolean): Promise<void> {
 
 // All API requests use credentials:"include" so the native HTTP client and
 // browser cookie store can manage the session cookie automatically.
+// Additionally, a Bearer token is attached when available so that web-based
+// iframe previews (which block cross-site cookies) can still authenticate.
 export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const mobileToken = await getMobileToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
+    ...(mobileToken ? { Authorization: `Bearer ${mobileToken}` } : {}),
   };
   return fetch(`${BASE_URL}${path}`, {
     ...options,
@@ -134,8 +161,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const err = await res.json().catch(() => ({})) as { message?: string };
       throw new Error(err.message ?? "Nieprawidłowe dane logowania");
     }
-    const data: User = await res.json();
-    setUser(data);
+    const data: User & { mobileToken?: string } = await res.json();
+    if (data.mobileToken) await storeMobileToken(data.mobileToken);
+    const { mobileToken: _mt, ...userData } = data;
+    setUser(userData as User);
     await setStoredSession(true);
     void registerPushToken();
   }, []);
@@ -149,8 +178,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const err = await res.json().catch(() => ({})) as { message?: string };
       throw new Error(err.message ?? "Nie udało się zarejestrować konta");
     }
-    const data: User = await res.json();
-    setUser(data);
+    const data: User & { mobileToken?: string } = await res.json();
+    if (data.mobileToken) await storeMobileToken(data.mobileToken);
+    const { mobileToken: _mt, ...userData } = data;
+    setUser(userData as User);
     await setStoredSession(true);
     void registerPushToken();
   }, []);
@@ -161,6 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch { /* ignore */ }
     setUser(null);
     await setStoredSession(false);
+    await removeMobileToken();
   }, []);
 
   return (

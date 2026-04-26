@@ -54,7 +54,8 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 
 ## Notes
 
-- `mobile_tokens` DB table and associated storage methods are kept but unused — the bearer-token mobile auth flow was removed. The table can be dropped in a future cleanup migration.
+- **Mobile auth uses dual-auth**: session cookie (works on native iOS/Android) + Bearer token (fallback for web preview / iframe contexts where cross-site cookies are blocked). On login/register, the server generates a `mobileToken` (UUID, 30-day TTL, stored in `mobile_tokens` table) and returns it in the response body. The mobile client stores it in SecureStore/localStorage and sends it as `Authorization: Bearer <token>` on every request. `isAuthenticated` middleware checks session first, then Bearer token.
+- `mobile_tokens` DB table is now actively used for mobile Bearer token auth.
 - Pre-existing TypeScript errors exist in `artifacts/api-server/src` (non-blocking — esbuild bundles successfully).
 - `trainer_notes` column added to `client_relationships` table via direct SQL ALTER TABLE (not drizzle-kit push).
 - `apiDelete` function added to `artifacts/panel-trenera-mobile/lib/api.ts`.

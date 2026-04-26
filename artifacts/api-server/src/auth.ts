@@ -77,8 +77,24 @@ export async function comparePassword(password: string, hash: string): Promise<b
   return bcrypt.compare(password, hash);
 }
 
-export const isAuthenticated: RequestHandler = (req, res, next) => {
+export const isAuthenticated: RequestHandler = async (req, res, next) => {
   if (req.session.userId) return next();
+
+  // Fallback: Bearer token for mobile app (avoids cross-site cookie blocking)
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.slice(7);
+    try {
+      const record = await storage.getMobileTokenByToken(token);
+      if (record && record.expiresAt > new Date()) {
+        req.session.userId = record.userId;
+        return next();
+      }
+    } catch (err) {
+      console.error("[isAuthenticated] Bearer token lookup error:", err);
+    }
+  }
+
   return res.status(401).json({ message: "Unauthorized" });
 };
 

@@ -889,7 +889,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { password: _, ...userWithoutPassword } = user;
       console.log("[MOBILE-REGISTER] User registered and logged in:", user.id);
-      return res.status(201).json(userWithoutPassword);
+      // Generate a Bearer token for mobile clients (avoids cross-site cookie issues)
+      try {
+        const tokenValue = randomUUID();
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+        await storage.createMobileToken(user.id, tokenValue, expiresAt);
+        return res.status(201).json({ ...userWithoutPassword, mobileToken: tokenValue });
+      } catch (tokenErr) {
+        console.error("[MOBILE-REGISTER] Failed to create mobile token:", tokenErr);
+        return res.status(201).json(userWithoutPassword);
+      }
     } catch (error) {
       console.error("Error in mobile register:", error);
       return res.status(500).json({ message: "Nie udało się zarejestrować użytkownika" });
@@ -933,14 +942,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.session.userId = user.id;
       
       // Explicitly save session before responding to ensure cookie is set
-      req.session.save((err) => {
+      req.session.save(async (err) => {
         if (err) {
           console.error("Error saving session:", err);
           return res.status(500).json({ message: "Nie udało się zapisać sesji" });
         }
         const { password: _, ...userWithoutPassword } = user;
         console.log("[LOGIN] Session saved successfully for user:", user.id);
-        res.json(userWithoutPassword);
+        // Generate a Bearer token for mobile clients (avoids cross-site cookie issues)
+        try {
+          const tokenValue = randomUUID();
+          const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+          await storage.createMobileToken(user.id, tokenValue, expiresAt);
+          return res.json({ ...userWithoutPassword, mobileToken: tokenValue });
+        } catch (tokenErr) {
+          console.error("[LOGIN] Failed to create mobile token:", tokenErr);
+          return res.json(userWithoutPassword);
+        }
       });
     } catch (error) {
       console.error("Error logging in:", error);
@@ -949,6 +967,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/logout", async (req, res) => {
+    // Revoke mobile token if provided
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.slice(7);
+      await storage.deleteMobileToken(token).catch(() => {});
+    }
     req.session.destroy((err) => {
       if (err) {
         return res.status(500).json({ message: "Nie udało się wylogować" });
