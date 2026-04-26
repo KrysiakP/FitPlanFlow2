@@ -174,26 +174,78 @@ export default function WeeklyReportScreen() {
     },
   });
 
-  async function pickPhoto() {
+  async function launchCamera() {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Brak dostępu", "Zezwól na dostęp do aparatu w ustawieniach urządzenia.");
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.85,
+      });
+
+      if (!result.canceled && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setPhotoUri(asset.uri);
+        setPhotoMimeType(asset.mimeType ?? "image/jpeg");
+        setHasNewUpload(true);
+      }
+    } catch {
+      Alert.alert("Błąd aparatu", "Nie udało się otworzyć aparatu. Spróbuj ponownie lub wybierz zdjęcie z galerii.");
+    }
+  }
+
+  async function launchGallery() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       Alert.alert("Brak dostępu", "Zezwól na dostęp do galerii w ustawieniach urządzenia.");
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.85,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.85,
+      });
 
-    if (!result.canceled && result.assets.length > 0) {
-      const asset = result.assets[0];
-      setPhotoUri(asset.uri);
-      setPhotoMimeType(asset.mimeType ?? "image/jpeg");
-      setHasNewUpload(true);
+      if (!result.canceled && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setPhotoUri(asset.uri);
+        setPhotoMimeType(asset.mimeType ?? "image/jpeg");
+        setHasNewUpload(true);
+      }
+    } catch {
+      Alert.alert("Błąd galerii", "Nie udało się otworzyć galerii. Spróbuj ponownie.");
     }
+  }
+
+  function pickPhoto() {
+    Alert.alert(
+      "Dodaj zdjęcie",
+      "Skąd chcesz dodać zdjęcie?",
+      [
+        {
+          text: "Aparat",
+          onPress: launchCamera,
+        },
+        {
+          text: "Galeria",
+          onPress: launchGallery,
+        },
+        {
+          text: "Anuluj",
+          style: "cancel",
+        },
+      ],
+      { cancelable: true }
+    );
   }
 
   function cancelNewPhoto() {

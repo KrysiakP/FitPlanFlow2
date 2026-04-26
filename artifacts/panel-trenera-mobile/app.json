@@ -51,7 +51,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Zezwól aplikacji na dostęp do Twoich zdjęć, aby móc dołączyć zdjęcie postępu do raportu tygodniowego."
+          "photosPermission": "Zezwól aplikacji na dostęp do Twoich zdjęć, aby móc dołączyć zdjęcie postępu do raportu tygodniowego.",
+          "cameraPermission": "Zezwól aplikacji na dostęp do aparatu, aby móc zrobić zdjęcie postępu bezpośrednio w aplikacji."
         }
       ],
       [
