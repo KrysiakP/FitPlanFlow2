@@ -105,7 +105,8 @@ export default function TrainerDietsScreen() {
       Alert.alert("Błąd", "Podaj nazwę planu.");
       return;
     }
-    createMutation.mutate({ name: newName.trim(), clientId: selectedClientId });
+    const safeClientId = selectedClientId?.startsWith("demo-") ? null : selectedClientId;
+    createMutation.mutate({ name: newName.trim(), clientId: safeClientId });
   }
 
   function openNewModal() {
@@ -116,13 +117,15 @@ export default function TrainerDietsScreen() {
     setShowNewModal(true);
   }
 
+  const realClients = clients.filter((c) => !c.id.startsWith("demo-"));
+
   const filteredClients = clientSearch
-    ? clients.filter((c) =>
+    ? realClients.filter((c) =>
         `${c.firstName} ${c.lastName}`.toLowerCase().includes(clientSearch.toLowerCase())
       )
-    : clients;
+    : realClients;
 
-  const selectedClient = clients.find((c) => c.id === selectedClientId);
+  const selectedClient = realClients.find((c) => c.id === selectedClientId);
 
   const clientMap = Object.fromEntries(clients.map((c) => [c.id, c]));
 
