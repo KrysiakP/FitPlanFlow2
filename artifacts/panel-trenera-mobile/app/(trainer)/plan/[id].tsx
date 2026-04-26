@@ -43,6 +43,7 @@ interface Exercise {
   load?: string | null;
   restTime?: number | null;
   description?: string | null;
+  videoUrl?: string | null;
   orderIndex: number;
 }
 
@@ -91,11 +92,15 @@ export default function PlanDetailScreen() {
   const [manualSets, setManualSets] = useState("3");
   const [manualReps, setManualReps] = useState("10");
   const [manualLoad, setManualLoad] = useState("");
+  const [manualDesc, setManualDesc] = useState("");
+  const [manualVideoUrl, setManualVideoUrl] = useState("");
 
   const [editExercise, setEditExercise] = useState<EditExerciseState>(null);
   const [editSets, setEditSets] = useState("");
   const [editReps, setEditReps] = useState("");
   const [editLoad, setEditLoad] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editVideoUrl, setEditVideoUrl] = useState("");
 
   const navigation = useNavigation();
 
@@ -159,6 +164,8 @@ export default function PlanDetailScreen() {
       setManualSets("3");
       setManualReps("10");
       setManualLoad("");
+      setManualDesc("");
+      setManualVideoUrl("");
       setLibrarySearch("");
     },
     onError: () => Alert.alert("Błąd", "Nie udało się dodać ćwiczenia."),
@@ -232,6 +239,8 @@ export default function PlanDetailScreen() {
     setEditSets(String(exercise.sets));
     setEditReps(String(exercise.reps));
     setEditLoad(exercise.load ?? "");
+    setEditDesc(exercise.description ?? "");
+    setEditVideoUrl(exercise.videoUrl ?? "");
   }
 
   function handleSaveExercise() {
@@ -244,7 +253,13 @@ export default function PlanDetailScreen() {
     }
     updateExerciseMutation.mutate({
       exerciseId: editExercise.exercise.id,
-      data: { sets, reps, load: editLoad.trim() || null },
+      data: {
+        sets,
+        reps,
+        load: editLoad.trim() || null,
+        description: editDesc.trim() || null,
+        videoUrl: editVideoUrl.trim() || null,
+      },
     });
   }
 
@@ -285,7 +300,8 @@ export default function PlanDetailScreen() {
         reps,
         load: manualLoad.trim() || "",
         restTime: 60,
-        description: "",
+        description: manualDesc.trim() || "",
+        videoUrl: manualVideoUrl.trim() || "",
         orderIndex: workout?.exercises.length ?? 0,
       },
     });
@@ -646,9 +662,10 @@ export default function PlanDetailScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setAddExerciseMode(null)} />
-          <View style={[styles.sheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + 24 }]}>
+          <View style={[styles.sheetScrollable, { backgroundColor: colors.card, paddingBottom: insets.bottom + 24, maxHeight: "88%" }]}>
             <View style={[styles.handle, { backgroundColor: colors.border }]} />
             <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Dodaj ćwiczenie</Text>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 6 }}>
 
             <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Nazwa ćwiczenia *</Text>
             <TextInput
@@ -662,7 +679,7 @@ export default function PlanDetailScreen() {
               testID="input-manual-exercise-name"
             />
 
-            <View style={{ flexDirection: "row", gap: 10 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Serie</Text>
                 <TextInput
@@ -685,20 +702,52 @@ export default function PlanDetailScreen() {
                   testID="input-manual-reps"
                 />
               </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Obciążenie</Text>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                  placeholder="np. 60 kg"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={manualLoad}
+                  onChangeText={setManualLoad}
+                  returnKeyType="next"
+                  testID="input-manual-load"
+                />
+              </View>
             </View>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Obciążenie (opcjonalnie)</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Opis (opcjonalnie)</Text>
             <TextInput
-              style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="np. 60 kg, własna masa ciała"
+              style={[styles.textInput, styles.textArea, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              placeholder="Opis techniki, uwagi do wykonania..."
               placeholderTextColor={colors.mutedForeground}
-              value={manualLoad}
-              onChangeText={setManualLoad}
-              returnKeyType="done"
-              testID="input-manual-load"
+              value={manualDesc}
+              onChangeText={setManualDesc}
+              multiline
+              numberOfLines={3}
+              returnKeyType="next"
+              testID="input-manual-desc"
             />
 
-            <View style={styles.sheetActions}>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Link do YouTube (opcjonalnie)</Text>
+            <View style={[styles.youtubeInputRow, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <Ionicons name="logo-youtube" size={18} color="#FF0000" />
+              <TextInput
+                style={[styles.youtubeInput, { color: colors.foreground }]}
+                placeholder="https://youtube.com/watch?v=..."
+                placeholderTextColor={colors.mutedForeground}
+                value={manualVideoUrl}
+                onChangeText={setManualVideoUrl}
+                keyboardType="url"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                testID="input-manual-video-url"
+              />
+            </View>
+
+            </ScrollView>
+            <View style={[styles.sheetActions, { marginTop: 12 }]}>
               <TouchableOpacity style={[styles.btnSecondary, { borderColor: colors.border }]} onPress={() => setAddExerciseMode(null)}>
                 <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Anuluj</Text>
               </TouchableOpacity>
@@ -726,13 +775,14 @@ export default function PlanDetailScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setEditExercise(null)} />
-          <View style={[styles.sheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + 24 }]}>
+          <View style={[styles.sheetScrollable, { backgroundColor: colors.card, paddingBottom: insets.bottom + 24, maxHeight: "88%" }]}>
             <View style={[styles.handle, { backgroundColor: colors.border }]} />
             <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
               {editExercise?.exercise.name}
             </Text>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 6 }}>
 
-            <View style={{ flexDirection: "row", gap: 10 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Serie</Text>
                 <TextInput
@@ -755,20 +805,52 @@ export default function PlanDetailScreen() {
                   testID="input-edit-reps"
                 />
               </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Obciążenie</Text>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                  placeholder="np. 60 kg"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={editLoad}
+                  onChangeText={setEditLoad}
+                  returnKeyType="next"
+                  testID="input-edit-load"
+                />
+              </View>
             </View>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Obciążenie (opcjonalnie)</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Opis (opcjonalnie)</Text>
             <TextInput
-              style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="np. 60 kg"
+              style={[styles.textInput, styles.textArea, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              placeholder="Opis techniki, uwagi do wykonania..."
               placeholderTextColor={colors.mutedForeground}
-              value={editLoad}
-              onChangeText={setEditLoad}
-              returnKeyType="done"
-              testID="input-edit-load"
+              value={editDesc}
+              onChangeText={setEditDesc}
+              multiline
+              numberOfLines={3}
+              returnKeyType="next"
+              testID="input-edit-desc"
             />
 
-            <View style={styles.sheetActions}>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Link do YouTube (opcjonalnie)</Text>
+            <View style={[styles.youtubeInputRow, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <Ionicons name="logo-youtube" size={18} color="#FF0000" />
+              <TextInput
+                style={[styles.youtubeInput, { color: colors.foreground }]}
+                placeholder="https://youtube.com/watch?v=..."
+                placeholderTextColor={colors.mutedForeground}
+                value={editVideoUrl}
+                onChangeText={setEditVideoUrl}
+                keyboardType="url"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                testID="input-edit-video-url"
+              />
+            </View>
+
+            </ScrollView>
+            <View style={[styles.sheetActions, { marginTop: 12 }]}>
               <TouchableOpacity style={[styles.btnSecondary, { borderColor: colors.border }]} onPress={() => setEditExercise(null)}>
                 <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Anuluj</Text>
               </TouchableOpacity>
@@ -824,11 +906,24 @@ const styles = StyleSheet.create({
   emptyExercises: { padding: 16, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
   kavSheet: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
   sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingTop: 12, gap: 10 },
+  sheetScrollable: { borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 12 },
   sheetTall: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingTop: 12, gap: 8, maxHeight: "80%" },
   handle: { width: 40, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 8 },
   sheetTitle: { fontSize: 18, fontFamily: "Inter_700Bold", marginBottom: 2 },
   fieldLabel: { fontSize: 12, fontFamily: "Inter_500Medium", marginBottom: 2 },
   textInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, fontFamily: "Inter_400Regular" },
+  textArea: { minHeight: 72, textAlignVertical: "top" },
+  youtubeInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 4,
+  },
+  youtubeInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
   sheetActions: { flexDirection: "row", gap: 10, marginTop: 4 },
   btnSecondary: { flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 12, alignItems: "center" },
   btnPrimary: { flex: 1, borderRadius: 10, paddingVertical: 12, alignItems: "center" },
