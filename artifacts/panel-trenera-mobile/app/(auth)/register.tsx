@@ -29,6 +29,7 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +39,7 @@ export default function RegisterScreen() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return "Nieprawidłowy adres e-mail";
     if (password.length < 6) return "Hasło musi mieć co najmniej 6 znaków";
     if (password !== confirmPassword) return "Hasła nie są zgodne";
+    if (!acceptedTerms) return "Musisz zaakceptować regulamin aplikacji";
     return null;
   }
 
@@ -232,6 +234,45 @@ export default function RegisterScreen() {
               </View>
             </View>
 
+            {/* Terms acceptance */}
+            <Pressable
+              onPress={() => setAcceptedTerms(!acceptedTerms)}
+              style={styles.termsRow}
+              testID="button-accept-terms"
+            >
+              <View
+                style={[
+                  styles.checkbox,
+                  {
+                    borderColor: acceptedTerms ? colors.primary : colors.border,
+                    backgroundColor: acceptedTerms ? colors.primary : "transparent",
+                  },
+                ]}
+              >
+                {acceptedTerms && (
+                  <Ionicons name="checkmark" size={13} color="#fff" />
+                )}
+              </View>
+              <Text style={[styles.termsText, { color: colors.mutedForeground }]}>
+                Akceptuję{" "}
+                <Text
+                  style={[styles.termsLink, { color: colors.primary }]}
+                  onPress={() => router.push("/(auth)/terms")}
+                  testID="link-terms"
+                >
+                  Regulamin aplikacji
+                </Text>
+                {" "}i{" "}
+                <Text
+                  style={[styles.termsLink, { color: colors.primary }]}
+                  onPress={() => router.push("/(auth)/terms")}
+                  testID="link-privacy"
+                >
+                  Politykę prywatności
+                </Text>
+              </Text>
+            </Pressable>
+
             <Pressable
               onPress={handleRegister}
               disabled={loading}
@@ -346,6 +387,32 @@ const styles = StyleSheet.create({
   },
   eyeBtn: {
     padding: 4,
+  },
+  termsRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    paddingVertical: 4,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 1,
+    flexShrink: 0,
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 20,
+  },
+  termsLink: {
+    fontFamily: "Inter_600SemiBold",
+    textDecorationLine: "underline",
   },
   registerBtn: {
     height: 52,
