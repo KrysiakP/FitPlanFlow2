@@ -21,8 +21,112 @@ const TIER_LABELS: Record<string, string> = {
   solo: "Solo",
   pro: "Pro",
   elite: "Elite",
+  max: "Max",
   studio: "Studio",
 };
+
+interface PricingPlan {
+  id: string;
+  name: string;
+  price: number | string;
+  description: string;
+  clientLimit: number;
+  features: string[];
+  highlighted?: boolean;
+  customPricing?: boolean;
+}
+
+const PRICING_PLANS: PricingPlan[] = [
+  {
+    id: "start",
+    name: "START",
+    price: 0,
+    description: "Idealny na start, wypróbuj za darmo",
+    clientLimit: 3,
+    features: [
+      "Do 3 podopiecznych",
+      "Plany treningowe",
+      "Biblioteka ćwiczeń",
+      "Raporty tygodniowe",
+    ],
+  },
+  {
+    id: "solo",
+    name: "SOLO",
+    price: 99,
+    description: "Dla początkujących trenerów personalnych",
+    clientLimit: 10,
+    features: [
+      "Do 10 podopiecznych",
+      "Plany treningowe",
+      "Biblioteka ćwiczeń",
+      "Raporty tygodniowe",
+      "Email wsparcie",
+    ],
+  },
+  {
+    id: "pro",
+    name: "PRO",
+    price: 189,
+    description: "Dla rozwijających się trenerów",
+    clientLimit: 20,
+    highlighted: true,
+    features: [
+      "Do 20 podopiecznych",
+      "Plany treningowe",
+      "Biblioteka ćwiczeń",
+      "Raporty tygodniowe",
+      "Priorytetowe wsparcie",
+      "Dedykowany opiekun",
+    ],
+  },
+  {
+    id: "elite",
+    name: "ELITE",
+    price: 279,
+    description: "Dla profesjonalnych trenerów",
+    clientLimit: 35,
+    features: [
+      "Do 35 podopiecznych",
+      "Plany treningowe",
+      "Biblioteka ćwiczeń",
+      "Raporty tygodniowe",
+      "Priorytetowe wsparcie",
+      "Dedykowany opiekun",
+    ],
+  },
+  {
+    id: "max",
+    name: "MAX",
+    price: 349,
+    description: "Dla ekspertów z dużą bazą klientów",
+    clientLimit: 50,
+    features: [
+      "Do 50 podopiecznych",
+      "Plany treningowe",
+      "Biblioteka ćwiczeń",
+      "Raporty tygodniowe",
+      "Priorytetowe wsparcie",
+      "Dedykowany opiekun",
+    ],
+  },
+  {
+    id: "studio",
+    name: "STUDIO/KLUB",
+    price: "Wycena",
+    description: "Dla studiów i klubów fitness",
+    clientLimit: -1,
+    customPricing: true,
+    features: [
+      "Powyżej 50 podopiecznych",
+      "Plany treningowe",
+      "Biblioteka ćwiczeń",
+      "Raporty tygodniowe",
+      "Priorytetowe wsparcie",
+      "Dedykowany opiekun",
+    ],
+  },
+];
 
 export default function TrainerProfileScreen() {
   const colors = useColors();
@@ -96,6 +200,108 @@ export default function TrainerProfileScreen() {
           <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.7)" />
         </Pressable>
       </View>
+
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Cennik planów</Text>
+      <Text style={[styles.pricingNote, { color: colors.mutedForeground }]}>
+        Zakup i zmiana planu odbywa się przez paneltrenera.pl
+      </Text>
+      {PRICING_PLANS.map((plan) => {
+        const isCurrent = tier === plan.id;
+        return (
+          <View
+            key={plan.id}
+            style={[
+              styles.planCard,
+              {
+                backgroundColor: isCurrent ? colors.primary + "0f" : colors.card,
+                borderColor: isCurrent ? colors.primary : colors.border,
+                borderWidth: isCurrent ? 2 : 1,
+              },
+            ]}
+            testID={`card-pricing-${plan.id}`}
+          >
+            <View style={styles.planCardHeader}>
+              <View style={styles.planCardLeft}>
+                <View style={styles.planNameRow}>
+                  <Text style={[styles.planName, { color: isCurrent ? colors.primary : colors.foreground }]}>
+                    {plan.name}
+                  </Text>
+                  {isCurrent && (
+                    <View style={[styles.currentBadge, { backgroundColor: colors.primary }]}>
+                      <Text style={styles.currentBadgeText}>Aktualny</Text>
+                    </View>
+                  )}
+                  {plan.highlighted && !isCurrent && (
+                    <View style={[styles.popularBadge, { backgroundColor: colors.primary + "18" }]}>
+                      <Text style={[styles.popularBadgeText, { color: colors.primary }]}>Popularny</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.planDesc, { color: colors.mutedForeground }]}>{plan.description}</Text>
+              </View>
+              <View style={styles.planPriceBox}>
+                {plan.customPricing ? (
+                  <Text style={[styles.planPriceCustom, { color: isCurrent ? colors.primary : colors.foreground }]}>
+                    Wycena
+                  </Text>
+                ) : (
+                  <>
+                    <Text style={[styles.planPrice, { color: isCurrent ? colors.primary : colors.foreground }]}>
+                      {plan.price === 0 ? "0" : plan.price} zł
+                    </Text>
+                    <Text style={[styles.planPricePer, { color: colors.mutedForeground }]}>/mies.</Text>
+                  </>
+                )}
+              </View>
+            </View>
+
+            <View style={[styles.planFeaturesList]}>
+              {plan.features.map((feature) => (
+                <View key={feature} style={styles.planFeatureRow}>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={15}
+                    color={isCurrent ? colors.primary : "#16a34a"}
+                  />
+                  <Text style={[styles.planFeatureText, { color: colors.mutedForeground }]}>
+                    {feature}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            {!isCurrent && (
+              <Pressable
+                onPress={() => Linking.openURL("https://paneltrenera.pl/cennik")}
+                style={({ pressed }) => [
+                  styles.planCta,
+                  {
+                    backgroundColor: plan.highlighted ? colors.primary : "transparent",
+                    borderColor: plan.highlighted ? colors.primary : colors.border,
+                    borderWidth: 1,
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                ]}
+                testID={`button-select-plan-${plan.id}`}
+              >
+                <Text
+                  style={[
+                    styles.planCtaText,
+                    { color: plan.highlighted ? "#fff" : colors.foreground },
+                  ]}
+                >
+                  {plan.customPricing ? "Skontaktuj się" : "Wybierz plan"}
+                </Text>
+                <Ionicons
+                  name="open-outline"
+                  size={14}
+                  color={plan.highlighted ? "#fff" : colors.mutedForeground}
+                />
+              </Pressable>
+            )}
+          </View>
+        );
+      })}
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ustawienia</Text>
       <MenuRow
@@ -189,4 +395,24 @@ const styles = StyleSheet.create({
   logoutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, padding: 16, borderRadius: 14, borderWidth: 1, marginTop: 8, marginBottom: 16 },
   logoutText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   footer: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
+  pricingNote: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: -4, marginBottom: 14, lineHeight: 18 },
+  planCard: { borderRadius: 16, padding: 18, marginBottom: 12 },
+  planCardHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12 },
+  planCardLeft: { flex: 1, gap: 4 },
+  planNameRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  planName: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  currentBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  currentBadgeText: { color: "#fff", fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  popularBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  popularBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  planDesc: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  planPriceBox: { alignItems: "flex-end", gap: 1 },
+  planPrice: { fontSize: 22, fontFamily: "Inter_700Bold" },
+  planPricePer: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  planPriceCustom: { fontSize: 14, fontFamily: "Inter_600SemiBold", textAlign: "right" },
+  planFeaturesList: { gap: 6, marginBottom: 14 },
+  planFeatureRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  planFeatureText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
+  planCta: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 11, borderRadius: 12 },
+  planCtaText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
 });
