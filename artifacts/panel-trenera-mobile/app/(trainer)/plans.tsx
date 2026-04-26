@@ -40,6 +40,7 @@ export default function TrainerPlansScreen() {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [newPlanName, setNewPlanName] = useState("");
   const [newPlanDesc, setNewPlanDesc] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const { data, isLoading, refetch, isRefetching } = useQuery<TrainingPlan[]>({
     queryKey: ["training-plans"],
@@ -55,10 +56,13 @@ export default function TrainerPlansScreen() {
       setCreateModalVisible(false);
       setNewPlanName("");
       setNewPlanDesc("");
+      setCreateError(null);
       router.push(`/(trainer)/plan/${plan.id}`);
     },
-    onError: () => {
-      Alert.alert("Błąd", "Nie udało się utworzyć planu.");
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Nie udało się utworzyć planu.";
+      const isUnauth = msg.includes("401") || msg.toLowerCase().includes("unauthorized");
+      setCreateError(isUnauth ? "Sesja wygasła. Zaloguj się ponownie." : "Nie udało się utworzyć planu. Spróbuj ponownie.");
     },
   });
 
@@ -75,9 +79,10 @@ export default function TrainerPlansScreen() {
   function handleCreate() {
     const name = newPlanName.trim();
     if (!name) {
-      Alert.alert("Błąd", "Nazwa planu jest wymagana.");
+      setCreateError("Nazwa planu jest wymagana.");
       return;
     }
+    setCreateError(null);
     createMutation.mutate({ name, description: newPlanDesc.trim() || undefined });
   }
 
@@ -187,6 +192,7 @@ export default function TrainerPlansScreen() {
         style={[styles.fab, { backgroundColor: colors.primary, bottom: insets.bottom + 24 }]}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setCreateError(null);
           setCreateModalVisible(true);
         }}
         testID="button-new-plan"
@@ -212,6 +218,13 @@ export default function TrainerPlansScreen() {
           <View style={[styles.modalSheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + 24 }]}>
             <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nowy plan treningowy</Text>
+
+            {createError && (
+              <View style={[styles.inlineError, { backgroundColor: colors.destructive + "18", borderColor: colors.destructive + "44" }]}>
+                <Ionicons name="alert-circle-outline" size={16} color={colors.destructive} />
+                <Text style={[styles.inlineErrorText, { color: colors.destructive }]}>{createError}</Text>
+              </View>
+            )}
 
             <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Nazwa planu *</Text>
             <TextInput
@@ -244,6 +257,7 @@ export default function TrainerPlansScreen() {
                   setCreateModalVisible(false);
                   setNewPlanName("");
                   setNewPlanDesc("");
+                  setCreateError(null);
                 }}
                 testID="button-cancel-create-plan"
               >
@@ -300,6 +314,8 @@ const styles = StyleSheet.create({
   textInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, fontFamily: "Inter_400Regular" },
   textArea: { minHeight: 80, textAlignVertical: "top" },
   modalActions: { flexDirection: "row", gap: 12, marginTop: 8 },
+  inlineError: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 10, borderWidth: 1 },
+  inlineErrorText: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   btnSecondary: { flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
   btnSecondaryText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   btnPrimary: { flex: 1, borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
