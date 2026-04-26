@@ -314,7 +314,7 @@ export default function TrainerProfileScreen() {
       />
       <MenuRow icon="globe-outline" label="Panel trenera web" desc="Otwórz pełny panel w przeglądarce" colors={colors} onPress={() => Linking.openURL("https://paneltrenera.pl")} />
       <MenuRow icon="people-outline" label="Zaproś klienta" desc="Wyślij zaproszenie nowemu klientowi" colors={colors} onPress={() => Linking.openURL("https://paneltrenera.pl/zaproszenie")} />
-      <MenuRow icon="shield-checkmark-outline" label="Prywatność i RODO" desc="Zarządzaj zgodami i danymi" colors={colors} />
+      <MenuRow icon="shield-checkmark-outline" label="Prywatność i RODO" desc="Zarządzaj zgodami i danymi" colors={colors} onPress={() => router.push("/(auth)/privacy")} testID="button-privacy" />
       <MenuRow icon="help-circle-outline" label="Pomoc i kontakt" desc="FAQ i support techniczny" colors={colors} />
 
       <Pressable
