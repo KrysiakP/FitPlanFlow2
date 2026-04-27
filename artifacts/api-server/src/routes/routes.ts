@@ -3074,7 +3074,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       console.error("Error sending invitation:", error);
-      res.status(500).json({ message: "Nie udało się wysłać zaproszenia" });
+      const msg = error instanceof Error ? error.message : "Nie udało się wysłać zaproszenia";
+      const knownConflicts = [
+        "już istnieje",
+        "już ma aktywne zaproszenie",
+        "nie należy do tego trenera",
+        "nie istnieje",
+      ];
+      const isConflict = knownConflicts.some((s) => msg.includes(s));
+      res.status(isConflict ? 409 : 500).json({ message: msg });
     }
   });
 
