@@ -81,7 +81,7 @@ export default function TrainerLayout() {
     { name: "index", title: "Podopieczni", icon: "people-outline", iconFocused: "people", customHeader: true },
     { name: "plans", title: "Plany treningowe", icon: "clipboard-outline", iconFocused: "clipboard", hidden: true },
     { name: "exercise-library", title: "Biblioteka ćwiczeń", icon: "barbell-outline", iconFocused: "barbell" },
-    { name: "diets", title: "Diety", icon: "nutrition-outline", iconFocused: "nutrition", customHeader: true },
+    { name: "diets", title: "Diety", icon: "nutrition-outline", iconFocused: "nutrition", hidden: true },
     { name: "invitations", title: "Zaproszenia", icon: "mail-outline", iconFocused: "mail" },
     {
       name: "chat",
