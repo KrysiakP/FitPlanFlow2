@@ -77,8 +77,8 @@ export default function TrainerLayout() {
   };
 
   const screens: DrawerScreen[] = [
-    { name: "index", title: "Klienci", icon: "people-outline", iconFocused: "people" },
-    { name: "plans", title: "Plany treningowe", icon: "clipboard-outline", iconFocused: "clipboard" },
+    { name: "index", title: "Podopieczni", icon: "people-outline", iconFocused: "people" },
+    { name: "plans", title: "Plany treningowe", icon: "clipboard-outline", iconFocused: "clipboard", hidden: true },
     { name: "exercise-library", title: "Biblioteka ćwiczeń", icon: "barbell-outline", iconFocused: "barbell" },
     { name: "diets", title: "Diety", icon: "nutrition-outline", iconFocused: "nutrition" },
     { name: "invitations", title: "Zaproszenia", icon: "mail-outline", iconFocused: "mail" },

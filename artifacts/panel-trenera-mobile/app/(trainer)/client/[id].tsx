@@ -2,6 +2,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -114,7 +115,10 @@ export default function ClientDetailScreen() {
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [customMessage, setCustomMessage] = useState("");
   const [notesText, setNotesText] = useState("");
-  const [activeTab, setActiveTab] = useState<"progress" | "reports" | "tests">("progress");
+  const [activeTab, setActiveTab] = useState<"progress" | "plans" | "reports" | "tests">("plans");
+  const [createPlanModalVisible, setCreatePlanModalVisible] = useState(false);
+  const [newPlanName, setNewPlanName] = useState("");
+  const [newPlanDesc, setNewPlanDesc] = useState("");
 
   const { data: progress, isLoading: loadingProgress, refetch, isRefetching } = useQuery<ClientProgressData>({
     queryKey: ["client-progress", id],
@@ -134,6 +138,21 @@ export default function ClientDetailScreen() {
     queryKey: ["training-plans"],
     queryFn: () => apiGet<TrainingPlan[]>("/api/plans"),
     enabled: assignModalVisible,
+  });
+
+  const assignedPlanId = clientData?.assignment?.plan?.id ?? null;
+
+  interface PlanDetail {
+    id: string;
+    name: string;
+    description?: string | null;
+    workouts: Array<{ id: string; name: string; description?: string | null; orderIndex: number; exercises: Array<{ id: string; name: string }> }>;
+  }
+
+  const { data: planDetail, isLoading: loadingPlanDetail } = useQuery<PlanDetail>({
+    queryKey: ["plan-detail", assignedPlanId],
+    queryFn: () => apiGet<PlanDetail>(`/api/plans/${assignedPlanId}`),
+    enabled: !!assignedPlanId && activeTab === "plans",
   });
 
   const { data: trainerNotesData } = useQuery<{ notes: string | null }>({
@@ -181,8 +200,27 @@ export default function ClientDetailScreen() {
     onSuccess: () => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ["trainer-clients"] });
+      qc.invalidateQueries({ queryKey: ["plan-detail"] });
       setAssignModalVisible(false);
     },
+  });
+
+  const createAndAssignMutation = useMutation({
+    mutationFn: async ({ name, description }: { name: string; description?: string }) => {
+      const plan = await apiPost<{ id: string; name: string }>("/api/plans", { name, description });
+      await apiPost("/api/assignments/bulk", { planId: plan.id, clientIds: [id] });
+      return plan;
+    },
+    onSuccess: (plan) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ["trainer-clients"] });
+      qc.invalidateQueries({ queryKey: ["training-plans"] });
+      setCreatePlanModalVisible(false);
+      setNewPlanName("");
+      setNewPlanDesc("");
+      router.push(`/(trainer)/plan/${plan.id}`);
+    },
+    onError: () => Alert.alert("Blad", "Nie udalo sie utworzyc planu. Sprobuj ponownie."),
   });
 
   const remindMutation = useMutation({
@@ -217,7 +255,7 @@ export default function ClientDetailScreen() {
       >
         <Pressable onPress={() => router.back()} style={styles.backBtn} testID="button-back">
           <Ionicons name="chevron-back" size={22} color={colors.primary} />
-          <Text style={[styles.backText, { color: colors.primary }]}>Klienci</Text>
+          <Text style={[styles.backText, { color: colors.primary }]}>Podopieczni</Text>
         </Pressable>
 
         {clientData && (
@@ -258,36 +296,11 @@ export default function ClientDetailScreen() {
           </View>
         )}
 
-        <View style={styles.planHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Aktywny plan</Text>
-          <Pressable
-            onPress={() => setAssignModalVisible(true)}
-            style={({ pressed }) => [styles.assignBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
-            testID="button-assign-plan"
-          >
-            <Ionicons name="swap-horizontal-outline" size={14} color="#fff" />
-            <Text style={styles.assignBtnText}>{assignment?.plan ? "Zmień" : "Przypisz"}</Text>
-          </Pressable>
-        </View>
-
-        {!clientsList ? (
-          <ActivityIndicator color={colors.primary} />
-        ) : (
-          <View style={[styles.planCard, { backgroundColor: colors.primary }]}>
-            <Ionicons name="barbell-outline" size={20} color="rgba(255,255,255,0.8)" />
-            <Text style={styles.planName}>
-              {assignment?.plan?.name ?? "Brak przypisanego planu"}
-            </Text>
-            {assignment?.plan?.description && (
-              <Text style={styles.planDesc}>{assignment.plan.description}</Text>
-            )}
-          </View>
-        )}
-
         <View style={[styles.tabBar, { borderColor: colors.border }]}>
           {(
             [
-              { key: "progress", label: "Postępy" },
+              { key: "plans", label: "Treningi" },
+              { key: "progress", label: "Postepy" },
               { key: "reports", label: "Raporty" },
               { key: "tests", label: "Badania" },
             ] as const
@@ -326,6 +339,121 @@ export default function ClientDetailScreen() {
             );
           })}
         </View>
+
+        {activeTab === "plans" && (
+          <>
+            {/* No plan assigned */}
+            {!assignment?.plan ? (
+              <View style={styles.noPlanBox}>
+                <View style={[styles.noPlanIcon, { backgroundColor: colors.primary + "12" }]}>
+                  <Ionicons name="barbell-outline" size={36} color={colors.primary} />
+                </View>
+                <Text style={[styles.noPlanTitle, { color: colors.foreground }]}>Brak planu treningowego</Text>
+                <Text style={[styles.noPlanDesc, { color: colors.mutedForeground }]}>
+                  Utworz plan treningowy dla tego podopiecznego lub przypisz istniejacy.
+                </Text>
+                <Pressable
+                  onPress={() => setCreatePlanModalVisible(true)}
+                  style={({ pressed }) => [styles.createPlanBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
+                  testID="button-create-plan"
+                >
+                  <Ionicons name="add-circle-outline" size={18} color="#fff" />
+                  <Text style={styles.createPlanBtnText}>Utworz plan treningowy</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setAssignModalVisible(true)}
+                  style={({ pressed }) => [styles.assignExistingBtn, { borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
+                  testID="button-assign-existing-plan"
+                >
+                  <Ionicons name="swap-horizontal-outline" size={16} color={colors.foreground} />
+                  <Text style={[styles.assignExistingBtnText, { color: colors.foreground }]}>Przypisz istniejacy plan</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                {/* Plan header card */}
+                <Pressable
+                  onPress={() => router.push(`/(trainer)/plan/${assignment.plan!.id}`)}
+                  style={({ pressed }) => [styles.planBigCard, { backgroundColor: colors.primary, opacity: pressed ? 0.9 : 1 }]}
+                  testID="button-open-plan"
+                >
+                  <View style={styles.planBigCardLeft}>
+                    <View style={styles.planBigCardIcon}>
+                      <Ionicons name="barbell-outline" size={22} color="rgba(255,255,255,0.85)" />
+                    </View>
+                    <View style={styles.planBigCardInfo}>
+                      <Text style={styles.planBigCardName} numberOfLines={1}>{assignment.plan!.name}</Text>
+                      {assignment.plan!.description && (
+                        <Text style={styles.planBigCardDesc} numberOfLines={1}>{assignment.plan!.description}</Text>
+                      )}
+                    </View>
+                  </View>
+                  <View style={styles.planBigCardRight}>
+                    <Text style={styles.planBigCardEditLabel}>Edytuj plan</Text>
+                    <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.8)" />
+                  </View>
+                </Pressable>
+
+                {/* Workouts list */}
+                <View style={styles.workoutsHeader}>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Treningi</Text>
+                  <Pressable
+                    onPress={() => router.push(`/(trainer)/plan/${assignment.plan!.id}`)}
+                    style={({ pressed }) => [styles.addWorkoutBtn, { borderColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
+                    testID="button-add-workout"
+                  >
+                    <Ionicons name="add" size={16} color={colors.primary} />
+                    <Text style={[styles.addWorkoutBtnText, { color: colors.primary }]}>Dodaj trening</Text>
+                  </Pressable>
+                </View>
+
+                {loadingPlanDetail ? (
+                  <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
+                ) : (planDetail?.workouts ?? []).length === 0 ? (
+                  <Pressable
+                    onPress={() => router.push(`/(trainer)/plan/${assignment.plan!.id}`)}
+                    style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  >
+                    <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak treningow. Dodaj pierwszy trening.</Text>
+                  </Pressable>
+                ) : (
+                  [...(planDetail?.workouts ?? [])].sort((a, b) => a.orderIndex - b.orderIndex).map((workout, idx) => (
+                    <Pressable
+                      key={workout.id}
+                      onPress={() => router.push(`/(trainer)/plan/${assignment.plan!.id}`)}
+                      style={({ pressed }) => [
+                        styles.workoutRow,
+                        { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
+                      ]}
+                      testID={`button-workout-${workout.id}`}
+                    >
+                      <View style={[styles.workoutNumBadge, { backgroundColor: colors.primary + "15" }]}>
+                        <Text style={[styles.workoutNumText, { color: colors.primary }]}>{idx + 1}</Text>
+                      </View>
+                      <View style={styles.workoutRowInfo}>
+                        <Text style={[styles.workoutRowName, { color: colors.foreground }]}>{workout.name}</Text>
+                        <Text style={[styles.workoutRowSub, { color: colors.mutedForeground }]}>
+                          {workout.exercises.length} {workout.exercises.length === 1 ? "cwiczenie" : workout.exercises.length < 5 ? "cwiczenia" : "cwiczen"}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+                    </Pressable>
+                  ))
+                )}
+
+                {/* Change plan */}
+                <Pressable
+                  onPress={() => setAssignModalVisible(true)}
+                  style={({ pressed }) => [styles.changePlanLink, { opacity: pressed ? 0.7 : 1 }]}
+                  testID="button-change-plan"
+                >
+                  <Ionicons name="swap-horizontal-outline" size={14} color={colors.mutedForeground} />
+                  <Text style={[styles.changePlanLinkText, { color: colors.mutedForeground }]}>Zmien aktywny plan</Text>
+                </Pressable>
+              </>
+            )}
+          </>
+        )}
 
         {activeTab === "progress" && (
           <>
@@ -559,6 +687,69 @@ export default function ClientDetailScreen() {
         </View>
       </Modal>
 
+      {/* Create plan modal */}
+      <Modal
+        visible={createPlanModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { if (!createAndAssignMutation.isPending) setCreatePlanModalVisible(false); }}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.modalTitleRow}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nowy plan treningowy</Text>
+              <Pressable onPress={() => { if (!createAndAssignMutation.isPending) setCreatePlanModalVisible(false); }} testID="button-close-create-plan-modal">
+                <Ionicons name="close" size={22} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+            <Text style={[styles.remindModalHint, { color: colors.mutedForeground }]}>
+              Plan zostanie utworzony i przypisany do tego podopiecznego. Nastepnie mozesz dodac treningi.
+            </Text>
+            <TextInput
+              style={[styles.remindInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, minHeight: 48 }]}
+              placeholder="Nazwa planu, np. Budowanie masy"
+              placeholderTextColor={colors.mutedForeground}
+              value={newPlanName}
+              onChangeText={setNewPlanName}
+              autoFocus
+              testID="input-new-plan-name"
+            />
+            <TextInput
+              style={[styles.remindInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              placeholder="Opis (opcjonalnie)"
+              placeholderTextColor={colors.mutedForeground}
+              value={newPlanDesc}
+              onChangeText={setNewPlanDesc}
+              multiline
+              numberOfLines={2}
+              testID="input-new-plan-desc"
+            />
+            <Pressable
+              onPress={() => {
+                if (newPlanName.trim()) {
+                  createAndAssignMutation.mutate({ name: newPlanName.trim(), description: newPlanDesc.trim() || undefined });
+                }
+              }}
+              disabled={createAndAssignMutation.isPending || !newPlanName.trim()}
+              style={({ pressed }) => [
+                styles.remindSendBtn,
+                { backgroundColor: colors.primary, opacity: (createAndAssignMutation.isPending || !newPlanName.trim() || pressed) ? 0.7 : 1 },
+              ]}
+              testID="button-confirm-create-plan"
+            >
+              {createAndAssignMutation.isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="add-circle-outline" size={16} color="#fff" />
+              )}
+              <Text style={styles.remindSendBtnText}>
+                {createAndAssignMutation.isPending ? "Tworzenie..." : "Utworz i przejdz do edytora"}
+              </Text>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       <Modal
         visible={assignModalVisible}
         transparent
@@ -577,9 +768,18 @@ export default function ClientDetailScreen() {
             {!plans ? (
               <ActivityIndicator color={colors.primary} style={{ marginVertical: 24 }} />
             ) : plans.length === 0 ? (
-              <Text style={[styles.emptyText, { color: colors.mutedForeground, textAlign: "center", marginVertical: 24 }]}>
-                Brak planów. Utwórz plan na paneltrenera.pl.
-              </Text>
+              <View style={{ alignItems: "center", marginVertical: 24, gap: 12 }}>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground, textAlign: "center" }]}>
+                  Brak planow. Utwórz plan w zakladce Treningi.
+                </Text>
+                <Pressable
+                  onPress={() => { setAssignModalVisible(false); setCreatePlanModalVisible(true); }}
+                  style={({ pressed }) => [styles.remindSendBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1, paddingHorizontal: 20 }]}
+                >
+                  <Ionicons name="add-circle-outline" size={16} color="#fff" />
+                  <Text style={styles.remindSendBtnText}>Utworz nowy plan</Text>
+                </Pressable>
+              </View>
             ) : (
               <ScrollView style={styles.planList} showsVerticalScrollIndicator={false}>
                 {plans.map((plan) => {
@@ -721,6 +921,35 @@ const styles = StyleSheet.create({
   tabLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
   tabBadge: { borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1 },
   tabBadgeText: { color: "#fff", fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  // Treningi tab — no plan
+  noPlanBox: { alignItems: "center", gap: 12, paddingVertical: 36, paddingHorizontal: 8 },
+  noPlanIcon: { width: 72, height: 72, borderRadius: 20, justifyContent: "center", alignItems: "center", marginBottom: 4 },
+  noPlanTitle: { fontSize: 17, fontFamily: "Inter_700Bold", textAlign: "center" },
+  noPlanDesc: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 21, marginBottom: 4 },
+  createPlanBtn: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 20, paddingVertical: 13, borderRadius: 12, width: "100%" },
+  createPlanBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  assignExistingBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, borderWidth: 1, width: "100%" },
+  assignExistingBtnText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  // Treningi tab — plan assigned
+  planBigCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderRadius: 16, padding: 16, marginBottom: 20, gap: 12 },
+  planBigCardLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  planBigCardIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.18)", justifyContent: "center", alignItems: "center" },
+  planBigCardInfo: { flex: 1 },
+  planBigCardName: { color: "#fff", fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 2 },
+  planBigCardDesc: { color: "rgba(255,255,255,0.75)", fontSize: 12, fontFamily: "Inter_400Regular" },
+  planBigCardRight: { flexDirection: "row", alignItems: "center", gap: 4 },
+  planBigCardEditLabel: { color: "rgba(255,255,255,0.8)", fontSize: 13, fontFamily: "Inter_500Medium" },
+  workoutsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  addWorkoutBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
+  addWorkoutBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  workoutRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 8 },
+  workoutNumBadge: { width: 34, height: 34, borderRadius: 10, justifyContent: "center", alignItems: "center" },
+  workoutNumText: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  workoutRowInfo: { flex: 1 },
+  workoutRowName: { fontSize: 15, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
+  workoutRowSub: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  changePlanLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 8, paddingVertical: 12 },
+  changePlanLinkText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   reportCard: { borderRadius: 12, borderWidth: 1, marginBottom: 10, overflow: "hidden" },
   reportCardHeader: { flexDirection: "row", alignItems: "center", padding: 14, gap: 10 },
   reportCardDate: { flex: 1, fontSize: 14, fontFamily: "Inter_600SemiBold" },
