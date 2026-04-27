@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme, type ThemePreference } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
 import { apiGet } from "@/lib/api";
 import { apiFetch } from "@/context/AuthContext";
@@ -171,6 +172,7 @@ export default function ClientProfileScreen() {
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ustawienia</Text>
 
+        <ThemeToggleRow colors={colors} />
         <MenuRow
           icon="create-outline"
           label="Edytuj profil"
@@ -366,6 +368,47 @@ function MenuRow({ icon, label, desc, colors, onPress, testID }: MenuRowProps) {
   );
 }
 
+function ThemeToggleRow({ colors }: { colors: ReturnType<typeof useColors> }) {
+  const { preference, setPreference } = useTheme();
+  const options: { value: ThemePreference; icon: IoniconsName; label: string }[] = [
+    { value: "light", icon: "sunny-outline", label: "Jasny" },
+    { value: "system", icon: "phone-portrait-outline", label: "System" },
+    { value: "dark", icon: "moon-outline", label: "Ciemny" },
+  ];
+
+  return (
+    <View style={[styles.menuRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.menuIcon, { backgroundColor: colors.accent }]}>
+        <Ionicons name="contrast-outline" size={18} color={colors.foreground} />
+      </View>
+      <View style={[styles.menuInfo, { flex: 1 }]}>
+        <Text style={[styles.menuLabel, { color: colors.foreground }]}>Motyw</Text>
+      </View>
+      <View style={[styles.themeToggleRow, { backgroundColor: colors.accent, borderColor: colors.border }]}>
+        {options.map((opt) => {
+          const active = preference === opt.value;
+          return (
+            <Pressable
+              key={opt.value}
+              onPress={() => { setPreference(opt.value); Haptics.selectionAsync(); }}
+              style={[
+                styles.themeOption,
+                active && { backgroundColor: colors.primary },
+              ]}
+              testID={`button-theme-${opt.value}`}
+            >
+              <Ionicons name={opt.icon} size={14} color={active ? colors.primaryForeground : colors.mutedForeground} />
+              <Text style={[styles.themeOptionLabel, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>
+                {opt.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingHorizontal: 20 },
@@ -386,6 +429,9 @@ const styles = StyleSheet.create({
   logoutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, padding: 16, borderRadius: 14, borderWidth: 1, marginTop: 8, marginBottom: 16 },
   logoutText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   footer: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
+  themeToggleRow: { flexDirection: "row", borderRadius: 10, borderWidth: 1, overflow: "hidden" },
+  themeOption: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 7 },
+  themeOptionLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
 
   // Modal
   modalRoot: { flex: 1 },
