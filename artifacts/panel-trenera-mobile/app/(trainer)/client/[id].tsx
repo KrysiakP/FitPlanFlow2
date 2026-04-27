@@ -94,6 +94,12 @@ interface TrainingPlan {
   description?: string | null;
 }
 
+interface DietPlan {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
 interface ClientProgressData {
   id: string;
   weight?: string | null;
@@ -123,8 +129,11 @@ export default function ClientDetailScreen() {
   const [notesText, setNotesText] = useState("");
   const [activeTab, setActiveTab] = useState<"plans" | "diet" | "progress" | "reports" | "tests">("plans");
   const [createPlanModalVisible, setCreatePlanModalVisible] = useState(false);
+  const [createDietModalVisible, setCreateDietModalVisible] = useState(false);
   const [newPlanName, setNewPlanName] = useState("");
   const [newPlanDesc, setNewPlanDesc] = useState("");
+  const [newDietName, setNewDietName] = useState("");
+  const [newDietDesc, setNewDietDesc] = useState("");
 
   const { data: progress, isLoading: loadingProgress, refetch, isRefetching } = useQuery<ClientProgressData>({
     queryKey: ["client-progress", id],
@@ -144,6 +153,12 @@ export default function ClientDetailScreen() {
     queryKey: ["training-plans"],
     queryFn: () => apiGet<TrainingPlan[]>("/api/plans"),
     enabled: assignModalVisible,
+  });
+
+  const { data: diets } = useQuery<DietPlan[]>({
+    queryKey: ["trainer-diet-plans", id],
+    queryFn: () => apiGet<DietPlan[]>(`/api/diets/plans?clientId=${id}`),
+    enabled: !!id && createDietModalVisible,
   });
 
   const { data: dietPlans } = useQuery<ClientDietPlan[]>({
@@ -233,6 +248,31 @@ export default function ClientDetailScreen() {
       router.push(`/(trainer)/plan/${plan.id}`);
     },
     onError: () => Alert.alert("Blad", "Nie udalo sie utworzyc planu. Sprobuj ponownie."),
+  });
+
+  const createDietMutation = useMutation({
+    mutationFn: async ({ name, description }: { name: string; description?: string }) =>
+      apiPost<{ id: string }>("/api/diets/plans", {
+        name,
+        description,
+        clientId: id,
+        targetCalories: 2000,
+        targetProtein: 150,
+        targetFat: 56,
+        targetCarbs: 225,
+        mealsPerDay: 3,
+        mode: "full_plan",
+        status: "draft",
+      }),
+    onSuccess: (diet) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ["trainer-diet-plans", id] });
+      setCreateDietModalVisible(false);
+      setNewDietName("");
+      setNewDietDesc("");
+      router.push(`/(trainer)/diet/${diet.id}`);
+    },
+    onError: () => Alert.alert("Błąd", "Nie udało się utworzyć planu diety. Spróbuj ponownie."),
   });
 
   const remindMutation = useMutation({
@@ -481,12 +521,12 @@ export default function ClientDetailScreen() {
                   Utworz plan diety dla tego podopiecznego lub przypisz istniejacy.
                 </Text>
                 <Pressable
-                  onPress={() => router.push("/(trainer)/diets")}
+                  onPress={() => setCreateDietModalVisible(true)}
                   style={({ pressed }) => [styles.createPlanBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
-                  testID="button-open-diets"
+                  testID="button-create-diet"
                 >
                   <Ionicons name="add-circle-outline" size={18} color="#fff" />
-                  <Text style={styles.createPlanBtnText}>Przejdź do diet</Text>
+                  <Text style={styles.createPlanBtnText}>Utwórz plan diety</Text>
                 </Pressable>
               </View>
             ) : (
@@ -759,6 +799,68 @@ export default function ClientDetailScreen() {
       </Modal>
 
       {/* Create plan modal */}
+      <Modal
+        visible={createDietModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { if (!createDietMutation.isPending) setCreateDietModalVisible(false); }}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.modalTitleRow}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nowy plan diety</Text>
+              <Pressable onPress={() => { if (!createDietMutation.isPending) setCreateDietModalVisible(false); }} testID="button-close-create-diet-modal">
+                <Ionicons name="close" size={22} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+            <Text style={[styles.remindModalHint, { color: colors.mutedForeground }]}>
+              Plan diety zostanie utworzony dla tego podopiecznego. Następnie możesz go edytować.
+            </Text>
+            <TextInput
+              style={[styles.remindInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, minHeight: 48 }]}
+              placeholder="Nazwa planu, np. Redukcja"
+              placeholderTextColor={colors.mutedForeground}
+              value={newDietName}
+              onChangeText={setNewDietName}
+              autoFocus
+              testID="input-new-diet-name"
+            />
+            <TextInput
+              style={[styles.remindInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+              placeholder="Opis (opcjonalnie)"
+              placeholderTextColor={colors.mutedForeground}
+              value={newDietDesc}
+              onChangeText={setNewDietDesc}
+              multiline
+              numberOfLines={2}
+              testID="input-new-diet-desc"
+            />
+            <Pressable
+              onPress={() => {
+                if (newDietName.trim()) {
+                  createDietMutation.mutate({ name: newDietName.trim(), description: newDietDesc.trim() || undefined });
+                }
+              }}
+              disabled={createDietMutation.isPending || !newDietName.trim()}
+              style={({ pressed }) => [
+                styles.remindSendBtn,
+                { backgroundColor: colors.primary, opacity: (createDietMutation.isPending || !newDietName.trim() || pressed) ? 0.7 : 1 },
+              ]}
+              testID="button-confirm-create-diet"
+            >
+              {createDietMutation.isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="nutrition-outline" size={16} color="#fff" />
+              )}
+              <Text style={styles.remindSendBtnText}>
+                {createDietMutation.isPending ? "Tworzenie..." : "Utwórz plan diety"}
+              </Text>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       <Modal
         visible={createPlanModalVisible}
         transparent
