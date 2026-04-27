@@ -30,6 +30,8 @@ interface DietPlan {
   targetFat: number;
   targetCarbs: number;
   mode: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 interface DietMeal {
@@ -44,6 +46,8 @@ interface DietMeal {
   protein?: number | null;
   fat?: number | null;
   carbs?: number | null;
+  mealType?: string | null;
+  ingredients?: string | null;
 }
 
 interface DietSupplement {
@@ -55,6 +59,7 @@ interface DietSupplement {
   timing?: string | null;
   frequency?: string | null;
   notes?: string | null;
+  brand?: string | null;
 }
 
 const DAYS = [
@@ -378,6 +383,15 @@ export default function DietPlanDetailScreen() {
   const dayMeals = meals
     .filter((m) => m.dayOfWeek === activeDay)
     .sort((a, b) => a.orderIndex - b.orderIndex);
+  const dayTotals = dayMeals.reduce(
+    (acc, meal) => ({
+      calories: acc.calories + (meal.calories ?? 0),
+      protein: acc.protein + (meal.protein ?? 0),
+      fat: acc.fat + (meal.fat ?? 0),
+      carbs: acc.carbs + (meal.carbs ?? 0),
+    }),
+    { calories: 0, protein: 0, fat: 0, carbs: 0 }
+  );
 
   const isMealPending = addMealMutation.isPending || editMealMutation.isPending;
   const isSuppPending = addSuppMutation.isPending || editSuppMutation.isPending;
@@ -417,6 +431,9 @@ export default function DietPlanDetailScreen() {
               <View style={[styles.statusBadge, { backgroundColor: sc.bg, alignSelf: "flex-start", marginTop: 4 }]}>
                 <Text style={[styles.statusText, { color: sc.text }]}>{STATUS_LABELS[plan.status]}</Text>
               </View>
+              <Text style={[styles.planMeta, { color: colors.mutedForeground }]}>
+                {plan.mode ? (plan.mode === "full_plan" ? "Pełny plan" : plan.mode) : "Plan diety"}
+              </Text>
             </View>
           </View>
           <View style={[styles.macroGrid, { borderTopColor: colors.border }]}>
@@ -424,6 +441,12 @@ export default function DietPlanDetailScreen() {
             <MacroChip label="Białko" value={`${plan.targetProtein}g`} color="#16a34a" />
             <MacroChip label="Tłuszcz" value={`${plan.targetFat}g`} color="#7c3aed" />
             <MacroChip label="Węgle" value={`${plan.targetCarbs}g`} color="#d97706" />
+          </View>
+          <View style={[styles.macroGrid, { borderTopColor: colors.border }]}>
+            <MacroChip label="Dzień" value={`K ${dayTotals.calories}`} color={colors.primary} />
+            <MacroChip label="B" value={`${dayTotals.protein}g`} color="#16a34a" />
+            <MacroChip label="T" value={`${dayTotals.fat}g`} color="#7c3aed" />
+            <MacroChip label="W" value={`${dayTotals.carbs}g`} color="#d97706" />
           </View>
           <View style={[styles.planActions, { borderTopColor: colors.border }]}>
             {canAdvanceStatus && (
@@ -519,6 +542,9 @@ export default function DietPlanDetailScreen() {
                   {meal.suggestedTime && (
                     <Text style={[styles.mealTime, { color: colors.mutedForeground }]}>{meal.suggestedTime}</Text>
                   )}
+                  {meal.mealType && (
+                    <Text style={[styles.mealTime, { color: colors.mutedForeground }]}>{meal.mealType}</Text>
+                  )}
                 </View>
                 {meal.calories != null && (
                   <Text style={[styles.mealCal, { color: colors.primary }]}>{meal.calories} kcal</Text>
@@ -542,6 +568,9 @@ export default function DietPlanDetailScreen() {
               </View>
               {meal.description ? (
                 <Text style={[styles.mealDesc, { color: colors.mutedForeground }]}>{meal.description}</Text>
+              ) : null}
+              {meal.ingredients ? (
+                <Text style={[styles.mealDesc, { color: colors.mutedForeground }]}>{meal.ingredients}</Text>
               ) : null}
               {(meal.protein != null || meal.carbs != null || meal.fat != null) && (
                 <View style={styles.mealMacros}>
@@ -586,6 +615,9 @@ export default function DietPlanDetailScreen() {
                   )}
                   {s.timing && (
                     <Text style={[styles.suppDetail, { color: colors.mutedForeground }]}>{s.timing}</Text>
+                  )}
+                  {s.brand && (
+                    <Text style={[styles.suppDetail, { color: colors.mutedForeground }]}>{s.brand}</Text>
                   )}
                 </View>
               </View>
