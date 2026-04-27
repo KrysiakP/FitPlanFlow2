@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useEffect, useRef, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { DrawerMenuButton } from "@/components/DrawerMenuButton";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
@@ -152,7 +153,7 @@ export default function TrainerChatScreen() {
   const [inputText, setInputText] = useState("");
   const [composeOpen, setComposeOpen] = useState(false);
   const flatListRef = useRef<FlatList>(null);
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const topPad = insets.top;
 
   const { data: conversations = [], isLoading: convsLoading, refetch } = useConversations();
 
@@ -324,6 +325,7 @@ export default function TrainerChatScreen() {
           { paddingTop: topPad + 16, borderBottomColor: colors.border, backgroundColor: colors.background },
         ]}
       >
+        <DrawerMenuButton />
         <Text style={[styles.listTitle, { color: colors.foreground }]}>Wiadomości</Text>
         {conversations.length > 0 && (
           <View style={[styles.countBadge, { backgroundColor: colors.primary + "1a" }]}>

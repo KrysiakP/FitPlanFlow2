@@ -74,24 +74,26 @@ export default function TrainerLayout() {
     icon: IoniconsName;
     iconFocused: IoniconsName;
     hidden?: boolean;
+    customHeader?: boolean;
   };
 
   const screens: DrawerScreen[] = [
-    { name: "index", title: "Podopieczni", icon: "people-outline", iconFocused: "people" },
+    { name: "index", title: "Podopieczni", icon: "people-outline", iconFocused: "people", customHeader: true },
     { name: "plans", title: "Plany treningowe", icon: "clipboard-outline", iconFocused: "clipboard", hidden: true },
     { name: "exercise-library", title: "Biblioteka ćwiczeń", icon: "barbell-outline", iconFocused: "barbell" },
-    { name: "diets", title: "Diety", icon: "nutrition-outline", iconFocused: "nutrition" },
+    { name: "diets", title: "Diety", icon: "nutrition-outline", iconFocused: "nutrition", customHeader: true },
     { name: "invitations", title: "Zaproszenia", icon: "mail-outline", iconFocused: "mail" },
     {
       name: "chat",
       title: "Wiadomości",
       icon: "chatbubble-outline",
       iconFocused: "chatbubble",
+      customHeader: true,
     },
     { name: "payments", title: "Płatności", icon: "wallet-outline", iconFocused: "wallet" },
     { name: "referrals", title: "Polecenia", icon: "gift-outline", iconFocused: "gift" },
     { name: "notifications", title: "Powiadomienia", icon: "notifications-outline", iconFocused: "notifications" },
-    { name: "profile", title: "Profil i subskrypcja", icon: "person-circle-outline", iconFocused: "person-circle" },
+    { name: "profile", title: "Profil i subskrypcja", icon: "person-circle-outline", iconFocused: "person-circle", customHeader: true },
     { name: "client/[id]", title: "Klient", icon: "person-outline", iconFocused: "person", hidden: true },
     { name: "plan/[id]", title: "Plan treningowy", icon: "clipboard-outline", iconFocused: "clipboard", hidden: true },
     { name: "diet/[id]", title: "Plan diety", icon: "nutrition-outline", iconFocused: "nutrition", hidden: true },
@@ -121,6 +123,7 @@ export default function TrainerLayout() {
           name={s.name}
           options={{
             title: s.title,
+            headerShown: s.customHeader ? false : true,
             drawerItemStyle: s.hidden
               ? { display: "none" }
               : { borderRadius: 10, marginHorizontal: 8, marginVertical: 2 },

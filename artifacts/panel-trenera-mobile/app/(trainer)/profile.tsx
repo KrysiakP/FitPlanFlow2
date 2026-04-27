@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { DrawerMenuButton } from "@/components/DrawerMenuButton";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -133,7 +134,7 @@ export default function TrainerProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const topPad = insets.top;
   const initials = ((user?.firstName?.[0] ?? "") + (user?.lastName?.[0] ?? "")).toUpperCase();
 
   const tier = user?.subscriptionTier ?? "start";
@@ -156,12 +157,16 @@ export default function TrainerProfileScreen() {
   }
 
   return (
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <View style={[styles.stickyHeader, { paddingTop: topPad + 8, backgroundColor: colors.background }]}>
+        <DrawerMenuButton />
+        <Text style={[styles.pageTitle, { color: colors.foreground }]}>Profil</Text>
+      </View>
     <ScrollView
-      style={[styles.root, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.content, { paddingTop: topPad + 16, paddingBottom: insets.bottom + 90 }]}
+      style={{ flex: 1 }}
+      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 90 }]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.pageTitle, { color: colors.foreground }]}>Profil</Text>
 
       <View style={[styles.profileCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
@@ -353,6 +358,7 @@ export default function TrainerProfileScreen() {
         Panel Trenera v1.0{"\n"}paneltrenera.pl
       </Text>
     </ScrollView>
+    </View>
   );
 }
 
@@ -431,7 +437,8 @@ function ThemeToggleRow({ colors }: { colors: ReturnType<typeof useColors> }) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingHorizontal: 20 },
-  pageTitle: { fontSize: 22, fontFamily: "Inter_700Bold", marginBottom: 16 },
+  stickyHeader: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingBottom: 8 },
+  pageTitle: { fontSize: 22, fontFamily: "Inter_700Bold" },
   profileCard: { borderRadius: 16, borderWidth: 1, padding: 24, alignItems: "center", gap: 8, marginBottom: 24 },
   avatar: { width: 72, height: 72, borderRadius: 36, justifyContent: "center", alignItems: "center" },
   avatarText: { fontSize: 28, fontFamily: "Inter_700Bold" },

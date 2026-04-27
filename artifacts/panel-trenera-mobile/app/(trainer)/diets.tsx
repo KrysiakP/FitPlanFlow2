@@ -15,6 +15,7 @@ import {
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { DrawerMenuButton } from "@/components/DrawerMenuButton";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -55,7 +56,7 @@ export default function TrainerDietsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const topPad = insets.top;
 
   const [showNewModal, setShowNewModal] = useState(false);
   const [newName, setNewName] = useState("");
@@ -131,17 +132,20 @@ export default function TrainerDietsScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: topPad + 16, paddingBottom: insets.bottom + 100 }]}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={[styles.stickyHeader, { paddingTop: topPad + 8, backgroundColor: colors.background }]}>
         <View style={styles.headerRow}>
+          <DrawerMenuButton />
           <Text style={[styles.pageTitle, { color: colors.foreground }]}>Plany diety</Text>
           <View style={[styles.countBadge, { backgroundColor: colors.primary + "1a" }]}>
             <Text style={[styles.countText, { color: colors.primary }]}>{plans.length}</Text>
           </View>
         </View>
+      </View>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingTop: 8, paddingBottom: insets.bottom + 100 }]}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
+        showsVerticalScrollIndicator={false}
+      >
 
         {isLoading ? (
           <ActivityIndicator color={colors.primary} style={styles.loader} />
@@ -338,8 +342,9 @@ const macroStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  stickyHeader: { paddingHorizontal: 20, paddingBottom: 8 },
   content: { paddingHorizontal: 20 },
-  headerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 20 },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   pageTitle: { fontSize: 22, fontFamily: "Inter_700Bold" },
   countBadge: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 2 },
   countText: { fontSize: 13, fontFamily: "Inter_700Bold" },
