@@ -71,6 +71,12 @@ interface ClientPlan {
   description?: string | null;
 }
 
+interface ClientDietPlan {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
 interface ClientFromList {
   id: string;
   email: string;
@@ -115,7 +121,7 @@ export default function ClientDetailScreen() {
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [customMessage, setCustomMessage] = useState("");
   const [notesText, setNotesText] = useState("");
-  const [activeTab, setActiveTab] = useState<"progress" | "plans" | "reports" | "tests">("plans");
+  const [activeTab, setActiveTab] = useState<"plans" | "diet" | "progress" | "reports" | "tests">("plans");
   const [createPlanModalVisible, setCreatePlanModalVisible] = useState(false);
   const [newPlanName, setNewPlanName] = useState("");
   const [newPlanDesc, setNewPlanDesc] = useState("");
@@ -138,6 +144,12 @@ export default function ClientDetailScreen() {
     queryKey: ["training-plans"],
     queryFn: () => apiGet<TrainingPlan[]>("/api/plans"),
     enabled: assignModalVisible,
+  });
+
+  const { data: dietPlans } = useQuery<ClientDietPlan[]>({
+    queryKey: ["trainer-diet-plans", id],
+    queryFn: () => apiGet<ClientDietPlan[]>(`/api/diets/plans?clientId=${id}`),
+    enabled: !!id && activeTab === "diet",
   });
 
   const assignedPlanId = clientData?.assignment?.plan?.id ?? null;
@@ -299,6 +311,7 @@ export default function ClientDetailScreen() {
         <View style={[styles.tabBar, { borderColor: colors.border }]}>
           {(
             [
+              { key: "diet", label: "Dieta" },
               { key: "plans", label: "Treningi" },
               { key: "progress", label: "Postepy" },
               { key: "reports", label: "Raporty" },
@@ -450,6 +463,64 @@ export default function ClientDetailScreen() {
                   <Ionicons name="swap-horizontal-outline" size={14} color={colors.mutedForeground} />
                   <Text style={[styles.changePlanLinkText, { color: colors.mutedForeground }]}>Zmien aktywny plan</Text>
                 </Pressable>
+              </>
+            )}
+          </>
+        )}
+
+        {activeTab === "diet" && (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Dieta</Text>
+            {!assignment?.plan ? (
+              <View style={styles.noPlanBox}>
+                <View style={[styles.noPlanIcon, { backgroundColor: colors.primary + "12" }]}>
+                  <Ionicons name="nutrition-outline" size={36} color={colors.primary} />
+                </View>
+                <Text style={[styles.noPlanTitle, { color: colors.foreground }]}>Brak planu diety</Text>
+                <Text style={[styles.noPlanDesc, { color: colors.mutedForeground }]}>
+                  Utworz plan diety dla tego podopiecznego lub przypisz istniejacy.
+                </Text>
+                <Pressable
+                  onPress={() => router.push("/(trainer)/diets")}
+                  style={({ pressed }) => [styles.createPlanBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
+                  testID="button-open-diets"
+                >
+                  <Ionicons name="add-circle-outline" size={18} color="#fff" />
+                  <Text style={styles.createPlanBtnText}>Przejdź do diet</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                {loadingPlanDetail ? (
+                  <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
+                ) : (dietPlans ?? []).length === 0 ? (
+                  <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak przypisanej diety</Text>
+                  </View>
+                ) : (
+                  (dietPlans ?? []).map((diet) => (
+                    <Pressable
+                      key={diet.id}
+                      onPress={() => router.push(`/(trainer)/diet/${diet.id}`)}
+                      style={({ pressed }) => [
+                        styles.workoutRow,
+                        { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
+                      ]}
+                      testID={`button-diet-${diet.id}`}
+                    >
+                      <View style={[styles.workoutNumBadge, { backgroundColor: colors.primary + "15" }]}>
+                        <Ionicons name="nutrition-outline" size={16} color={colors.primary} />
+                      </View>
+                      <View style={styles.workoutRowInfo}>
+                        <Text style={[styles.workoutRowName, { color: colors.foreground }]}>{diet.name}</Text>
+                        <Text style={[styles.workoutRowSub, { color: colors.mutedForeground }]} numberOfLines={1}>
+                          {diet.description ?? "Otwórz plan diety"}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+                    </Pressable>
+                  ))
+                )}
               </>
             )}
           </>
