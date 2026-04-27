@@ -17,44 +17,44 @@ type FAQ = { q: string; a: string };
 
 const FAQS: FAQ[] = [
   {
-    q: "Jak dodać nowego klienta?",
-    a: "W zakładce Klienci naciśnij przycisk „Zaproś klienta". Wpisz adres e-mail klienta — system wyśle mu e-mail z kodem zaproszenia. Klient rejestruje konto używając tego kodu, po czym automatycznie trafia do Twojej listy podopiecznych.",
+    q: "Jak dodac nowego klienta?",
+    a: "W zakladce Klienci nacisnij przycisk \"Zapros klienta\". Wpisz adres e-mail klienta - system wysle mu e-mail z kodem zaproszenia. Klient rejestruje konto uzywajac tego kodu, po czym automatycznie trafia do Twojej listy podopiecznych.",
   },
   {
-    q: "Jak przypisać plan treningowy klientowi?",
-    a: "Wejdź w profil klienta → zakładka Plany → „Nowy plan". Możesz stworzyć plan od zera lub skopiować istniejący. Plan staje się widoczny dla klienta od razu po zapisaniu.",
+    q: "Jak przypisac plan treningowy klientowi?",
+    a: "Wejdz w profil klienta, zakladka Plany, \"Nowy plan\". Mozesz stworzyc plan od zera lub skopiowac istniejacy. Plan staje sie widoczny dla klienta od razu po zapisaniu.",
   },
   {
-    q: "Jak działa subskrypcja i ile kosztuje?",
-    a: "Panel Trenera oferuje plan darmowy (do 3 klientów) oraz plany płatne: Solo (99 zł/mies.), Pro (189 zł/mies.), Elite (279 zł/mies.), Max (349 zł/mies.) i Studio (wycena indywidualna). Zakup i zmiana planu odbywa się przez paneltrenera.pl/cennik.",
+    q: "Jak dziala subskrypcja i ile kosztuje?",
+    a: "Panel Trenera oferuje plan darmowy (do 3 klientow) oraz plany platne: Solo (99 zl/mies.), Pro (189 zl/mies.), Elite (279 zl/mies.), Max (349 zl/mies.) i Studio (wycena indywidualna). Zakup i zmiana planu odbywa sie przez paneltrenera.pl/cennik.",
   },
   {
-    q: "Klient nie może się zalogować — co zrobić?",
-    a: "Sprawdź, czy zaproszenie zostało wysłane i czy klient użył właściwego adresu e-mail. Możesz anulować stare zaproszenie i wysłać nowe. Jeśli problem nadal występuje, skontaktuj się z supportem pod adresem support@paneltrenera.pl.",
+    q: "Klient nie moze sie zalogowac - co zrobic?",
+    a: "Sprawdz, czy zaproszenie zostalo wyslane i czy klient uzyl wlasciwego adresu e-mail. Mozesz anulowac stare zaproszenie i wyslac nowe. Jesli problem nadal wystepuje, skontaktuj sie z supportem: support@paneltrenera.pl.",
   },
   {
-    q: "Jak zmienić hasło?",
-    a: "Hasło możesz zmienić przez opcję „Zapomniałem hasła" na ekranie logowania. Wpisz swój adres e-mail — wyślemy Ci link do ustawienia nowego hasła.",
+    q: "Jak zmienic haslo?",
+    a: "Haslo mozesz zmienic przez opcje \"Zapomnialem hasla\" na ekranie logowania. Wpisz swoj adres e-mail - wyslemy Ci link do ustawienia nowego hasla.",
   },
   {
-    q: "Jak usunąć konto?",
-    a: "Aby usunąć konto, skontaktuj się z nami pod adresem support@paneltrenera.pl z prośbą o usunięcie. Usuniemy Twoje konto i dane w ciągu 30 dni roboczych.",
+    q: "Jak usunac konto?",
+    a: "Aby usunac konto, skontaktuj sie z nami: support@paneltrenera.pl. Usuniemy Twoje konto i dane w ciagu 30 dni roboczych.",
   },
   {
-    q: "Czy aplikacja działa offline?",
-    a: "Podstawowy podgląd planów treningowych i diet jest dostępny po ostatnim zalogowaniu, jednak rejestrowanie sesji treningowych i synchronizacja danych wymaga połączenia z Internetem.",
+    q: "Czy aplikacja dziala offline?",
+    a: "Podstawowy podglad planow treningowych i diet jest dostepny po ostatnim zalogowaniu. Rejestrowanie sesji i synchronizacja danych wymaga polaczenia z Internetem.",
   },
   {
-    q: "Jak zgłosić błąd w aplikacji?",
-    a: "Błędy możesz zgłaszać przez e-mail support@paneltrenera.pl. W wiadomości opisz dokładnie, co się stało, na jakim urządzeniu i w jakiej wersji aplikacji. Możesz też dołączyć zrzut ekranu.",
+    q: "Jak zglosic blad w aplikacji?",
+    a: "Bledy zglaszaj przez e-mail: support@paneltrenera.pl. Opisz dokladnie, co sie stalo, na jakim urzadzeniu i w jakiej wersji aplikacji. Dolacz zrzut ekranu jesli to mozliwe.",
   },
   {
-    q: "Jak klient może zobaczyć swoje postępy?",
-    a: "Klient w swojej aplikacji ma zakładkę Postępy, gdzie widzi wykresy masy ciała, pomiarów i historię sesji treningowych. Zdjęcia postępu klient może dodawać samodzielnie.",
+    q: "Jak klient widzi swoje postepy?",
+    a: "Klient ma w aplikacji zakladke Postepy z wykresami masy ciala, pomiarow i historia sesji treningowych. Zdjecia postepu dodaje samodzielnie.",
   },
   {
-    q: "Czy mogę korzystać z Panelu Trenera na komputerze?",
-    a: "Tak. Pełna wersja webowa jest dostępna pod adresem paneltrenera.pl. Oferuje te same funkcje co aplikacja mobilna, a w przyszłości również dodatkowe narzędzia dla trenerów.",
+    q: "Czy moge uzywac Panelu Trenera na komputerze?",
+    a: "Tak. Pelna wersja webowa dostepna jest pod adresem paneltrenera.pl z tymi samymi funkcjami co aplikacja mobilna.",
   },
 ];
 
