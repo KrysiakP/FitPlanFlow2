@@ -2017,11 +2017,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only add exercises to your own workouts" });
       }
 
-      const exerciseSchema = z.array(insertExerciseSchema);
+      const exerciseSchema = insertExerciseSchema.array();
       const validationResult = exerciseSchema.safeParse(req.body);
       if (!validationResult.success) {
+        console.error("[addExercises] validation failed:", JSON.stringify(validationResult.error.errors));
         return res.status(400).json({ 
-          message: "Nieprawidłowe dane wejściowe",
+          message: "Nieprawidłowe dane wejściowe: " + validationResult.error.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", "),
           errors: validationResult.error.errors 
         });
       }
@@ -2029,8 +2030,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const exercises = await storage.createExercises(workoutId, validationResult.data);
       res.status(201).json(exercises);
     } catch (error) {
-      console.error("Error creating exercises:", error);
-      res.status(500).json({ message: "Failed to create exercises" });
+      console.error("[addExercises] error:", error);
+      res.status(500).json({ message: "Nie udało się dodać ćwiczenia. Spróbuj ponownie." });
     }
   });
 

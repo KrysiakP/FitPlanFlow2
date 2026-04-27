@@ -168,7 +168,7 @@ export default function PlanDetailScreen() {
       setManualVideoUrl("");
       setLibrarySearch("");
     },
-    onError: () => Alert.alert("Błąd", "Nie udało się dodać ćwiczenia."),
+    onError: (e) => Alert.alert("Błąd", e.message || "Nie udało się dodać ćwiczenia."),
   });
 
   const updateExerciseMutation = useMutation({
