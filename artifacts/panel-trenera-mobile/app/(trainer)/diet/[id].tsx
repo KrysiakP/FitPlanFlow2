@@ -72,13 +72,7 @@ const DAYS = [
   { value: 7, label: "Niedziela", short: "Nd" },
 ];
 
-const STATUS_SEQUENCE: Array<"draft" | "active" | "completed"> = ["draft", "active", "completed"];
-const STATUS_LABELS: Record<string, string> = { draft: "Szkic", active: "Aktywny", completed: "Ukończony" };
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  draft: { bg: "#f59e0b1a", text: "#d97706" },
-  active: { bg: "#22c55e1a", text: "#16a34a" },
-  completed: { bg: "#6b72801a", text: "#6b7280" },
-};
+const STATUS_LABELS: Record<string, string> = { active: "Aktywny", completed: "Ukończony" };
 
 const TIMING_OPTIONS = ["rano", "przed treningiem", "z posiłkiem", "pomiędzy posiłkami", "po treningu", "wieczór"];
 const UNIT_OPTIONS = ["mg", "g", "ml", "kaps.", "tabletki", "łyżki"];
@@ -91,6 +85,7 @@ type MealFormState = {
   fat: string;
   carbs: string;
   description: string;
+  repeat: "none" | "daily" | "weekly" | "monthly";
 };
 
 type SupplementFormState = {
@@ -100,6 +95,7 @@ type SupplementFormState = {
   timing: string;
   frequency: string;
   notes: string;
+  repeat: "weekly" | "monthly";
 };
 
 const emptyMealForm = (): MealFormState => ({
@@ -110,6 +106,7 @@ const emptyMealForm = (): MealFormState => ({
   fat: "",
   carbs: "",
   description: "",
+  repeat: "none",
 });
 
 const emptySupplementForm = (): SupplementFormState => ({
@@ -119,6 +116,7 @@ const emptySupplementForm = (): SupplementFormState => ({
   timing: "",
   frequency: "daily",
   notes: "",
+  repeat: "weekly",
 });
 
 export default function DietPlanDetailScreen() {
@@ -354,32 +352,6 @@ export default function DietPlanDetailScreen() {
     ]);
   }
 
-  function handleChangeStatus() {
-    if (!plan) return;
-    const currentIdx = STATUS_SEQUENCE.indexOf(plan.status);
-    const nextStatus = STATUS_SEQUENCE[currentIdx + 1];
-    if (!nextStatus) {
-      Alert.alert("Informacja", "Plan jest już ukończony.");
-      return;
-    }
-    Alert.alert(
-      "Zmień status",
-      `Czy chcesz zmienić status planu na "${STATUS_LABELS[nextStatus]}"?`,
-      [
-        { text: "Anuluj", style: "cancel" },
-        { text: "Zmień", onPress: () => statusMutation.mutate(nextStatus) },
-      ]
-    );
-  }
-
-  function confirmDeletePlan() {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert("Usuń plan", "Czy na pewno chcesz usunąć ten plan diety? Operacja jest nieodwracalna.", [
-      { text: "Anuluj", style: "cancel" },
-      { text: "Usuń", style: "destructive", onPress: () => deletePlanMutation.mutate() },
-    ]);
-  }
-
   const dayMeals = meals
     .filter((m) => m.dayOfWeek === activeDay)
     .sort((a, b) => a.orderIndex - b.orderIndex);
@@ -412,10 +384,6 @@ export default function DietPlanDetailScreen() {
     );
   }
 
-  const sc = STATUS_COLORS[plan.status] ?? STATUS_COLORS.draft;
-  const currentStatusIdx = STATUS_SEQUENCE.indexOf(plan.status);
-  const canAdvanceStatus = currentStatusIdx < STATUS_SEQUENCE.length - 1;
-
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScrollView
@@ -428,9 +396,6 @@ export default function DietPlanDetailScreen() {
           <View style={styles.planHeaderTop}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.planName, { color: colors.foreground }]}>{plan.name}</Text>
-              <View style={[styles.statusBadge, { backgroundColor: sc.bg, alignSelf: "flex-start", marginTop: 4 }]}>
-                <Text style={[styles.statusText, { color: sc.text }]}>{STATUS_LABELS[plan.status]}</Text>
-              </View>
               <Text style={[styles.planMeta, { color: colors.mutedForeground }]}>
                 {plan.mode ? (plan.mode === "full_plan" ? "Pełny plan" : plan.mode) : "Plan diety"}
               </Text>
@@ -449,32 +414,21 @@ export default function DietPlanDetailScreen() {
             <MacroChip label="W" value={`${dayTotals.carbs}g`} color="#d97706" />
           </View>
           <View style={[styles.planActions, { borderTopColor: colors.border }]}>
-            {canAdvanceStatus && (
-              <Pressable
-                onPress={handleChangeStatus}
-                disabled={statusMutation.isPending}
-                style={[styles.actionBtn, { backgroundColor: colors.primary + "1a", flex: 1 }]}
-                testID="button-change-status"
-              >
-                {statusMutation.isPending ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <>
-                    <Ionicons name="arrow-forward-circle-outline" size={16} color={colors.primary} />
-                    <Text style={[styles.actionBtnText, { color: colors.primary }]}>
-                      {STATUS_LABELS[STATUS_SEQUENCE[currentStatusIdx + 1]]}
-                    </Text>
-                  </>
-                )}
-              </Pressable>
-            )}
             <Pressable
-              onPress={confirmDeletePlan}
-              style={[styles.actionBtn, { backgroundColor: colors.destructive + "1a", flex: 1 }]}
-              testID="button-delete-plan"
+              onPress={openAddMeal}
+              style={[styles.actionBtn, { backgroundColor: colors.primary + "1a", flex: 1 }]}
+              testID="button-add-meal-top"
             >
-              <Ionicons name="trash-outline" size={16} color={colors.destructive} />
-              <Text style={[styles.actionBtnText, { color: colors.destructive }]}>Usuń plan</Text>
+              <Ionicons name="restaurant-outline" size={16} color={colors.primary} />
+              <Text style={[styles.actionBtnText, { color: colors.primary }]}>Dodaj posiłek</Text>
+            </Pressable>
+            <Pressable
+              onPress={openAddSupp}
+              style={[styles.actionBtn, { backgroundColor: colors.primary + "1a", flex: 1 }]}
+              testID="button-add-supplement-top"
+            >
+              <Ionicons name="flask-outline" size={16} color={colors.primary} />
+              <Text style={[styles.actionBtnText, { color: colors.primary }]}>Dodaj suplement</Text>
             </Pressable>
           </View>
         </View>
@@ -514,14 +468,24 @@ export default function DietPlanDetailScreen() {
           <Text style={[styles.dayLabel, { color: colors.foreground }]}>
             {DAYS.find((d) => d.value === activeDay)?.label}
           </Text>
-          <Pressable
-            onPress={openAddMeal}
-            style={[styles.addMealBtn, { backgroundColor: colors.primary }]}
-            testID="button-add-meal"
-          >
-            <Ionicons name="add" size={16} color="#fff" />
-            <Text style={styles.addMealBtnText}>Dodaj posiłek</Text>
-          </Pressable>
+          <View style={styles.dayLabelActions}>
+            <Pressable
+              onPress={openAddMeal}
+              style={[styles.addMealBtn, { backgroundColor: colors.primary }]}
+              testID="button-add-meal"
+            >
+              <Ionicons name="add" size={16} color="#fff" />
+              <Text style={styles.addMealBtnText}>Dodaj posiłek</Text>
+            </Pressable>
+            <Pressable
+              onPress={openAddSupp}
+              style={[styles.addMealBtn, { backgroundColor: colors.primary + "1a" }]}
+              testID="button-add-supplement"
+            >
+              <Ionicons name="add" size={16} color={colors.primary} />
+              <Text style={[styles.addMealBtnText, { color: colors.primary }]}>Suplement</Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* Meals list */}
