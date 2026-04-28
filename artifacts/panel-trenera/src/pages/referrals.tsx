@@ -302,6 +302,11 @@ export default function Referrals() {
                         <p className="text-xs text-muted-foreground mt-1" data-testid={`text-referral-date-${referral.id}`}>
                           Zarejestrowany: {format(new Date(referral.createdAt), "d MMMM yyyy", { locale: pl })}
                         </p>
+                        {referral.status === "bonus_granted" && referral.bonusGrantedAt && (
+                          <p className="text-xs text-green-600 dark:text-green-400 mt-1" data-testid={`text-referral-bonus-date-${referral.id}`}>
+                            Bonus przyznany: {format(new Date(referral.bonusGrantedAt), "d MMMM yyyy", { locale: pl })}
+                          </p>
+                        )}
                         {getSourceNote(referral)}
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
