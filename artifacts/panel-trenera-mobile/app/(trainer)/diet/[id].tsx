@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useState } from "react";
+import { type ComponentProps, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -75,7 +75,7 @@ const DAYS = [
 const TIMING_OPTIONS = ["rano", "przed treningiem", "z posiłkiem", "pomiędzy posiłkami", "po treningu", "wieczór"];
 const UNIT_OPTIONS = ["mg", "g", "ml", "kaps.", "tabletki", "łyżki"];
 
-type MealRepeat = "none" | "all_week";
+type MealRepeat = "none" | "daily" | "weekly" | "monthly";
 
 type MealFormState = {
   name: string;
@@ -274,8 +274,8 @@ export default function DietPlanDetailScreen() {
       return;
     }
 
-    if (mealForm.repeat === "all_week") {
-      // Post to all 7 days sequentially – fire all together, close after first success
+    if (mealForm.repeat === "daily") {
+      // Post to all 7 days – fire all in parallel, close after first success
       let successCount = 0;
       const total = DAYS.length;
       const invalidate = () => {
@@ -292,7 +292,6 @@ export default function DietPlanDetailScreen() {
           })
           .catch(() => {});
       });
-      // Close and invalidate early so UX feels snappy
       setTimeout(() => {
         void queryClient.invalidateQueries({ queryKey: ["diet-plan-meals", id] });
         setMealModalVisible(false);
@@ -717,17 +716,19 @@ export default function DietPlanDetailScreen() {
               {/* Repeat option – only when adding, not editing */}
               {!editingMeal && (
                 <>
-                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Dodaj do</Text>
+                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Częstotliwość</Text>
                   <View style={styles.repeatRow}>
                     {([
-                      { value: "none", label: "Tego dnia" },
-                      { value: "all_week", label: "Całego tygodnia" },
-                    ] as { value: MealRepeat; label: string }[]).map((opt) => {
+                      { value: "none",    label: "Bez powtarzania", icon: "remove-circle-outline" },
+                      { value: "daily",   label: "Codziennie",       icon: "sunny-outline" },
+                      { value: "weekly",  label: "Co tydzień",       icon: "calendar-outline" },
+                      { value: "monthly", label: "Co miesiąc",       icon: "calendar-number-outline" },
+                    ] as { value: MealRepeat; label: string; icon: string }[]).map((opt) => {
                       const active = mealForm.repeat === opt.value;
                       return (
                         <Pressable
                           key={opt.value}
-                          onPress={() => setMealForm((p) => ({ ...p, repeat: opt.value }))}
+                          onPress={() => setMealForm((p) => ({ ...p, repeat: opt.value as MealRepeat }))}
                           style={[
                             styles.repeatChip,
                             {
@@ -737,7 +738,11 @@ export default function DietPlanDetailScreen() {
                           ]}
                           testID={`chip-repeat-${opt.value}`}
                         >
-                          {active && <Ionicons name="checkmark" size={13} color="#fff" />}
+                          <Ionicons
+                            name={opt.icon as ComponentProps<typeof Ionicons>["name"]}
+                            size={13}
+                            color={active ? "#fff" : colors.mutedForeground}
+                          />
                           <Text style={[styles.repeatChipText, { color: active ? "#fff" : colors.mutedForeground }]}>
                             {opt.label}
                           </Text>
@@ -745,11 +750,27 @@ export default function DietPlanDetailScreen() {
                       );
                     })}
                   </View>
-                  {mealForm.repeat === "all_week" && (
+                  {mealForm.repeat === "daily" && (
                     <View style={[styles.repeatHint, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}>
                       <Ionicons name="information-circle-outline" size={14} color={colors.primary} />
                       <Text style={[styles.repeatHintText, { color: colors.primary }]}>
                         Posiłek zostanie dodany do każdego dnia tygodnia (Pn–Nd).
+                      </Text>
+                    </View>
+                  )}
+                  {mealForm.repeat === "weekly" && (
+                    <View style={[styles.repeatHint, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}>
+                      <Ionicons name="information-circle-outline" size={14} color={colors.primary} />
+                      <Text style={[styles.repeatHintText, { color: colors.primary }]}>
+                        Posiłek będzie powtarzał się raz w tygodniu w wybranym dniu.
+                      </Text>
+                    </View>
+                  )}
+                  {mealForm.repeat === "monthly" && (
+                    <View style={[styles.repeatHint, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}>
+                      <Ionicons name="information-circle-outline" size={14} color={colors.primary} />
+                      <Text style={[styles.repeatHintText, { color: colors.primary }]}>
+                        Posiłek będzie powtarzał się raz w miesiącu w wybranym dniu.
                       </Text>
                     </View>
                   )}
@@ -774,7 +795,7 @@ export default function DietPlanDetailScreen() {
                     <ActivityIndicator color="#fff" size="small" />
                   ) : (
                     <Text style={styles.createBtnText}>
-                      {editingMeal ? "Zapisz" : mealForm.repeat === "all_week" ? "Dodaj do tygodnia" : "Dodaj posiłek"}
+                      {editingMeal ? "Zapisz" : mealForm.repeat === "daily" ? "Dodaj do każdego dnia" : "Dodaj posiłek"}
                     </Text>
                   )}
                 </Pressable>
