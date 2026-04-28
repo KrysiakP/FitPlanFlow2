@@ -823,8 +823,8 @@ export default function TrainingScreen() {
 
     // Determine pre-fill values: current session set logs > last session cache > plan defaults
     const currentSessionLog = setLogs[exerciseId];
-    let prefillReps = exercise?.reps ?? "";
-    let prefillLoad = exercise?.weight ?? "";
+    let prefillReps = exercise?.reps != null ? String(exercise.reps) : "";
+    let prefillLoad = exercise?.weight != null ? String(exercise.weight) : "";
 
     if (currentSessionLog) {
       // Use the most recently logged set in current session
