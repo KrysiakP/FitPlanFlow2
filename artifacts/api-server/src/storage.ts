@@ -283,6 +283,7 @@ export interface IStorage {
   listTrainerReferrals(trainerId: string): Promise<Array<ReferralEvent & { referredUser: User }>>;
   applyReferralBonus(userId: string, bonusDays: number): Promise<void>;
   getPendingReferralEventByUser(userId: string): Promise<ReferralEvent | null>;
+  getAnyReferralEventByUser(userId: string): Promise<ReferralEvent | null>;
   markReferralQualified(eventId: string, bonusDays: number): Promise<boolean>;
   processReferralBonus(eventId: string, bonusDays: number): Promise<boolean>;
   validateReferralEvent(referrerTrainerId: string, referredUserId: string, referredEmail: string, ipAddress?: string, metadata?: any): Promise<{ valid: boolean; reason?: string }>;
@@ -2523,6 +2524,15 @@ export class DatabaseStorage implements IStorage {
       )
       .limit(1);
     
+    return event || null;
+  }
+
+  async getAnyReferralEventByUser(userId: string): Promise<ReferralEvent | null> {
+    const [event] = await db
+      .select()
+      .from(referralEvents)
+      .where(eq(referralEvents.referredUserId, userId))
+      .limit(1);
     return event || null;
   }
 

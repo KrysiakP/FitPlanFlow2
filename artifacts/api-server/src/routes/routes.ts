@@ -1444,12 +1444,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko trenerzy mogą subskrybować" });
       }
 
-      const { tier } = req.body;
+      const { tier, referralCode: referralCodeInput } = req.body;
       
       // Validate tier
       const validTiers = ['solo', 'pro', 'elite', 'max', 'studio'];
       if (!tier || !validTiers.includes(tier)) {
         return res.status(400).json({ message: "Nieprawidłowy plan subskrypcji" });
+      }
+
+      // Process optional referral code
+      if (referralCodeInput && typeof referralCodeInput === 'string') {
+        const normalizedCode = referralCodeInput.trim().toUpperCase();
+        try {
+          const referralCode = await storage.getReferralCodeByCode(normalizedCode);
+          if (referralCode) {
+            // Check for self-referral
+            if (referralCode.trainerId === userId) {
+              console.warn(`[REFERRAL] Self-referral attempted by user ${userId} at checkout`);
+            } else {
+              // Check if any referral event already exists for this user (pending, qualified, or bonus_granted)
+              const existingEvent = await storage.getAnyReferralEventByUser(userId);
+              if (existingEvent) {
+                console.log(`[REFERRAL] User ${userId} already has a referral event (${existingEvent.id}, status: ${existingEvent.status}), skipping creation at checkout`);
+              } else {
+                // Validate referral event (annual limits, duplicate IP/email checks)
+                const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress;
+                const validation = await storage.validateReferralEvent(
+                  referralCode.trainerId,
+                  userId,
+                  user.email,
+                  ipAddress,
+                  {}
+                );
+                if (validation.valid) {
+                  const crypto = await import('crypto');
+                  const emailHash = crypto.createHash('sha256').update(user.email.toLowerCase()).digest('hex');
+                  await storage.createReferralEvent({
+                    referralCodeId: referralCode.id,
+                    referrerTrainerId: referralCode.trainerId,
+                    referredUserId: userId,
+                    referredRole: 'trainer',
+                    status: 'pending',
+                    metadata: { ipAddress, emailHash, source: 'checkout' },
+                  });
+                  await storage.updateReferralCodeLastUsed(referralCode.id);
+                  console.log(`[REFERRAL] Created pending referral event for user ${userId} via checkout with code ${normalizedCode}`);
+                } else {
+                  console.warn(`[REFERRAL] Referral validation failed for user ${userId} at checkout: ${validation.reason}`);
+                }
+              }
+            }
+          } else {
+            console.warn(`[REFERRAL] Invalid referral code at checkout: ${normalizedCode}`);
+          }
+        } catch (referralError) {
+          // Non-fatal: log error but continue to checkout
+          console.error('[REFERRAL] Error processing referral code at checkout:', referralError);
+        }
       }
 
       let stripeCustomerId = user.stripeCustomerId;

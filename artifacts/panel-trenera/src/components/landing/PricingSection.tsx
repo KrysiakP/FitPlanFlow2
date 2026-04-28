@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Crown, Dumbbell, Zap, Building2, Star, Mail } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Check, Crown, Dumbbell, Zap, Building2, Star, Mail, ChevronDown, ChevronUp, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
@@ -128,14 +129,66 @@ const plans: PlanConfig[] = [
   },
 ];
 
+type ReferralValidationState = 
+  | { status: 'idle' }
+  | { status: 'validating' }
+  | { status: 'valid'; referrerName: string; code: string }
+  | { status: 'invalid'; error: string };
+
 export function PricingSection() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [upgradingTier, setUpgradingTier] = useState<PlanTier | null>(null);
+  const [referralInputVisible, setReferralInputVisible] = useState(false);
+  const [referralCodeInput, setReferralCodeInput] = useState("");
+  const [referralValidation, setReferralValidation] = useState<ReferralValidationState>({ status: 'idle' });
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { data: myReferralCode } = useQuery<{ code: string }>({
+    queryKey: ['/api/referrals/my-code'],
+    enabled: user?.role === 'trainer',
+  });
+
+  useEffect(() => {
+    const trimmed = referralCodeInput.trim().toUpperCase();
+    if (!trimmed) {
+      setReferralValidation({ status: 'idle' });
+      return;
+    }
+    if (myReferralCode?.code && trimmed === myReferralCode.code) {
+      setReferralValidation({ status: 'invalid', error: 'Nie możesz użyć własnego kodu polecającego' });
+      return;
+    }
+    setReferralValidation({ status: 'validating' });
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const controller = new AbortController();
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/referrals/lookup/${encodeURIComponent(trimmed)}`, { signal: controller.signal });
+        const data = await res.json() as { referrerName: string; code: string };
+        if (res.ok && data.code === trimmed) {
+          setReferralValidation({ status: 'valid', referrerName: data.referrerName, code: data.code });
+        } else if (res.ok) {
+          setReferralValidation({ status: 'idle' });
+        } else {
+          setReferralValidation({ status: 'invalid', error: 'Nieprawidłowy kod polecający' });
+        }
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          setReferralValidation({ status: 'invalid', error: 'Błąd weryfikacji kodu' });
+        }
+      }
+    }, 500);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      controller.abort();
+    };
+  }, [referralCodeInput, myReferralCode?.code]);
 
   const createCheckoutMutation = useMutation({
     mutationFn: async (tier: PlanTier) => {
-      const response = await apiRequest("POST", "/api/subscription/create-checkout", { tier });
+      const validatedCode = referralValidation.status === 'valid' ? referralValidation.code : undefined;
+      const response = await apiRequest("POST", "/api/subscription/create-checkout", { tier, referralCode: validatedCode });
       return await response.json() as { url: string };
     },
     onSuccess: (data) => {
@@ -242,6 +295,54 @@ export function PricingSection() {
             </div>
           )}
         </div>
+
+        {isTrainer && (
+          <div className="max-w-md mx-auto">
+            <button
+              type="button"
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setReferralInputVisible(v => !v)}
+              data-testid="button-toggle-referral"
+            >
+              {referralInputVisible ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              Masz kod polecający?
+            </button>
+            {referralInputVisible && (
+              <div className="mt-3 space-y-2">
+                <div className="relative">
+                  <Input
+                    placeholder="Wpisz kod polecający"
+                    value={referralCodeInput}
+                    onChange={e => setReferralCodeInput(e.target.value)}
+                    className="uppercase pr-8"
+                    data-testid="input-referral-code"
+                  />
+                  {referralValidation.status === 'validating' && (
+                    <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                  )}
+                  {referralValidation.status === 'valid' && (
+                    <CheckCircle2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-green-600" />
+                  )}
+                  {referralValidation.status === 'invalid' && (
+                    <XCircle className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-destructive" />
+                  )}
+                </div>
+                {referralValidation.status === 'valid' && (
+                  <p className="text-sm text-green-600 flex items-center gap-1" data-testid="text-referral-valid">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Kod zaakceptowany — polecony przez {referralValidation.referrerName}
+                  </p>
+                )}
+                {referralValidation.status === 'invalid' && (
+                  <p className="text-sm text-destructive flex items-center gap-1" data-testid="text-referral-invalid">
+                    <XCircle className="w-3.5 h-3.5" />
+                    {referralValidation.error}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
           {plans.map((plan) => {
