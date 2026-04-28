@@ -227,10 +227,15 @@ export default function ClientDashboard() {
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Szybki dostęp</Text>
       <View style={styles.quickGrid}>
-        <QuickCard icon="barbell-outline" label="Plan treningowy" colors={colors} onPress={() => router.push("/(client)/training")} />
+        <QuickCard icon="barbell-outline" label="Trening" colors={colors} onPress={() => router.push("/(client)/training")} />
         <QuickCard icon="nutrition-outline" label="Dieta" colors={colors} onPress={() => router.push("/(client)/diet")} />
+        <QuickCard icon="chatbubble-outline" label="Czat" colors={colors} onPress={() => router.push("/(client)/chat")} />
         <QuickCard icon="trending-up-outline" label="Postępy" colors={colors} onPress={() => router.push("/(client)/progress")} />
+        <QuickCard icon="gift-outline" label="Polecenia" colors={colors} onPress={() => router.push("/(client)/referrals")} />
+        <QuickCard icon="notifications-outline" label="Powiadomienia" colors={colors} onPress={() => router.push("/(client)/notifications")} />
+        <QuickCard icon="medical-outline" label="Badania" colors={colors} onPress={() => router.push("/(client)/medical-tests")} />
         <QuickCard icon="document-text-outline" label="Raport tyg." colors={colors} onPress={() => router.push("/(client)/weekly-report")} />
+        <QuickCard icon="person-outline" label="Profil" colors={colors} onPress={() => router.push("/(client)/profile")} />
       </View>
     </ScrollView>
   );
