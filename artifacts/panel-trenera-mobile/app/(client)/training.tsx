@@ -498,7 +498,7 @@ function ExerciseRow({
                             value={loggingState.reps}
                             onChangeText={onChangeReps}
                             keyboardType="number-pad"
-                            placeholder={exercise.reps ?? "np. 12"}
+                            placeholder={exercise.reps != null ? String(exercise.reps) : "np. 12"}
                             placeholderTextColor={colors.mutedForeground}
                             testID={`input-reps-${exercise.id}-${setNum}`}
                             autoFocus
@@ -510,7 +510,7 @@ function ExerciseRow({
                             style={[styles.logInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
                             value={loggingState.load}
                             onChangeText={onChangeLoad}
-                            placeholder={exercise.weight ?? "np. 80kg"}
+                            placeholder={exercise.weight != null ? String(exercise.weight) : "np. 80kg"}
                             placeholderTextColor={colors.mutedForeground}
                             testID={`input-load-${exercise.id}-${setNum}`}
                           />
