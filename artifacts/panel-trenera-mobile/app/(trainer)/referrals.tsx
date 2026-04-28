@@ -37,6 +37,7 @@ interface ReferralEvent {
   referredRole: string;
   status: string;
   createdAt: string;
+  bonusGrantedAt?: string | null;
   metadata?: { source?: string } | null;
   referredUser: {
     firstName: string;
@@ -300,6 +301,11 @@ export default function TrainerReferralsScreen() {
                     <Text style={[styles.refDate, { color: colors.mutedForeground }]} testID={`text-referral-date-${ref.id}`}>
                       {formatDate(ref.createdAt)}
                     </Text>
+                    {ref.status === "bonus_granted" && ref.bonusGrantedAt && (
+                      <Text style={[styles.refBonus, { color: colors.primary }]} testID={`text-referral-bonus-date-${ref.id}`}>
+                        Bonus przyznany: {formatDate(ref.bonusGrantedAt)}
+                      </Text>
+                    )}
                   </View>
                 </View>
                 <View style={styles.refBadges}>
@@ -424,6 +430,7 @@ const styles = StyleSheet.create({
   refName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   refEmail: { fontSize: 12, fontFamily: "Inter_400Regular" },
   refDate: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  refBonus: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   refBadges: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   checkoutNote: { flexDirection: "row", alignItems: "center", gap: 5 },
   checkoutNoteText: { fontSize: 12, fontFamily: "Inter_400Regular", flexShrink: 1 },
