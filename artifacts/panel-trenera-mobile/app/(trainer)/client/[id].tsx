@@ -94,11 +94,6 @@ interface TrainingPlan {
   description?: string | null;
 }
 
-interface DietPlan {
-  id: string;
-  name: string;
-  description?: string | null;
-}
 
 interface ClientProgressData {
   id: string;
@@ -155,16 +150,10 @@ export default function ClientDetailScreen() {
     enabled: assignModalVisible,
   });
 
-  const { data: diets } = useQuery<DietPlan[]>({
-    queryKey: ["trainer-diet-plans", id],
-    queryFn: () => apiGet<DietPlan[]>(`/api/diets/plans?clientId=${id}`),
-    enabled: !!id && createDietModalVisible,
-  });
-
   const { data: dietPlans, isLoading: loadingDietPlans } = useQuery<ClientDietPlan[]>({
     queryKey: ["trainer-diet-plans", id],
     queryFn: () => apiGet<ClientDietPlan[]>(`/api/diets/plans?clientId=${id}`),
-    enabled: !!id && activeTab === "diet",
+    enabled: !!id && (activeTab === "diet" || createDietModalVisible),
   });
 
   const assignedPlanId = clientData?.assignment?.plan?.id ?? null;
