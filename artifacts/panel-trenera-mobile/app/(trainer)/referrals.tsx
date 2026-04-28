@@ -37,6 +37,7 @@ interface ReferralEvent {
   referredRole: string;
   status: string;
   createdAt: string;
+  metadata?: { source?: string } | null;
   referredUser: {
     firstName: string;
     lastName: string;
@@ -62,8 +63,8 @@ function formatDate(dateStr?: string | null) {
 function StatusBadge({ status, colors }: { status: string; colors: Colors }) {
   const cfg: Record<string, { bg: string; fg: string; label: string }> = {
     qualified: { bg: "#16a34a18", fg: "#16a34a", label: "Zakwalifikowany" },
-    pending: { bg: "#d9770618", fg: "#d97706", label: "Oczekujący" },
-    bonus_granted: { bg: colors.primary + "18", fg: colors.primary, label: "Bonus przyznany" },
+    pending: { bg: "#d9770618", fg: "#d97706", label: "Oczekuje na płatność" },
+    bonus_granted: { bg: "#16a34a18", fg: "#16a34a", label: "Zapłacono — bonus przyznany" },
   };
   const c = cfg[status] ?? { bg: colors.border, fg: colors.mutedForeground, label: status };
   return (
@@ -305,6 +306,14 @@ export default function TrainerReferralsScreen() {
                   <RoleBadge role={ref.referredRole} colors={colors} />
                   <StatusBadge status={ref.status} colors={colors} />
                 </View>
+                {ref.metadata?.source === "checkout" && (
+                  <View style={styles.checkoutNote} testID={`text-referral-source-${ref.id}`}>
+                    <Ionicons name="cart-outline" size={13} color={colors.mutedForeground} />
+                    <Text style={[styles.checkoutNoteText, { color: colors.mutedForeground }]}>
+                      Kod wpisany ręcznie przy zakupie subskrypcji
+                    </Text>
+                  </View>
+                )}
               </View>
             ))
           )}
@@ -416,4 +425,6 @@ const styles = StyleSheet.create({
   refEmail: { fontSize: 12, fontFamily: "Inter_400Regular" },
   refDate: { fontSize: 11, fontFamily: "Inter_400Regular" },
   refBadges: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  checkoutNote: { flexDirection: "row", alignItems: "center", gap: 5 },
+  checkoutNoteText: { fontSize: 12, fontFamily: "Inter_400Regular", flexShrink: 1 },
 });
