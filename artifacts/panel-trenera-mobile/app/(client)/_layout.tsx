@@ -27,13 +27,13 @@ function NativeClientTabs() {
         <Icon sf={{ default: "fork.knife", selected: "fork.knife" }} />
         <Label>Dieta</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="progress">
-        <Icon sf={{ default: "chart.line.uptrend.xyaxis", selected: "chart.line.uptrend.xyaxis" }} />
-        <Label>Postępy</Label>
-      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="chat">
         <Icon sf={{ default: "message", selected: "message.fill" }} />
         <Label>{chatLabel}</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="progress">
+        <Icon sf={{ default: "chart.line.uptrend.xyaxis", selected: "chart.line.uptrend.xyaxis" }} />
+        <Label>Postępy</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="referrals">
         <Icon sf={{ default: "gift", selected: "gift.fill" }} />
@@ -116,20 +116,20 @@ function ClassicClientTabs() {
         }}
       />
       <Tabs.Screen
-        name="progress"
-        options={{
-          title: "Postępy",
-          tabBarIcon: ({ color }) =>
-            isIOS ? <SymbolView name="chart.line.uptrend.xyaxis" tintColor={color} size={22} /> : <Feather name="trending-up" size={22} color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="chat"
         options={{
           title: "Czat",
           tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? "99+" : unreadCount) : undefined,
           tabBarIcon: ({ color }) =>
             isIOS ? <SymbolView name="message.fill" tintColor={color} size={22} /> : <Ionicons name="chatbubble-outline" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="progress"
+        options={{
+          title: "Postępy",
+          tabBarIcon: ({ color }) =>
+            isIOS ? <SymbolView name="chart.line.uptrend.xyaxis" tintColor={color} size={22} /> : <Feather name="trending-up" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
