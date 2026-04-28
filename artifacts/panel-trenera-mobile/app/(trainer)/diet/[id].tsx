@@ -15,7 +15,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, router } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPost, apiPut, apiPatch, apiDelete } from "@/lib/api";
@@ -72,10 +72,10 @@ const DAYS = [
   { value: 7, label: "Niedziela", short: "Nd" },
 ];
 
-const STATUS_LABELS: Record<string, string> = { active: "Aktywny", completed: "Ukończony" };
-
 const TIMING_OPTIONS = ["rano", "przed treningiem", "z posiłkiem", "pomiędzy posiłkami", "po treningu", "wieczór"];
 const UNIT_OPTIONS = ["mg", "g", "ml", "kaps.", "tabletki", "łyżki"];
+
+type MealRepeat = "none" | "all_week";
 
 type MealFormState = {
   name: string;
@@ -85,7 +85,7 @@ type MealFormState = {
   fat: string;
   carbs: string;
   description: string;
-  repeat: "none" | "daily" | "weekly" | "monthly";
+  repeat: MealRepeat;
 };
 
 type SupplementFormState = {
@@ -95,7 +95,6 @@ type SupplementFormState = {
   timing: string;
   frequency: string;
   notes: string;
-  repeat: "weekly" | "monthly";
 };
 
 const emptyMealForm = (): MealFormState => ({
@@ -116,7 +115,6 @@ const emptySupplementForm = (): SupplementFormState => ({
   timing: "",
   frequency: "daily",
   notes: "",
-  repeat: "weekly",
 });
 
 export default function DietPlanDetailScreen() {
@@ -163,28 +161,6 @@ export default function DietPlanDetailScreen() {
     void refetchMeals();
     void refetchSupplements();
   }
-
-  // Status change
-  const statusMutation = useMutation({
-    mutationFn: (newStatus: string) => apiPut(`/api/diets/plans/${id}`, { status: newStatus }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["diet-plan-detail", id] });
-      void queryClient.invalidateQueries({ queryKey: ["trainer-diet-plans"] });
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    },
-    onError: () => Alert.alert("Błąd", "Nie udało się zmienić statusu planu."),
-  });
-
-  // Delete plan
-  const deletePlanMutation = useMutation({
-    mutationFn: () => apiDelete(`/api/diets/plans/${id}`),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["trainer-diet-plans"] });
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.back();
-    },
-    onError: () => Alert.alert("Błąd", "Nie udało się usunąć planu."),
-  });
 
   // Meal mutations
   const addMealMutation = useMutation({
@@ -264,22 +240,17 @@ export default function DietPlanDetailScreen() {
       fat: meal.fat != null ? String(meal.fat) : "",
       carbs: meal.carbs != null ? String(meal.carbs) : "",
       description: meal.description ?? "",
+      repeat: "none",
     });
     setMealModalVisible(true);
   }
 
-  function handleSaveMeal() {
-    if (!mealForm.name.trim()) {
-      Alert.alert("Błąd", "Podaj nazwę posiłku.");
-      return;
-    }
-    const body = {
+  function buildMealBody(dayOfWeek: number, orderIndex: number) {
+    return {
       name: mealForm.name.trim(),
       description: mealForm.description.trim() || null,
-      dayOfWeek: activeDay,
-      orderIndex: editingMeal
-        ? editingMeal.orderIndex
-        : (meals.filter((m) => m.dayOfWeek === activeDay).length + 1),
+      dayOfWeek,
+      orderIndex,
       suggestedTime: mealForm.suggestedTime.trim() || null,
       calories: mealForm.calories ? Number(mealForm.calories) : null,
       protein: mealForm.protein ? Number(mealForm.protein) : null,
@@ -287,10 +258,48 @@ export default function DietPlanDetailScreen() {
       carbs: mealForm.carbs ? Number(mealForm.carbs) : null,
       planId: id,
     };
+  }
+
+  function handleSaveMeal() {
+    if (!mealForm.name.trim()) {
+      Alert.alert("Błąd", "Podaj nazwę posiłku.");
+      return;
+    }
+
     if (editingMeal) {
-      editMealMutation.mutate({ mealId: editingMeal.id, body });
+      editMealMutation.mutate({
+        mealId: editingMeal.id,
+        body: buildMealBody(editingMeal.dayOfWeek, editingMeal.orderIndex),
+      });
+      return;
+    }
+
+    if (mealForm.repeat === "all_week") {
+      // Post to all 7 days sequentially – fire all together, close after first success
+      let successCount = 0;
+      const total = DAYS.length;
+      const invalidate = () => {
+        void queryClient.invalidateQueries({ queryKey: ["diet-plan-meals", id] });
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setMealModalVisible(false);
+      };
+      DAYS.forEach((d) => {
+        const orderIdx = meals.filter((m) => m.dayOfWeek === d.value).length + 1;
+        apiPost(`/api/diets/plans/${id}/meals`, buildMealBody(d.value, orderIdx))
+          .then(() => {
+            successCount++;
+            if (successCount === total) invalidate();
+          })
+          .catch(() => {});
+      });
+      // Close and invalidate early so UX feels snappy
+      setTimeout(() => {
+        void queryClient.invalidateQueries({ queryKey: ["diet-plan-meals", id] });
+        setMealModalVisible(false);
+      }, 600);
     } else {
-      addMealMutation.mutate(body);
+      const orderIdx = meals.filter((m) => m.dayOfWeek === activeDay).length + 1;
+      addMealMutation.mutate(buildMealBody(activeDay, orderIdx));
     }
   }
 
@@ -355,6 +364,7 @@ export default function DietPlanDetailScreen() {
   const dayMeals = meals
     .filter((m) => m.dayOfWeek === activeDay)
     .sort((a, b) => a.orderIndex - b.orderIndex);
+
   const dayTotals = dayMeals.reduce(
     (acc, meal) => ({
       calories: acc.calories + (meal.calories ?? 0),
@@ -401,18 +411,16 @@ export default function DietPlanDetailScreen() {
               </Text>
             </View>
           </View>
+
+          {/* Plan target macros */}
           <View style={[styles.macroGrid, { borderTopColor: colors.border }]}>
-            <MacroChip label="Kcal" value={String(plan.targetCalories)} color={colors.primary} />
-            <MacroChip label="Białko" value={`${plan.targetProtein}g`} color="#16a34a" />
-            <MacroChip label="Tłuszcz" value={`${plan.targetFat}g`} color="#7c3aed" />
-            <MacroChip label="Węgle" value={`${plan.targetCarbs}g`} color="#d97706" />
+            <MacroChip label="Cel kcal" value={String(plan.targetCalories ?? 0)} color={colors.primary} />
+            <MacroChip label="Białko" value={`${plan.targetProtein ?? 0}g`} color="#16a34a" />
+            <MacroChip label="Tłuszcz" value={`${plan.targetFat ?? 0}g`} color="#7c3aed" />
+            <MacroChip label="Węgle" value={`${plan.targetCarbs ?? 0}g`} color="#d97706" />
           </View>
-          <View style={[styles.macroGrid, { borderTopColor: colors.border }]}>
-            <MacroChip label="Dzień" value={`K ${dayTotals.calories}`} color={colors.primary} />
-            <MacroChip label="B" value={`${dayTotals.protein}g`} color="#16a34a" />
-            <MacroChip label="T" value={`${dayTotals.fat}g`} color="#7c3aed" />
-            <MacroChip label="W" value={`${dayTotals.carbs}g`} color="#d97706" />
-          </View>
+
+          {/* Quick-add buttons */}
           <View style={[styles.planActions, { borderTopColor: colors.border }]}>
             <Pressable
               onPress={openAddMeal}
@@ -463,29 +471,26 @@ export default function DietPlanDetailScreen() {
           })}
         </ScrollView>
 
-        {/* Day label */}
+        {/* Day label row */}
         <View style={styles.dayLabelRow}>
-          <Text style={[styles.dayLabel, { color: colors.foreground }]}>
-            {DAYS.find((d) => d.value === activeDay)?.label}
-          </Text>
-          <View style={styles.dayLabelActions}>
-            <Pressable
-              onPress={openAddMeal}
-              style={[styles.addMealBtn, { backgroundColor: colors.primary }]}
-              testID="button-add-meal"
-            >
-              <Ionicons name="add" size={16} color="#fff" />
-              <Text style={styles.addMealBtnText}>Dodaj posiłek</Text>
-            </Pressable>
-            <Pressable
-              onPress={openAddSupp}
-              style={[styles.addMealBtn, { backgroundColor: colors.primary + "1a" }]}
-              testID="button-add-supplement"
-            >
-              <Ionicons name="add" size={16} color={colors.primary} />
-              <Text style={[styles.addMealBtnText, { color: colors.primary }]}>Suplement</Text>
-            </Pressable>
+          <View>
+            <Text style={[styles.dayLabel, { color: colors.foreground }]}>
+              {DAYS.find((d) => d.value === activeDay)?.label}
+            </Text>
+            {dayTotals.calories > 0 && (
+              <Text style={[styles.daySubLabel, { color: colors.mutedForeground }]}>
+                {dayTotals.calories} kcal · B {dayTotals.protein}g · T {dayTotals.fat}g · W {dayTotals.carbs}g
+              </Text>
+            )}
           </View>
+          <Pressable
+            onPress={openAddMeal}
+            style={[styles.addMealBtn, { backgroundColor: colors.primary }]}
+            testID="button-add-meal"
+          >
+            <Ionicons name="add" size={16} color="#fff" />
+            <Text style={styles.addMealBtnText}>Posiłek</Text>
+          </Pressable>
         </View>
 
         {/* Meals list */}
@@ -493,6 +498,14 @@ export default function DietPlanDetailScreen() {
           <View style={[styles.emptyDay, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Ionicons name="restaurant-outline" size={28} color={colors.mutedForeground} />
             <Text style={[styles.emptyDayText, { color: colors.mutedForeground }]}>Brak posiłków w tym dniu</Text>
+            <Pressable
+              onPress={openAddMeal}
+              style={[styles.addMealBtn, { backgroundColor: colors.primary, marginTop: 4 }]}
+              testID="button-add-meal-empty"
+            >
+              <Ionicons name="add" size={16} color="#fff" />
+              <Text style={styles.addMealBtnText}>Dodaj posiłek</Text>
+            </Pressable>
           </View>
         ) : (
           dayMeals.map((meal) => (
@@ -503,12 +516,11 @@ export default function DietPlanDetailScreen() {
                 </View>
                 <View style={styles.mealInfo}>
                   <Text style={[styles.mealName, { color: colors.foreground }]}>{meal.name}</Text>
-                  {meal.suggestedTime && (
+                  {meal.suggestedTime ? (
                     <Text style={[styles.mealTime, { color: colors.mutedForeground }]}>{meal.suggestedTime}</Text>
-                  )}
-                  {meal.mealType && (
+                  ) : meal.mealType ? (
                     <Text style={[styles.mealTime, { color: colors.mutedForeground }]}>{meal.mealType}</Text>
-                  )}
+                  ) : null}
                 </View>
                 {meal.calories != null && (
                   <Text style={[styles.mealCal, { color: colors.primary }]}>{meal.calories} kcal</Text>
@@ -580,8 +592,8 @@ export default function DietPlanDetailScreen() {
                   {s.timing && (
                     <Text style={[styles.suppDetail, { color: colors.mutedForeground }]}>{s.timing}</Text>
                   )}
-                  {s.brand && (
-                    <Text style={[styles.suppDetail, { color: colors.mutedForeground }]}>{s.brand}</Text>
+                  {s.notes && (
+                    <Text style={[styles.suppDetail, { color: colors.mutedForeground }]}>{s.notes}</Text>
                   )}
                 </View>
               </View>
@@ -702,6 +714,48 @@ export default function DietPlanDetailScreen() {
                 testID="input-meal-description"
               />
 
+              {/* Repeat option – only when adding, not editing */}
+              {!editingMeal && (
+                <>
+                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Dodaj do</Text>
+                  <View style={styles.repeatRow}>
+                    {([
+                      { value: "none", label: "Tego dnia" },
+                      { value: "all_week", label: "Całego tygodnia" },
+                    ] as { value: MealRepeat; label: string }[]).map((opt) => {
+                      const active = mealForm.repeat === opt.value;
+                      return (
+                        <Pressable
+                          key={opt.value}
+                          onPress={() => setMealForm((p) => ({ ...p, repeat: opt.value }))}
+                          style={[
+                            styles.repeatChip,
+                            {
+                              backgroundColor: active ? colors.primary : colors.background,
+                              borderColor: active ? colors.primary : colors.border,
+                            },
+                          ]}
+                          testID={`chip-repeat-${opt.value}`}
+                        >
+                          {active && <Ionicons name="checkmark" size={13} color="#fff" />}
+                          <Text style={[styles.repeatChipText, { color: active ? "#fff" : colors.mutedForeground }]}>
+                            {opt.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  {mealForm.repeat === "all_week" && (
+                    <View style={[styles.repeatHint, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}>
+                      <Ionicons name="information-circle-outline" size={14} color={colors.primary} />
+                      <Text style={[styles.repeatHintText, { color: colors.primary }]}>
+                        Posiłek zostanie dodany do każdego dnia tygodnia (Pn–Nd).
+                      </Text>
+                    </View>
+                  )}
+                </>
+              )}
+
               <View style={styles.modalActions}>
                 <Pressable
                   onPress={() => setMealModalVisible(false)}
@@ -719,7 +773,9 @@ export default function DietPlanDetailScreen() {
                   {isMealPending ? (
                     <ActivityIndicator color="#fff" size="small" />
                   ) : (
-                    <Text style={styles.createBtnText}>{editingMeal ? "Zapisz" : "Dodaj posiłek"}</Text>
+                    <Text style={styles.createBtnText}>
+                      {editingMeal ? "Zapisz" : mealForm.repeat === "all_week" ? "Dodaj do tygodnia" : "Dodaj posiłek"}
+                    </Text>
                   )}
                 </Pressable>
               </View>
@@ -904,8 +960,7 @@ const styles = StyleSheet.create({
   planHeader: { borderRadius: 16, borderWidth: 1, marginBottom: 24 },
   planHeaderTop: { padding: 16 },
   planName: { fontSize: 20, fontFamily: "Inter_700Bold" },
-  statusBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  statusText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  planMeta: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   macroGrid: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, gap: 4 },
   planActions: { flexDirection: "row", gap: 10, padding: 12, borderTopWidth: 1 },
   actionBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 10 },
@@ -919,6 +974,7 @@ const styles = StyleSheet.create({
   dayTabBadgeText: { fontSize: 10, fontFamily: "Inter_700Bold" },
   dayLabelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 12 },
   dayLabel: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  daySubLabel: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   addMealBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
   addMealBtnText: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
   emptyDay: { borderRadius: 12, borderWidth: 1, paddingVertical: 28, alignItems: "center", gap: 8, marginBottom: 16 },
@@ -940,6 +996,11 @@ const styles = StyleSheet.create({
   suppName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   suppMeta: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   suppDetail: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  repeatRow: { flexDirection: "row", gap: 8, flexWrap: "wrap", marginBottom: 4 },
+  repeatChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5 },
+  repeatChipText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  repeatHint: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 8, borderWidth: 1, padding: 10, marginTop: 4, marginBottom: 4 },
+  repeatHintText: { fontSize: 12, fontFamily: "Inter_400Regular", flex: 1 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
   modalSheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, maxHeight: "90%" },
   modalHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 4 },
