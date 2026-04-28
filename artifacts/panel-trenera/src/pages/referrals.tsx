@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Clock,
   UserPlus,
+  ShoppingCart,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -27,6 +28,7 @@ type ReferralStats = {
 
 type ReferralWithUser = ReferralEvent & {
   referredUser: User;
+  metadata?: { source?: string; ipAddress?: string; emailHash?: string } | null;
 };
 
 export default function Referrals() {
@@ -65,12 +67,33 @@ export default function Referrals() {
       case "qualified":
         return <Badge variant="default" className="bg-green-600 dark:bg-green-700" data-testid={`badge-status-qualified`}>Zakwalifikowany</Badge>;
       case "pending":
-        return <Badge variant="secondary" className="bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200" data-testid={`badge-status-pending`}>Oczekujący</Badge>;
+        return (
+          <Badge variant="secondary" className="bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200" data-testid={`badge-status-pending`}>
+            Oczekuje na płatność
+          </Badge>
+        );
       case "bonus_granted":
-        return <Badge variant="default" data-testid={`badge-status-bonus-granted`}>Bonus przyznany</Badge>;
+        return (
+          <Badge variant="default" className="bg-green-600 dark:bg-green-700" data-testid={`badge-status-bonus-granted`}>
+            Zapłacono — bonus przyznany
+          </Badge>
+        );
       default:
         return <Badge variant="outline" data-testid={`badge-status-unknown`}>{status}</Badge>;
     }
+  };
+
+  const getSourceNote = (referral: ReferralWithUser) => {
+    const source = (referral.metadata as { source?: string } | null)?.source;
+    if (source === 'checkout') {
+      return (
+        <span className="flex items-center gap-1 text-xs text-muted-foreground mt-1" data-testid={`text-referral-source-${referral.id}`}>
+          <ShoppingCart className="w-3 h-3 shrink-0" />
+          Kod wpisany ręcznie przy zakupie subskrypcji
+        </span>
+      );
+    }
+    return null;
   };
 
   const getRoleBadge = (role: string) => {
@@ -225,7 +248,7 @@ export default function Referrals() {
                     W trakcie
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground">Do weryfikacji</p>
+                <p className="text-xs text-muted-foreground">Oczekuje na płatność</p>
               </CardContent>
             </Card>
 
@@ -279,6 +302,7 @@ export default function Referrals() {
                         <p className="text-xs text-muted-foreground mt-1" data-testid={`text-referral-date-${referral.id}`}>
                           Zarejestrowany: {format(new Date(referral.createdAt), "d MMMM yyyy", { locale: pl })}
                         </p>
+                        {getSourceNote(referral)}
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         {getRoleBadge(referral.referredRole)}
