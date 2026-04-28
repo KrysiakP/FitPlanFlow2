@@ -180,6 +180,7 @@ export default function TrainerPaymentsScreen() {
   const [clientPickerVisible, setClientPickerVisible] = useState(false);
   const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteConfirmPayment, setDeleteConfirmPayment] = useState<ClientPayment | null>(null);
 
   const { data: payments = [], isLoading, refetch, isRefetching } = useQuery<ClientPayment[]>({
     queryKey: ["payments"],
@@ -277,21 +278,14 @@ export default function TrainerPaymentsScreen() {
   }
 
   function handleDelete(payment: ClientPayment) {
-    Alert.alert(
-      "Usuń płatność",
-      `Czy na pewno chcesz usunąć płatność ${formatAmount(payment.amount)} dla ${getClientName(payment.clientId)}?`,
-      [
-        { text: "Anuluj", style: "cancel" },
-        {
-          text: "Usuń",
-          style: "destructive",
-          onPress: () => {
-            setDeletingId(payment.id);
-            deleteMutation.mutate(payment.id);
-          },
-        },
-      ]
-    );
+    setDeleteConfirmPayment(payment);
+  }
+
+  function confirmDelete() {
+    if (!deleteConfirmPayment) return;
+    setDeletingId(deleteConfirmPayment.id);
+    setDeleteConfirmPayment(null);
+    deleteMutation.mutate(deleteConfirmPayment.id);
   }
 
   const selectedClient = clients.find((c) => c.id === form.clientId);
@@ -560,6 +554,50 @@ export default function TrainerPaymentsScreen() {
           </View>
         </Pressable>
       </Modal>
+
+      {/* Delete confirmation modal */}
+      <Modal
+        visible={!!deleteConfirmPayment}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteConfirmPayment(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setDeleteConfirmPayment(null)}>
+          <Pressable style={[styles.confirmBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.confirmTitle, { color: colors.foreground }]}>Usuń płatność</Text>
+            {deleteConfirmPayment && (
+              <Text style={[styles.confirmDesc, { color: colors.mutedForeground }]}>
+                Czy na pewno chcesz usunąć płatność{" "}
+                <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold" }}>
+                  {formatAmount(deleteConfirmPayment.amount)}
+                </Text>
+                {" "}dla{" "}
+                <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold" }}>
+                  {getClientName(deleteConfirmPayment.clientId)}
+                </Text>
+                ?
+              </Text>
+            )}
+            <View style={styles.confirmBtns}>
+              <Pressable
+                onPress={() => setDeleteConfirmPayment(null)}
+                style={({ pressed }) => [styles.cancelBtn, { borderColor: colors.border, opacity: pressed ? 0.7 : 1, flex: 1 }]}
+                testID="button-cancel-delete"
+              >
+                <Text style={[styles.cancelBtnText, { color: colors.foreground }]}>Anuluj</Text>
+              </Pressable>
+              <Pressable
+                onPress={confirmDelete}
+                style={({ pressed }) => [styles.deleteConfirmBtn, { opacity: pressed ? 0.7 : 1, flex: 1 }]}
+                testID="button-confirm-delete"
+              >
+                <Ionicons name="trash-outline" size={15} color="#fff" />
+                <Text style={styles.deleteConfirmBtnText}>Usuń</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </>
   );
 }
@@ -694,4 +732,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   pickerItemText: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  confirmBox: {
+    width: "88%",
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 24,
+    gap: 14,
+  },
+  confirmTitle: { fontSize: 17, fontFamily: "Inter_700Bold" },
+  confirmDesc: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22 },
+  confirmBtns: { flexDirection: "row", gap: 12, marginTop: 4 },
+  deleteConfirmBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "#ef4444",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+  },
+  deleteConfirmBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });
