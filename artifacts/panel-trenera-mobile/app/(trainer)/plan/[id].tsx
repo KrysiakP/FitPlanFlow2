@@ -3,6 +3,7 @@ import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -481,6 +482,16 @@ export default function PlanDetailScreen() {
                               {ex.load ? ` • ${ex.load}` : ""}
                             </Text>
                           </View>
+                          {ex.videoUrl ? (
+                            <TouchableOpacity
+                              onPress={() => ex.videoUrl && void Linking.openURL(ex.videoUrl)}
+                              style={styles.iconBtn}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              testID={`button-youtube-${ex.id}`}
+                            >
+                              <Ionicons name="logo-youtube" size={17} color="#FF0000" />
+                            </TouchableOpacity>
+                          ) : null}
                           <TouchableOpacity
                             onPress={() => openEditExercise(ex, workout.id)}
                             style={styles.iconBtn}
