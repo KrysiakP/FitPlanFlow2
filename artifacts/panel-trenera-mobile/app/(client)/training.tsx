@@ -26,11 +26,12 @@ interface Exercise {
   id: string;
   name: string;
   sets?: number | null;
-  reps?: string | null;
-  weight?: string | null;
+  reps?: number | null;
+  load?: string | null;
   restTime?: number | null;
   notes?: string | null;
   orderIndex: number;
+  videoUrl?: string | null;
 }
 
 interface Workout {
@@ -356,9 +357,9 @@ function ExerciseRow({
 }: ExerciseRowProps) {
   type Tag = { icon: ComponentProps<typeof Ionicons>["name"]; label: string };
   const tags: Tag[] = [];
-  if (exercise.reps) tags.push({ icon: "flash-outline", label: `${String(exercise.reps)} pow.` });
-  if (exercise.weight) {
-    const w = String(exercise.weight);
+  if (exercise.reps) tags.push({ icon: "flash-outline", label: `${exercise.reps} pow.` });
+  if (exercise.load) {
+    const w = String(exercise.load);
     tags.push({ icon: "barbell-outline", label: /kg/i.test(w) ? w : `${w} kg` });
   }
   if (exercise.restTime != null) tags.push({ icon: "timer-outline", label: `${exercise.restTime}s odpoczynku` });
@@ -522,7 +523,7 @@ function ExerciseRow({
                             style={[styles.logInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
                             value={loggingState.load}
                             onChangeText={onChangeLoad}
-                            placeholder={exercise.weight != null ? String(exercise.weight) : "np. 80kg"}
+                            placeholder={exercise.load != null ? String(exercise.load) : "np. 80kg"}
                             placeholderTextColor={colors.mutedForeground}
                             testID={`input-load-${exercise.id}-${setNum}`}
                           />
@@ -848,7 +849,7 @@ export default function TrainingScreen() {
     // Determine pre-fill values: current session set logs > last session cache > plan defaults
     const currentSessionLog = setLogs[exerciseId];
     let prefillReps = exercise?.reps != null ? String(exercise.reps) : "";
-    let prefillLoad = exercise?.weight != null ? String(exercise.weight) : "";
+    let prefillLoad = exercise?.load != null ? String(exercise.load) : "";
 
     if (currentSessionLog) {
       // Use the most recently logged set in current session
@@ -894,7 +895,7 @@ export default function TrainingScreen() {
 
     const currentSessionLog = setLogs[exerciseId];
     let prefillReps = exercise?.reps != null ? String(exercise.reps) : "";
-    let prefillLoad = exercise?.weight != null ? String(exercise.weight) : "";
+    let prefillLoad = exercise?.load != null ? String(exercise.load) : "";
 
     if (currentSessionLog) {
       const setNums = Object.keys(currentSessionLog).map(Number).sort((a, b) => b - a);
