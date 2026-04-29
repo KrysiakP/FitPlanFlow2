@@ -174,11 +174,12 @@ export default function ClientChatScreen() {
       {/* Messages list */}
       <FlatList
         ref={flatListRef}
+        style={styles.messageList}
         data={messages}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[
-          styles.messageList,
-          { paddingBottom: insets.bottom + 16 },
+          styles.messageListContent,
+          { paddingBottom: 16 },
         ]}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
@@ -280,7 +281,8 @@ const styles = StyleSheet.create({
   avatarSmallText: { fontSize: 14, fontFamily: "Inter_700Bold" },
   chatHeaderName: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
   chatHeaderRole: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  messageList: { paddingHorizontal: 16, paddingTop: 12, gap: 4, flexGrow: 1 },
+  messageList: { flex: 1, paddingHorizontal: 16 },
+  messageListContent: { paddingTop: 12, gap: 4, flexGrow: 1 },
   bubbleRow: { marginVertical: 3 },
   bubbleRowOwn: { alignItems: "flex-end" },
   bubbleRowOther: { alignItems: "flex-start" },
