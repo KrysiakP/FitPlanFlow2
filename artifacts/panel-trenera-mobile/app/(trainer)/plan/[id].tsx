@@ -479,7 +479,7 @@ export default function PlanDetailScreen() {
                             <Text style={[styles.exName, { color: colors.foreground }]}>{ex.name}</Text>
                             <Text style={[styles.exDetails, { color: colors.mutedForeground }]}>
                               {ex.sets} serie × {ex.reps} powtórzeń
-                              {ex.load ? ` • ${ex.load}` : ""}
+                              {ex.load ? ` • ${ex.load} kg` : ""}
                             </Text>
                           </View>
                           {ex.videoUrl ? (
