@@ -327,7 +327,8 @@ interface ExerciseRowProps {
   sessionActive: boolean;
   colors: Colors;
   extraSets: Record<string, number>;
-  onStartLog: (exerciseId: string, setNumber: number) => void;
+  onAutoLog: (exerciseId: string, setNumber: number) => void;
+  onEditLog: (exerciseId: string, setNumber: number) => void;
   onCancelLog: () => void;
   onChangeReps: (v: string) => void;
   onChangeLoad: (v: string) => void;
@@ -345,7 +346,8 @@ function ExerciseRow({
   sessionActive,
   colors,
   extraSets,
-  onStartLog,
+  onAutoLog,
+  onEditLog,
   onCancelLog,
   onChangeReps,
   onChangeLoad,
@@ -354,8 +356,11 @@ function ExerciseRow({
 }: ExerciseRowProps) {
   type Tag = { icon: ComponentProps<typeof Ionicons>["name"]; label: string };
   const tags: Tag[] = [];
-  if (exercise.reps) tags.push({ icon: "flash-outline", label: `${exercise.reps} pow.` });
-  if (exercise.weight) tags.push({ icon: "barbell-outline", label: exercise.weight });
+  if (exercise.reps) tags.push({ icon: "flash-outline", label: `${String(exercise.reps)} pow.` });
+  if (exercise.weight) {
+    const w = String(exercise.weight);
+    tags.push({ icon: "barbell-outline", label: /kg/i.test(w) ? w : `${w} kg` });
+  }
   if (exercise.restTime != null) tags.push({ icon: "timer-outline", label: `${exercise.restTime}s odpoczynku` });
 
   const totalSets = (exercise.sets ?? 1) + (extraSets[exercise.id] ?? 0);
@@ -441,7 +446,7 @@ function ExerciseRow({
                     { borderBottomColor: colors.border },
                     isLogging && { backgroundColor: colors.accent },
                   ]}
-                  onPress={!isCompleted && !isLogging ? () => onStartLog(exercise.id, setNum) : undefined}
+                  onPress={!isCompleted && !isLogging ? () => onAutoLog(exercise.id, setNum) : undefined}
                   testID={`button-set-${exercise.id}-${setNum}`}
                 >
                   <View
@@ -470,10 +475,17 @@ function ExerciseRow({
                       {log.load ? (
                         <View style={[styles.setChip, { backgroundColor: colors.primary + "15" }]}>
                           <Text style={[styles.setChipText, { color: colors.primary }]}>
-                            {log.load}
+                            {/kg/i.test(log.load) ? log.load : `${log.load} kg`}
                           </Text>
                         </View>
                       ) : null}
+                      <Pressable
+                        onPress={() => onEditLog(exercise.id, setNum)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        testID={`button-edit-set-${exercise.id}-${setNum}`}
+                      >
+                        <Ionicons name="create-outline" size={15} color={colors.mutedForeground} />
+                      </Pressable>
                     </View>
                   )}
 
@@ -488,7 +500,7 @@ function ExerciseRow({
                   <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
                     <View style={[styles.logForm, { borderBottomColor: colors.border }]}>
                       <Text style={[styles.logFormTitle, { color: colors.foreground }]}>
-                        Zaloguj Serię {setNum}
+                        {isCompleted ? "Edytuj Serię" : "Zaloguj Serię"} {setNum}
                       </Text>
                       <View style={styles.logInputRow}>
                         <View style={styles.logInputGroup}>
@@ -630,6 +642,10 @@ export default function TrainingScreen() {
   const handleStartLogRef = useRef<(exerciseId: string, setNumber: number) => Promise<void>>(
     async () => { /* placeholder, overwritten before first use */ }
   );
+  // Stable ref to latest handleAutoLog
+  const handleAutoLogRef = useRef<(exerciseId: string, setNumber: number) => Promise<void>>(
+    async () => { /* placeholder, overwritten before first use */ }
+  );
 
   // Elapsed session timer
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -639,7 +655,7 @@ export default function TrainingScreen() {
   const [extraSets, setExtraSets] = useState<Record<string, number>>({});
 
   // Pending next set to auto-open after rest timer
-  const pendingNextSetRef = useRef<{ exerciseId: string; setNumber: number } | null>(null);
+  const pendingNextSetRef = useRef<{ exerciseId: string; setNumber: number; mode: "auto" | "form" } | null>(null);
 
   // Cache of last session logs per exercise: exerciseId -> { reps, load }
   const lastSessionLogsRef = useRef<Record<string, { reps: number; load: string | null }>>({});
@@ -731,7 +747,11 @@ export default function TrainingScreen() {
           const nextSet = pendingNextSetRef.current;
           if (nextSet) {
             pendingNextSetRef.current = null;
-            setTimeout(() => void handleStartLogRef.current(nextSet.exerciseId, nextSet.setNumber), 300);
+            if (nextSet.mode === "auto") {
+              setTimeout(() => void handleAutoLogRef.current(nextSet.exerciseId, nextSet.setNumber), 300);
+            } else {
+              setTimeout(() => void handleStartLogRef.current(nextSet.exerciseId, nextSet.setNumber), 300);
+            }
           }
           return 0;
         }
@@ -751,7 +771,11 @@ export default function TrainingScreen() {
       const nextSet = pendingNextSetRef.current;
       if (nextSet) {
         pendingNextSetRef.current = null;
-        setTimeout(() => void handleStartLogRef.current(nextSet.exerciseId, nextSet.setNumber), 100);
+        if (nextSet.mode === "auto") {
+          setTimeout(() => void handleAutoLogRef.current(nextSet.exerciseId, nextSet.setNumber), 100);
+        } else {
+          setTimeout(() => void handleStartLogRef.current(nextSet.exerciseId, nextSet.setNumber), 100);
+        }
       }
     } else {
       pendingNextSetRef.current = null;
@@ -863,6 +887,89 @@ export default function TrainingScreen() {
   // Keep the ref to handleStartLog updated on every render
   handleStartLogRef.current = handleStartLog;
 
+  async function handleAutoLog(exerciseId: string, setNumber: number) {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const exercise = exercises.find((ex) => ex.id === exerciseId);
+    if (isResting) stopRestTimer();
+
+    const currentSessionLog = setLogs[exerciseId];
+    let prefillReps = exercise?.reps != null ? String(exercise.reps) : "";
+    let prefillLoad = exercise?.weight != null ? String(exercise.weight) : "";
+
+    if (currentSessionLog) {
+      const setNums = Object.keys(currentSessionLog).map(Number).sort((a, b) => b - a);
+      if (setNums.length > 0) {
+        const lastSet = currentSessionLog[setNums[0]];
+        prefillReps = String(lastSet.reps);
+        prefillLoad = lastSet.load ?? "";
+      }
+    } else {
+      let cached = lastSessionLogsRef.current[exerciseId];
+      if (!cached) {
+        try {
+          const log = await apiGet<{ reps: number; load: string | null } | null>(
+            `/api/exercises/${exerciseId}/latest-log`
+          );
+          if (log) {
+            lastSessionLogsRef.current[exerciseId] = { reps: log.reps, load: log.load };
+            cached = lastSessionLogsRef.current[exerciseId];
+          }
+        } catch {
+          // Ignore
+        }
+      }
+      if (cached) {
+        prefillReps = String(cached.reps);
+        prefillLoad = cached.load ?? "";
+      }
+    }
+
+    const reps = parseInt(prefillReps, 10);
+    if (!reps || reps <= 0) {
+      // No valid reps — fall back to the manual form
+      void handleStartLog(exerciseId, setNumber);
+      return;
+    }
+    const load = prefillLoad;
+    const totalSetsForExercise = (exercise?.sets ?? 1) + (extraSets[exerciseId] ?? 0);
+    const nextSetNumber = setNumber + 1;
+    const hasNextSet = nextSetNumber <= totalSetsForExercise;
+
+    logMutation.mutate(
+      { exerciseId, setNumber, reps, load },
+      {
+        onSuccess: () => {
+          setCompletedSets((prev) => {
+            const next = { ...prev };
+            if (!next[exerciseId]) next[exerciseId] = new Set();
+            const updated = new Set(next[exerciseId]);
+            updated.add(setNumber);
+            next[exerciseId] = updated;
+            return next;
+          });
+          setSetLogs((prev) => ({
+            ...prev,
+            [exerciseId]: { ...(prev[exerciseId] ?? {}), [setNumber]: { reps, load } },
+          }));
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          void queryClient.invalidateQueries({ queryKey: ["exercise-logs"] });
+
+          if (exercise?.restTime && exercise.restTime > 0) {
+            if (hasNextSet) {
+              pendingNextSetRef.current = { exerciseId, setNumber: nextSetNumber, mode: "auto" };
+            }
+            startRestTimer(exercise.restTime);
+          } else if (hasNextSet) {
+            setTimeout(() => void handleAutoLogRef.current(exerciseId, nextSetNumber), 100);
+          }
+        },
+      }
+    );
+  }
+
+  // Keep the ref to handleAutoLog updated on every render
+  handleAutoLogRef.current = handleAutoLog;
+
   function handleConfirmLog() {
     if (!loggingTarget) return;
     const { exerciseId, setNumber } = loggingTarget;
@@ -876,6 +983,7 @@ export default function TrainingScreen() {
     const totalSetsForExercise = (exercise?.sets ?? 1) + (extraSets[exerciseId] ?? 0);
     const nextSetNumber = setNumber + 1;
     const hasNextSet = nextSetNumber <= totalSetsForExercise;
+    const wasAlreadyCompleted = completedSets[exerciseId]?.has(setNumber) ?? false;
 
     logMutation.mutate(
       { exerciseId, setNumber, reps, load },
@@ -898,13 +1006,16 @@ export default function TrainingScreen() {
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           void queryClient.invalidateQueries({ queryKey: ["exercise-logs"] });
 
-          if (exercise?.restTime && exercise.restTime > 0) {
-            if (hasNextSet) {
-              pendingNextSetRef.current = { exerciseId, setNumber: nextSetNumber };
+          // Don't advance to next set when editing an already-completed set
+          if (!wasAlreadyCompleted) {
+            if (exercise?.restTime && exercise.restTime > 0) {
+              if (hasNextSet) {
+                pendingNextSetRef.current = { exerciseId, setNumber: nextSetNumber, mode: "form" };
+              }
+              startRestTimer(exercise.restTime);
+            } else if (hasNextSet) {
+              setTimeout(() => void handleStartLogRef.current(exerciseId, nextSetNumber), 100);
             }
-            startRestTimer(exercise.restTime);
-          } else if (hasNextSet) {
-            setTimeout(() => void handleStartLogRef.current(exerciseId, nextSetNumber), 100);
           }
         },
       }
@@ -917,7 +1028,7 @@ export default function TrainingScreen() {
     const totalPlanned = exercise?.sets ?? 1;
     const newSetNumber = totalPlanned + currentExtra + 1;
     setExtraSets((prev) => ({ ...prev, [exerciseId]: currentExtra + 1 }));
-    void handleStartLog(exerciseId, newSetNumber);
+    void handleAutoLog(exerciseId, newSetNumber);
   }
 
   const isSaving = sessionMutation.isPending;
@@ -1058,7 +1169,8 @@ export default function TrainingScreen() {
                   sessionActive={sessionActive}
                   colors={colors}
                   extraSets={extraSets}
-                  onStartLog={handleStartLog}
+                  onAutoLog={handleAutoLog}
+                  onEditLog={handleStartLog}
                   onCancelLog={() => {
                     setLoggingTarget(null);
                     setLoggingState({ reps: "", load: "" });
