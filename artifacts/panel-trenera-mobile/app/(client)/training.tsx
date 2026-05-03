@@ -795,6 +795,13 @@ export default function TrainingScreen() {
   const currentWorkout = workouts.find((w) => w.id === activeWorkout) ?? workouts[0] ?? null;
   const exercises = (currentWorkout?.exercises ?? []).sort((a, b) => a.orderIndex - b.orderIndex);
 
+  const sortedExercises = [...exercises].sort((a, b) => {
+    const aDone = (completedSets[a.id]?.size ?? 0) >= ((a.sets ?? 1) + (extraSets[a.id] ?? 0));
+    const bDone = (completedSets[b.id]?.size ?? 0) >= ((b.sets ?? 1) + (extraSets[b.id] ?? 0));
+    if (aDone === bDone) return a.orderIndex - b.orderIndex;
+    return aDone ? 1 : -1;
+  });
+
   const doneCount = exercises.filter((ex) => {
     const totalSets = (ex.sets ?? 1) + (extraSets[ex.id] ?? 0);
     return (completedSets[ex.id]?.size ?? 0) >= totalSets;
@@ -1158,7 +1165,7 @@ export default function TrainingScreen() {
           {exercises.length > 0 && (
             <>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ćwiczenia</Text>
-              {exercises.map((ex, i) => (
+              {sortedExercises.map((ex, i) => (
                 <ExerciseRow
                   key={ex.id}
                   exercise={ex}
