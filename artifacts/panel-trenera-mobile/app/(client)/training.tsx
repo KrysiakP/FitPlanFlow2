@@ -1150,7 +1150,7 @@ export default function TrainingScreen() {
             <RestTimer
               seconds={restSeconds}
               totalSeconds={restTotalSeconds}
-              onSkip={() => stopRestTimer(true)}
+              onSkip={() => stopRestTimer(false)}
               colors={colors}
             />
           )}
