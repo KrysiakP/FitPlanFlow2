@@ -588,37 +588,33 @@ interface TrainingStatusBannerProps {
 
 function TrainingStatusBanner({ isResting, seconds, totalSeconds, onSkip, colors }: TrainingStatusBannerProps) {
   const progress = totalSeconds > 0 ? seconds / totalSeconds : 0;
-
-  if (!isResting) {
-    return (
-      <View style={[restStyles.container, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <View style={restStyles.row}>
-          <View style={[restStyles.dot, { backgroundColor: colors.primary }]} />
-          <Text style={[restStyles.exerciseLabel, { color: colors.primary }]}>Ćwiczenie</Text>
-        </View>
-      </View>
-    );
-  }
+  const timeColor = isResting && seconds <= 5 ? "#ef4444" : colors.primary;
 
   return (
     <View style={[restStyles.container, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={restStyles.row}>
-        <Ionicons name="timer-outline" size={20} color={seconds <= 5 ? "#ef4444" : colors.primary} />
+        <Ionicons
+          name={isResting ? "timer-outline" : "barbell-outline"}
+          size={20}
+          color={timeColor}
+        />
         <View style={restStyles.progressWrap}>
-          <Text style={[restStyles.restLabel, { color: colors.mutedForeground }]}>Odpoczynek</Text>
-          <View style={[restStyles.progressBar, { backgroundColor: colors.border }]}>
+          <Text style={[restStyles.restLabel, { color: colors.mutedForeground }]}>
+            {isResting ? "Odpoczynek" : "Ćwiczenie"}
+          </Text>
+          <View style={[restStyles.progressBar, { backgroundColor: isResting ? colors.border : "transparent" }]}>
             <View style={restStyles.progressFlex}>
-              <View style={{ flex: progress, backgroundColor: colors.primary, borderRadius: 3 }} />
-              <View style={{ flex: Math.max(0, 1 - progress) }} />
+              <View style={{ flex: isResting ? progress : 1, backgroundColor: isResting ? colors.primary : "transparent", borderRadius: 3 }} />
+              <View style={{ flex: isResting ? Math.max(0, 1 - progress) : 0 }} />
             </View>
           </View>
         </View>
-        <Text style={[restStyles.time, { color: seconds <= 5 ? "#ef4444" : colors.primary }]}>
-          {formatTimer(seconds)}
+        <Text style={[restStyles.time, { color: timeColor, opacity: isResting ? 1 : 0 }]}>
+          {isResting ? formatTimer(seconds) : "0:00"}
         </Text>
         <Pressable
-          style={[restStyles.skipBtn, { borderColor: colors.border }]}
-          onPress={onSkip}
+          style={[restStyles.skipBtn, { borderColor: colors.border, opacity: isResting ? 1 : 0 }]}
+          onPress={isResting ? onSkip : undefined}
           testID="button-skip-rest"
         >
           <Ionicons name="play-forward-outline" size={16} color={colors.mutedForeground} />
