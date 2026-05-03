@@ -578,43 +578,52 @@ function formatTimer(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-interface RestTimerProps {
+interface TrainingStatusBannerProps {
+  isResting: boolean;
   seconds: number;
   totalSeconds: number;
   onSkip: () => void;
   colors: Colors;
 }
 
-function RestTimer({ seconds, totalSeconds, onSkip, colors }: RestTimerProps) {
+function TrainingStatusBanner({ isResting, seconds, totalSeconds, onSkip, colors }: TrainingStatusBannerProps) {
   const progress = totalSeconds > 0 ? seconds / totalSeconds : 0;
+
+  if (!isResting) {
+    return (
+      <View style={[restStyles.container, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={restStyles.row}>
+          <View style={[restStyles.dot, { backgroundColor: colors.primary }]} />
+          <Text style={[restStyles.exerciseLabel, { color: colors.primary }]}>Ćwiczenie</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[restStyles.container, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Text style={[restStyles.title, { color: colors.foreground }]}>Czas odpoczynku</Text>
-      <View style={restStyles.circleWrap}>
-        <View style={[restStyles.circleBg, { backgroundColor: colors.accent }]}>
-          <View style={restStyles.circleInner}>
-            <Text style={[restStyles.time, { color: seconds <= 5 ? "#ef4444" : colors.primary }]}>
-              {formatTimer(seconds)}
-            </Text>
-            <Text style={[restStyles.timeLabel, { color: colors.mutedForeground }]}>pozostało</Text>
+      <View style={restStyles.row}>
+        <Ionicons name="timer-outline" size={20} color={seconds <= 5 ? "#ef4444" : colors.primary} />
+        <View style={restStyles.progressWrap}>
+          <Text style={[restStyles.restLabel, { color: colors.mutedForeground }]}>Odpoczynek</Text>
+          <View style={[restStyles.progressBar, { backgroundColor: colors.border }]}>
+            <View style={restStyles.progressFlex}>
+              <View style={{ flex: progress, backgroundColor: colors.primary, borderRadius: 3 }} />
+              <View style={{ flex: Math.max(0, 1 - progress) }} />
+            </View>
           </View>
         </View>
+        <Text style={[restStyles.time, { color: seconds <= 5 ? "#ef4444" : colors.primary }]}>
+          {formatTimer(seconds)}
+        </Text>
+        <Pressable
+          style={[restStyles.skipBtn, { borderColor: colors.border }]}
+          onPress={onSkip}
+          testID="button-skip-rest"
+        >
+          <Ionicons name="play-forward-outline" size={16} color={colors.mutedForeground} />
+        </Pressable>
       </View>
-      <View style={[restStyles.progressBar, { backgroundColor: colors.border }]}>
-        <View style={restStyles.progressFlex}>
-          <View style={{ flex: progress, backgroundColor: colors.primary, borderRadius: 4 }} />
-          <View style={{ flex: Math.max(0, 1 - progress) }} />
-        </View>
-      </View>
-      <Pressable
-        style={[restStyles.skipBtn, { borderColor: colors.border }]}
-        onPress={onSkip}
-        testID="button-skip-rest"
-      >
-        <Ionicons name="play-forward-outline" size={16} color={colors.mutedForeground} />
-        <Text style={[restStyles.skipText, { color: colors.mutedForeground }]}>Pomiń odpoczynek</Text>
-      </Pressable>
     </View>
   );
 }
@@ -1153,8 +1162,9 @@ export default function TrainingScreen() {
             </View>
           )}
 
-          {isResting && (
-            <RestTimer
+          {sessionActive && (
+            <TrainingStatusBanner
+              isResting={isResting}
               seconds={restSeconds}
               totalSeconds={restTotalSeconds}
               onSkip={() => stopRestTimer(false)}
@@ -1294,66 +1304,58 @@ const summaryStyles = StyleSheet.create({
 
 const restStyles = StyleSheet.create({
   container: {
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    padding: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     marginBottom: 16,
-    alignItems: "center",
-    gap: 12,
   },
-  title: {
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  exerciseLabel: {
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
-  circleWrap: {
-    alignItems: "center",
-    justifyContent: "center",
+  progressWrap: {
+    flex: 1,
+    gap: 4,
   },
-  circleBg: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  circleInner: {
-    alignItems: "center",
-    gap: 2,
-  },
-  time: {
-    fontSize: 28,
-    fontFamily: "Inter_700Bold",
-    lineHeight: 32,
-  },
-  timeLabel: {
+  restLabel: {
     fontSize: 11,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Inter_500Medium",
   },
   progressBar: {
-    height: 6,
+    height: 5,
     borderRadius: 3,
     overflow: "hidden",
-    alignSelf: "stretch",
   },
   progressFlex: {
     flex: 1,
     flexDirection: "row",
-    height: 6,
+    height: 5,
+  },
+  time: {
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+    minWidth: 42,
+    textAlign: "right",
   },
   skipBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  skipText: {
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 
