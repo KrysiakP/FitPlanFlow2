@@ -12,6 +12,7 @@ import {
 import { useEffect, useRef } from "react";
 import { useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
@@ -84,6 +85,7 @@ function MessageBubble({
 export default function ClientChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const { user } = useAuth();
   const [inputText, setInputText] = useState("");
   const flatListRef = useRef<FlatList>(null);
@@ -206,7 +208,7 @@ export default function ClientChatScreen() {
       />
 
       {/* Input row */}
-      <View style={[styles.inputRow, { borderTopColor: colors.border, backgroundColor: colors.background, paddingBottom: insets.bottom + 8 }]}>
+      <View style={[styles.inputRow, { borderTopColor: colors.border, backgroundColor: colors.background, paddingBottom: tabBarHeight + 8 }]}>
         <TextInput
           style={[
             styles.input,
