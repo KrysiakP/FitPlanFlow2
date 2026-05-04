@@ -138,6 +138,17 @@ export default function DietPlanDetailScreen() {
   const [showTimingPicker, setShowTimingPicker] = useState(false);
   const [showUnitPicker, setShowUnitPicker] = useState(false);
 
+  // Plan header edit state
+  const [planEditModalVisible, setPlanEditModalVisible] = useState(false);
+  const [planForm, setPlanForm] = useState({
+    name: "",
+    mode: "full_plan",
+    targetCalories: "",
+    targetProtein: "",
+    targetFat: "",
+    targetCarbs: "",
+  });
+
   const { data: plan, isLoading: isPlanLoading, refetch: refetchPlan, isRefetching } = useQuery<DietPlan>({
     queryKey: ["diet-plan-detail", id],
     queryFn: () => apiGet<DietPlan>(`/api/diets/plans/${id}`),
@@ -360,6 +371,45 @@ export default function DietPlanDetailScreen() {
     ]);
   }
 
+  // Plan header edit
+  const editPlanMutation = useMutation({
+    mutationFn: (body: object) => apiPut(`/api/diets/plans/${id}`, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["diet-plan-detail", id] });
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setPlanEditModalVisible(false);
+    },
+    onError: () => Alert.alert("Błąd", "Nie udało się zaktualizować planu."),
+  });
+
+  function openEditPlan() {
+    if (!plan) return;
+    setPlanForm({
+      name: plan.name,
+      mode: plan.mode ?? "full_plan",
+      targetCalories: String(plan.targetCalories ?? ""),
+      targetProtein: String(plan.targetProtein ?? ""),
+      targetFat: String(plan.targetFat ?? ""),
+      targetCarbs: String(plan.targetCarbs ?? ""),
+    });
+    setPlanEditModalVisible(true);
+  }
+
+  function handleSavePlan() {
+    if (!planForm.name.trim()) {
+      Alert.alert("Błąd", "Podaj nazwę planu.");
+      return;
+    }
+    editPlanMutation.mutate({
+      name: planForm.name.trim(),
+      mode: planForm.mode,
+      targetCalories: planForm.targetCalories ? Number(planForm.targetCalories) : 0,
+      targetProtein: planForm.targetProtein ? Number(planForm.targetProtein) : 0,
+      targetFat: planForm.targetFat ? Number(planForm.targetFat) : 0,
+      targetCarbs: planForm.targetCarbs ? Number(planForm.targetCarbs) : 0,
+    });
+  }
+
   const dayMeals = meals
     .filter((m) => m.dayOfWeek === activeDay)
     .sort((a, b) => a.orderIndex - b.orderIndex);
@@ -409,6 +459,13 @@ export default function DietPlanDetailScreen() {
                 {plan.mode ? (plan.mode === "full_plan" ? "Pełny plan" : plan.mode) : "Plan diety"}
               </Text>
             </View>
+            <Pressable
+              onPress={openEditPlan}
+              style={[styles.iconBtn, { backgroundColor: colors.primary + "1a" }]}
+              testID="button-edit-plan-header"
+            >
+              <Ionicons name="pencil-outline" size={15} color={colors.primary} />
+            </Pressable>
           </View>
 
           {/* Plan target macros */}
@@ -939,6 +996,136 @@ export default function DietPlanDetailScreen() {
                 {suppForm.unit === u && <Ionicons name="checkmark" size={16} color={colors.primary} />}
               </Pressable>
             ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Plan header edit modal */}
+      <Modal visible={planEditModalVisible} transparent animationType="slide" onRequestClose={() => setPlanEditModalVisible(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setPlanEditModalVisible(false)}>
+          <Pressable style={[styles.modalSheet, { backgroundColor: colors.card }]} onPress={() => {}}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Edytuj założenia planu</Text>
+
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Nazwa planu *</Text>
+              <TextInput
+                value={planForm.name}
+                onChangeText={(v) => setPlanForm((p) => ({ ...p, name: v }))}
+                placeholder="np. Redukcja"
+                placeholderTextColor={colors.mutedForeground}
+                style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                testID="input-plan-name"
+              />
+
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Tryb planu</Text>
+              <View style={styles.repeatRow}>
+                {([
+                  { value: "full_plan", label: "Pełny plan" },
+                  { value: "split", label: "Split" },
+                  { value: "cutting", label: "Redukcja" },
+                  { value: "bulking", label: "Masa" },
+                ] as { value: string; label: string }[]).map((opt) => {
+                  const active = planForm.mode === opt.value;
+                  return (
+                    <Pressable
+                      key={opt.value}
+                      onPress={() => setPlanForm((p) => ({ ...p, mode: opt.value }))}
+                      style={[
+                        styles.repeatChip,
+                        {
+                          backgroundColor: active ? colors.primary : colors.background,
+                          borderColor: active ? colors.primary : colors.border,
+                        },
+                      ]}
+                      testID={`chip-mode-${opt.value}`}
+                    >
+                      <Text style={[styles.repeatChipText, { color: active ? "#fff" : colors.mutedForeground }]}>
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>Cele makro dziennie</Text>
+
+              <View style={styles.macroInputRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Cel kcal</Text>
+                  <TextInput
+                    value={planForm.targetCalories}
+                    onChangeText={(v) => setPlanForm((p) => ({ ...p, targetCalories: v }))}
+                    placeholder="0"
+                    placeholderTextColor={colors.mutedForeground}
+                    keyboardType="numeric"
+                    style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                    testID="input-plan-calories"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Białko (g)</Text>
+                  <TextInput
+                    value={planForm.targetProtein}
+                    onChangeText={(v) => setPlanForm((p) => ({ ...p, targetProtein: v }))}
+                    placeholder="0"
+                    placeholderTextColor={colors.mutedForeground}
+                    keyboardType="numeric"
+                    style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                    testID="input-plan-protein"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.macroInputRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Tłuszcz (g)</Text>
+                  <TextInput
+                    value={planForm.targetFat}
+                    onChangeText={(v) => setPlanForm((p) => ({ ...p, targetFat: v }))}
+                    placeholder="0"
+                    placeholderTextColor={colors.mutedForeground}
+                    keyboardType="numeric"
+                    style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                    testID="input-plan-fat"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Węgle (g)</Text>
+                  <TextInput
+                    value={planForm.targetCarbs}
+                    onChangeText={(v) => setPlanForm((p) => ({ ...p, targetCarbs: v }))}
+                    placeholder="0"
+                    placeholderTextColor={colors.mutedForeground}
+                    keyboardType="numeric"
+                    style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                    testID="input-plan-carbs"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.modalActions}>
+                <Pressable
+                  onPress={() => setPlanEditModalVisible(false)}
+                  style={[styles.cancelBtn, { borderColor: colors.border }]}
+                  testID="button-cancel-plan-edit"
+                >
+                  <Text style={[styles.cancelBtnText, { color: colors.mutedForeground }]}>Anuluj</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleSavePlan}
+                  disabled={editPlanMutation.isPending}
+                  style={[styles.createBtn, { backgroundColor: colors.primary, opacity: editPlanMutation.isPending ? 0.7 : 1 }]}
+                  testID="button-save-plan-edit"
+                >
+                  {editPlanMutation.isPending ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.createBtnText}>Zapisz</Text>
+                  )}
+                </Pressable>
+              </View>
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
