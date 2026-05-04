@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -259,6 +260,7 @@ export default function TrainerDietsScreen() {
 
       {/* New plan modal */}
       <Modal visible={showNewModal} transparent animationType="slide" onRequestClose={() => setShowNewModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <Pressable style={styles.modalOverlay} onPress={() => setShowNewModal(false)}>
           <Pressable style={[styles.modalSheet, { backgroundColor: colors.card }]} onPress={() => {}}>
             <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
@@ -338,6 +340,7 @@ export default function TrainerDietsScreen() {
             </View>
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Delete confirmation modal */}

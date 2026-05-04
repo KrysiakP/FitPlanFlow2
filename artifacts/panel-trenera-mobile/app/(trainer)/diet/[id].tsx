@@ -1,6 +1,7 @@
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -729,6 +730,7 @@ export default function DietPlanDetailScreen() {
 
       {/* Meal form modal */}
       <Modal visible={mealModalVisible} transparent animationType="slide" onRequestClose={() => setMealModalVisible(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.kav}>
         <Pressable style={styles.modalOverlay} onPress={() => setMealModalVisible(false)}>
           <Pressable style={[styles.modalSheet, { backgroundColor: colors.card }]} onPress={() => {}}>
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -766,6 +768,7 @@ export default function DietPlanDetailScreen() {
                     placeholder="0"
                     placeholderTextColor={colors.mutedForeground}
                     keyboardType="numeric"
+                    returnKeyType="done"
                     style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
                     testID="input-meal-calories"
                   />
@@ -778,6 +781,7 @@ export default function DietPlanDetailScreen() {
                     placeholder="0"
                     placeholderTextColor={colors.mutedForeground}
                     keyboardType="numeric"
+                    returnKeyType="done"
                     style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
                     testID="input-meal-protein"
                   />
@@ -793,6 +797,7 @@ export default function DietPlanDetailScreen() {
                     placeholder="0"
                     placeholderTextColor={colors.mutedForeground}
                     keyboardType="numeric"
+                    returnKeyType="done"
                     style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
                     testID="input-meal-fat"
                   />
@@ -805,6 +810,7 @@ export default function DietPlanDetailScreen() {
                     placeholder="0"
                     placeholderTextColor={colors.mutedForeground}
                     keyboardType="numeric"
+                    returnKeyType="done"
                     style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
                     testID="input-meal-carbs"
                   />
@@ -913,10 +919,12 @@ export default function DietPlanDetailScreen() {
             </ScrollView>
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Supplement form modal */}
       <Modal visible={suppModalVisible} transparent animationType="slide" onRequestClose={() => setSuppModalVisible(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.kav}>
         <Pressable style={styles.modalOverlay} onPress={() => setSuppModalVisible(false)}>
           <Pressable style={[styles.modalSheet, { backgroundColor: colors.card }]} onPress={() => {}}>
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -944,6 +952,7 @@ export default function DietPlanDetailScreen() {
                     placeholder="np. 2000"
                     placeholderTextColor={colors.mutedForeground}
                     keyboardType="numeric"
+                    returnKeyType="done"
                     style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
                     testID="input-supplement-dose"
                   />
@@ -1009,6 +1018,7 @@ export default function DietPlanDetailScreen() {
             </ScrollView>
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Timing picker modal */}
@@ -1055,9 +1065,10 @@ export default function DietPlanDetailScreen() {
 
       {/* Plan header edit modal */}
       <Modal visible={planEditModalVisible} transparent animationType="slide" onRequestClose={() => setPlanEditModalVisible(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.kav}>
         <Pressable style={styles.modalOverlay} onPress={() => setPlanEditModalVisible(false)}>
           <Pressable style={[styles.modalSheet, { backgroundColor: colors.card }]} onPress={() => {}}>
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 8 }}>
               <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>Edytuj założenia planu</Text>
 
@@ -1108,6 +1119,7 @@ export default function DietPlanDetailScreen() {
                 placeholder="np. 2000"
                 placeholderTextColor={colors.mutedForeground}
                 keyboardType="numeric"
+                returnKeyType="done"
                 style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
                 testID="input-plan-calories"
               />
@@ -1185,6 +1197,7 @@ export default function DietPlanDetailScreen() {
                         placeholder="0"
                         placeholderTextColor={colors.mutedForeground}
                         keyboardType="numeric"
+                        returnKeyType="done"
                         style={[styles.textInput, { backgroundColor: colors.background, borderColor: "#16a34a40", color: colors.foreground }]}
                         testID="input-plan-protein"
                       />
@@ -1208,6 +1221,7 @@ export default function DietPlanDetailScreen() {
                         placeholder="0"
                         placeholderTextColor={colors.mutedForeground}
                         keyboardType="numeric"
+                        returnKeyType="done"
                         style={[styles.textInput, { backgroundColor: colors.background, borderColor: "#7c3aed40", color: colors.foreground }]}
                         testID="input-plan-fat"
                       />
@@ -1231,6 +1245,7 @@ export default function DietPlanDetailScreen() {
                         placeholder="0"
                         placeholderTextColor={colors.mutedForeground}
                         keyboardType="numeric"
+                        returnKeyType="done"
                         style={[styles.textInput, { backgroundColor: colors.background, borderColor: "#d9770640", color: colors.foreground }]}
                         testID="input-plan-carbs"
                       />
@@ -1272,6 +1287,7 @@ export default function DietPlanDetailScreen() {
             </ScrollView>
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -1356,8 +1372,9 @@ const styles = StyleSheet.create({
   repeatChipText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   repeatHint: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 8, borderWidth: 1, padding: 10, marginTop: 4, marginBottom: 4 },
   repeatHintText: { fontSize: 12, fontFamily: "Inter_400Regular", flex: 1 },
+  kav: { flex: 1 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  modalSheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40, maxHeight: "90%" },
+  modalSheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 20, maxHeight: "90%" },
   modalHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 4 },
   modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold", marginBottom: 12 },
   fieldLabel: { fontSize: 13, fontFamily: "Inter_500Medium", marginBottom: 4, marginTop: 8 },
