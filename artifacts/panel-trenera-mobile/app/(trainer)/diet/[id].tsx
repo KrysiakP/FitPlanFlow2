@@ -1048,61 +1048,152 @@ export default function DietPlanDetailScreen() {
                 })}
               </View>
 
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>Cele makro dziennie</Text>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>Cel kaloryczny</Text>
+              <TextInput
+                value={planForm.targetCalories}
+                onChangeText={(v) => setPlanForm((p) => ({ ...p, targetCalories: v }))}
+                placeholder="np. 2000"
+                placeholderTextColor={colors.mutedForeground}
+                keyboardType="numeric"
+                style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                testID="input-plan-calories"
+              />
 
-              <View style={styles.macroInputRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Cel kcal</Text>
-                  <TextInput
-                    value={planForm.targetCalories}
-                    onChangeText={(v) => setPlanForm((p) => ({ ...p, targetCalories: v }))}
-                    placeholder="0"
-                    placeholderTextColor={colors.mutedForeground}
-                    keyboardType="numeric"
-                    style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-                    testID="input-plan-calories"
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Białko (g)</Text>
-                  <TextInput
-                    value={planForm.targetProtein}
-                    onChangeText={(v) => setPlanForm((p) => ({ ...p, targetProtein: v }))}
-                    placeholder="0"
-                    placeholderTextColor={colors.mutedForeground}
-                    keyboardType="numeric"
-                    style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-                    testID="input-plan-protein"
-                  />
-                </View>
-              </View>
+              {(() => {
+                const kcal = Number(planForm.targetCalories) || 0;
+                const p = Number(planForm.targetProtein) || 0;
+                const f = Number(planForm.targetFat) || 0;
+                const c = Number(planForm.targetCarbs) || 0;
+                const fromMacros = p * 4 + f * 9 + c * 4;
+                const over = kcal > 0 && fromMacros > kcal * 1.05;
+                const fillRatio = kcal > 0 ? Math.min(fromMacros / kcal, 1) : 0;
+                const pPct = fromMacros > 0 ? Math.round((p * 4 / fromMacros) * 100) : 0;
+                const fPct = fromMacros > 0 ? Math.round((f * 9 / fromMacros) * 100) : 0;
+                const cPct = fromMacros > 0 ? Math.round((c * 4 / fromMacros) * 100) : 0;
 
-              <View style={styles.macroInputRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Tłuszcz (g)</Text>
-                  <TextInput
-                    value={planForm.targetFat}
-                    onChangeText={(v) => setPlanForm((p) => ({ ...p, targetFat: v }))}
-                    placeholder="0"
-                    placeholderTextColor={colors.mutedForeground}
-                    keyboardType="numeric"
-                    style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-                    testID="input-plan-fat"
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Węgle (g)</Text>
-                  <TextInput
-                    value={planForm.targetCarbs}
-                    onChangeText={(v) => setPlanForm((p) => ({ ...p, targetCarbs: v }))}
-                    placeholder="0"
-                    placeholderTextColor={colors.mutedForeground}
-                    keyboardType="numeric"
-                    style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-                    testID="input-plan-carbs"
-                  />
-                </View>
-              </View>
+                // Suggested ranges based on kcal
+                const sugP = kcal > 0 ? `${Math.round(kcal * 0.20 / 4)}–${Math.round(kcal * 0.30 / 4)}g` : null;
+                const sugF = kcal > 0 ? `${Math.round(kcal * 0.20 / 9)}–${Math.round(kcal * 0.35 / 9)}g` : null;
+                const sugC = kcal > 0 ? `${Math.round(kcal * 0.35 / 4)}–${Math.round(kcal * 0.55 / 4)}g` : null;
+
+                const maxP = kcal > 0 ? Math.floor((kcal - f * 9 - c * 4) / 4) : 999;
+                const maxF = kcal > 0 ? Math.floor((kcal - p * 4 - c * 4) / 9) : 999;
+                const maxC = kcal > 0 ? Math.floor((kcal - p * 4 - f * 9) / 4) : 999;
+
+                return (
+                  <>
+                    {/* Macro progress bar */}
+                    {kcal > 0 && (
+                      <View style={{ marginTop: 12, marginBottom: 4 }}>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+                          <Text style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: over ? colors.destructive : colors.mutedForeground }}>
+                            Makro: {fromMacros} / {kcal} kcal
+                          </Text>
+                          <Text style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: over ? colors.destructive : colors.mutedForeground }}>
+                            {over ? "⚠️ Przekroczono!" : fromMacros === 0 ? "" : `${Math.round(fillRatio * 100)}%`}
+                          </Text>
+                        </View>
+                        <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.border, overflow: "hidden" }}>
+                          <View style={{
+                            height: 6,
+                            borderRadius: 3,
+                            width: `${fillRatio * 100}%`,
+                            backgroundColor: over ? colors.destructive : fillRatio > 0.95 ? "#16a34a" : colors.primary,
+                          }} />
+                        </View>
+                        {/* Stacked bar breakdown */}
+                        {fromMacros > 0 && (
+                          <View style={{ flexDirection: "row", height: 4, borderRadius: 2, overflow: "hidden", marginTop: 4 }}>
+                            <View style={{ flex: p * 4, backgroundColor: "#16a34a" }} />
+                            <View style={{ flex: f * 9, backgroundColor: "#7c3aed" }} />
+                            <View style={{ flex: c * 4, backgroundColor: "#d97706" }} />
+                          </View>
+                        )}
+                      </View>
+                    )}
+
+                    <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 12 }]}>Makroskładniki</Text>
+
+                    {/* Protein */}
+                    <View style={{ marginBottom: 8 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                        <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#16a34a" }}>
+                          Białko {pPct > 0 ? `· ${pPct}%` : ""}
+                        </Text>
+                        {sugP && <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>sugerowane: {sugP}</Text>}
+                      </View>
+                      <TextInput
+                        value={planForm.targetProtein}
+                        onChangeText={(v) => {
+                          const n = Number(v);
+                          if (kcal > 0 && n > maxP + Number(planForm.targetProtein)) return;
+                          setPlanForm((p2) => ({ ...p2, targetProtein: v }));
+                        }}
+                        placeholder="0"
+                        placeholderTextColor={colors.mutedForeground}
+                        keyboardType="numeric"
+                        style={[styles.textInput, { backgroundColor: colors.background, borderColor: "#16a34a40", color: colors.foreground }]}
+                        testID="input-plan-protein"
+                      />
+                    </View>
+
+                    {/* Fat */}
+                    <View style={{ marginBottom: 8 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                        <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#7c3aed" }}>
+                          Tłuszcz {fPct > 0 ? `· ${fPct}%` : ""}
+                        </Text>
+                        {sugF && <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>sugerowane: {sugF}</Text>}
+                      </View>
+                      <TextInput
+                        value={planForm.targetFat}
+                        onChangeText={(v) => {
+                          const n = Number(v);
+                          if (kcal > 0 && n > maxF + Number(planForm.targetFat)) return;
+                          setPlanForm((p2) => ({ ...p2, targetFat: v }));
+                        }}
+                        placeholder="0"
+                        placeholderTextColor={colors.mutedForeground}
+                        keyboardType="numeric"
+                        style={[styles.textInput, { backgroundColor: colors.background, borderColor: "#7c3aed40", color: colors.foreground }]}
+                        testID="input-plan-fat"
+                      />
+                    </View>
+
+                    {/* Carbs */}
+                    <View style={{ marginBottom: 8 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                        <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#d97706" }}>
+                          Węglowodany {cPct > 0 ? `· ${cPct}%` : ""}
+                        </Text>
+                        {sugC && <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>sugerowane: {sugC}</Text>}
+                      </View>
+                      <TextInput
+                        value={planForm.targetCarbs}
+                        onChangeText={(v) => {
+                          const n = Number(v);
+                          if (kcal > 0 && n > maxC + Number(planForm.targetCarbs)) return;
+                          setPlanForm((p2) => ({ ...p2, targetCarbs: v }));
+                        }}
+                        placeholder="0"
+                        placeholderTextColor={colors.mutedForeground}
+                        keyboardType="numeric"
+                        style={[styles.textInput, { backgroundColor: colors.background, borderColor: "#d9770640", color: colors.foreground }]}
+                        testID="input-plan-carbs"
+                      />
+                    </View>
+
+                    {over && (
+                      <View style={[styles.repeatHint, { backgroundColor: colors.destructive + "12", borderColor: colors.destructive + "40" }]}>
+                        <Ionicons name="warning-outline" size={14} color={colors.destructive} />
+                        <Text style={[styles.repeatHintText, { color: colors.destructive }]}>
+                          Suma kcal z makro ({fromMacros} kcal) przekracza cel kaloryczny ({kcal} kcal). Zmniejsz ilość składników.
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                );
+              })()}
 
               <View style={styles.modalActions}>
                 <Pressable
