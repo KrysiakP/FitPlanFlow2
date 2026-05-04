@@ -718,11 +718,11 @@ export default function TrainingScreen() {
 
           if (exercise?.restTime && exercise.restTime > 0) {
             if (hasNextSet) {
-              pendingNextSetRef.current = { exerciseId, setNumber: nextSetNumber, mode: "auto" };
+              pendingNextSetRef.current = { exerciseId, setNumber: nextSetNumber, mode: "form" };
             }
             startRestTimer(exercise.restTime);
           } else if (hasNextSet) {
-            setTimeout(() => void handleAutoLogRef.current(exerciseId, nextSetNumber), 100);
+            setTimeout(() => void handleStartLogRef.current(exerciseId, nextSetNumber), 100);
           }
         },
       }
