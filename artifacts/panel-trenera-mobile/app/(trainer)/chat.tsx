@@ -158,7 +158,7 @@ export default function TrainerChatScreen() {
   const { data: conversations = [], isLoading: convsLoading, refetch } = useConversations();
 
   const { data: messages = [], isLoading: msgsLoading } = useMessages(
-    selected?.trainerId ?? null,
+    selected ? (user?.id ?? null) : null,
     selected?.clientId ?? null
   );
 
@@ -195,7 +195,7 @@ export default function TrainerChatScreen() {
     sendMutation.mutate({
       recipientId: selected.partnerId,
       body,
-      trainerId: selected.trainerId,
+      trainerId: user?.id ?? selected.trainerId,
       clientId: selected.clientId,
     });
   }
