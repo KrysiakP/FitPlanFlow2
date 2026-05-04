@@ -20,7 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet, apiPost, apiDelete } from "@/lib/api";
 
 interface Client {
   id: string;
@@ -63,6 +63,7 @@ export default function TrainerDietsScreen() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [clientSearch, setClientSearch] = useState("");
   const [showClientPicker, setShowClientPicker] = useState(false);
+  const [planToDelete, setPlanToDelete] = useState<DietPlan | null>(null);
 
   const { data: plans = [], isLoading, refetch, isRefetching } = useQuery<DietPlan[]>({
     queryKey: ["trainer-diet-plans"],
@@ -98,6 +99,18 @@ export default function TrainerDietsScreen() {
     },
     onError: () => {
       Alert.alert("Błąd", "Nie udało się utworzyć planu. Spróbuj ponownie.");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiDelete(`/api/diets/plans/${id}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["trainer-diet-plans"] });
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setPlanToDelete(null);
+    },
+    onError: () => {
+      setPlanToDelete(null);
     },
   });
 
@@ -194,6 +207,17 @@ export default function TrainerDietsScreen() {
                   <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
                     <Text style={[styles.statusText, { color: sc.text }]}>{STATUS_LABELS[plan.status] ?? plan.status}</Text>
                   </View>
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      setPlanToDelete(plan);
+                    }}
+                    style={[styles.deleteBtn, { backgroundColor: "#ef44441a" }]}
+                    testID={`button-delete-plan-${plan.id}`}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                  </Pressable>
                 </View>
                 <View style={[styles.macroRow, { borderTopColor: colors.border }]}>
                   <MacroItem label="Kcal" value={String(plan.targetCalories)} color={colors.primary} />
@@ -272,6 +296,46 @@ export default function TrainerDietsScreen() {
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
                   <Text style={styles.createBtnText}>Utwórz plan</Text>
+                )}
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Delete confirmation modal */}
+      <Modal visible={!!planToDelete} transparent animationType="fade" onRequestClose={() => setPlanToDelete(null)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setPlanToDelete(null)}>
+          <Pressable style={[styles.confirmSheet, { backgroundColor: colors.card }]} onPress={() => {}}>
+            <View style={[styles.confirmIconWrap, { backgroundColor: "#ef44441a" }]}>
+              <Ionicons name="trash-outline" size={28} color="#ef4444" />
+            </View>
+            <Text style={[styles.confirmTitle, { color: colors.foreground }]}>Usuń plan diety</Text>
+            <Text style={[styles.confirmDesc, { color: colors.mutedForeground }]}>
+              Czy na pewno chcesz usunąć plan{"\n"}
+              <Text style={{ fontFamily: "Inter_700Bold", color: colors.foreground }}>
+                {planToDelete?.name}
+              </Text>
+              ?{"\n"}Tej operacji nie można cofnąć.
+            </Text>
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setPlanToDelete(null)}
+                style={[styles.cancelBtn, { borderColor: colors.border }]}
+                testID="button-cancel-delete"
+              >
+                <Text style={[styles.cancelBtnText, { color: colors.mutedForeground }]}>Anuluj</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => planToDelete && deleteMutation.mutate(planToDelete.id)}
+                disabled={deleteMutation.isPending}
+                style={[styles.deleteConfirmBtn, { opacity: deleteMutation.isPending ? 0.7 : 1 }]}
+                testID="button-confirm-delete"
+              >
+                {deleteMutation.isPending ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.deleteConfirmBtnText}>Usuń</Text>
                 )}
               </Pressable>
             </View>
@@ -379,4 +443,11 @@ const styles = StyleSheet.create({
   clientList: { maxHeight: 300 },
   clientItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 14, borderBottomWidth: 1 },
   clientItemText: { fontSize: 15, fontFamily: "Inter_400Regular" },
+  deleteBtn: { width: 32, height: 32, borderRadius: 8, justifyContent: "center", alignItems: "center", marginLeft: 6 },
+  confirmSheet: { borderRadius: 20, margin: 24, padding: 24, alignItems: "center", gap: 12 },
+  confirmIconWrap: { width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center", marginBottom: 4 },
+  confirmTitle: { fontSize: 18, fontFamily: "Inter_700Bold", textAlign: "center" },
+  confirmDesc: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22 },
+  deleteConfirmBtn: { flex: 2, borderRadius: 10, paddingVertical: 12, alignItems: "center", backgroundColor: "#ef4444" },
+  deleteConfirmBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });
