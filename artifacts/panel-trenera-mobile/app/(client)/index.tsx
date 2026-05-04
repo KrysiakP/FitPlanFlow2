@@ -16,7 +16,6 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { StatsCard } from "@/components/StatsCard";
 import { apiGet, apiPost } from "@/lib/api";
 
 type Colors = ReturnType<typeof useColors>;
@@ -203,28 +202,6 @@ export default function ClientDashboard() {
         )}
       </View>
 
-      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Podsumowanie</Text>
-      <View style={styles.statsRow}>
-        <StatsCard
-          label="Treningi"
-          value="0"
-          iconName="barbell-outline"
-          color={colors.primary}
-        />
-        <StatsCard
-          label="Tydzień"
-          value="1"
-          iconName="calendar-outline"
-          color="#16a34a"
-        />
-        <StatsCard
-          label="Postęp"
-          value="0%"
-          iconName="trending-up-outline"
-          color="#d97706"
-        />
-      </View>
-
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Szybki dostęp</Text>
       <View style={styles.quickGrid}>
         <QuickCard icon="barbell-outline" label="Trening" colors={colors} onPress={() => router.push("/(client)/training")} />
@@ -372,7 +349,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   sectionTitle: { fontSize: 17, fontFamily: "Inter_700Bold", marginBottom: 12 },
-  statsRow: { flexDirection: "row", gap: 10, marginBottom: 24 },
   quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 24 },
   quickCard: {
     width: "47%",
