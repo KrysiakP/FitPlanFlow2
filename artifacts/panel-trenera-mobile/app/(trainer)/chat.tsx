@@ -190,14 +190,18 @@ export default function TrainerChatScreen() {
 
   function handleSend() {
     const body = inputText.trim();
-    if (!body || !selected || sendMutation.isPending) return;
+    if (!body || !selected || !user || sendMutation.isPending) return;
     setInputText("");
-    sendMutation.mutate({
-      recipientId: selected.partnerId,
-      body,
-      trainerId: user?.id ?? selected.trainerId,
-      clientId: selected.clientId,
-    });
+    sendMutation.mutate(
+      {
+        recipientId: selected.partnerId,
+        body,
+        trainerId: user.id,
+        clientId: selected.clientId,
+        senderId: user.id,
+      },
+      { onError: () => setInputText(body) }
+    );
   }
 
   // Sort conversations: those with messages first (by recency), then without (alphabetically)

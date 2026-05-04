@@ -48,14 +48,67 @@ export function useUnreadCount() {
   });
 }
 
+interface SendMessageVars {
+  recipientId: string;
+  body: string;
+  trainerId: string;
+  clientId: string;
+  senderId: string;
+}
+
 export function useSendMessage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { recipientId: string; body: string; trainerId: string; clientId: string }) =>
-      apiPost<ChatMessage>("/api/chat/messages", { recipientId: data.recipientId, body: data.body }),
-    onSuccess: (_, variables) => {
+    mutationFn: (data: SendMessageVars) =>
+      apiPost<ChatMessage>("/api/chat/messages", {
+        recipientId: data.recipientId,
+        body: data.body,
+      }),
+
+    onMutate: async (variables) => {
+      const queryKey = ["chat-messages", variables.trainerId, variables.clientId];
+      await qc.cancelQueries({ queryKey });
+      const previousMessages = qc.getQueryData<ChatMessage[]>(queryKey);
+
+      const optimisticMessage: ChatMessage = {
+        id: `optimistic-${Date.now()}`,
+        senderId: variables.senderId,
+        recipientId: variables.recipientId,
+        trainerId: variables.trainerId,
+        clientId: variables.clientId,
+        body: variables.body,
+        createdAt: new Date().toISOString(),
+        readAt: null,
+      };
+
+      qc.setQueryData<ChatMessage[]>(queryKey, (old) => [
+        ...(old ?? []),
+        optimisticMessage,
+      ]);
+
+      return { previousMessages, queryKey };
+    },
+
+    onError: (_err, _variables, context) => {
+      if (context) {
+        qc.setQueryData(context.queryKey, context.previousMessages);
+      }
+    },
+
+    onSuccess: (realMessage, variables) => {
+      const queryKey = ["chat-messages", variables.trainerId, variables.clientId];
+      qc.setQueryData<ChatMessage[]>(queryKey, (old) => {
+        if (!old) return [realMessage];
+        const withoutOptimistic = old.filter((m) => !m.id.startsWith("optimistic-"));
+        return [...withoutOptimistic, realMessage];
+      });
+    },
+
+    onSettled: (_data, _err, variables) => {
+      qc.invalidateQueries({
+        queryKey: ["chat-messages", variables.trainerId, variables.clientId],
+      });
       qc.invalidateQueries({ queryKey: ["chat-conversations"] });
-      qc.invalidateQueries({ queryKey: ["chat-messages", variables.trainerId, variables.clientId] });
     },
   });
 }

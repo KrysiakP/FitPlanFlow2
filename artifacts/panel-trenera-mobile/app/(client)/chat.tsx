@@ -114,14 +114,18 @@ export default function ClientChatScreen() {
 
   function handleSend() {
     const body = inputText.trim();
-    if (!body || !conversation || sendMutation.isPending) return;
+    if (!body || !conversation || !user || sendMutation.isPending) return;
     setInputText("");
-    sendMutation.mutate({
-      recipientId: conversation.partnerId,
-      body,
-      trainerId: conversation.trainerId,
-      clientId: conversation.clientId,
-    });
+    sendMutation.mutate(
+      {
+        recipientId: conversation.partnerId,
+        body,
+        trainerId: conversation.trainerId,
+        clientId: conversation.clientId,
+        senderId: user.id,
+      },
+      { onError: () => setInputText(body) }
+    );
   }
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
