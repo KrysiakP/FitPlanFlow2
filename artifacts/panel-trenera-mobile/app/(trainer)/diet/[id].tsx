@@ -72,6 +72,44 @@ const DAYS = [
   { value: 7, label: "Niedziela", short: "Nd" },
 ];
 
+const PL_MONTHS = ["stycznia","lutego","marca","kwietnia","maja","czerwca","lipca","sierpnia","września","października","listopada","grudnia"];
+
+function getTodayDayOfWeek(): number {
+  const jsDay = new Date().getDay();
+  return jsDay === 0 ? 7 : jsDay;
+}
+
+function getMondayOfCurrentWeek(): Date {
+  const today = new Date();
+  const todayDow = getTodayDayOfWeek();
+  const mon = new Date(today);
+  mon.setDate(today.getDate() - (todayDow - 1));
+  mon.setHours(0, 0, 0, 0);
+  return mon;
+}
+
+function getWeekDates(): Record<number, Date> {
+  const mon = getMondayOfCurrentWeek();
+  const result: Record<number, Date> = {};
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + i);
+    result[i + 1] = d;
+  }
+  return result;
+}
+
+function formatWeekRange(weekDates: Record<number, Date>): string {
+  const mon = weekDates[1];
+  const sun = weekDates[7];
+  if (mon.getMonth() === sun.getMonth()) {
+    return `${mon.getDate()}–${sun.getDate()} ${PL_MONTHS[mon.getMonth()]} ${mon.getFullYear()}`;
+  }
+  return `${mon.getDate()} ${PL_MONTHS[mon.getMonth()]} – ${sun.getDate()} ${PL_MONTHS[sun.getMonth()]} ${sun.getFullYear()}`;
+}
+
+const WEEK_DATES = getWeekDates();
+
 const TIMING_OPTIONS = ["rano", "przed treningiem", "z posiłkiem", "pomiędzy posiłkami", "po treningu", "wieczór"];
 const UNIT_OPTIONS = ["mg", "g", "ml", "kaps.", "tabletki", "łyżki"];
 
@@ -124,7 +162,7 @@ export default function DietPlanDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const [activeDay, setActiveDay] = useState(1);
+  const [activeDay, setActiveDay] = useState(getTodayDayOfWeek());
 
   // Meal modal state
   const [mealModalVisible, setMealModalVisible] = useState(false);
@@ -498,11 +536,16 @@ export default function DietPlanDetailScreen() {
         </View>
 
         {/* Day tabs */}
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Posiłki</Text>
+        <View style={styles.sectionTitleRow}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>Posiłki</Text>
+          <Text style={[styles.weekRangeLabel, { color: colors.mutedForeground }]}>{formatWeekRange(WEEK_DATES)}</Text>
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayTabs} contentContainerStyle={{ gap: 8 }}>
           {DAYS.map((d) => {
             const active = activeDay === d.value;
+            const isToday = d.value === getTodayDayOfWeek();
             const count = meals.filter((m) => m.dayOfWeek === d.value).length;
+            const dateNum = WEEK_DATES[d.value]?.getDate();
             return (
               <Pressable
                 key={d.value}
@@ -511,12 +554,17 @@ export default function DietPlanDetailScreen() {
                   styles.dayTab,
                   {
                     backgroundColor: active ? colors.primary : colors.card,
-                    borderColor: active ? colors.primary : colors.border,
+                    borderColor: active ? colors.primary : isToday ? colors.primary + "60" : colors.border,
                   },
                 ]}
                 testID={`tab-day-${d.value}`}
               >
-                <Text style={[styles.dayTabShort, { color: active ? "#fff" : colors.mutedForeground }]}>{d.short}</Text>
+                <Text style={[styles.dayTabShort, { color: active ? "#fff" : isToday ? colors.primary : colors.mutedForeground }]}>
+                  {d.short}
+                </Text>
+                <Text style={[styles.dayTabDate, { color: active ? "rgba(255,255,255,0.8)" : isToday ? colors.primary : colors.mutedForeground + "99" }]}>
+                  {dateNum}
+                </Text>
                 {count > 0 && (
                   <View style={[styles.dayTabBadge, { backgroundColor: active ? "rgba(255,255,255,0.3)" : colors.primary + "20" }]}>
                     <Text style={[styles.dayTabBadgeText, { color: active ? "#fff" : colors.primary }]}>{count}</Text>
@@ -532,6 +580,11 @@ export default function DietPlanDetailScreen() {
           <View>
             <Text style={[styles.dayLabel, { color: colors.foreground }]}>
               {DAYS.find((d) => d.value === activeDay)?.label}
+              {WEEK_DATES[activeDay] ? (
+                <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>
+                  {" "}{WEEK_DATES[activeDay].getDate()} {PL_MONTHS[WEEK_DATES[activeDay].getMonth()]}
+                </Text>
+              ) : null}
             </Text>
             {dayTotals.calories > 0 && (
               <Text style={[styles.daySubLabel, { color: colors.mutedForeground }]}>
@@ -1265,10 +1318,13 @@ const styles = StyleSheet.create({
   actionBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 10 },
   actionBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   sectionTitle: { fontSize: 17, fontFamily: "Inter_700Bold", marginBottom: 12 },
+  sectionTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  weekRangeLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
   sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 12 },
   dayTabs: { marginBottom: 16 },
-  dayTab: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 6 },
+  dayTab: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, flexDirection: "column", alignItems: "center", gap: 2, minWidth: 44 },
   dayTabShort: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  dayTabDate: { fontSize: 11, fontFamily: "Inter_400Regular" },
   dayTabBadge: { borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1 },
   dayTabBadgeText: { fontSize: 10, fontFamily: "Inter_700Bold" },
   dayLabelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 12 },
