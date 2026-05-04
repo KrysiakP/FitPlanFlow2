@@ -717,12 +717,7 @@ export default function TrainingScreen() {
           void queryClient.invalidateQueries({ queryKey: ["exercise-logs"] });
 
           if (exercise?.restTime && exercise.restTime > 0) {
-            if (hasNextSet) {
-              pendingNextSetRef.current = { exerciseId, setNumber: nextSetNumber, mode: "form" };
-            }
             startRestTimer(exercise.restTime);
-          } else if (hasNextSet) {
-            setTimeout(() => void handleStartLogRef.current(exerciseId, nextSetNumber), 100);
           }
         },
       }
