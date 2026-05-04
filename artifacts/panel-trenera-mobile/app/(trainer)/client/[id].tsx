@@ -21,7 +21,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { StatsCard } from "@/components/StatsCard";
-import { apiGet, apiPost, apiPatch } from "@/lib/api";
+import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 
 interface MedicalTest {
   id: string;
@@ -125,6 +125,7 @@ export default function ClientDetailScreen() {
   const [activeTab, setActiveTab] = useState<"plans" | "diet" | "progress" | "reports" | "tests">("plans");
   const [createPlanModalVisible, setCreatePlanModalVisible] = useState(false);
   const [createDietModalVisible, setCreateDietModalVisible] = useState(false);
+  const [dietToDelete, setDietToDelete] = useState<ClientDietPlan | null>(null);
   const [newPlanName, setNewPlanName] = useState("");
   const [newPlanDesc, setNewPlanDesc] = useState("");
   const [newDietName, setNewDietName] = useState("");
@@ -237,6 +238,19 @@ export default function ClientDetailScreen() {
       router.push(`/(trainer)/plan/${plan.id}`);
     },
     onError: () => Alert.alert("Blad", "Nie udalo sie utworzyc planu. Sprobuj ponownie."),
+  });
+
+  const deleteDietMutation = useMutation({
+    mutationFn: (dietId: string) => apiDelete(`/api/diets/plans/${dietId}`),
+    onSuccess: () => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ["trainer-diet-plans", id] });
+      qc.invalidateQueries({ queryKey: ["trainer-diet-plans"] });
+      setDietToDelete(null);
+    },
+    onError: () => {
+      setDietToDelete(null);
+    },
   });
 
   const createDietMutation = useMutation({
@@ -540,6 +554,17 @@ export default function ClientDetailScreen() {
                       {diet.description ?? "Otwórz plan diety"}
                     </Text>
                   </View>
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      setDietToDelete(diet);
+                    }}
+                    style={[styles.dietDeleteBtn, { backgroundColor: "#ef44441a" }]}
+                    testID={`button-delete-diet-${diet.id}`}
+                  >
+                    <Ionicons name="trash-outline" size={15} color="#ef4444" />
+                  </Pressable>
                   <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
                 </Pressable>
               ))
@@ -777,6 +802,46 @@ export default function ClientDetailScreen() {
             </Pressable>
           </View>
         </View>
+      </Modal>
+
+      {/* Delete diet confirmation modal */}
+      <Modal visible={!!dietToDelete} transparent animationType="fade" onRequestClose={() => setDietToDelete(null)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setDietToDelete(null)}>
+          <Pressable style={[styles.confirmSheet, { backgroundColor: colors.card }]} onPress={() => {}}>
+            <View style={[styles.confirmIconWrap, { backgroundColor: "#ef44441a" }]}>
+              <Ionicons name="trash-outline" size={28} color="#ef4444" />
+            </View>
+            <Text style={[styles.confirmTitle, { color: colors.foreground }]}>Usuń plan diety</Text>
+            <Text style={[styles.confirmDesc, { color: colors.mutedForeground }]}>
+              Czy na pewno chcesz usunąć plan{"\n"}
+              <Text style={{ fontFamily: "Inter_700Bold", color: colors.foreground }}>
+                {dietToDelete?.name}
+              </Text>
+              ?{"\n"}Tej operacji nie można cofnąć.
+            </Text>
+            <View style={styles.confirmActions}>
+              <Pressable
+                onPress={() => setDietToDelete(null)}
+                style={[styles.confirmCancelBtn, { borderColor: colors.border }]}
+                testID="button-cancel-delete-diet"
+              >
+                <Text style={[styles.confirmCancelText, { color: colors.mutedForeground }]}>Anuluj</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => dietToDelete && deleteDietMutation.mutate(dietToDelete.id)}
+                disabled={deleteDietMutation.isPending}
+                style={[styles.confirmDeleteBtn, { opacity: deleteDietMutation.isPending ? 0.7 : 1 }]}
+                testID="button-confirm-delete-diet"
+              >
+                {deleteDietMutation.isPending ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.confirmDeleteText}>Usuń</Text>
+                )}
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* Create plan modal */}
@@ -1118,6 +1183,16 @@ const styles = StyleSheet.create({
   reportDetailLabel: { fontSize: 13, fontFamily: "Inter_500Medium", minWidth: 110 },
   reportDetailValue: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
   reportPhoto: { width: "100%", height: 200, borderRadius: 10 },
+  dietDeleteBtn: { width: 30, height: 30, borderRadius: 8, justifyContent: "center", alignItems: "center", marginLeft: 2 },
+  confirmSheet: { borderRadius: 20, margin: 24, padding: 24, alignItems: "center", gap: 12 },
+  confirmIconWrap: { width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center", marginBottom: 4 },
+  confirmTitle: { fontSize: 18, fontFamily: "Inter_700Bold", textAlign: "center" },
+  confirmDesc: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22 },
+  confirmActions: { flexDirection: "row", gap: 12, marginTop: 8, width: "100%" },
+  confirmCancelBtn: { flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 12, alignItems: "center" },
+  confirmCancelText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  confirmDeleteBtn: { flex: 2, borderRadius: 10, paddingVertical: 12, alignItems: "center", backgroundColor: "#ef4444" },
+  confirmDeleteText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });
 
 function TrainerMedicalTestCard({
