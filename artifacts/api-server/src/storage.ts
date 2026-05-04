@@ -1918,6 +1918,10 @@ export class DatabaseStorage implements IStorage {
           hitProtein: log.hitProtein,
           hitFat: log.hitFat,
           hitCarbs: log.hitCarbs,
+          actualCalories: log.actualCalories,
+          actualProtein: log.actualProtein,
+          actualFat: log.actualFat,
+          actualCarbs: log.actualCarbs,
         },
       })
       .returning();
@@ -1955,7 +1959,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Meal Checkmarks
-  async upsertMealCheckmark(checkmark: { habitLogId: string, mealId: string, completed: boolean }): Promise<MealCheckmark> {
+  async upsertMealCheckmark(checkmark: { habitLogId: string, mealId: string, completed: boolean, eatenCalories?: number | null, eatenProtein?: number | null, eatenFat?: number | null, eatenCarbs?: number | null }): Promise<MealCheckmark> {
     const [mealCheckmark] = await db
       .insert(mealCheckmarks)
       .values({
@@ -1963,12 +1967,20 @@ export class DatabaseStorage implements IStorage {
         mealId: checkmark.mealId,
         completed: checkmark.completed,
         completedAt: checkmark.completed ? new Date() : null,
+        eatenCalories: checkmark.eatenCalories ?? null,
+        eatenProtein: checkmark.eatenProtein ?? null,
+        eatenFat: checkmark.eatenFat ?? null,
+        eatenCarbs: checkmark.eatenCarbs ?? null,
       })
       .onConflictDoUpdate({
         target: [mealCheckmarks.habitLogId, mealCheckmarks.mealId],
         set: {
           completed: checkmark.completed,
           completedAt: checkmark.completed ? new Date() : null,
+          eatenCalories: checkmark.eatenCalories ?? null,
+          eatenProtein: checkmark.eatenProtein ?? null,
+          eatenFat: checkmark.eatenFat ?? null,
+          eatenCarbs: checkmark.eatenCarbs ?? null,
         },
       })
       .returning();

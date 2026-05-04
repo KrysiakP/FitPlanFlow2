@@ -1,7 +1,5 @@
 import {
   ActivityIndicator,
-  Alert,
-  FlatList,
   Modal,
   Platform,
   Pressable,
@@ -40,6 +38,8 @@ interface DietPlan {
   mode: string | null;
 }
 
+type PlanMode = "full_plan" | "macro_only";
+
 const STATUS_LABELS: Record<string, string> = {
   draft: "Szkic",
   active: "Aktywny",
@@ -52,6 +52,16 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   completed: { bg: "#6b72801a", text: "#6b7280" },
 };
 
+const MODE_LABELS: Record<string, string> = {
+  full_plan: "Pełna dieta",
+  macro_only: "Tylko makro",
+};
+
+const MODE_ICONS: Record<string, React.ComponentProps<typeof Ionicons>["name"]> = {
+  full_plan: "restaurant-outline",
+  macro_only: "bar-chart-outline",
+};
+
 export default function TrainerDietsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -60,6 +70,7 @@ export default function TrainerDietsScreen() {
 
   const [showNewModal, setShowNewModal] = useState(false);
   const [newName, setNewName] = useState("");
+  const [planMode, setPlanMode] = useState<PlanMode>("full_plan");
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [clientSearch, setClientSearch] = useState("");
   const [showClientPicker, setShowClientPicker] = useState(false);
@@ -76,7 +87,7 @@ export default function TrainerDietsScreen() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (body: { name: string; clientId?: string | null }) =>
+    mutationFn: (body: { name: string; clientId?: string | null; mode: PlanMode }) =>
       apiPost<{ id: string }>("/api/diets/plans", {
         name: body.name,
         clientId: body.clientId || null,
@@ -84,8 +95,8 @@ export default function TrainerDietsScreen() {
         targetProtein: 150,
         targetFat: 56,
         targetCarbs: 225,
-        mealsPerDay: 3,
-        mode: "full_plan",
+        mealsPerDay: planMode === "full_plan" ? 4 : 1,
+        mode: body.mode,
         status: "draft",
       }),
     onSuccess: (data: { id: string }) => {
@@ -95,10 +106,11 @@ export default function TrainerDietsScreen() {
       setNewName("");
       setSelectedClientId(null);
       setClientSearch("");
+      setPlanMode("full_plan");
       router.push(`/(trainer)/diet/${data.id}`);
     },
     onError: () => {
-      Alert.alert("Błąd", "Nie udało się utworzyć planu. Spróbuj ponownie.");
+      // handled silently — user can retry
     },
   });
 
@@ -115,12 +127,9 @@ export default function TrainerDietsScreen() {
   });
 
   function handleCreate() {
-    if (!newName.trim()) {
-      Alert.alert("Błąd", "Podaj nazwę planu.");
-      return;
-    }
+    if (!newName.trim()) return;
     const safeClientId = selectedClientId?.startsWith("demo-") ? null : selectedClientId;
-    createMutation.mutate({ name: newName.trim(), clientId: safeClientId });
+    createMutation.mutate({ name: newName.trim(), clientId: safeClientId, mode: planMode });
   }
 
   function openNewModal() {
@@ -128,19 +137,17 @@ export default function TrainerDietsScreen() {
     setNewName("");
     setSelectedClientId(null);
     setClientSearch("");
+    setPlanMode("full_plan");
     setShowNewModal(true);
   }
 
   const realClients = clients.filter((c) => !c.id.startsWith("demo-"));
-
   const filteredClients = clientSearch
     ? realClients.filter((c) =>
         `${c.firstName} ${c.lastName}`.toLowerCase().includes(clientSearch.toLowerCase())
       )
     : realClients;
-
   const selectedClient = realClients.find((c) => c.id === selectedClientId);
-
   const clientMap = Object.fromEntries(clients.map((c) => [c.id, c]));
 
   return (
@@ -159,7 +166,6 @@ export default function TrainerDietsScreen() {
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
       >
-
         {isLoading ? (
           <ActivityIndicator color={colors.primary} style={styles.loader} />
         ) : plans.length === 0 ? (
@@ -174,6 +180,8 @@ export default function TrainerDietsScreen() {
           plans.map((plan) => {
             const sc = STATUS_COLORS[plan.status] ?? STATUS_COLORS.draft;
             const client = plan.clientId ? clientMap[plan.clientId] : null;
+            const modeLabel = plan.mode ? (MODE_LABELS[plan.mode] ?? plan.mode) : null;
+            const modeIcon = plan.mode ? (MODE_ICONS[plan.mode] ?? "nutrition-outline") : "nutrition-outline";
             return (
               <Pressable
                 key={plan.id}
@@ -189,20 +197,29 @@ export default function TrainerDietsScreen() {
               >
                 <View style={styles.planCardTop}>
                   <View style={[styles.planIcon, { backgroundColor: colors.primary + "1a" }]}>
-                    <Ionicons name="nutrition-outline" size={20} color={colors.primary} />
+                    <Ionicons name={modeIcon} size={20} color={colors.primary} />
                   </View>
                   <View style={styles.planInfo}>
                     <Text style={[styles.planName, { color: colors.foreground }]} testID={`text-plan-name-${plan.id}`}>
                       {plan.name}
                     </Text>
-                    {client && (
-                      <View style={styles.clientRow}>
-                        <Ionicons name="person-outline" size={12} color={colors.mutedForeground} />
-                        <Text style={[styles.clientName, { color: colors.mutedForeground }]}>
-                          {client.firstName} {client.lastName}
-                        </Text>
-                      </View>
-                    )}
+                    <View style={styles.planMeta}>
+                      {client && (
+                        <View style={styles.clientRow}>
+                          <Ionicons name="person-outline" size={12} color={colors.mutedForeground} />
+                          <Text style={[styles.clientName, { color: colors.mutedForeground }]}>
+                            {client.firstName} {client.lastName}
+                          </Text>
+                        </View>
+                      )}
+                      {modeLabel && (
+                        <View style={[styles.modeBadge, { backgroundColor: plan.mode === "full_plan" ? colors.primary + "15" : "#16a34a15" }]}>
+                          <Text style={[styles.modeText, { color: plan.mode === "full_plan" ? colors.primary : "#16a34a" }]}>
+                            {modeLabel}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
                   <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
                     <Text style={[styles.statusText, { color: sc.text }]}>{STATUS_LABELS[plan.status] ?? plan.status}</Text>
@@ -247,6 +264,26 @@ export default function TrainerDietsScreen() {
             <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nowy plan diety</Text>
 
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Typ planu *</Text>
+            <View style={styles.modeSelector}>
+              <ModeCard
+                icon="restaurant-outline"
+                title="Pełna dieta"
+                desc="Konkretne posiłki na każdy dzień tygodnia"
+                selected={planMode === "full_plan"}
+                onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPlanMode("full_plan"); }}
+                colors={colors}
+              />
+              <ModeCard
+                icon="bar-chart-outline"
+                title="Tylko makro"
+                desc="Dzienny cel kcal i makroskładników"
+                selected={planMode === "macro_only"}
+                onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPlanMode("macro_only"); }}
+                colors={colors}
+              />
+            </View>
+
             <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Nazwa planu *</Text>
             <TextInput
               value={newName}
@@ -288,8 +325,8 @@ export default function TrainerDietsScreen() {
               </Pressable>
               <Pressable
                 onPress={handleCreate}
-                disabled={createMutation.isPending}
-                style={[styles.createBtn, { backgroundColor: colors.primary, opacity: createMutation.isPending ? 0.7 : 1 }]}
+                disabled={createMutation.isPending || !newName.trim()}
+                style={[styles.createBtn, { backgroundColor: colors.primary, opacity: (createMutation.isPending || !newName.trim()) ? 0.6 : 1 }]}
                 testID="button-create-diet-plan"
               >
                 {createMutation.isPending ? (
@@ -389,6 +426,42 @@ export default function TrainerDietsScreen() {
   );
 }
 
+function ModeCard({
+  icon, title, desc, selected, onPress, colors,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  title: string;
+  desc: string;
+  selected: boolean;
+  onPress: () => void;
+  colors: ReturnType<typeof import("@/hooks/useColors").useColors>;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[
+        modeCardStyles.card,
+        {
+          backgroundColor: selected ? colors.primary + "12" : colors.background,
+          borderColor: selected ? colors.primary : colors.border,
+          borderWidth: selected ? 2 : 1,
+        },
+      ]}
+    >
+      <View style={[modeCardStyles.iconWrap, { backgroundColor: selected ? colors.primary + "20" : colors.accent }]}>
+        <Ionicons name={icon} size={22} color={selected ? colors.primary : colors.mutedForeground} />
+      </View>
+      <Text style={[modeCardStyles.title, { color: selected ? colors.primary : colors.foreground }]}>{title}</Text>
+      <Text style={[modeCardStyles.desc, { color: colors.mutedForeground }]}>{desc}</Text>
+      {selected && (
+        <View style={[modeCardStyles.check, { backgroundColor: colors.primary }]}>
+          <Ionicons name="checkmark" size={12} color="#fff" />
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
 function MacroItem({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <View style={macroStyles.wrap}>
@@ -397,6 +470,14 @@ function MacroItem({ label, value, color }: { label: string; value: string; colo
     </View>
   );
 }
+
+const modeCardStyles = StyleSheet.create({
+  card: { flex: 1, borderRadius: 12, padding: 12, alignItems: "center", gap: 6, position: "relative" },
+  iconWrap: { width: 44, height: 44, borderRadius: 12, justifyContent: "center", alignItems: "center" },
+  title: { fontSize: 13, fontFamily: "Inter_700Bold", textAlign: "center" },
+  desc: { fontSize: 11, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 15 },
+  check: { position: "absolute", top: 8, right: 8, width: 20, height: 20, borderRadius: 10, justifyContent: "center", alignItems: "center" },
+});
 
 const macroStyles = StyleSheet.create({
   wrap: { alignItems: "center", flex: 1 },
@@ -419,10 +500,13 @@ const styles = StyleSheet.create({
   planCard: { borderRadius: 14, borderWidth: 1, marginBottom: 12, overflow: "hidden" },
   planCardTop: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
   planIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: "center", alignItems: "center" },
-  planInfo: { flex: 1, gap: 3 },
+  planInfo: { flex: 1, gap: 4 },
   planName: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  planMeta: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   clientRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   clientName: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  modeBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  modeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   statusBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   statusText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   macroRow: { flexDirection: "row", paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: 1, gap: 4 },
@@ -432,6 +516,7 @@ const styles = StyleSheet.create({
   modalHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 4 },
   modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold", marginBottom: 4 },
   fieldLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  modeSelector: { flexDirection: "row", gap: 10, marginBottom: 4 },
   textInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, fontFamily: "Inter_400Regular" },
   clientPickerBtn: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12 },
   clientPickerText: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular" },

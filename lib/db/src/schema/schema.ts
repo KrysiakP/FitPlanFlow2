@@ -282,6 +282,10 @@ export const dailyHabitLogs = pgTable("daily_habit_logs", {
   hitProtein: boolean("hit_protein").default(false).notNull(),
   hitFat: boolean("hit_fat").default(false).notNull(),
   hitCarbs: boolean("hit_carbs").default(false).notNull(),
+  actualCalories: integer("actual_calories"),
+  actualProtein: integer("actual_protein"),
+  actualFat: integer("actual_fat"),
+  actualCarbs: integer("actual_carbs"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
   clientIdx: index("daily_habit_logs_client_idx").on(table.clientId),
@@ -297,6 +301,10 @@ export const mealCheckmarks = pgTable("meal_checkmarks", {
   mealId: varchar("meal_id").notNull().references(() => dietMeals.id, { onDelete: "cascade" }),
   completed: boolean("completed").default(false).notNull(),
   completedAt: timestamp("completed_at"),
+  eatenCalories: integer("eaten_calories"),
+  eatenProtein: integer("eaten_protein"),
+  eatenFat: integer("eaten_fat"),
+  eatenCarbs: integer("eaten_carbs"),
 }, (table) => ({
   habitLogIdx: index("meal_checkmarks_habit_log_idx").on(table.habitLogId),
   mealIdx: index("meal_checkmarks_meal_idx").on(table.mealId),

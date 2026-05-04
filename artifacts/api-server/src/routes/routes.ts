@@ -4398,7 +4398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko podopieczni mogą logować nawyki" });
       }
 
-      const { date, waterLiters, hitCalories, hitProtein, hitFat, hitCarbs, mealCheckmarks, planId } = req.body;
+      const { date, waterLiters, hitCalories, hitProtein, hitFat, hitCarbs, actualCalories, actualProtein, actualFat, actualCarbs, mealCheckmarks, planId } = req.body;
 
       if (!planId) {
         return res.status(400).json({ message: "planId jest wymagane" });
@@ -4413,6 +4413,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hitProtein,
         hitFat,
         hitCarbs,
+        actualCalories: actualCalories != null ? Number(actualCalories) : undefined,
+        actualProtein: actualProtein != null ? Number(actualProtein) : undefined,
+        actualFat: actualFat != null ? Number(actualFat) : undefined,
+        actualCarbs: actualCarbs != null ? Number(actualCarbs) : undefined,
       });
 
       if (!validationResult.success) {
@@ -4430,11 +4434,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (mealCheckmarks && Array.isArray(mealCheckmarks)) {
         await Promise.all(
-          mealCheckmarks.map((checkmark: { mealId: string, completed: boolean }) =>
+          mealCheckmarks.map((checkmark: { mealId: string, completed: boolean, eatenCalories?: number | null, eatenProtein?: number | null, eatenFat?: number | null, eatenCarbs?: number | null }) =>
             storage.upsertMealCheckmark({
               habitLogId: habitLog.id,
               mealId: checkmark.mealId,
               completed: checkmark.completed,
+              eatenCalories: checkmark.eatenCalories ?? null,
+              eatenProtein: checkmark.eatenProtein ?? null,
+              eatenFat: checkmark.eatenFat ?? null,
+              eatenCarbs: checkmark.eatenCarbs ?? null,
             })
           )
         );
@@ -4445,6 +4453,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error logging daily habits:", error);
       res.status(500).json({ message: "Nie udało się zapisać dziennika nawyków" });
+    }
+  });
+
+  app.get("/api/client/diet/today", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const plan = await storage.getClientActiveDietPlan(userId);
+      if (!plan) return res.json(null);
+      const today = new Date();
+      const log = await storage.getDailyHabitLog(userId, plan.id, today);
+      if (!log) return res.json(null);
+      const checkmarks = await storage.getHabitLogCheckmarks(log.id);
+      res.json({ ...log, checkmarks });
+    } catch (error) {
+      req.log.error(error, "Error fetching today diet log");
+      res.status(500).json({ message: "Nie udało się pobrać dziennika" });
     }
   });
 
