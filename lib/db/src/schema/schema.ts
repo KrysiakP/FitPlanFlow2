@@ -105,6 +105,7 @@ export const exerciseLibrary = pgTable("exercise_library", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   trainerId: varchar("trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 255 }).notNull(),
+  category: varchar("category", { length: 100 }),
   description: text("description"),
   videoUrl: text("video_url"), // link do YouTube/Vimeo lub upload
   defaultSets: integer("default_sets"),

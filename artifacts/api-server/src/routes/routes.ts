@@ -2241,11 +2241,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (user?.role !== "trainer") {
         return res.status(403).json({ message: "Only trainers can import exercises" });
       }
-      const { names } = req.body as { names: unknown };
-      if (!Array.isArray(names) || names.some((n) => typeof n !== "string")) {
-        return res.status(400).json({ message: "names must be an array of strings" });
+      const { exercises } = req.body as { exercises: unknown };
+      if (
+        !Array.isArray(exercises) ||
+        exercises.some((e) => typeof e !== "object" || e === null || typeof (e as any).name !== "string")
+      ) {
+        return res.status(400).json({ message: "exercises must be an array of {name, category} objects" });
       }
-      const result = await storage.bulkImportExerciseLibrary(names as string[], userId!);
+      const result = await storage.bulkImportExerciseLibrary(exercises as { name: string; category?: string }[], userId!);
       res.json(result);
     } catch (error) {
       req.log?.error(error, "Error bulk importing exercises");

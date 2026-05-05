@@ -45,6 +45,7 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 - **Body measurements** — arm (`ramię`) and leg (`udo`) tracked in progress charts
 - **Diet view macro totals** — daily calorie/protein/fat/carb targets shown in diet tab
 - **Client phone & goal display** — shown in web clients page header and mobile trainer client detail
+- **Exercise categories** — `category` column added to `exercise_library` table; bulk-import endpoint now accepts `{ exercises: { name, category }[] }`; mobile exercise library groups exercises by category with section headers + count, category chips picker in add/edit form; 597 preset exercises pre-categorized into 19 groups (Klatka piersiowa, Plecy, Barki, Brzuch, Nogi, Triceps, Biceps, Przedramiona, Kondycja, Kettlebell, Landmine, Worek z piaskiem, Taśmy oporowe, TRX, Maszyny kablowe, Maszyny, Sztanga, Hantle, Piłka lekarska)
 - **Workout sessions tab** — trainer can see client's session history via `GET /api/trainer/clients/:clientId/workout-sessions`
 - **Elapsed session timer** — live timer displayed while training session is active (mobile)
 - **Last session weight pre-fill** — when logging a set, load is pre-filled from last session via `GET /api/exercises/:exerciseId/latest-log`

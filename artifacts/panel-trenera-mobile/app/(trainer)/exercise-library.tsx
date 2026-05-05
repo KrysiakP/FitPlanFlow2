@@ -25,6 +25,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/api";
 interface Exercise {
   id: string;
   name: string;
+  category?: string | null;
   description?: string | null;
   videoUrl?: string | null;
   defaultSets?: number | null;
@@ -36,6 +37,7 @@ interface Exercise {
 
 interface ExerciseFormState {
   name: string;
+  category: string;
   description: string;
   videoUrl: string;
   defaultSets: string;
@@ -44,8 +46,15 @@ interface ExerciseFormState {
   defaultRestTime: string;
 }
 
+const EXERCISE_CATEGORIES = [
+  "Klatka piersiowa","Plecy","Barki","Brzuch","Nogi","Triceps","Biceps",
+  "Przedramiona","Kondycja","Kettlebell","Landmine","Worek z piaskiem",
+  "Taśmy oporowe","TRX","Maszyny kablowe","Maszyny","Sztanga","Hantle","Piłka lekarska",
+];
+
 const EMPTY_FORM: ExerciseFormState = {
   name: "",
+  category: "",
   description: "",
   videoUrl: "",
   defaultSets: "",
@@ -57,6 +66,7 @@ const EMPTY_FORM: ExerciseFormState = {
 function exerciseToForm(ex: Exercise): ExerciseFormState {
   return {
     name: ex.name ?? "",
+    category: ex.category ?? "",
     description: ex.description ?? "",
     videoUrl: ex.videoUrl ?? "",
     defaultSets: ex.defaultSets != null ? String(ex.defaultSets) : "",
@@ -66,8 +76,47 @@ function exerciseToForm(ex: Exercise): ExerciseFormState {
   };
 }
 
-const PRESET_EXERCISES: string[] = [
-  "Wyciskanie sztangi na ławce płaskiej","Wyciskanie hantli na ławce płaskiej","Wyciskanie na maszynie pneumatycznej","Rozpiętki hantli na ławce płaskiej","Rozpiętki na maszynie motylkowej","Rozpiętki na linie skrzyżowanej","Pull-overy z hantlą","Pull-overy na maszynie","Wyciskanie sztangi na ławce pochyłej","Wyciskanie hantli na ławce pochyłej","Wyciskanie sztangi na ławce ujemnej","Wyciskanie hantli na ławce ujemnej","Rozpiętki hantli na ławce pochyłej","Rozpiętki na linie skrzyżowanej (górna)","Wyciskanie sztangi do klatki piersiowej na maszynie Smith","Wyciskanie hantli na ławce Smith","Uciśnięcia z liny na klatce","Wyciskanie sztangi na ławce Smitha pochyłej","Dumbbell press na podłodze","Push-ups zwykłe","Push-ups szerokie","Push-ups wąskie","Push-ups diamendowe","Push-ups na deklinacji","Push-ups na inklinacji","Przyciągi sztangi do klatki","Przyciągi hantli do klatki","Przyciągi na maszynie rządowej","Przyciągi na maszynie pneumatycznej","Przyciągi liny do klatki","Przyciągi szerokie na linie skrzyżowanej","Przyciągi wąskie na linie skrzyżowanej","Przyciągi na pochyłej linie","Przyciągi na maszynie Smith","Przyciągi jednoręczne na linie","Przedni pull down na linie","Przyciągi tyłem głowy na linie","Przyciągi z hantlą jednoręczne","Przyciągi z kettlebell","Wyciskanie sztangi nad głową","Wyciskanie hantli nad głową","Wyciskanie sztangi sztaba nad głową (military press)","Wyciskanie hantli nad głową (dumbbell shoulder press)","Wyciskanie na maszynie pressa ramion","Wyciskanie na linie skrzyżowanej","Wyciskanie Arnold (Arnold press)","Podnoszenia hantli boczne","Podnoszenia hantli boczne na maszynie kablowej","Podnoszenia sztangi do brody (upright row)","Podnoszenia liny do brody","Podnoszenia hantli do brody","Podnoszenia ramion z hantlami","Podnoszenia ramion na maszynie","Podnoszenia ramion z kettlebell","Skłony głowy do przodu na maszynie","Skłony głowy na maszynie blokującej","Ty-raisy (podnoszenia hantli w przód)","Ty-raisy na maszynie kablowej","Reverse pec deck (reverse flyes)","Reverse pec deck na maszynie","Ty-raisy z liną","Ty-raisy w przekroczeniu (crossover)","Ty-raisy jednoręczne z hantlą","Żuraw","Żuraw na maszynie","Żuraw jedno nóżka","Przyciąg pionowy (lat pulldown)","Przyciąg pionowy wąski","Przyciąg pionowy szerokie uchwyty","Przyciąg za głowę (behind the neck lat pulldown)","Przyciąg na maszynie pneumatycznej","Przyciąg na maszynie rządowej","Podciągania na drążku (pull-ups)","Podciągania szerokie (wide grip pull-ups)","Podciągania wąskie (close grip pull-ups)","Podciągania neutralnym uchwytem","Podciągania za głowę","Podciągania australijskie","Podciągania na asystującym urządzeniu","Przyciągania (lat pull down) na linie","Przyciąg hantli do klatki (single arm row)","Przyciąg sztangi do klatki","Przyciąg hantli do klatki (one arm dumbbell row)","Przyciąg sztangi do klatki na maszynie Smith","Przyciąg sztangi w pozycji nachylonej (bent over row)","Przyciąg hantli w pozycji nachylonej","Przyciąg sztangi na maszynie T-bar","Przyciąg na maszynie rządowej (machine row)","Przyciąg na maszynie pneumatycznej","Przyciąg na linie (cable row)","Przyciąg jedno-ręczny na linie","Przyciąg jedno-ręczny na maszynie","Przyciąg ze zmianią uchwytu","Przyciąg z kettlebell","Przyciąg z kablem na tulejach","Przyciąg na drążku (pendulum row)","Przyciąg do klatki v-bar","Przyciąg do klatki na posadzeniu (seated row)","Przyciąg na maszynie posiadania linii","Przyciąg hantli w staniu","Shrugs ze sztangą","Shrugs z hantlami","Shrugs na maszynie","Shrugs na maszynie Smith","Shrugs z kettlebell","Shrugs na linie skrzyżowanej","Shrugs jedno-ręczne","Wyprostowania tułowia (back extensions)","Wyprostowania tułowia na maszynie","Wyprostowania tułowia na ziemi","Superman","Superman na maszynie","Twisting crunches (skręty w tułowiu)","Crunches brzuszne","Crunches na maszynie","Crunches na linie","Crunches na siedzisku","Hanging leg raises","Leg raises na równoległym drążku","Leg raises na urządzeniu do podciągów","Podnoszenia nóg w zwisie","Podnoszenia nóg nad drażek","Podnoszenia nóg siedząc","Podnoszenia nóg leżąc","Situps na maszynie","Situps na ławce pochyłej","Situps zwykłe","Skręty na maszynie","Skręty w pozycji siedzącej","Skręty w pozycji leżącej","Cable wood chops","Rotacje z kettlebell","Rotacje z hantlą","Landmine rotations","Planks","Planks boczne (side planks)","Planks dynamiczne","Hollow body holds","Ab wheel rollouts","Palof press","Pallof holds","Squats ze sztangą (przysiady)","Squats z hantlami","Squats na maszynie Smith","Squats na maszynie pneumatycznej","Hack squats","V-squats","Squats na maszynie do przysiadów","Squats goblet","Squats bułgarskie (Bulgarian split squats)","Squats rozdzielone","Squats jednoręczne","Squats pistol","Lunges (wypadki)","Lunges do przodu","Lunges do tyłu","Lunges boczne","Lunges z hantlami","Lunges ze sztangą","Lunges na maszynie Smith","Lunges na maszynie do szkolenia kończyn","Walking lunges","Jumping lunges","Reverse lunges","Leg press","Leg press (maszyna do przysiadów)","Leg press wąski","Leg press szeroki","Leg press jednoręczny","V-leg press","Hack leg press","Leg press siedział","Leg press na maszynie pneumatycznej","Rozciągania nóg (leg extensions)","Leg extensions na maszynie","Leg extensions jednoróżne","Leg extensions na siedzisku","Leg extensions w staniu","Leg extensions na linie","Leg extensions z hantlą","Leg extensions z kettlebell","Zginania nóg (leg curls)","Leg curls leżące","Leg curls siedząc","Leg curls stojąc","Leg curls na maszynie pneumatycznej","Leg curls jednonogie","Leg curls na linie","Leg curls z hantlą","Leg curls z kettlebell","Rumańskie martwe ciągi (Romanian deadlifts)","Rumańskie martwe ciągi z hantlami","Rumańskie martwe ciągi na maszynie Smith","Martwe ciągi (deadlifts)","Martwe ciągi konwencjonalne","Martwe ciągi sumo","Martwe ciągi na parapecie","Martwe ciągi z hantlami","Martwe ciągi na maszynie Smith","Trap bar deadlifts","Martwe ciągi jednoręczne","Martwe ciągi jednonóżne","Martwe ciągi na maszynie","Martwe ciągi na ziemi","Good mornings","Good mornings ze sztangą","Good mornings z hantlą","Good mornings na maszynie","Good mornings na linie","Hipereksensje (hyperextensions)","Hipereksensje na maszynie","Hipereksensje na ławce","Hipereksensje jednonóżne","Hipereksensje z hantlą","Hipereksensje z kettlebell","Głowica przyciąg (stiff legged deadlifts)","Stiff legged deadlifts ze sztangą","Stiff legged deadlifts z hantlami","Stiff legged deadlifts na maszynie","Abdukcja bioder (hip abduction)","Hip abduction na maszynie","Hip abduction z hantlą","Hip abduction z kettlebell","Hip abduction na linie","Addukcja bioder (hip adduction)","Hip adduction na maszynie","Hip adduction z hantlą","Hip adduction z kettlebell","Hip adduction na linie","Rotacja bioder","Hip rotations wewnętrzne","Hip rotations zewnętrzne","Hip thrusts","Hip thrusts na ławce","Hip thrusts ze sztangą","Hip thrusts z hantlą","Hip thrusts na maszynie","Hip thrusts jednonóżne","Glute bridges","Glute bridges na ławce","Glute bridges ze sztangą","Glute bridges z hantlą","Glute bridges jednonóżne","Calf raises (podnoszenia na palce)","Calf raises na maszynie","Calf raises ze sztangą","Calf raises z hantlami","Calf raises jednoróżne","Calf raises siedząc","Calf raises na drążku","Calf raises na podium","Calf raises na maszynie Smith","Calf raises na linie","Donkey calf raises","Calf raises na schodach","Hack calf raises","Wyciskanie sztangi leżąc na ławce","Wyciskanie hantli leżąc","Wyciskanie sztangi na maszynie","Wyciskanie hantli na maszynie","Wyciskanie na linie","Wyciskanie sztangi wąskie (close grip bench press)","Wyciskanie hantli wąskie","Wyciskanie na linie wąskie","Wyciskanie sztangi szerokie","Wyciskanie hantli szerokie","Wyciskanie Spoto (paused bench press)","Wyciskanie Smith bench press","Triceps dips","Dips asystujące","Triceps kickbacks","Triceps kickbacks z hantlą","Triceps kickbacks na linie","Triceps kickbacks jednoręczne","Triceps pushdowns (wciśnięcia w dół na linie)","Triceps pushdowns na linie","Triceps pushdowns z linką skakanką","Triceps pushdowns v-bar","Triceps pushdowns obrotowe","Triceps pushdowns jednoręczne","Triceps pushdowns na maszynie","Overhead triceps extension (rozciąganie tricepsów nad głową)","Overhead triceps extension ze sztangą","Overhead triceps extension z hantlą","Overhead triceps extension z linką","Overhead triceps extension jednoręczne","Triceps extensions na ławce","Skull crushers (leżące rozciąganie)","Skull crushers ze sztangą","Skull crushers z hantlami","Skull crushers na maszynie Smith","Skull crushers jednoręczne","Triceps extensions siedząc","Triceps extensions na linie","Rope triceps extensions","Triceps extensions na maszynie","Triceps extensions z kettlebell","Close grip pull-ups","Close grip lat pulldown","Biceps curls (uginania hantli)","Biceps curls ze sztangą","Biceps curls z hantlami","Biceps curls na maszynie","Biceps curls na linie","Biceps curls na maszynie Smith","Biceps curls siedząc","Biceps curls stojąc","Biceps curls nachylone","Hammer curls","Hammer curls jednoręczne","Preacher curls (uginania na ławce kaznodziei)","Preacher curls ze sztangą","Preacher curls z hantlami","Preacher curls na maszynie","Cable curls","Cable curls na siedzisku","Cable curls jednoręczne","Incline curls","Incline dumbbell curls","EZ bar curls","EZ bar curls siedząc","Barbell curls","Barbell curls stojąc","Dumbbell curls","Dumbbell curls siedząc","Concentration curls","Concentration curls siedząc","Concentration curls leżąc","Machine curls","Machine curls jednoręczne","Kettlebell curls","Kettlebell curls jednoręczne","21s biceps","Tempo biceps curls","Reverse curls (uginania odwrotne)","Reverse curls ze sztangą","Reverse curls z hantlami","Reverse curls na linie","Reverse curls na maszynie","Zginanie przedramion (wrist curls)","Wrist curls ze sztangą","Wrist curls z hantlami","Wrist curls na ławce","Reverse wrist curls","Reverse wrist curls ze sztangą","Reverse wrist curls z hantlami","Wrist curls na linie","Wrist curls jednoręczne","Wrist rotations","Wrist rotations z hantlą","Wrist rotations z kettlebell","Farmer's carry","Farmer's carry z hantlami","Farmer's carry ze sztangą","Farmer's carry jednoręczne","Farmer's carry z kettlebell","Suitcase carry","Suitcase carry jednoręczne","Waiter walks","Waiter walks jednoręczne","Bear hug carry","Chest carry","Back carry","Overhead carry","Waiter's carry","Prowler push","Prowler pull","Sled push","Sled drag","Battle ropes","Battle ropes dwuosobowe","Battle ropes jednoręczne","Tire flips","Med ball slams","Med ball throws","Med ball chest passes","Med ball rotations","Med ball side throws","Med ball Russian twists","Rope climbs","Box jumps","Box jumps jednonóżne","Box step-ups","Box step-ups jednonóżne","Burpees","Burpees box jumps","Mountain climbers","Mountain climbers szybkie","Jumping jacks","High knees","High knees biegi","Broad jumps","Long jumps","Vertical jumps","Plyo push-ups","Clap push-ups","Explosive push-ups","Jump squats","Jump lunges","Tuck jumps","Pike jumps","Rotational jumps","Lateral bounds","Single leg bounds","Double unders (skakanka)","Single leg jumps","Skipping","Sprawls","Lunge to twist","Lateral bounds to press","Kettlebell swings","Kettlebell swings jednoręczne","Kettlebell snatches","Kettlebell cleans","Kettlebell jerks","Kettlebell Turkish get-ups","Kettlebell windmills","Kettlebell figure-4","Kettlebell halo","Kettlebell lunges","Kettlebell deadlifts","Kettlebell goblet squats","Kettlebell high pulls","Kettlebell double swings","Kettlebell seesaw presses","Kettlebell rows","Kettlebell carries","Kettlebell pistol squats","Kettlebell around the body","Landmine squats","Landmine rows","Landmine presses","Landmine rotations","Landmine punches","Landmine crunches","Sandbag squats","Sandbag lunges","Sandbag cleans","Sandbag presses","Sandbag rows","Sandbag slams","Sandbag carries","Sandbag shoulder raises","Sandbag deadlifts","Sandbag rotations","Resistance band squats","Resistance band deadlifts","Resistance band rows","Resistance band chest press","Resistance band shoulder press","Resistance band biceps curls","Resistance band triceps extensions","Resistance band lateral raises","Resistance band leg extensions","Resistance band leg curls","Resistance band hip abductions","Resistance band hip adductions","Resistance band pull-aparts","Resistance band pull-downs","Resistance band rotations","Resistance band woodchops","TRX squats","TRX rows","TRX chest press","TRX push-ups","TRX mountain climbers","TRX suspension planks","TRX suspension curls","TRX suspension triceps","TRX suspension lunges","TRX suspension hamstring curls","TRX side planks","TRX atomic push-ups","TRX fallouts","Cable machine rotations","Cable machine chops","Cable machine high-to-low chops","Cable machine low-to-high chops","Cable machine side bends","Cable machine crunches","Cable machine leg curls","Cable machine leg extensions","Cable machine hip abductions","Cable machine hip adductions","Machine chest press","Machine row","Machine leg press","Machine leg extension","Machine leg curl","Machine shoulder press","Machine lateral raise","Machine seated row","Machine pec deck","Machine reverse pec deck","Machine hip abduction","Machine hip adduction","Machine glute drive","Machine calf raise","Machine triceps dips","Machine lat pulldown","Machine biceps curl","Machine triceps extension","Machine ab crunch","Machine back extension","Machine sit-up","Machine rotary torso","Barbell bench press","Barbell incline press","Barbell decline press","Barbell row","Barbell deadlift","Barbell squat","Barbell front squat","Barbell back squat","Barbell overhead press","Barbell high pull","Barbell clean","Barbell jerk","Barbell snatch","Barbell upright row","Barbell shrug","Barbell reverse curl","Barbell curl","Barbell close grip press","Barbell floor press","Barbell pin press","Barbell pause squat","Barbell deficit deadlift","Barbell rack pull","Dumbbell pullovers","Dumbbell floor press","Dumbbell goblet squats","Dumbbell snatches","Dumbbell clean and press","Dumbbell thrusters","Dumbbell Turkish get-ups","Dumbbell windmills","Dumbbell bench press","Dumbbell incline press","Dumbbell decline press","Dumbbell floor press","Dumbbell single arm rows","Dumbbell squat","Dumbbell front squat","Dumbbell deadlift","Dumbbell sumo deadlift","Dumbbell overhead press","Dumbbell push press","Dumbbell shoulder raise","Dumbbell lateral raise","Dumbbell reverse fly","Dumbbell alternating curls","Dumbbell concentrations curls","Dumbbell triceps kickbacks","Dumbbell overhead extension","Dumbbell lunges","Dumbbell walking lunges","Dumbbell step-ups","Dumbbell calf raises","Dumbbell carries","Dumbbell Turkish get-ups","Dumbbell suitcase carries","Dumbbell farmer's carry","Dumbbell overhead carry","Dumbbell single arm row","Dumbbell renegade rows","Dumbbell push-ups","Dumbbell pullovers","Dumbbell rotations","Dumbbell wood chops","Dumbbell side bends","Dumbbell Russian twists","Dumbbell single leg deadlifts","Dumbbell single leg squats","Dumbbell single leg rows","Dumbbell single leg carries","Dumbbell tempo squats","Dumbbell pause squats","Dumbbell pin presses","Dumbbell floor presses","Dumbbell neutral grip press","Dumbbell narrow grip press","Dumbbell wide grip press","Med ball chest passes","Med ball overhead throws","Med ball slams to floor","Med ball side throws","Med ball Russian twists","Med ball rotations","Med ball wall throws","Med ball bounces","Med ball chest catches","Med ball single leg squats","Med ball rotational slams","Med ball rainbow slams",
+const PRESET_EXERCISES: Array<{ name: string; category: string }> = [
+  // Klatka piersiowa
+  {name:"Wyciskanie sztangi na ławce płaskiej",category:"Klatka piersiowa"},{name:"Wyciskanie hantli na ławce płaskiej",category:"Klatka piersiowa"},{name:"Wyciskanie na maszynie pneumatycznej",category:"Klatka piersiowa"},{name:"Rozpiętki hantli na ławce płaskiej",category:"Klatka piersiowa"},{name:"Rozpiętki na maszynie motylkowej",category:"Klatka piersiowa"},{name:"Rozpiętki na linie skrzyżowanej",category:"Klatka piersiowa"},{name:"Pull-overy z hantlą",category:"Klatka piersiowa"},{name:"Pull-overy na maszynie",category:"Klatka piersiowa"},{name:"Wyciskanie sztangi na ławce pochyłej",category:"Klatka piersiowa"},{name:"Wyciskanie hantli na ławce pochyłej",category:"Klatka piersiowa"},{name:"Wyciskanie sztangi na ławce ujemnej",category:"Klatka piersiowa"},{name:"Wyciskanie hantli na ławce ujemnej",category:"Klatka piersiowa"},{name:"Rozpiętki hantli na ławce pochyłej",category:"Klatka piersiowa"},{name:"Rozpiętki na linie skrzyżowanej (górna)",category:"Klatka piersiowa"},{name:"Wyciskanie sztangi do klatki piersiowej na maszynie Smith",category:"Klatka piersiowa"},{name:"Wyciskanie hantli na ławce Smith",category:"Klatka piersiowa"},{name:"Uciśnięcia z liny na klatce",category:"Klatka piersiowa"},{name:"Wyciskanie sztangi na ławce Smitha pochyłej",category:"Klatka piersiowa"},{name:"Dumbbell press na podłodze",category:"Klatka piersiowa"},{name:"Push-ups zwykłe",category:"Klatka piersiowa"},{name:"Push-ups szerokie",category:"Klatka piersiowa"},{name:"Push-ups wąskie",category:"Klatka piersiowa"},{name:"Push-ups diamendowe",category:"Klatka piersiowa"},{name:"Push-ups na deklinacji",category:"Klatka piersiowa"},{name:"Push-ups na inklinacji",category:"Klatka piersiowa"},
+  // Plecy
+  {name:"Przyciągi sztangi do klatki",category:"Plecy"},{name:"Przyciągi hantli do klatki",category:"Plecy"},{name:"Przyciągi na maszynie rządowej",category:"Plecy"},{name:"Przyciągi na maszynie pneumatycznej",category:"Plecy"},{name:"Przyciągi liny do klatki",category:"Plecy"},{name:"Przyciągi szerokie na linie skrzyżowanej",category:"Plecy"},{name:"Przyciągi wąskie na linie skrzyżowanej",category:"Plecy"},{name:"Przyciągi na pochyłej linie",category:"Plecy"},{name:"Przyciągi na maszynie Smith",category:"Plecy"},{name:"Przyciągi jednoręczne na linie",category:"Plecy"},{name:"Przedni pull down na linie",category:"Plecy"},{name:"Przyciągi tyłem głowy na linie",category:"Plecy"},{name:"Przyciągi z hantlą jednoręczne",category:"Plecy"},{name:"Przyciągi z kettlebell",category:"Plecy"},
+  // Barki
+  {name:"Wyciskanie sztangi nad głową",category:"Barki"},{name:"Wyciskanie hantli nad głową",category:"Barki"},{name:"Wyciskanie sztangi sztaba nad głową (military press)",category:"Barki"},{name:"Wyciskanie hantli nad głową (dumbbell shoulder press)",category:"Barki"},{name:"Wyciskanie na maszynie pressa ramion",category:"Barki"},{name:"Wyciskanie na linie skrzyżowanej",category:"Barki"},{name:"Wyciskanie Arnold (Arnold press)",category:"Barki"},{name:"Podnoszenia hantli boczne",category:"Barki"},{name:"Podnoszenia hantli boczne na maszynie kablowej",category:"Barki"},{name:"Podnoszenia sztangi do brody (upright row)",category:"Barki"},{name:"Podnoszenia liny do brody",category:"Barki"},{name:"Podnoszenia hantli do brody",category:"Barki"},{name:"Podnoszenia ramion z hantlami",category:"Barki"},{name:"Podnoszenia ramion na maszynie",category:"Barki"},{name:"Podnoszenia ramion z kettlebell",category:"Barki"},{name:"Skłony głowy do przodu na maszynie",category:"Barki"},{name:"Skłony głowy na maszynie blokującej",category:"Barki"},{name:"Ty-raisy (podnoszenia hantli w przód)",category:"Barki"},{name:"Ty-raisy na maszynie kablowej",category:"Barki"},{name:"Reverse pec deck (reverse flyes)",category:"Barki"},{name:"Reverse pec deck na maszynie",category:"Barki"},{name:"Ty-raisy z liną",category:"Barki"},{name:"Ty-raisy w przekroczeniu (crossover)",category:"Barki"},{name:"Ty-raisy jednoręczne z hantlą",category:"Barki"},{name:"Żuraw",category:"Barki"},{name:"Żuraw na maszynie",category:"Barki"},{name:"Żuraw jedno nóżka",category:"Barki"},
+  // Plecy (ciąg dalszy)
+  {name:"Przyciąg pionowy (lat pulldown)",category:"Plecy"},{name:"Przyciąg pionowy wąski",category:"Plecy"},{name:"Przyciąg pionowy szerokie uchwyty",category:"Plecy"},{name:"Przyciąg za głowę (behind the neck lat pulldown)",category:"Plecy"},{name:"Przyciąg na maszynie pneumatycznej",category:"Plecy"},{name:"Przyciąg na maszynie rządowej",category:"Plecy"},{name:"Podciągania na drążku (pull-ups)",category:"Plecy"},{name:"Podciągania szerokie (wide grip pull-ups)",category:"Plecy"},{name:"Podciągania wąskie (close grip pull-ups)",category:"Plecy"},{name:"Podciągania neutralnym uchwytem",category:"Plecy"},{name:"Podciągania za głowę",category:"Plecy"},{name:"Podciągania australijskie",category:"Plecy"},{name:"Podciągania na asystującym urządzeniu",category:"Plecy"},{name:"Przyciągania (lat pull down) na linie",category:"Plecy"},{name:"Przyciąg hantli do klatki (single arm row)",category:"Plecy"},{name:"Przyciąg sztangi do klatki",category:"Plecy"},{name:"Przyciąg hantli do klatki (one arm dumbbell row)",category:"Plecy"},{name:"Przyciąg sztangi do klatki na maszynie Smith",category:"Plecy"},{name:"Przyciąg sztangi w pozycji nachylonej (bent over row)",category:"Plecy"},{name:"Przyciąg hantli w pozycji nachylonej",category:"Plecy"},{name:"Przyciąg sztangi na maszynie T-bar",category:"Plecy"},{name:"Przyciąg na maszynie rządowej (machine row)",category:"Plecy"},{name:"Przyciąg na maszynie pneumatycznej",category:"Plecy"},{name:"Przyciąg na linie (cable row)",category:"Plecy"},{name:"Przyciąg jedno-ręczny na linie",category:"Plecy"},{name:"Przyciąg jedno-ręczny na maszynie",category:"Plecy"},{name:"Przyciąg ze zmianią uchwytu",category:"Plecy"},{name:"Przyciąg z kettlebell",category:"Plecy"},{name:"Przyciąg z kablem na tulejach",category:"Plecy"},{name:"Przyciąg na drążku (pendulum row)",category:"Plecy"},{name:"Przyciąg do klatki v-bar",category:"Plecy"},{name:"Przyciąg do klatki na posadzeniu (seated row)",category:"Plecy"},{name:"Przyciąg na maszynie posiadania linii",category:"Plecy"},{name:"Przyciąg hantli w staniu",category:"Plecy"},{name:"Shrugs ze sztangą",category:"Plecy"},{name:"Shrugs z hantlami",category:"Plecy"},{name:"Shrugs na maszynie",category:"Plecy"},{name:"Shrugs na maszynie Smith",category:"Plecy"},{name:"Shrugs z kettlebell",category:"Plecy"},{name:"Shrugs na linie skrzyżowanej",category:"Plecy"},{name:"Shrugs jedno-ręczne",category:"Plecy"},{name:"Wyprostowania tułowia (back extensions)",category:"Plecy"},{name:"Wyprostowania tułowia na maszynie",category:"Plecy"},{name:"Wyprostowania tułowia na ziemi",category:"Plecy"},{name:"Superman",category:"Plecy"},{name:"Superman na maszynie",category:"Plecy"},
+  // Brzuch
+  {name:"Twisting crunches (skręty w tułowiu)",category:"Brzuch"},{name:"Crunches brzuszne",category:"Brzuch"},{name:"Crunches na maszynie",category:"Brzuch"},{name:"Crunches na linie",category:"Brzuch"},{name:"Crunches na siedzisku",category:"Brzuch"},{name:"Hanging leg raises",category:"Brzuch"},{name:"Leg raises na równoległym drążku",category:"Brzuch"},{name:"Leg raises na urządzeniu do podciągów",category:"Brzuch"},{name:"Podnoszenia nóg w zwisie",category:"Brzuch"},{name:"Podnoszenia nóg nad drażek",category:"Brzuch"},{name:"Podnoszenia nóg siedząc",category:"Brzuch"},{name:"Podnoszenia nóg leżąc",category:"Brzuch"},{name:"Situps na maszynie",category:"Brzuch"},{name:"Situps na ławce pochyłej",category:"Brzuch"},{name:"Situps zwykłe",category:"Brzuch"},{name:"Skręty na maszynie",category:"Brzuch"},{name:"Skręty w pozycji siedzącej",category:"Brzuch"},{name:"Skręty w pozycji leżącej",category:"Brzuch"},{name:"Cable wood chops",category:"Brzuch"},{name:"Rotacje z kettlebell",category:"Brzuch"},{name:"Rotacje z hantlą",category:"Brzuch"},{name:"Landmine rotations",category:"Brzuch"},{name:"Planks",category:"Brzuch"},{name:"Planks boczne (side planks)",category:"Brzuch"},{name:"Planks dynamiczne",category:"Brzuch"},{name:"Hollow body holds",category:"Brzuch"},{name:"Ab wheel rollouts",category:"Brzuch"},{name:"Palof press",category:"Brzuch"},{name:"Pallof holds",category:"Brzuch"},
+  // Nogi
+  {name:"Squats ze sztangą (przysiady)",category:"Nogi"},{name:"Squats z hantlami",category:"Nogi"},{name:"Squats na maszynie Smith",category:"Nogi"},{name:"Squats na maszynie pneumatycznej",category:"Nogi"},{name:"Hack squats",category:"Nogi"},{name:"V-squats",category:"Nogi"},{name:"Squats na maszynie do przysiadów",category:"Nogi"},{name:"Squats goblet",category:"Nogi"},{name:"Squats bułgarskie (Bulgarian split squats)",category:"Nogi"},{name:"Squats rozdzielone",category:"Nogi"},{name:"Squats jednoręczne",category:"Nogi"},{name:"Squats pistol",category:"Nogi"},{name:"Lunges (wypadki)",category:"Nogi"},{name:"Lunges do przodu",category:"Nogi"},{name:"Lunges do tyłu",category:"Nogi"},{name:"Lunges boczne",category:"Nogi"},{name:"Lunges z hantlami",category:"Nogi"},{name:"Lunges ze sztangą",category:"Nogi"},{name:"Lunges na maszynie Smith",category:"Nogi"},{name:"Lunges na maszynie do szkolenia kończyn",category:"Nogi"},{name:"Walking lunges",category:"Nogi"},{name:"Jumping lunges",category:"Nogi"},{name:"Reverse lunges",category:"Nogi"},{name:"Leg press",category:"Nogi"},{name:"Leg press (maszyna do przysiadów)",category:"Nogi"},{name:"Leg press wąski",category:"Nogi"},{name:"Leg press szeroki",category:"Nogi"},{name:"Leg press jednoręczny",category:"Nogi"},{name:"V-leg press",category:"Nogi"},{name:"Hack leg press",category:"Nogi"},{name:"Leg press siedział",category:"Nogi"},{name:"Leg press na maszynie pneumatycznej",category:"Nogi"},{name:"Rozciągania nóg (leg extensions)",category:"Nogi"},{name:"Leg extensions na maszynie",category:"Nogi"},{name:"Leg extensions jednoróżne",category:"Nogi"},{name:"Leg extensions na siedzisku",category:"Nogi"},{name:"Leg extensions w staniu",category:"Nogi"},{name:"Leg extensions na linie",category:"Nogi"},{name:"Leg extensions z hantlą",category:"Nogi"},{name:"Leg extensions z kettlebell",category:"Nogi"},{name:"Zginania nóg (leg curls)",category:"Nogi"},{name:"Leg curls leżące",category:"Nogi"},{name:"Leg curls siedząc",category:"Nogi"},{name:"Leg curls stojąc",category:"Nogi"},{name:"Leg curls na maszynie pneumatycznej",category:"Nogi"},{name:"Leg curls jednonogie",category:"Nogi"},{name:"Leg curls na linie",category:"Nogi"},{name:"Leg curls z hantlą",category:"Nogi"},{name:"Leg curls z kettlebell",category:"Nogi"},{name:"Rumańskie martwe ciągi (Romanian deadlifts)",category:"Nogi"},{name:"Rumańskie martwe ciągi z hantlami",category:"Nogi"},{name:"Rumańskie martwe ciągi na maszynie Smith",category:"Nogi"},{name:"Martwe ciągi (deadlifts)",category:"Nogi"},{name:"Martwe ciągi konwencjonalne",category:"Nogi"},{name:"Martwe ciągi sumo",category:"Nogi"},{name:"Martwe ciągi na parapecie",category:"Nogi"},{name:"Martwe ciągi z hantlami",category:"Nogi"},{name:"Martwe ciągi na maszynie Smith",category:"Nogi"},{name:"Trap bar deadlifts",category:"Nogi"},{name:"Martwe ciągi jednoręczne",category:"Nogi"},{name:"Martwe ciągi jednonóżne",category:"Nogi"},{name:"Martwe ciągi na maszynie",category:"Nogi"},{name:"Martwe ciągi na ziemi",category:"Nogi"},{name:"Good mornings",category:"Nogi"},{name:"Good mornings ze sztangą",category:"Nogi"},{name:"Good mornings z hantlą",category:"Nogi"},{name:"Good mornings na maszynie",category:"Nogi"},{name:"Good mornings na linie",category:"Nogi"},{name:"Hipereksensje (hyperextensions)",category:"Nogi"},{name:"Hipereksensje na maszynie",category:"Nogi"},{name:"Hipereksensje na ławce",category:"Nogi"},{name:"Hipereksensje jednonóżne",category:"Nogi"},{name:"Hipereksensje z hantlą",category:"Nogi"},{name:"Hipereksensje z kettlebell",category:"Nogi"},{name:"Głowica przyciąg (stiff legged deadlifts)",category:"Nogi"},{name:"Stiff legged deadlifts ze sztangą",category:"Nogi"},{name:"Stiff legged deadlifts z hantlami",category:"Nogi"},{name:"Stiff legged deadlifts na maszynie",category:"Nogi"},{name:"Abdukcja bioder (hip abduction)",category:"Nogi"},{name:"Hip abduction na maszynie",category:"Nogi"},{name:"Hip abduction z hantlą",category:"Nogi"},{name:"Hip abduction z kettlebell",category:"Nogi"},{name:"Hip abduction na linie",category:"Nogi"},{name:"Addukcja bioder (hip adduction)",category:"Nogi"},{name:"Hip adduction na maszynie",category:"Nogi"},{name:"Hip adduction z hantlą",category:"Nogi"},{name:"Hip adduction z kettlebell",category:"Nogi"},{name:"Hip adduction na linie",category:"Nogi"},{name:"Rotacja bioder",category:"Nogi"},{name:"Hip rotations wewnętrzne",category:"Nogi"},{name:"Hip rotations zewnętrzne",category:"Nogi"},{name:"Hip thrusts",category:"Nogi"},{name:"Hip thrusts na ławce",category:"Nogi"},{name:"Hip thrusts ze sztangą",category:"Nogi"},{name:"Hip thrusts z hantlą",category:"Nogi"},{name:"Hip thrusts na maszynie",category:"Nogi"},{name:"Hip thrusts jednonóżne",category:"Nogi"},{name:"Glute bridges",category:"Nogi"},{name:"Glute bridges na ławce",category:"Nogi"},{name:"Glute bridges ze sztangą",category:"Nogi"},{name:"Glute bridges z hantlą",category:"Nogi"},{name:"Glute bridges jednonóżne",category:"Nogi"},{name:"Calf raises (podnoszenia na palce)",category:"Nogi"},{name:"Calf raises na maszynie",category:"Nogi"},{name:"Calf raises ze sztangą",category:"Nogi"},{name:"Calf raises z hantlami",category:"Nogi"},{name:"Calf raises jednoróżne",category:"Nogi"},{name:"Calf raises siedząc",category:"Nogi"},{name:"Calf raises na drążku",category:"Nogi"},{name:"Calf raises na podium",category:"Nogi"},{name:"Calf raises na maszynie Smith",category:"Nogi"},{name:"Calf raises na linie",category:"Nogi"},{name:"Donkey calf raises",category:"Nogi"},{name:"Calf raises na schodach",category:"Nogi"},{name:"Hack calf raises",category:"Nogi"},
+  // Triceps
+  {name:"Wyciskanie sztangi leżąc na ławce",category:"Triceps"},{name:"Wyciskanie hantli leżąc",category:"Triceps"},{name:"Wyciskanie sztangi na maszynie",category:"Triceps"},{name:"Wyciskanie hantli na maszynie",category:"Triceps"},{name:"Wyciskanie na linie",category:"Triceps"},{name:"Wyciskanie sztangi wąskie (close grip bench press)",category:"Triceps"},{name:"Wyciskanie hantli wąskie",category:"Triceps"},{name:"Wyciskanie na linie wąskie",category:"Triceps"},{name:"Wyciskanie sztangi szerokie",category:"Triceps"},{name:"Wyciskanie hantli szerokie",category:"Triceps"},{name:"Wyciskanie Spoto (paused bench press)",category:"Triceps"},{name:"Wyciskanie Smith bench press",category:"Triceps"},{name:"Triceps dips",category:"Triceps"},{name:"Dips asystujące",category:"Triceps"},{name:"Triceps kickbacks",category:"Triceps"},{name:"Triceps kickbacks z hantlą",category:"Triceps"},{name:"Triceps kickbacks na linie",category:"Triceps"},{name:"Triceps kickbacks jednoręczne",category:"Triceps"},{name:"Triceps pushdowns (wciśnięcia w dół na linie)",category:"Triceps"},{name:"Triceps pushdowns na linie",category:"Triceps"},{name:"Triceps pushdowns z linką skakanką",category:"Triceps"},{name:"Triceps pushdowns v-bar",category:"Triceps"},{name:"Triceps pushdowns obrotowe",category:"Triceps"},{name:"Triceps pushdowns jednoręczne",category:"Triceps"},{name:"Triceps pushdowns na maszynie",category:"Triceps"},{name:"Overhead triceps extension (rozciąganie tricepsów nad głową)",category:"Triceps"},{name:"Overhead triceps extension ze sztangą",category:"Triceps"},{name:"Overhead triceps extension z hantlą",category:"Triceps"},{name:"Overhead triceps extension z linką",category:"Triceps"},{name:"Overhead triceps extension jednoręczne",category:"Triceps"},{name:"Triceps extensions na ławce",category:"Triceps"},{name:"Skull crushers (leżące rozciąganie)",category:"Triceps"},{name:"Skull crushers ze sztangą",category:"Triceps"},{name:"Skull crushers z hantlami",category:"Triceps"},{name:"Skull crushers na maszynie Smith",category:"Triceps"},{name:"Skull crushers jednoręczne",category:"Triceps"},{name:"Triceps extensions siedząc",category:"Triceps"},{name:"Triceps extensions na linie",category:"Triceps"},{name:"Rope triceps extensions",category:"Triceps"},{name:"Triceps extensions na maszynie",category:"Triceps"},{name:"Triceps extensions z kettlebell",category:"Triceps"},{name:"Close grip pull-ups",category:"Triceps"},{name:"Close grip lat pulldown",category:"Triceps"},
+  // Biceps
+  {name:"Biceps curls (uginania hantli)",category:"Biceps"},{name:"Biceps curls ze sztangą",category:"Biceps"},{name:"Biceps curls z hantlami",category:"Biceps"},{name:"Biceps curls na maszynie",category:"Biceps"},{name:"Biceps curls na linie",category:"Biceps"},{name:"Biceps curls na maszynie Smith",category:"Biceps"},{name:"Biceps curls siedząc",category:"Biceps"},{name:"Biceps curls stojąc",category:"Biceps"},{name:"Biceps curls nachylone",category:"Biceps"},{name:"Hammer curls",category:"Biceps"},{name:"Hammer curls jednoręczne",category:"Biceps"},{name:"Preacher curls (uginania na ławce kaznodziei)",category:"Biceps"},{name:"Preacher curls ze sztangą",category:"Biceps"},{name:"Preacher curls z hantlami",category:"Biceps"},{name:"Preacher curls na maszynie",category:"Biceps"},{name:"Cable curls",category:"Biceps"},{name:"Cable curls na siedzisku",category:"Biceps"},{name:"Cable curls jednoręczne",category:"Biceps"},{name:"Incline curls",category:"Biceps"},{name:"Incline dumbbell curls",category:"Biceps"},{name:"EZ bar curls",category:"Biceps"},{name:"EZ bar curls siedząc",category:"Biceps"},{name:"Barbell curls",category:"Biceps"},{name:"Barbell curls stojąc",category:"Biceps"},{name:"Dumbbell curls",category:"Biceps"},{name:"Dumbbell curls siedząc",category:"Biceps"},{name:"Concentration curls",category:"Biceps"},{name:"Concentration curls siedząc",category:"Biceps"},{name:"Concentration curls leżąc",category:"Biceps"},{name:"Machine curls",category:"Biceps"},{name:"Machine curls jednoręczne",category:"Biceps"},{name:"Kettlebell curls",category:"Biceps"},{name:"Kettlebell curls jednoręczne",category:"Biceps"},{name:"21s biceps",category:"Biceps"},{name:"Tempo biceps curls",category:"Biceps"},
+  // Przedramiona
+  {name:"Reverse curls (uginania odwrotne)",category:"Przedramiona"},{name:"Reverse curls ze sztangą",category:"Przedramiona"},{name:"Reverse curls z hantlami",category:"Przedramiona"},{name:"Reverse curls na linie",category:"Przedramiona"},{name:"Reverse curls na maszynie",category:"Przedramiona"},{name:"Zginanie przedramion (wrist curls)",category:"Przedramiona"},{name:"Wrist curls ze sztangą",category:"Przedramiona"},{name:"Wrist curls z hantlami",category:"Przedramiona"},{name:"Wrist curls na ławce",category:"Przedramiona"},{name:"Reverse wrist curls",category:"Przedramiona"},{name:"Reverse wrist curls ze sztangą",category:"Przedramiona"},{name:"Reverse wrist curls z hantlami",category:"Przedramiona"},{name:"Wrist curls na linie",category:"Przedramiona"},{name:"Wrist curls jednoręczne",category:"Przedramiona"},{name:"Wrist rotations",category:"Przedramiona"},{name:"Wrist rotations z hantlą",category:"Przedramiona"},{name:"Wrist rotations z kettlebell",category:"Przedramiona"},
+  // Kondycja
+  {name:"Farmer's carry",category:"Kondycja"},{name:"Farmer's carry z hantlami",category:"Kondycja"},{name:"Farmer's carry ze sztangą",category:"Kondycja"},{name:"Farmer's carry jednoręczne",category:"Kondycja"},{name:"Farmer's carry z kettlebell",category:"Kondycja"},{name:"Suitcase carry",category:"Kondycja"},{name:"Suitcase carry jednoręczne",category:"Kondycja"},{name:"Waiter walks",category:"Kondycja"},{name:"Waiter walks jednoręczne",category:"Kondycja"},{name:"Bear hug carry",category:"Kondycja"},{name:"Chest carry",category:"Kondycja"},{name:"Back carry",category:"Kondycja"},{name:"Overhead carry",category:"Kondycja"},{name:"Waiter's carry",category:"Kondycja"},{name:"Prowler push",category:"Kondycja"},{name:"Prowler pull",category:"Kondycja"},{name:"Sled push",category:"Kondycja"},{name:"Sled drag",category:"Kondycja"},{name:"Battle ropes",category:"Kondycja"},{name:"Battle ropes dwuosobowe",category:"Kondycja"},{name:"Battle ropes jednoręczne",category:"Kondycja"},{name:"Tire flips",category:"Kondycja"},{name:"Med ball slams",category:"Kondycja"},{name:"Med ball throws",category:"Kondycja"},{name:"Med ball chest passes",category:"Kondycja"},{name:"Med ball rotations",category:"Kondycja"},{name:"Med ball side throws",category:"Kondycja"},{name:"Med ball Russian twists",category:"Kondycja"},{name:"Rope climbs",category:"Kondycja"},{name:"Box jumps",category:"Kondycja"},{name:"Box jumps jednonóżne",category:"Kondycja"},{name:"Box step-ups",category:"Kondycja"},{name:"Box step-ups jednonóżne",category:"Kondycja"},{name:"Burpees",category:"Kondycja"},{name:"Burpees box jumps",category:"Kondycja"},{name:"Mountain climbers",category:"Kondycja"},{name:"Mountain climbers szybkie",category:"Kondycja"},{name:"Jumping jacks",category:"Kondycja"},{name:"High knees",category:"Kondycja"},{name:"High knees biegi",category:"Kondycja"},{name:"Broad jumps",category:"Kondycja"},{name:"Long jumps",category:"Kondycja"},{name:"Vertical jumps",category:"Kondycja"},{name:"Plyo push-ups",category:"Kondycja"},{name:"Clap push-ups",category:"Kondycja"},{name:"Explosive push-ups",category:"Kondycja"},{name:"Jump squats",category:"Kondycja"},{name:"Jump lunges",category:"Kondycja"},{name:"Tuck jumps",category:"Kondycja"},{name:"Pike jumps",category:"Kondycja"},{name:"Rotational jumps",category:"Kondycja"},{name:"Lateral bounds",category:"Kondycja"},{name:"Single leg bounds",category:"Kondycja"},{name:"Double unders (skakanka)",category:"Kondycja"},{name:"Single leg jumps",category:"Kondycja"},{name:"Skipping",category:"Kondycja"},{name:"Sprawls",category:"Kondycja"},{name:"Lunge to twist",category:"Kondycja"},{name:"Lateral bounds to press",category:"Kondycja"},
+  // Kettlebell
+  {name:"Kettlebell swings",category:"Kettlebell"},{name:"Kettlebell swings jednoręczne",category:"Kettlebell"},{name:"Kettlebell snatches",category:"Kettlebell"},{name:"Kettlebell cleans",category:"Kettlebell"},{name:"Kettlebell jerks",category:"Kettlebell"},{name:"Kettlebell Turkish get-ups",category:"Kettlebell"},{name:"Kettlebell windmills",category:"Kettlebell"},{name:"Kettlebell figure-4",category:"Kettlebell"},{name:"Kettlebell halo",category:"Kettlebell"},{name:"Kettlebell lunges",category:"Kettlebell"},{name:"Kettlebell deadlifts",category:"Kettlebell"},{name:"Kettlebell goblet squats",category:"Kettlebell"},{name:"Kettlebell high pulls",category:"Kettlebell"},{name:"Kettlebell double swings",category:"Kettlebell"},{name:"Kettlebell seesaw presses",category:"Kettlebell"},{name:"Kettlebell rows",category:"Kettlebell"},{name:"Kettlebell carries",category:"Kettlebell"},{name:"Kettlebell pistol squats",category:"Kettlebell"},{name:"Kettlebell around the body",category:"Kettlebell"},
+  // Landmine
+  {name:"Landmine squats",category:"Landmine"},{name:"Landmine rows",category:"Landmine"},{name:"Landmine presses",category:"Landmine"},{name:"Landmine rotations",category:"Landmine"},{name:"Landmine punches",category:"Landmine"},{name:"Landmine crunches",category:"Landmine"},
+  // Worek z piaskiem
+  {name:"Sandbag squats",category:"Worek z piaskiem"},{name:"Sandbag lunges",category:"Worek z piaskiem"},{name:"Sandbag cleans",category:"Worek z piaskiem"},{name:"Sandbag presses",category:"Worek z piaskiem"},{name:"Sandbag rows",category:"Worek z piaskiem"},{name:"Sandbag slams",category:"Worek z piaskiem"},{name:"Sandbag carries",category:"Worek z piaskiem"},{name:"Sandbag shoulder raises",category:"Worek z piaskiem"},{name:"Sandbag deadlifts",category:"Worek z piaskiem"},{name:"Sandbag rotations",category:"Worek z piaskiem"},
+  // Taśmy oporowe
+  {name:"Resistance band squats",category:"Taśmy oporowe"},{name:"Resistance band deadlifts",category:"Taśmy oporowe"},{name:"Resistance band rows",category:"Taśmy oporowe"},{name:"Resistance band chest press",category:"Taśmy oporowe"},{name:"Resistance band shoulder press",category:"Taśmy oporowe"},{name:"Resistance band biceps curls",category:"Taśmy oporowe"},{name:"Resistance band triceps extensions",category:"Taśmy oporowe"},{name:"Resistance band lateral raises",category:"Taśmy oporowe"},{name:"Resistance band leg extensions",category:"Taśmy oporowe"},{name:"Resistance band leg curls",category:"Taśmy oporowe"},{name:"Resistance band hip abductions",category:"Taśmy oporowe"},{name:"Resistance band hip adductions",category:"Taśmy oporowe"},{name:"Resistance band pull-aparts",category:"Taśmy oporowe"},{name:"Resistance band pull-downs",category:"Taśmy oporowe"},{name:"Resistance band rotations",category:"Taśmy oporowe"},{name:"Resistance band woodchops",category:"Taśmy oporowe"},
+  // TRX
+  {name:"TRX squats",category:"TRX"},{name:"TRX rows",category:"TRX"},{name:"TRX chest press",category:"TRX"},{name:"TRX push-ups",category:"TRX"},{name:"TRX mountain climbers",category:"TRX"},{name:"TRX suspension planks",category:"TRX"},{name:"TRX suspension curls",category:"TRX"},{name:"TRX suspension triceps",category:"TRX"},{name:"TRX suspension lunges",category:"TRX"},{name:"TRX suspension hamstring curls",category:"TRX"},{name:"TRX side planks",category:"TRX"},{name:"TRX atomic push-ups",category:"TRX"},{name:"TRX fallouts",category:"TRX"},
+  // Maszyny kablowe
+  {name:"Cable machine rotations",category:"Maszyny kablowe"},{name:"Cable machine chops",category:"Maszyny kablowe"},{name:"Cable machine high-to-low chops",category:"Maszyny kablowe"},{name:"Cable machine low-to-high chops",category:"Maszyny kablowe"},{name:"Cable machine side bends",category:"Maszyny kablowe"},{name:"Cable machine crunches",category:"Maszyny kablowe"},{name:"Cable machine leg curls",category:"Maszyny kablowe"},{name:"Cable machine leg extensions",category:"Maszyny kablowe"},{name:"Cable machine hip abductions",category:"Maszyny kablowe"},{name:"Cable machine hip adductions",category:"Maszyny kablowe"},
+  // Maszyny
+  {name:"Machine chest press",category:"Maszyny"},{name:"Machine row",category:"Maszyny"},{name:"Machine leg press",category:"Maszyny"},{name:"Machine leg extension",category:"Maszyny"},{name:"Machine leg curl",category:"Maszyny"},{name:"Machine shoulder press",category:"Maszyny"},{name:"Machine lateral raise",category:"Maszyny"},{name:"Machine seated row",category:"Maszyny"},{name:"Machine pec deck",category:"Maszyny"},{name:"Machine reverse pec deck",category:"Maszyny"},{name:"Machine hip abduction",category:"Maszyny"},{name:"Machine hip adduction",category:"Maszyny"},{name:"Machine glute drive",category:"Maszyny"},{name:"Machine calf raise",category:"Maszyny"},{name:"Machine triceps dips",category:"Maszyny"},{name:"Machine lat pulldown",category:"Maszyny"},{name:"Machine biceps curl",category:"Maszyny"},{name:"Machine triceps extension",category:"Maszyny"},{name:"Machine ab crunch",category:"Maszyny"},{name:"Machine back extension",category:"Maszyny"},{name:"Machine sit-up",category:"Maszyny"},{name:"Machine rotary torso",category:"Maszyny"},
+  // Sztanga
+  {name:"Barbell bench press",category:"Sztanga"},{name:"Barbell incline press",category:"Sztanga"},{name:"Barbell decline press",category:"Sztanga"},{name:"Barbell row",category:"Sztanga"},{name:"Barbell deadlift",category:"Sztanga"},{name:"Barbell squat",category:"Sztanga"},{name:"Barbell front squat",category:"Sztanga"},{name:"Barbell back squat",category:"Sztanga"},{name:"Barbell overhead press",category:"Sztanga"},{name:"Barbell high pull",category:"Sztanga"},{name:"Barbell clean",category:"Sztanga"},{name:"Barbell jerk",category:"Sztanga"},{name:"Barbell snatch",category:"Sztanga"},{name:"Barbell upright row",category:"Sztanga"},{name:"Barbell shrug",category:"Sztanga"},{name:"Barbell reverse curl",category:"Sztanga"},{name:"Barbell curl",category:"Sztanga"},{name:"Barbell close grip press",category:"Sztanga"},{name:"Barbell floor press",category:"Sztanga"},{name:"Barbell pin press",category:"Sztanga"},{name:"Barbell pause squat",category:"Sztanga"},{name:"Barbell deficit deadlift",category:"Sztanga"},{name:"Barbell rack pull",category:"Sztanga"},
+  // Hantle
+  {name:"Dumbbell pullovers",category:"Hantle"},{name:"Dumbbell floor press",category:"Hantle"},{name:"Dumbbell goblet squats",category:"Hantle"},{name:"Dumbbell snatches",category:"Hantle"},{name:"Dumbbell clean and press",category:"Hantle"},{name:"Dumbbell thrusters",category:"Hantle"},{name:"Dumbbell Turkish get-ups",category:"Hantle"},{name:"Dumbbell windmills",category:"Hantle"},{name:"Dumbbell bench press",category:"Hantle"},{name:"Dumbbell incline press",category:"Hantle"},{name:"Dumbbell decline press",category:"Hantle"},{name:"Dumbbell single arm rows",category:"Hantle"},{name:"Dumbbell squat",category:"Hantle"},{name:"Dumbbell front squat",category:"Hantle"},{name:"Dumbbell deadlift",category:"Hantle"},{name:"Dumbbell sumo deadlift",category:"Hantle"},{name:"Dumbbell overhead press",category:"Hantle"},{name:"Dumbbell push press",category:"Hantle"},{name:"Dumbbell shoulder raise",category:"Hantle"},{name:"Dumbbell lateral raise",category:"Hantle"},{name:"Dumbbell reverse fly",category:"Hantle"},{name:"Dumbbell alternating curls",category:"Hantle"},{name:"Dumbbell concentrations curls",category:"Hantle"},{name:"Dumbbell triceps kickbacks",category:"Hantle"},{name:"Dumbbell overhead extension",category:"Hantle"},{name:"Dumbbell lunges",category:"Hantle"},{name:"Dumbbell walking lunges",category:"Hantle"},{name:"Dumbbell step-ups",category:"Hantle"},{name:"Dumbbell calf raises",category:"Hantle"},{name:"Dumbbell carries",category:"Hantle"},{name:"Dumbbell suitcase carries",category:"Hantle"},{name:"Dumbbell farmer's carry",category:"Hantle"},{name:"Dumbbell overhead carry",category:"Hantle"},{name:"Dumbbell single arm row",category:"Hantle"},{name:"Dumbbell renegade rows",category:"Hantle"},{name:"Dumbbell push-ups",category:"Hantle"},{name:"Dumbbell rotations",category:"Hantle"},{name:"Dumbbell wood chops",category:"Hantle"},{name:"Dumbbell side bends",category:"Hantle"},{name:"Dumbbell Russian twists",category:"Hantle"},{name:"Dumbbell single leg deadlifts",category:"Hantle"},{name:"Dumbbell single leg squats",category:"Hantle"},{name:"Dumbbell single leg rows",category:"Hantle"},{name:"Dumbbell single leg carries",category:"Hantle"},{name:"Dumbbell tempo squats",category:"Hantle"},{name:"Dumbbell pause squats",category:"Hantle"},{name:"Dumbbell pin presses",category:"Hantle"},{name:"Dumbbell floor presses",category:"Hantle"},{name:"Dumbbell neutral grip press",category:"Hantle"},{name:"Dumbbell narrow grip press",category:"Hantle"},{name:"Dumbbell wide grip press",category:"Hantle"},
+  // Piłka lekarska
+  {name:"Med ball chest passes",category:"Piłka lekarska"},{name:"Med ball overhead throws",category:"Piłka lekarska"},{name:"Med ball slams to floor",category:"Piłka lekarska"},{name:"Med ball side throws",category:"Piłka lekarska"},{name:"Med ball Russian twists",category:"Piłka lekarska"},{name:"Med ball rotations",category:"Piłka lekarska"},{name:"Med ball wall throws",category:"Piłka lekarska"},{name:"Med ball bounces",category:"Piłka lekarska"},{name:"Med ball chest catches",category:"Piłka lekarska"},{name:"Med ball single leg squats",category:"Piłka lekarska"},{name:"Med ball rotational slams",category:"Piłka lekarska"},{name:"Med ball rainbow slams",category:"Piłka lekarska"},
 ];
 
 function truncateUrl(url: string, maxLen = 40): string {
@@ -143,15 +192,12 @@ export default function ExerciseLibraryScreen() {
   const bulkImportMutation = useMutation({
     mutationFn: () =>
       apiPost<{ imported: number; skipped: number }>("/api/exercises/library/bulk-import", {
-        names: PRESET_EXERCISES,
+        exercises: PRESET_EXERCISES,
       }),
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["exercises-library"] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(
-        "Importowanie zakończone",
-        `Dodano ${result.imported} ćwiczeń${result.skipped > 0 ? `, pominięto ${result.skipped} duplikatów` : ""}.`
-      );
+      Alert.alert("Importowanie zakończone", `Dodano ${result.imported} ćwiczeń do biblioteki.`);
     },
     onError: () => {
       Alert.alert("Błąd", "Nie udało się zaimportować ćwiczeń.");
@@ -220,6 +266,7 @@ export default function ExerciseLibraryScreen() {
 
     const body = {
       name: form.name.trim(),
+      category: form.category.trim() || null,
       description: form.description.trim() || null,
       videoUrl: form.videoUrl.trim() || null,
       defaultSets: form.defaultSets ? parseInt(form.defaultSets, 10) : null,
@@ -334,110 +381,115 @@ export default function ExerciseLibraryScreen() {
             </Text>
           </View>
         ) : (
-          exercises.map((ex) => {
-            const isOwn = ex.trainerId === ownUserId;
-            return (
-              <Pressable
-                key={ex.id}
-                onPress={() => handleCardPress(ex, isOwn)}
-                style={({ pressed }) => [
-                  styles.card,
-                  { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
-                ]}
-                testID={`card-exercise-${ex.id}`}
-              >
-                <View style={styles.cardHeader}>
-                  <View style={[styles.cardIcon, { backgroundColor: colors.primary + "1a" }]}>
-                    <Ionicons name="barbell-outline" size={20} color={colors.primary} />
-                  </View>
-                  <View style={styles.cardInfo}>
-                    <Text style={[styles.cardName, { color: colors.foreground }]}>{ex.name}</Text>
-                    {ex.description ? (
-                      <Text
-                        style={[styles.cardDesc, { color: colors.mutedForeground }]}
-                        numberOfLines={2}
-                      >
-                        {ex.description}
-                      </Text>
-                    ) : null}
-                    {ex.videoUrl ? (
-                      <View style={styles.videoRow}>
-                        <Ionicons name="videocam-outline" size={13} color={colors.primary} />
-                        <Text style={[styles.videoUrl, { color: colors.primary }]} numberOfLines={1}>
-                          {truncateUrl(ex.videoUrl)}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  {isOwn ? (
-                    <View style={styles.cardActions}>
-                      <Pressable
-                        onPress={(e) => {
-                          e.stopPropagation?.();
-                          openEditModal(ex);
-                        }}
-                        style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.6 : 1 }]}
-                        testID={`button-edit-exercise-${ex.id}`}
-                        hitSlop={8}
-                      >
-                        <Ionicons name="pencil-outline" size={18} color={colors.primary} />
-                      </Pressable>
-                      <Pressable
-                        onPress={(e) => {
-                          e.stopPropagation?.();
-                          confirmDelete(ex);
-                        }}
-                        style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.6 : 1 }]}
-                        testID={`button-delete-exercise-${ex.id}`}
-                        hitSlop={8}
-                      >
-                        <Ionicons name="trash-outline" size={18} color={colors.destructive} />
-                      </Pressable>
-                    </View>
-                  ) : (
-                    <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} style={styles.chevron} />
-                  )}
-                </View>
-
-                {(ex.defaultSets != null || ex.defaultReps != null || ex.defaultLoad || ex.defaultRestTime != null) && (
-                  <View style={[styles.cardMeta, { borderTopColor: colors.border }]}>
-                    {ex.defaultSets != null && (
-                      <View style={styles.metaChip}>
-                        <Ionicons name="layers-outline" size={13} color={colors.mutedForeground} />
-                        <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                          {ex.defaultSets} serie
-                        </Text>
-                      </View>
-                    )}
-                    {ex.defaultReps != null && (
-                      <View style={styles.metaChip}>
-                        <Ionicons name="repeat-outline" size={13} color={colors.mutedForeground} />
-                        <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                          {ex.defaultReps} pow.
-                        </Text>
-                      </View>
-                    )}
-                    {ex.defaultLoad ? (
-                      <View style={styles.metaChip}>
-                        <Ionicons name="fitness-outline" size={13} color={colors.mutedForeground} />
-                        <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                          {ex.defaultLoad}
-                        </Text>
-                      </View>
-                    ) : null}
-                    {ex.defaultRestTime != null && (
-                      <View style={styles.metaChip}>
-                        <Ionicons name="timer-outline" size={13} color={colors.mutedForeground} />
-                        <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                          {ex.defaultRestTime}s odpoczynku
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                )}
-              </Pressable>
+          (() => {
+            const grouped = exercises.reduce<Record<string, Exercise[]>>((acc, ex) => {
+              const key = ex.category || "Inne";
+              if (!acc[key]) acc[key] = [];
+              acc[key].push(ex);
+              return acc;
+            }, {});
+            const categoryOrder = [...EXERCISE_CATEGORIES, "Inne"];
+            const sortedKeys = Object.keys(grouped).sort(
+              (a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b)
             );
-          })
+            return sortedKeys.map((cat) => (
+              <View key={cat}>
+                <View style={[styles.categoryHeader, { borderBottomColor: colors.border }]}>
+                  <Text style={[styles.categoryHeaderText, { color: colors.foreground }]}>{cat}</Text>
+                  <Text style={[styles.categoryCount, { color: colors.mutedForeground }]}>
+                    {grouped[cat].length}
+                  </Text>
+                </View>
+                {grouped[cat].map((ex) => {
+                  const isOwn = ex.trainerId === ownUserId;
+                  return (
+                    <Pressable
+                      key={ex.id}
+                      onPress={() => handleCardPress(ex, isOwn)}
+                      style={({ pressed }) => [
+                        styles.card,
+                        { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
+                      ]}
+                      testID={`card-exercise-${ex.id}`}
+                    >
+                      <View style={styles.cardHeader}>
+                        <View style={[styles.cardIcon, { backgroundColor: colors.primary + "1a" }]}>
+                          <Ionicons name="barbell-outline" size={20} color={colors.primary} />
+                        </View>
+                        <View style={styles.cardInfo}>
+                          <Text style={[styles.cardName, { color: colors.foreground }]}>{ex.name}</Text>
+                          {ex.description ? (
+                            <Text style={[styles.cardDesc, { color: colors.mutedForeground }]} numberOfLines={2}>
+                              {ex.description}
+                            </Text>
+                          ) : null}
+                          {ex.videoUrl ? (
+                            <View style={styles.videoRow}>
+                              <Ionicons name="videocam-outline" size={13} color={colors.primary} />
+                              <Text style={[styles.videoUrl, { color: colors.primary }]} numberOfLines={1}>
+                                {truncateUrl(ex.videoUrl)}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        {isOwn ? (
+                          <View style={styles.cardActions}>
+                            <Pressable
+                              onPress={(e) => { e.stopPropagation?.(); openEditModal(ex); }}
+                              style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.6 : 1 }]}
+                              testID={`button-edit-exercise-${ex.id}`}
+                              hitSlop={8}
+                            >
+                              <Ionicons name="pencil-outline" size={18} color={colors.primary} />
+                            </Pressable>
+                            <Pressable
+                              onPress={(e) => { e.stopPropagation?.(); confirmDelete(ex); }}
+                              style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.6 : 1 }]}
+                              testID={`button-delete-exercise-${ex.id}`}
+                              hitSlop={8}
+                            >
+                              <Ionicons name="trash-outline" size={18} color={colors.destructive} />
+                            </Pressable>
+                          </View>
+                        ) : (
+                          <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} style={styles.chevron} />
+                        )}
+                      </View>
+
+                      {(ex.defaultSets != null || ex.defaultReps != null || ex.defaultLoad || ex.defaultRestTime != null) && (
+                        <View style={[styles.cardMeta, { borderTopColor: colors.border }]}>
+                          {ex.defaultSets != null && (
+                            <View style={styles.metaChip}>
+                              <Ionicons name="layers-outline" size={13} color={colors.mutedForeground} />
+                              <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{ex.defaultSets} serie</Text>
+                            </View>
+                          )}
+                          {ex.defaultReps != null && (
+                            <View style={styles.metaChip}>
+                              <Ionicons name="repeat-outline" size={13} color={colors.mutedForeground} />
+                              <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{ex.defaultReps} pow.</Text>
+                            </View>
+                          )}
+                          {ex.defaultLoad ? (
+                            <View style={styles.metaChip}>
+                              <Ionicons name="fitness-outline" size={13} color={colors.mutedForeground} />
+                              <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{ex.defaultLoad}</Text>
+                            </View>
+                          ) : null}
+                          {ex.defaultRestTime != null && (
+                            <View style={styles.metaChip}>
+                              <Ionicons name="timer-outline" size={13} color={colors.mutedForeground} />
+                              <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{ex.defaultRestTime}s odpoczynku</Text>
+                            </View>
+                          )}
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ));
+          })()
         )}
       </ScrollView>
 
@@ -490,6 +542,37 @@ export default function ExerciseLibraryScreen() {
                   returnKeyType="next"
                   testID="input-form-name"
                 />
+              </View>
+
+              <View style={styles.formRow}>
+                <Text style={[styles.formRowLabel, { color: colors.mutedForeground }]}>Kategoria</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.categoryChips}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {EXERCISE_CATEGORIES.map((cat) => {
+                    const active = form.category === cat;
+                    return (
+                      <Pressable
+                        key={cat}
+                        onPress={() => setForm((f) => ({ ...f, category: active ? "" : cat }))}
+                        style={[
+                          styles.chip,
+                          {
+                            backgroundColor: active ? colors.primary : colors.background,
+                            borderColor: active ? colors.primary : colors.border,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.chipText, { color: active ? "#fff" : colors.foreground }]}>
+                          {cat}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
               </View>
 
               <View style={styles.formRow}>
@@ -925,4 +1008,38 @@ const styles = StyleSheet.create({
   },
   videoLinkText: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
   noDetails: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: 8, marginBottom: 16 },
+  categoryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+    paddingTop: 20,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: 8,
+  },
+  categoryHeaderText: {
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 0.1,
+  },
+  categoryCount: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+  },
+  categoryChips: {
+    flexDirection: "row",
+    gap: 8,
+    paddingBottom: 4,
+  },
+  chip: {
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  chipText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+  },
 });
