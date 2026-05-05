@@ -5,18 +5,25 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  HealthStatus,
+  UpdateClientExercise200,
+  UpdateClientExerciseBody,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -99,3 +106,96 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Client-only endpoint. Updates reps and/or load on an exercise that belongs to the client's currently assigned training plan. Only reps and load fields are allowed — all other plan fields are immutable by the client.
+
+ * @summary Update exercise reps/load in client's assigned plan
+ */
+export const getUpdateClientExerciseUrl = (exerciseId: string) => {
+  return `/api/client/exercises/${exerciseId}`;
+};
+
+export const updateClientExercise = async (
+  exerciseId: string,
+  updateClientExerciseBody: UpdateClientExerciseBody,
+  options?: RequestInit,
+): Promise<UpdateClientExercise200> => {
+  return customFetch<UpdateClientExercise200>(
+    getUpdateClientExerciseUrl(exerciseId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(updateClientExerciseBody),
+    },
+  );
+};
+
+export const getUpdateClientExerciseMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateClientExercise>>,
+    TError,
+    { exerciseId: string; data: BodyType<UpdateClientExerciseBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateClientExercise>>,
+  TError,
+  { exerciseId: string; data: BodyType<UpdateClientExerciseBody> },
+  TContext
+> => {
+  const mutationKey = ["updateClientExercise"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateClientExercise>>,
+    { exerciseId: string; data: BodyType<UpdateClientExerciseBody> }
+  > = (props) => {
+    const { exerciseId, data } = props ?? {};
+
+    return updateClientExercise(exerciseId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateClientExerciseMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateClientExercise>>
+>;
+export type UpdateClientExerciseMutationBody =
+  BodyType<UpdateClientExerciseBody>;
+export type UpdateClientExerciseMutationError = ErrorType<void>;
+
+/**
+ * @summary Update exercise reps/load in client's assigned plan
+ */
+export const useUpdateClientExercise = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateClientExercise>>,
+    TError,
+    { exerciseId: string; data: BodyType<UpdateClientExerciseBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateClientExercise>>,
+  TError,
+  { exerciseId: string; data: BodyType<UpdateClientExerciseBody> },
+  TContext
+> => {
+  return useMutation(getUpdateClientExerciseMutationOptions(options));
+};

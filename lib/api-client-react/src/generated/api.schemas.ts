@@ -8,3 +8,22 @@
 export interface HealthStatus {
   status: string;
 }
+
+export type UpdateClientExerciseBody = {
+  /**
+   * New target repetitions count
+   * @minimum 1
+   */
+  reps?: number;
+  /** New target load (e.g. "22.5") */
+  load?: string;
+};
+
+export type UpdateClientExercise200 = {
+  id: string;
+  name: string;
+  sets?: number | null;
+  reps?: number | null;
+  load?: string | null;
+  workoutId?: string | null;
+};

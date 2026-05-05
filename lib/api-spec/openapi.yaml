@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: client
+    description: Client operations
 paths:
   /healthz:
     get:
@@ -24,7 +26,75 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /client/exercises/{exerciseId}:
+    patch:
+      operationId: updateClientExercise
+      tags: [client]
+      summary: Update exercise reps/load in client's assigned plan
+      description: >
+        Client-only endpoint. Updates reps and/or load on an exercise that
+        belongs to the client's currently assigned training plan. Only reps and
+        load fields are allowed — all other plan fields are immutable by the client.
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: exerciseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                reps:
+                  type: integer
+                  minimum: 1
+                  description: New target repetitions count
+                load:
+                  type: string
+                  description: New target load (e.g. "22.5")
+      responses:
+        "200":
+          description: Updated exercise
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name]
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  sets:
+                    type: integer
+                    nullable: true
+                  reps:
+                    type: integer
+                    nullable: true
+                  load:
+                    type: string
+                    nullable: true
+                  workoutId:
+                    type: string
+                    nullable: true
+        "400":
+          description: Invalid input or nothing to update
+        "403":
+          description: Not a client, no assigned plan, or exercise not in client's plan
+        "404":
+          description: Exercise not found
 components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: connect.sid
   schemas:
     HealthStatus:
       type: object

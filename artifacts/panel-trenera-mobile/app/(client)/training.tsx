@@ -662,7 +662,8 @@ export default function TrainingScreen() {
     const planLoad = (exercise.load ?? "").replace(/\s*kg\s*/i, "").trim();
 
     const repsChanged = planReps != null && loggedReps !== planReps;
-    const loadChanged = planLoad !== "" && loggedLoad !== "" && loggedLoad !== planLoad;
+    // Trigger when loggedLoad is non-empty and differs from plan (also handles plan having no load)
+    const loadChanged = loggedLoad !== "" && loggedLoad !== planLoad;
 
     if (!repsChanged && !loadChanged) return;
 
@@ -686,7 +687,7 @@ export default function TrainingScreen() {
             if (loadChanged) updateData.load = loggedLoad;
             updatePlanMutation.mutate(updateData, {
               onSuccess: () => {
-                void queryClient.invalidateQueries({ queryKey: ["client-plan"] });
+                void queryClient.invalidateQueries({ queryKey: ["client-assignment"] });
               },
               onError: () => {
                 Alert.alert("Błąd", "Nie udało się zaktualizować planu.");

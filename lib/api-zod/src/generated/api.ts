@@ -14,3 +14,26 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Client-only endpoint. Updates reps and/or load on an exercise that belongs to the client's currently assigned training plan. Only reps and load fields are allowed — all other plan fields are immutable by the client.
+
+ * @summary Update exercise reps/load in client's assigned plan
+ */
+export const UpdateClientExerciseParams = zod.object({
+  exerciseId: zod.coerce.string(),
+});
+
+export const UpdateClientExerciseBody = zod.object({
+  reps: zod.number().min(1).optional().describe("New target repetitions count"),
+  load: zod.string().optional().describe('New target load (e.g. \"22.5\")'),
+});
+
+export const UpdateClientExerciseResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  sets: zod.number().nullish(),
+  reps: zod.number().nullish(),
+  load: zod.string().nullish(),
+  workoutId: zod.string().nullish(),
+});
