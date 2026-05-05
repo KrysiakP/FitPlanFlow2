@@ -2234,6 +2234,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/exercises/library/bulk-import", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId || (req as any).mobileUserId;
+      const user = await storage.getUser(userId!);
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Only trainers can import exercises" });
+      }
+      const { names } = req.body as { names: unknown };
+      if (!Array.isArray(names) || names.some((n) => typeof n !== "string")) {
+        return res.status(400).json({ message: "names must be an array of strings" });
+      }
+      const result = await storage.bulkImportExerciseLibrary(names as string[], userId!);
+      res.json(result);
+    } catch (error) {
+      req.log?.error(error, "Error bulk importing exercises");
+      res.status(500).json({ message: "Failed to import exercises" });
+    }
+  });
+
   app.get("/api/exercises/library/:id", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;

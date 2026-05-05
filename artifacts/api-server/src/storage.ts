@@ -143,6 +143,7 @@ export interface IStorage {
   
   // Exercise library operations
   createExerciseLibrary(exercise: InsertExerciseLibrary, trainerId: string): Promise<ExerciseLibrary>;
+  bulkImportExerciseLibrary(names: string[], trainerId: string): Promise<{ imported: number; skipped: number }>;
   getTrainerExerciseLibrary(trainerId: string): Promise<ExerciseLibrary[]>;
   getExerciseFromLibrary(exerciseId: string): Promise<ExerciseLibrary | undefined>;
   updateExerciseLibrary(exerciseId: string, data: Partial<InsertExerciseLibrary>): Promise<ExerciseLibrary>;
@@ -955,6 +956,21 @@ export class DatabaseStorage implements IStorage {
       .values({ ...exercise, trainerId })
       .returning();
     return created;
+  }
+
+  async bulkImportExerciseLibrary(names: string[], trainerId: string): Promise<{ imported: number; skipped: number }> {
+    const existing = await db
+      .select({ name: exerciseLibrary.name })
+      .from(exerciseLibrary)
+      .where(eq(exerciseLibrary.trainerId, trainerId));
+    const existingNames = new Set(existing.map((e) => e.name.toLowerCase()));
+    const toInsert = names.filter((n) => !existingNames.has(n.toLowerCase()));
+    if (toInsert.length > 0) {
+      await db.insert(exerciseLibrary).values(
+        toInsert.map((name) => ({ name, trainerId }))
+      );
+    }
+    return { imported: toInsert.length, skipped: names.length - toInsert.length };
   }
 
   async getTrainerExerciseLibrary(trainerId: string): Promise<ExerciseLibrary[]> {
