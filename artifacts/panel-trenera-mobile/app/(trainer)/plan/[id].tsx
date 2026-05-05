@@ -518,6 +518,10 @@ export default function PlanDetailScreen() {
                             <Text style={[styles.exDetails, { color: colors.mutedForeground }]}>
                               {ex.sets} serie × {ex.reps} powtórzeń
                               {ex.load ? ` • ${ex.load} kg` : ""}
+                              {ex.restTime != null ? ` • ${ex.restTime}s odp.` : ""}
+                              {ex.rir != null ? ` • RIR ${ex.rir}` : ""}
+                              {ex.tempo ? ` • ${ex.tempo}` : ""}
+                              {ex.technique && ex.technique !== "" ? ` • ${TECHNIQUES.find(t => t.value === ex.technique)?.label ?? ex.technique}` : ""}
                             </Text>
                           </View>
                           {ex.videoUrl ? (

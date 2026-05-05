@@ -23,6 +23,13 @@ import { apiGet, apiPatch, apiPost } from "@/lib/api";
 
 type Colors = ReturnType<typeof useColors>;
 
+const TECHNIQUE_LABELS: Record<string, string> = {
+  dropset: "Dropset",
+  cluster_set: "Cluster Set",
+  rest_pause: "Rest-Pause",
+  piramida: "Piramida",
+};
+
 interface Exercise {
   id: string;
   name: string;
@@ -30,9 +37,12 @@ interface Exercise {
   reps?: number | null;
   load?: string | null;
   restTime?: number | null;
-  notes?: string | null;
+  description?: string | null;
   orderIndex: number;
   videoUrl?: string | null;
+  rir?: number | null;
+  tempo?: string | null;
+  technique?: string | null;
 }
 
 interface Workout {
@@ -126,6 +136,12 @@ function ExerciseRow({
     tags.push({ icon: "barbell-outline", label: /kg/i.test(w) ? w : `${w} kg` });
   }
   if (exercise.restTime != null) tags.push({ icon: "timer-outline", label: `${exercise.restTime}s odpoczynku` });
+  if (exercise.rir != null) tags.push({ icon: "stats-chart-outline", label: `RIR ${exercise.rir}` });
+  if (exercise.tempo) tags.push({ icon: "pulse-outline", label: exercise.tempo });
+  if (exercise.technique && exercise.technique !== "") {
+    const techLabel = TECHNIQUE_LABELS[exercise.technique] ?? exercise.technique;
+    tags.push({ icon: "construct-outline", label: techLabel });
+  }
 
   const totalSets = (exercise.sets ?? 1) + (extraSets[exercise.id] ?? 0);
   const doneSets = completedSets[exercise.id]?.size ?? 0;
@@ -184,9 +200,9 @@ function ExerciseRow({
               {doneSets}/{totalSets} {doneSets === 1 ? "seria" : "serii"} ukończona
             </Text>
           )}
-          {exercise.notes && (
+          {exercise.description && (
             <Text style={[styles.exerciseNotes, { color: colors.mutedForeground }]}>
-              {exercise.notes}
+              {exercise.description}
             </Text>
           )}
         </View>
