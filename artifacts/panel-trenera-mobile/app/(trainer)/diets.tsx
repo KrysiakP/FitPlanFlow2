@@ -98,7 +98,7 @@ export default function TrainerDietsScreen() {
         targetCarbs: 225,
         mealsPerDay: planMode === "full_plan" ? 4 : 1,
         mode: body.mode,
-        status: "draft",
+        status: body.clientId ? "active" : "draft",
       }),
     onSuccess: (data: { id: string }) => {
       void queryClient.invalidateQueries({ queryKey: ["trainer-diet-plans"] });

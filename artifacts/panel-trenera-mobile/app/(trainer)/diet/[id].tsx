@@ -501,6 +501,43 @@ export default function DietPlanDetailScreen() {
               <Text style={[styles.planMeta, { color: colors.mutedForeground }]}>
                 {plan.mode === "full_plan" ? "Pełna rozpiska" : plan.mode === "macro_only" ? "Tylko makro" : "Plan diety"}
               </Text>
+              {/* Status badge */}
+              <Pressable
+                onPress={() => {
+                  const isActive = plan.status === "active";
+                  Alert.alert(
+                    isActive ? "Dezaktywuj plan" : "Aktywuj plan",
+                    isActive
+                      ? "Plan przestanie być widoczny dla podopiecznego."
+                      : "Plan będzie widoczny dla podopiecznego.",
+                    [
+                      { text: "Anuluj", style: "cancel" },
+                      {
+                        text: isActive ? "Dezaktywuj" : "Aktywuj",
+                        style: isActive ? "destructive" : "default",
+                        onPress: () => editPlanMutation.mutate({ status: isActive ? "draft" : "active" }),
+                      },
+                    ]
+                  );
+                }}
+                style={({ pressed }) => [styles.statusBadge, { opacity: pressed ? 0.7 : 1 }]}
+                testID="button-toggle-status"
+              >
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: plan.status === "active" ? "#16a34a" : colors.mutedForeground },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusText,
+                    { color: plan.status === "active" ? "#16a34a" : colors.mutedForeground },
+                  ]}
+                >
+                  {plan.status === "active" ? "Aktywny" : "Wersja robocza"}
+                </Text>
+              </Pressable>
             </View>
             <Pressable
               onPress={openEditPlan}
@@ -1331,6 +1368,9 @@ const styles = StyleSheet.create({
   planHeaderTop: { padding: 16 },
   planName: { fontSize: 20, fontFamily: "Inter_700Bold" },
   planMeta: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  statusBadge: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 8, alignSelf: "flex-start" },
+  statusDot: { width: 7, height: 7, borderRadius: 4 },
+  statusText: { fontSize: 12, fontFamily: "Inter_500Medium" },
   macroGrid: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, gap: 4 },
   planActions: { flexDirection: "row", gap: 10, padding: 12, borderTopWidth: 1 },
   actionBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 10 },
