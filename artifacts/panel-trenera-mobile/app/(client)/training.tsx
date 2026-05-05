@@ -4,6 +4,7 @@ import {
   Alert,
   AppState,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   RefreshControl,
@@ -172,17 +173,30 @@ function ExerciseRow({
         </View>
 
         <View style={styles.exerciseContent}>
-          <Text
-            style={[
-              styles.exerciseName,
-              {
-                color: allSetsCompleted ? colors.mutedForeground : colors.foreground,
-                textDecorationLine: allSetsCompleted ? "line-through" : "none",
-              },
-            ]}
-          >
-            {index + 1}. {exercise.name}
-          </Text>
+          <View style={styles.exerciseNameRow}>
+            <Text
+              style={[
+                styles.exerciseName,
+                {
+                  color: allSetsCompleted ? colors.mutedForeground : colors.foreground,
+                  textDecorationLine: allSetsCompleted ? "line-through" : "none",
+                  flex: 1,
+                },
+              ]}
+            >
+              {index + 1}. {exercise.name}
+            </Text>
+            {!!exercise.videoUrl && (
+              <Pressable
+                onPress={() => void Linking.openURL(exercise.videoUrl!)}
+                hitSlop={8}
+                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, marginLeft: 6 })}
+                testID={`button-youtube-${exercise.id}`}
+              >
+                <Ionicons name="logo-youtube" size={20} color="#FF0000" />
+              </Pressable>
+            )}
+          </View>
           <View style={styles.tagRow}>
             <View style={[styles.tag, { backgroundColor: colors.accent }]}>
               <Ionicons name="repeat-outline" size={11} color={colors.mutedForeground} />
@@ -1190,6 +1204,7 @@ const styles = StyleSheet.create({
   exerciseTop: { flexDirection: "row", alignItems: "flex-start", padding: 14, gap: 12 },
   exerciseStatus: { width: 26, height: 26, borderRadius: 8, borderWidth: 1.5, alignItems: "center", justifyContent: "center", marginTop: 2 },
   exerciseContent: { flex: 1, gap: 6 },
+  exerciseNameRow: { flexDirection: "row", alignItems: "center" },
   exerciseName: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   tag: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
