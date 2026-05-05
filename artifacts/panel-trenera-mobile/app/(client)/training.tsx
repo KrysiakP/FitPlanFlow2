@@ -89,6 +89,7 @@ interface ExerciseRowProps {
   sessionActive: boolean;
   colors: Colors;
   extraSets: Record<string, number>;
+  isLogPending: boolean;
   onAutoLog: (exerciseId: string, setNumber: number) => void;
   onEditLog: (exerciseId: string, setNumber: number) => void;
   onCancelLog: () => void;
@@ -108,6 +109,7 @@ function ExerciseRow({
   sessionActive,
   colors,
   extraSets,
+  isLogPending,
   onAutoLog,
   onEditLog,
   onCancelLog,
@@ -207,8 +209,9 @@ function ExerciseRow({
                     styles.setRow,
                     { borderBottomColor: colors.border },
                     isLogging && { backgroundColor: colors.accent },
+                    isLogPending && !isLogging && { opacity: 0.5 },
                   ]}
-                  onPress={!isCompleted && !isLogging ? () => onAutoLog(exercise.id, setNum) : undefined}
+                  onPress={!isCompleted && !isLogging && !isLogPending ? () => onAutoLog(exercise.id, setNum) : undefined}
                   testID={`button-set-${exercise.id}-${setNum}`}
                 >
                   <View
@@ -242,9 +245,10 @@ function ExerciseRow({
                         </View>
                       ) : null}
                       <Pressable
-                        onPress={() => onEditLog(exercise.id, setNum)}
+                        onPress={!isLogPending ? () => onEditLog(exercise.id, setNum) : undefined}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         testID={`button-edit-set-${exercise.id}-${setNum}`}
+                        style={{ opacity: isLogPending ? 0.4 : 1 }}
                       >
                         <Ionicons name="create-outline" size={15} color={colors.mutedForeground} />
                       </Pressable>
@@ -299,12 +303,18 @@ function ExerciseRow({
                           <Text style={[styles.logBtnText, { color: colors.mutedForeground }]}>Anuluj</Text>
                         </Pressable>
                         <Pressable
-                          style={[styles.logBtn, styles.logBtnConfirm, { backgroundColor: colors.primary }]}
-                          onPress={onConfirmLog}
+                          style={[styles.logBtn, styles.logBtnConfirm, { backgroundColor: colors.primary, opacity: isLogPending ? 0.7 : 1 }]}
+                          onPress={!isLogPending ? onConfirmLog : undefined}
                           testID={`button-confirm-log-${exercise.id}`}
                         >
-                          <Ionicons name="checkmark" size={14} color="#fff" />
-                          <Text style={[styles.logBtnText, { color: "#fff" }]}>Zapisz serię</Text>
+                          {isLogPending ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <Ionicons name="checkmark" size={14} color="#fff" />
+                          )}
+                          <Text style={[styles.logBtnText, { color: "#fff" }]}>
+                            {isLogPending ? "Zapisywanie..." : "Zapisz serię"}
+                          </Text>
                         </Pressable>
                       </View>
                     </View>
@@ -662,6 +672,7 @@ export default function TrainingScreen() {
   handleStartLogRef.current = handleStartLog;
 
   async function handleAutoLog(exerciseId: string, setNumber: number) {
+    if (logMutation.isPending) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const exercise = exercises.find((ex) => ex.id === exerciseId);
     if (isResting) stopRestTimer();
@@ -741,6 +752,7 @@ export default function TrainingScreen() {
 
   function handleConfirmLog() {
     if (!loggingTarget) return;
+    if (logMutation.isPending) return;
     const { exerciseId, setNumber } = loggingTarget;
     const reps = parseInt(loggingState.reps, 10);
     if (!reps || reps <= 0) {
@@ -937,6 +949,7 @@ export default function TrainingScreen() {
                   sessionActive={sessionActive}
                   colors={colors}
                   extraSets={extraSets}
+                  isLogPending={logMutation.isPending}
                   onAutoLog={handleAutoLog}
                   onEditLog={handleStartLog}
                   onCancelLog={() => {
