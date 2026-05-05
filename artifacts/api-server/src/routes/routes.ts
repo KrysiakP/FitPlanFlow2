@@ -3454,6 +3454,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Client-only: update reps/load on an exercise in their assigned plan (progress/regression)
+  app.patch("/api/client/exercises/:exerciseId", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko klienci mogą aktualizować parametry ćwiczeń" });
+      }
+
+      const { exerciseId } = req.params;
+
+      const exercise = await storage.getExerciseById(exerciseId);
+      if (!exercise) {
+        return res.status(404).json({ message: "Ćwiczenie nie zostało znalezione" });
+      }
+
+      const assignment = await storage.getClientAssignment(userId);
+      if (!assignment) {
+        return res.status(403).json({ message: "Nie masz przypisanego planu treningowego" });
+      }
+
+      const workouts = await storage.getWorkoutsByPlanId(assignment.planId);
+      const workoutIds = workouts.map(w => w.id);
+
+      if (!exercise.workoutId || !workoutIds.includes(exercise.workoutId)) {
+        return res.status(403).json({ message: "Nie masz dostępu do tego ćwiczenia" });
+      }
+
+      // Only allow updating reps and load — client cannot touch other plan fields
+      const { reps, load } = req.body as { reps?: unknown; load?: unknown };
+      const updateData: { reps?: number; load?: string } = {};
+
+      if (reps !== undefined) {
+        const repsNum = Number(reps);
+        if (!Number.isInteger(repsNum) || repsNum <= 0) {
+          return res.status(400).json({ message: "Nieprawidłowa liczba powtórzeń" });
+        }
+        updateData.reps = repsNum;
+      }
+
+      if (load !== undefined) {
+        if (typeof load !== "string") {
+          return res.status(400).json({ message: "Nieprawidłowe obciążenie" });
+        }
+        updateData.load = load;
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "Brak danych do zaktualizowania" });
+      }
+
+      const updated = await storage.updateExercise(exerciseId, updateData);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating exercise for client:", error);
+      res.status(500).json({ message: "Nie udało się zaktualizować ćwiczenia" });
+    }
+  });
+
   app.get("/api/exercises/:exerciseId/logs", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;

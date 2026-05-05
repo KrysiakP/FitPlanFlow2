@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet, apiPatch, apiPost } from "@/lib/api";
 
 type Colors = ReturnType<typeof useColors>;
 
@@ -444,6 +444,9 @@ export default function TrainingScreen() {
   // Lock to prevent concurrent auto-log executions (async function with await inside)
   const autoLogInProgressRef = useRef(false);
 
+  // Track which exercises we've already asked about plan updates this session
+  const planUpdateAskedRef = useRef<Set<string>>(new Set());
+
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const { data, isLoading, refetch, isRefetching } = useQuery<PlanAssignment>({
@@ -462,6 +465,7 @@ export default function TrainingScreen() {
     setExtraSets({});
     pendingNextSetRef.current = null;
     autoLogInProgressRef.current = false;
+    planUpdateAskedRef.current = new Set();
     if (restIntervalRef.current) {
       clearInterval(restIntervalRef.current);
       restIntervalRef.current = null;
@@ -505,6 +509,11 @@ export default function TrainingScreen() {
       const msg = error instanceof Error ? error.message : "Spróbuj ponownie.";
       Alert.alert("Nie udało się zapisać serii", msg);
     },
+  });
+
+  const updatePlanMutation = useMutation({
+    mutationFn: ({ exerciseId, reps, load }: { exerciseId: string; reps?: number; load?: string }) =>
+      apiPatch(`/api/client/exercises/${exerciseId}`, { reps, load }),
   });
 
   function startRestTimer(seconds: number) {
@@ -600,6 +609,7 @@ export default function TrainingScreen() {
     setExtraSets({});
     pendingNextSetRef.current = null;
     autoLogInProgressRef.current = false;
+    planUpdateAskedRef.current = new Set();
     stopRestTimer();
     lastSessionLogsRef.current = {};
     const startTime = Date.now();
@@ -632,6 +642,60 @@ export default function TrainingScreen() {
       resetSessionState();
       Alert.alert("Trening zakończony", `Zalogowano ${done}/${total} ćwiczeń.`);
     }
+  }
+
+  function checkAndOfferPlanUpdate(
+    exerciseId: string,
+    loggedReps: number,
+    loggedLoad: string,
+    newCompletedForExercise: Set<number>,
+    totalSets: number
+  ) {
+    // Only when all sets are done and we haven't asked yet this session
+    if (newCompletedForExercise.size < totalSets) return;
+    if (planUpdateAskedRef.current.has(exerciseId)) return;
+
+    const exercise = exercises.find((ex) => ex.id === exerciseId);
+    if (!exercise) return;
+
+    const planReps = exercise.reps;
+    const planLoad = (exercise.load ?? "").replace(/\s*kg\s*/i, "").trim();
+
+    const repsChanged = planReps != null && loggedReps !== planReps;
+    const loadChanged = planLoad !== "" && loggedLoad !== "" && loggedLoad !== planLoad;
+
+    if (!repsChanged && !loadChanged) return;
+
+    planUpdateAskedRef.current.add(exerciseId);
+
+    const oldParts: string[] = [];
+    const newParts: string[] = [];
+    if (repsChanged) { oldParts.push(`${planReps} pow.`); newParts.push(`${loggedReps} pow.`); }
+    if (loadChanged) { oldParts.push(`${planLoad} kg`); newParts.push(`${loggedLoad} kg`); }
+
+    Alert.alert(
+      "Aktualizacja planu",
+      `${exercise.name}\n\nPlan: ${oldParts.join(", ")}\nWykonałeś: ${newParts.join(", ")}\n\nCzy zaktualizować wartości w planie?`,
+      [
+        { text: "Nie, zostaw", style: "cancel" },
+        {
+          text: "Tak, zaktualizuj",
+          onPress: () => {
+            const updateData: { exerciseId: string; reps?: number; load?: string } = { exerciseId };
+            if (repsChanged) updateData.reps = loggedReps;
+            if (loadChanged) updateData.load = loggedLoad;
+            updatePlanMutation.mutate(updateData, {
+              onSuccess: () => {
+                void queryClient.invalidateQueries({ queryKey: ["client-plan"] });
+              },
+              onError: () => {
+                Alert.alert("Błąd", "Nie udało się zaktualizować planu.");
+              },
+            });
+          },
+        },
+      ]
+    );
   }
 
   async function handleStartLog(exerciseId: string, setNumber: number) {
@@ -741,20 +805,18 @@ export default function TrainingScreen() {
         { exerciseId, setNumber, reps, load },
         {
           onSuccess: () => {
-            setCompletedSets((prev) => {
-              const next = { ...prev };
-              if (!next[exerciseId]) next[exerciseId] = new Set();
-              const updated = new Set(next[exerciseId]);
-              updated.add(setNumber);
-              next[exerciseId] = updated;
-              return next;
-            });
+            // Compute new completed set before updating state so we can use it for plan-update check
+            const newCompleted = new Set(completedSets[exerciseId] ?? []);
+            newCompleted.add(setNumber);
+            setCompletedSets((prev) => ({ ...prev, [exerciseId]: newCompleted }));
             setSetLogs((prev) => ({
               ...prev,
               [exerciseId]: { ...(prev[exerciseId] ?? {}), [setNumber]: { reps, load } },
             }));
             void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             void queryClient.invalidateQueries({ queryKey: ["exercise-logs"] });
+
+            checkAndOfferPlanUpdate(exerciseId, reps, load, newCompleted, totalSetsForExercise);
 
             if (exercise?.restTime && exercise.restTime > 0) {
               startRestTimer(exercise.restTime);
@@ -790,14 +852,10 @@ export default function TrainingScreen() {
       { exerciseId, setNumber, reps, load },
       {
         onSuccess: () => {
-          setCompletedSets((prev) => {
-            const next = { ...prev };
-            if (!next[exerciseId]) next[exerciseId] = new Set();
-            const updated = new Set(next[exerciseId]);
-            updated.add(setNumber);
-            next[exerciseId] = updated;
-            return next;
-          });
+          // Compute new completed set before updating state so we can use it for plan-update check
+          const newCompleted = new Set(completedSets[exerciseId] ?? []);
+          newCompleted.add(setNumber);
+          setCompletedSets((prev) => ({ ...prev, [exerciseId]: newCompleted }));
           setSetLogs((prev) => ({
             ...prev,
             [exerciseId]: { ...(prev[exerciseId] ?? {}), [setNumber]: { reps, load } },
@@ -806,6 +864,8 @@ export default function TrainingScreen() {
           setLoggingState({ reps: "", load: "" });
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           void queryClient.invalidateQueries({ queryKey: ["exercise-logs"] });
+
+          checkAndOfferPlanUpdate(exerciseId, reps, load, newCompleted, totalSetsForExercise);
 
           // Don't advance to next set when editing an already-completed set
           if (!wasAlreadyCompleted) {
