@@ -463,6 +463,9 @@ export default function TrainingScreen() {
   // Track which exercises we've already asked about plan updates this session
   const planUpdateAskedRef = useRef<Set<string>>(new Set());
 
+  // Prevent auto-finish from firing more than once per session
+  const autoFinishCalledRef = useRef(false);
+
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const { data, isLoading, refetch, isRefetching } = useQuery<PlanAssignment>({
@@ -482,6 +485,7 @@ export default function TrainingScreen() {
     pendingNextSetRef.current = null;
     autoLogInProgressRef.current = false;
     planUpdateAskedRef.current = new Set();
+    autoFinishCalledRef.current = false;
     if (restIntervalRef.current) {
       clearInterval(restIntervalRef.current);
       restIntervalRef.current = null;
@@ -626,6 +630,7 @@ export default function TrainingScreen() {
     pendingNextSetRef.current = null;
     autoLogInProgressRef.current = false;
     planUpdateAskedRef.current = new Set();
+    autoFinishCalledRef.current = false;
     stopRestTimer();
     lastSessionLogsRef.current = {};
     const startTime = Date.now();
@@ -639,12 +644,10 @@ export default function TrainingScreen() {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }
 
-  function finishSession() {
+  function finishSessionWithCounts(done: number, total: number) {
     const durationSeconds = sessionStartTime
       ? Math.round((Date.now() - sessionStartTime) / 1000)
       : 0;
-    const done = doneCount;
-    const total = exercises.length;
 
     if (currentWorkout && plan) {
       sessionMutation.mutate({
@@ -658,6 +661,10 @@ export default function TrainingScreen() {
       resetSessionState();
       Alert.alert("Trening zakończony", `Zalogowano ${done}/${total} ćwiczeń.`);
     }
+  }
+
+  function finishSession() {
+    finishSessionWithCounts(doneCount, exercises.length);
   }
 
   function checkAndOfferPlanUpdate(
@@ -835,6 +842,19 @@ export default function TrainingScreen() {
 
             checkAndOfferPlanUpdate(exerciseId, reps, load, newCompleted, totalSetsForExercise);
 
+            // Auto-finish: check if all exercises are now complete
+            if (!autoFinishCalledRef.current) {
+              const updatedSets = { ...completedSets, [exerciseId]: newCompleted };
+              const allNowDone = exercises.length > 0 && exercises.every((ex) => {
+                const total = (ex.sets ?? 1) + (extraSets[ex.id] ?? 0);
+                return (updatedSets[ex.id]?.size ?? 0) >= total;
+              });
+              if (allNowDone) {
+                autoFinishCalledRef.current = true;
+                setTimeout(() => finishSessionWithCounts(exercises.length, exercises.length), 1500);
+              }
+            }
+
             if (exercise?.restTime && exercise.restTime > 0) {
               startRestTimer(exercise.restTime);
             }
@@ -883,6 +903,19 @@ export default function TrainingScreen() {
           void queryClient.invalidateQueries({ queryKey: ["exercise-logs"] });
 
           checkAndOfferPlanUpdate(exerciseId, reps, load, newCompleted, totalSetsForExercise);
+
+          // Auto-finish: check if all exercises are now complete
+          if (!autoFinishCalledRef.current) {
+            const updatedSets = { ...completedSets, [exerciseId]: newCompleted };
+            const allNowDone = exercises.length > 0 && exercises.every((ex) => {
+              const total = (ex.sets ?? 1) + (extraSets[ex.id] ?? 0);
+              return (updatedSets[ex.id]?.size ?? 0) >= total;
+            });
+            if (allNowDone) {
+              autoFinishCalledRef.current = true;
+              setTimeout(() => finishSessionWithCounts(exercises.length, exercises.length), 1500);
+            }
+          }
 
           // Don't advance to next set when editing an already-completed set
           if (!wasAlreadyCompleted) {
