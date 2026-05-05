@@ -46,7 +46,18 @@ interface Exercise {
   description?: string | null;
   videoUrl?: string | null;
   orderIndex: number;
+  rir?: number | null;
+  tempo?: string | null;
+  technique?: string | null;
 }
+
+const TECHNIQUES: { value: string; label: string }[] = [
+  { value: "", label: "Brak" },
+  { value: "dropset", label: "Dropset" },
+  { value: "cluster_set", label: "Cluster Set" },
+  { value: "rest_pause", label: "Rest-Pause" },
+  { value: "piramida", label: "Piramida" },
+];
 
 interface Workout {
   id: string;
@@ -93,6 +104,10 @@ export default function PlanDetailScreen() {
   const [manualSets, setManualSets] = useState("3");
   const [manualReps, setManualReps] = useState("10");
   const [manualLoad, setManualLoad] = useState("");
+  const [manualRestTime, setManualRestTime] = useState("60");
+  const [manualRir, setManualRir] = useState("");
+  const [manualTempo, setManualTempo] = useState("");
+  const [manualTechnique, setManualTechnique] = useState("");
   const [manualDesc, setManualDesc] = useState("");
   const [manualVideoUrl, setManualVideoUrl] = useState("");
 
@@ -100,6 +115,10 @@ export default function PlanDetailScreen() {
   const [editSets, setEditSets] = useState("");
   const [editReps, setEditReps] = useState("");
   const [editLoad, setEditLoad] = useState("");
+  const [editRestTime, setEditRestTime] = useState("");
+  const [editRir, setEditRir] = useState("");
+  const [editTempo, setEditTempo] = useState("");
+  const [editTechnique, setEditTechnique] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [editVideoUrl, setEditVideoUrl] = useState("");
 
@@ -165,6 +184,10 @@ export default function PlanDetailScreen() {
       setManualSets("3");
       setManualReps("10");
       setManualLoad("");
+      setManualRestTime("60");
+      setManualRir("");
+      setManualTempo("");
+      setManualTechnique("");
       setManualDesc("");
       setManualVideoUrl("");
       setLibrarySearch("");
@@ -240,6 +263,10 @@ export default function PlanDetailScreen() {
     setEditSets(String(exercise.sets));
     setEditReps(String(exercise.reps));
     setEditLoad(exercise.load ?? "");
+    setEditRestTime(exercise.restTime != null ? String(exercise.restTime) : "60");
+    setEditRir(exercise.rir != null ? String(exercise.rir) : "");
+    setEditTempo(exercise.tempo ?? "");
+    setEditTechnique(exercise.technique ?? "");
     setEditDesc(exercise.description ?? "");
     setEditVideoUrl(exercise.videoUrl ?? "");
   }
@@ -252,12 +279,18 @@ export default function PlanDetailScreen() {
       Alert.alert("Błąd", "Serie i powtórzenia muszą być liczbami większymi od 0.");
       return;
     }
+    const restTimeParsed = parseInt(editRestTime, 10);
+    const rirParsed = parseInt(editRir, 10);
     updateExerciseMutation.mutate({
       exerciseId: editExercise.exercise.id,
       data: {
         sets,
         reps,
         load: editLoad.trim() || null,
+        restTime: !isNaN(restTimeParsed) && restTimeParsed >= 0 ? restTimeParsed : 60,
+        rir: editRir.trim() && !isNaN(rirParsed) ? rirParsed : null,
+        tempo: editTempo.trim() || null,
+        technique: editTechnique || null,
         description: editDesc.trim() || null,
         videoUrl: editVideoUrl.trim() || null,
       },
@@ -291,6 +324,8 @@ export default function PlanDetailScreen() {
     if (isNaN(sets) || sets < 1 || isNaN(reps) || reps < 1) {
       Alert.alert("Błąd", "Serie i powtórzenia muszą być liczbami większymi od 0."); return;
     }
+    const restTimeParsed = parseInt(manualRestTime, 10);
+    const rirParsed = parseInt(manualRir, 10);
     const workoutId = addExerciseMode.workoutId;
     const workout = plan?.workouts.find((w) => w.id === workoutId);
     addExerciseMutation.mutate({
@@ -300,7 +335,10 @@ export default function PlanDetailScreen() {
         sets,
         reps,
         load: manualLoad.trim() || "",
-        restTime: 60,
+        restTime: !isNaN(restTimeParsed) && restTimeParsed >= 0 ? restTimeParsed : 60,
+        rir: manualRir.trim() && !isNaN(rirParsed) ? rirParsed : null,
+        tempo: manualTempo.trim() || null,
+        technique: manualTechnique || null,
         description: manualDesc.trim() || "",
         videoUrl: manualVideoUrl.trim() || "",
         orderIndex: workout?.exercises.length ?? 0,
@@ -692,14 +730,15 @@ export default function PlanDetailScreen() {
 
             <View style={{ flexDirection: "row", gap: 8 }}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Serie</Text>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Obciążenie</Text>
                 <TextInput
                   style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-                  value={manualSets}
-                  onChangeText={setManualSets}
-                  keyboardType="numeric"
+                  placeholder="np. 20kg"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={manualLoad}
+                  onChangeText={setManualLoad}
                   returnKeyType="next"
-                  testID="input-manual-sets"
+                  testID="input-manual-load"
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -714,23 +753,89 @@ export default function PlanDetailScreen() {
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Obciążenie</Text>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Serie</Text>
                 <TextInput
                   style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-                  placeholder="np. 60 kg"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={manualLoad}
-                  onChangeText={setManualLoad}
+                  value={manualSets}
+                  onChangeText={setManualSets}
+                  keyboardType="numeric"
                   returnKeyType="next"
-                  testID="input-manual-load"
+                  testID="input-manual-sets"
                 />
               </View>
             </View>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Opis (opcjonalnie)</Text>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Odpoczynek (s)</Text>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                  value={manualRestTime}
+                  onChangeText={setManualRestTime}
+                  keyboardType="numeric"
+                  returnKeyType="next"
+                  testID="input-manual-rest-time"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>RIR</Text>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                  placeholder="np. 2"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={manualRir}
+                  onChangeText={setManualRir}
+                  keyboardType="numeric"
+                  returnKeyType="next"
+                  testID="input-manual-rir"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Tempo</Text>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                  placeholder="np. 3-1-2-0"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={manualTempo}
+                  onChangeText={setManualTempo}
+                  autoCapitalize="none"
+                  returnKeyType="next"
+                  testID="input-manual-tempo"
+                />
+              </View>
+            </View>
+
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Technika treningowa</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 2 }}>
+              <View style={{ flexDirection: "row", gap: 6 }}>
+                {TECHNIQUES.map((t) => {
+                  const selected = manualTechnique === t.value;
+                  return (
+                    <TouchableOpacity
+                      key={t.value}
+                      onPress={() => setManualTechnique(t.value)}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 7,
+                        borderRadius: 20,
+                        borderWidth: 1,
+                        borderColor: selected ? colors.primary : colors.border,
+                        backgroundColor: selected ? colors.primary + "22" : colors.background,
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: selected ? colors.primary : colors.mutedForeground }}>
+                        {t.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Dodatkowe informacje</Text>
             <TextInput
               style={[styles.textInput, styles.textArea, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="Opis techniki, uwagi do wykonania..."
+              placeholder="Dodatkowe wskazówki"
               placeholderTextColor={colors.mutedForeground}
               value={manualDesc}
               onChangeText={setManualDesc}
@@ -740,7 +845,7 @@ export default function PlanDetailScreen() {
               testID="input-manual-desc"
             />
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Link do YouTube (opcjonalnie)</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Link do filmu</Text>
             <View style={[styles.youtubeInputRow, { backgroundColor: colors.background, borderColor: colors.border }]}>
               <Ionicons name="logo-youtube" size={18} color="#FF0000" />
               <TextInput
@@ -795,14 +900,15 @@ export default function PlanDetailScreen() {
 
             <View style={{ flexDirection: "row", gap: 8 }}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Serie</Text>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Obciążenie</Text>
                 <TextInput
                   style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-                  value={editSets}
-                  onChangeText={setEditSets}
-                  keyboardType="numeric"
+                  placeholder="np. 20kg"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={editLoad}
+                  onChangeText={setEditLoad}
                   returnKeyType="next"
-                  testID="input-edit-sets"
+                  testID="input-edit-load"
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -817,23 +923,89 @@ export default function PlanDetailScreen() {
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Obciążenie</Text>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Serie</Text>
                 <TextInput
                   style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-                  placeholder="np. 60 kg"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={editLoad}
-                  onChangeText={setEditLoad}
+                  value={editSets}
+                  onChangeText={setEditSets}
+                  keyboardType="numeric"
                   returnKeyType="next"
-                  testID="input-edit-load"
+                  testID="input-edit-sets"
                 />
               </View>
             </View>
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Opis (opcjonalnie)</Text>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Odpoczynek (s)</Text>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                  value={editRestTime}
+                  onChangeText={setEditRestTime}
+                  keyboardType="numeric"
+                  returnKeyType="next"
+                  testID="input-edit-rest-time"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>RIR</Text>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                  placeholder="np. 2"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={editRir}
+                  onChangeText={setEditRir}
+                  keyboardType="numeric"
+                  returnKeyType="next"
+                  testID="input-edit-rir"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Tempo</Text>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                  placeholder="np. 3-1-2-0"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={editTempo}
+                  onChangeText={setEditTempo}
+                  autoCapitalize="none"
+                  returnKeyType="next"
+                  testID="input-edit-tempo"
+                />
+              </View>
+            </View>
+
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Technika treningowa</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 2 }}>
+              <View style={{ flexDirection: "row", gap: 6 }}>
+                {TECHNIQUES.map((t) => {
+                  const selected = editTechnique === t.value;
+                  return (
+                    <TouchableOpacity
+                      key={t.value}
+                      onPress={() => setEditTechnique(t.value)}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 7,
+                        borderRadius: 20,
+                        borderWidth: 1,
+                        borderColor: selected ? colors.primary : colors.border,
+                        backgroundColor: selected ? colors.primary + "22" : colors.background,
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: selected ? colors.primary : colors.mutedForeground }}>
+                        {t.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Dodatkowe informacje</Text>
             <TextInput
               style={[styles.textInput, styles.textArea, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-              placeholder="Opis techniki, uwagi do wykonania..."
+              placeholder="Dodatkowe wskazówki"
               placeholderTextColor={colors.mutedForeground}
               value={editDesc}
               onChangeText={setEditDesc}
@@ -843,7 +1015,7 @@ export default function PlanDetailScreen() {
               testID="input-edit-desc"
             />
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Link do YouTube (opcjonalnie)</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Link do filmu</Text>
             <View style={[styles.youtubeInputRow, { backgroundColor: colors.background, borderColor: colors.border }]}>
               <Ionicons name="logo-youtube" size={18} color="#FF0000" />
               <TextInput
