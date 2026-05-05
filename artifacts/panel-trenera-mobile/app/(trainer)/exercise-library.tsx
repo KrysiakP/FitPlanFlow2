@@ -138,6 +138,7 @@ export default function ExerciseLibraryScreen() {
   const [search, setSearch] = useState("");
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [viewingExercise, setViewingExercise] = useState<Exercise | null>(null);
   const [form, setForm] = useState<ExerciseFormState>(EMPTY_FORM);
@@ -392,15 +393,39 @@ export default function ExerciseLibraryScreen() {
             const sortedKeys = Object.keys(grouped).sort(
               (a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b)
             );
-            return sortedKeys.map((cat) => (
+            return sortedKeys.map((cat) => {
+              const isCollapsed = collapsedCategories.has(cat);
+              const toggleCollapse = () => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setCollapsedCategories((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(cat)) next.delete(cat);
+                  else next.add(cat);
+                  return next;
+                });
+              };
+              return (
               <View key={cat}>
-                <View style={[styles.categoryHeader, { borderBottomColor: colors.border }]}>
+                <Pressable
+                  onPress={toggleCollapse}
+                  style={({ pressed }) => [
+                    styles.categoryHeader,
+                    { borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 },
+                  ]}
+                >
                   <Text style={[styles.categoryHeaderText, { color: colors.foreground }]}>{cat}</Text>
-                  <Text style={[styles.categoryCount, { color: colors.mutedForeground }]}>
-                    {grouped[cat].length}
-                  </Text>
-                </View>
-                {grouped[cat].map((ex) => {
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Text style={[styles.categoryCount, { color: colors.mutedForeground }]}>
+                      {grouped[cat].length}
+                    </Text>
+                    <Ionicons
+                      name={isCollapsed ? "chevron-down" : "chevron-up"}
+                      size={16}
+                      color={colors.mutedForeground}
+                    />
+                  </View>
+                </Pressable>
+                {!isCollapsed && grouped[cat].map((ex) => {
                   const isOwn = ex.trainerId === ownUserId;
                   return (
                     <Pressable
@@ -488,7 +513,8 @@ export default function ExerciseLibraryScreen() {
                   );
                 })}
               </View>
-            ));
+            );
+            });
           })()
         )}
       </ScrollView>
