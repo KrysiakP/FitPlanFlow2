@@ -2,12 +2,10 @@ import type { ComponentProps } from "react";
 import { Drawer } from "expo-router/drawer";
 import { DrawerContentScrollView, DrawerItemList, type DrawerContentComponentProps } from "@react-navigation/drawer";
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
+import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
-import * as Haptics from "expo-haptics";
 import { useUnreadCount } from "@/hooks/useChat";
 
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
@@ -15,14 +13,8 @@ type IoniconsName = ComponentProps<typeof Ionicons>["name"];
 function TrainerDrawerContent(props: DrawerContentComponentProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const initials = ((user?.firstName?.[0] ?? "") + (user?.lastName?.[0] ?? "")).toUpperCase();
-
-  async function handleLogout() {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await logout();
-    router.replace("/(auth)/login");
-  }
 
   return (
     <View style={[styles.drawerContainer, { backgroundColor: colors.background }]}>
@@ -46,19 +38,6 @@ function TrainerDrawerContent(props: DrawerContentComponentProps) {
         <DrawerItemList {...props} />
       </DrawerContentScrollView>
 
-      <View style={[styles.drawerFooter, { paddingBottom: insets.bottom + 12, borderTopColor: colors.border }]}>
-        <Pressable
-          onPress={handleLogout}
-          style={({ pressed }) => [
-            styles.logoutBtn,
-            { backgroundColor: colors.destructive + "18", opacity: pressed ? 0.7 : 1 },
-          ]}
-          testID="button-logout"
-        >
-          <Ionicons name="log-out-outline" size={20} color={colors.destructive} />
-          <Text style={[styles.logoutText, { color: colors.destructive }]}>Wyloguj się</Text>
-        </Pressable>
-      </View>
     </View>
   );
 }
@@ -166,19 +145,6 @@ const styles = StyleSheet.create({
   headerName: { color: "#fff", fontSize: 16, fontFamily: "Inter_700Bold" },
   headerRole: { color: "rgba(255,255,255,0.75)", fontSize: 13, fontFamily: "Inter_400Regular" },
   scrollContent: { paddingTop: 8 },
-  drawerFooter: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-  },
-  logoutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 14,
-    borderRadius: 12,
-  },
-  logoutText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   chatBadge: {
     position: "absolute",
     top: -5,
