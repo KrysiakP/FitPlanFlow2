@@ -284,14 +284,18 @@ function ExerciseRow({
                         </View>
                         <View style={styles.logInputGroup}>
                           <Text style={[styles.logInputLabel, { color: colors.mutedForeground }]}>Obciążenie</Text>
-                          <TextInput
-                            style={[styles.logInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-                            value={loggingState.load}
-                            onChangeText={onChangeLoad}
-                            placeholder={exercise.load != null ? String(exercise.load) : "np. 80kg"}
-                            placeholderTextColor={colors.mutedForeground}
-                            testID={`input-load-${exercise.id}-${setNum}`}
-                          />
+                          <View style={[styles.logInputWithSuffix, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                            <TextInput
+                              style={[styles.logInputInner, { color: colors.foreground }]}
+                              value={loggingState.load}
+                              onChangeText={onChangeLoad}
+                              keyboardType="decimal-pad"
+                              placeholder={exercise.load != null ? String(exercise.load).replace(/\s*kg\s*/i, "").trim() : "np. 80"}
+                              placeholderTextColor={colors.mutedForeground}
+                              testID={`input-load-${exercise.id}-${setNum}`}
+                            />
+                            <Text style={[styles.logInputSuffix, { color: colors.mutedForeground }]}>kg</Text>
+                          </View>
                         </View>
                       </View>
                       <View style={styles.logActions}>
@@ -632,7 +636,7 @@ export default function TrainingScreen() {
     // Determine pre-fill values: current session set logs > last session cache > plan defaults
     const currentSessionLog = setLogs[exerciseId];
     let prefillReps = exercise?.reps != null ? String(exercise.reps) : "";
-    let prefillLoad = exercise?.load != null ? String(exercise.load) : "";
+    let prefillLoad = exercise?.load != null ? String(exercise.load).replace(/\s*kg\s*/i, "").trim() : "";
 
     if (currentSessionLog) {
       // Use the most recently logged set in current session
@@ -640,7 +644,7 @@ export default function TrainingScreen() {
       if (setNums.length > 0) {
         const lastSet = currentSessionLog[setNums[0]];
         prefillReps = String(lastSet.reps);
-        prefillLoad = lastSet.load ?? "";
+        prefillLoad = (lastSet.load ?? "").replace(/\s*kg\s*/i, "").trim();
       }
     } else {
       // Try to fetch last session's log for this exercise
@@ -660,7 +664,7 @@ export default function TrainingScreen() {
       }
       if (cached) {
         prefillReps = String(cached.reps);
-        prefillLoad = cached.load ?? "";
+        prefillLoad = (cached.load ?? "").replace(/\s*kg\s*/i, "").trim();
       }
     }
 
@@ -679,14 +683,14 @@ export default function TrainingScreen() {
 
     const currentSessionLog = setLogs[exerciseId];
     let prefillReps = exercise?.reps != null ? String(exercise.reps) : "";
-    let prefillLoad = exercise?.load != null ? String(exercise.load) : "";
+    let prefillLoad = exercise?.load != null ? String(exercise.load).replace(/\s*kg\s*/i, "").trim() : "";
 
     if (currentSessionLog) {
       const setNums = Object.keys(currentSessionLog).map(Number).sort((a, b) => b - a);
       if (setNums.length > 0) {
         const lastSet = currentSessionLog[setNums[0]];
         prefillReps = String(lastSet.reps);
-        prefillLoad = lastSet.load ?? "";
+        prefillLoad = (lastSet.load ?? "").replace(/\s*kg\s*/i, "").trim();
       }
     } else {
       let cached = lastSessionLogsRef.current[exerciseId];
@@ -705,7 +709,7 @@ export default function TrainingScreen() {
       }
       if (cached) {
         prefillReps = String(cached.reps);
-        prefillLoad = cached.load ?? "";
+        prefillLoad = (cached.load ?? "").replace(/\s*kg\s*/i, "").trim();
       }
     }
 
@@ -1110,6 +1114,25 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     fontSize: 14,
     fontFamily: "Inter_400Regular",
+  },
+  logInputWithSuffix: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  logInputInner: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    padding: 0,
+  },
+  logInputSuffix: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    marginLeft: 4,
   },
   logActions: { flexDirection: "row", gap: 8 },
   logBtn: { flex: 1, borderRadius: 8, paddingVertical: 10, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
