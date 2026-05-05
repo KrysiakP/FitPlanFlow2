@@ -17,11 +17,6 @@ import * as Haptics from "expo-haptics";
 import { useAuth, apiFetch } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
-interface InvitationInfo {
-  email: string;
-  clientFirstName: string | null;
-  trainerName: string;
-}
 
 export default function RegisterScreen() {
   const colors = useColors();
@@ -37,11 +32,6 @@ export default function RegisterScreen() {
   const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
-  const [invitationCode, setInvitationCode] = useState("");
-  const [invitationInfo, setInvitationInfo] = useState<InvitationInfo | null>(null);
-  const [codeChecking, setCodeChecking] = useState(false);
-  const [codeError, setCodeError] = useState<string | null>(null);
-
   const [referralCode, setReferralCode] = useState("");
   const [referralInfo, setReferralInfo] = useState<{ referrerName: string } | null>(null);
   const [referralChecking, setReferralChecking] = useState(false);
@@ -52,64 +42,15 @@ export default function RegisterScreen() {
 
   const emailInputRef = useRef<TextInput>(null);
 
-  // Clear code fields when switching role
+  // Clear referral code when switching to client role
   useEffect(() => {
-    if (role === "trainer") {
-      setInvitationCode("");
-      setInvitationInfo(null);
-      setCodeError(null);
-    } else {
+    if (role === "client") {
       setReferralCode("");
       setReferralInfo(null);
       setReferralError(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role]);
-
-  // Auto-lookup invitation code when it reaches 8 characters (client only)
-  useEffect(() => {
-    if (role !== "client") return;
-    const code = invitationCode.trim().toUpperCase();
-    if (code.length !== 8) {
-      if (invitationInfo) {
-        setInvitationInfo(null);
-        setEmail("");
-      }
-      setCodeError(null);
-      return;
-    }
-    let cancelled = false;
-    async function lookup() {
-      setCodeChecking(true);
-      setCodeError(null);
-      try {
-        const res = await apiFetch(`/api/invitations/lookup/${code}`);
-        if (cancelled) return;
-        if (res.ok) {
-          const data: InvitationInfo = await res.json();
-          setInvitationInfo(data);
-          setEmail(data.email);
-          if (data.clientFirstName && !fullName.trim()) {
-            setFullName(data.clientFirstName);
-          }
-          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } else if (res.status === 410) {
-          setCodeError("To zaproszenie zostało już wykorzystane");
-          setInvitationInfo(null);
-        } else {
-          setCodeError("Nie znaleziono zaproszenia o tym kodzie");
-          setInvitationInfo(null);
-        }
-      } catch {
-        if (!cancelled) setCodeError("Nie udało się sprawdzić kodu");
-      } finally {
-        if (!cancelled) setCodeChecking(false);
-      }
-    }
-    void lookup();
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invitationCode, role]);
 
   // Auto-lookup referral code when it reaches 8 characters (trainer only)
   useEffect(() => {
@@ -150,9 +91,7 @@ export default function RegisterScreen() {
     if (!fullName.trim()) return "Podaj swoje imię i nazwisko";
     if (!email.trim()) return "Podaj adres e-mail";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return "Nieprawidłowy adres e-mail";
-    if (invitationInfo && email.toLowerCase() !== invitationInfo.email.toLowerCase()) {
-      return `Musisz użyć adresu e-mail z zaproszenia: ${invitationInfo.email}`;
-    }
+
     if (password.length < 6) return "Hasło musi mieć co najmniej 6 znaków";
     if (password !== confirmPassword) return "Hasła nie są zgodne";
     if (!acceptedTerms) return "Musisz zaakceptować regulamin aplikacji";
@@ -171,9 +110,8 @@ export default function RegisterScreen() {
       const parts = fullName.trim().split(/\s+/);
       const firstName = parts[0] ?? "";
       const lastName = parts.slice(1).join(" ");
-      const invCode = role === "client" ? (invitationCode.trim().toUpperCase() || undefined) : undefined;
       const refCode = role === "trainer" ? (referralCode.trim().toUpperCase() || undefined) : undefined;
-      await register(firstName, email.trim().toLowerCase(), password, role, lastName, invCode, refCode);
+      await register(firstName, email.trim().toLowerCase(), password, role, lastName, undefined, refCode);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace(role === "trainer" ? "/(trainer)" : "/(auth)/onboarding");
     } catch (e: unknown) {
@@ -184,8 +122,6 @@ export default function RegisterScreen() {
       setLoading(false);
     }
   }
-
-  const emailLocked = !!invitationInfo;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -249,92 +185,6 @@ export default function RegisterScreen() {
                 );
               })}
             </View>
-
-            {/* Invitation code — only for client role */}
-            {role === "client" && (
-              <>
-                <View style={styles.field}>
-                  <Text style={[styles.label, { color: colors.mutedForeground }]}>
-                    Kod zaproszenia od trenera{" "}
-                    <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>
-                      (opcjonalnie)
-                    </Text>
-                  </Text>
-                  <View
-                    style={[
-                      styles.inputWrap,
-                      {
-                        backgroundColor: colors.card,
-                        borderColor: invitationInfo
-                          ? colors.primary
-                          : codeError
-                          ? colors.destructive
-                          : colors.border,
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name="ticket-outline"
-                      size={18}
-                      color={
-                        invitationInfo
-                          ? colors.primary
-                          : codeError
-                          ? colors.destructive
-                          : colors.mutedForeground
-                      }
-                      style={styles.inputIcon}
-                    />
-                    <TextInput
-                      style={[styles.input, { color: colors.foreground, letterSpacing: 2 }]}
-                      placeholder="np. AB12CD34"
-                      placeholderTextColor={colors.mutedForeground}
-                      value={invitationCode}
-                      onChangeText={(t) => setInvitationCode(t.toUpperCase().slice(0, 8))}
-                      autoCapitalize="characters"
-                      autoCorrect={false}
-                      returnKeyType="next"
-                      maxLength={8}
-                      testID="input-invitation-code"
-                    />
-                    {codeChecking && (
-                      <ActivityIndicator size="small" color={colors.mutedForeground} />
-                    )}
-                    {invitationInfo && !codeChecking && (
-                      <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                    )}
-                    {codeError && !codeChecking && (
-                      <Ionicons name="close-circle" size={20} color={colors.destructive} />
-                    )}
-                  </View>
-                  {codeError && (
-                    <Text style={[styles.fieldError, { color: colors.destructive }]}>
-                      {codeError}
-                    </Text>
-                  )}
-                </View>
-
-                {/* Trainer banner — visible when valid invitation code entered */}
-                {invitationInfo && (
-                  <View
-                    style={[
-                      styles.trainerBanner,
-                      { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" },
-                    ]}
-                  >
-                    <Ionicons name="person-circle-outline" size={22} color={colors.primary} />
-                    <View style={styles.bannerText}>
-                      <Text style={[styles.bannerTitle, { color: colors.primary }]}>
-                        Zaproszenie potwierdzone
-                      </Text>
-                      <Text style={[styles.bannerSub, { color: colors.mutedForeground }]}>
-                        Twój trener: {invitationInfo.trainerName}
-                      </Text>
-                    </View>
-                  </View>
-                )}
-              </>
-            )}
 
             {/* Referral code — only for trainer role */}
             {role === "trainer" && (
@@ -453,51 +303,22 @@ export default function RegisterScreen() {
             </View>
 
             <View style={styles.field}>
-              <Text style={[styles.label, { color: colors.mutedForeground }]}>
-                Adres e-mail
-                {emailLocked && (
-                  <Text style={{ color: colors.primary, fontFamily: "Inter_400Regular" }}>
-                    {" "}(z zaproszenia)
-                  </Text>
-                )}
-              </Text>
-              <View
-                style={[
-                  styles.inputWrap,
-                  {
-                    backgroundColor: emailLocked ? colors.primary + "0a" : colors.card,
-                    borderColor: emailLocked ? colors.primary + "40" : colors.border,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name={emailLocked ? "lock-closed-outline" : "mail-outline"}
-                  size={18}
-                  color={emailLocked ? colors.primary : colors.mutedForeground}
-                  style={styles.inputIcon}
-                />
+              <Text style={[styles.label, { color: colors.mutedForeground }]}>Adres e-mail</Text>
+              <View style={[styles.inputWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Ionicons name="mail-outline" size={18} color={colors.mutedForeground} style={styles.inputIcon} />
                 <TextInput
                   ref={emailInputRef}
-                  style={[styles.input, { color: emailLocked ? colors.primary : colors.foreground }]}
+                  style={[styles.input, { color: colors.foreground }]}
                   placeholder="twoj@email.pl"
                   placeholderTextColor={colors.mutedForeground}
                   value={email}
-                  onChangeText={emailLocked ? undefined : setEmail}
-                  editable={!emailLocked}
+                  onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
                   testID="input-email"
                 />
-                {emailLocked && (
-                  <Ionicons name="lock-closed" size={14} color={colors.primary + "80"} />
-                )}
               </View>
-              {emailLocked && (
-                <Text style={[styles.fieldHint, { color: colors.mutedForeground }]}>
-                  Adres e-mail jest powiązany z zaproszeniem i nie można go zmienić.
-                </Text>
-              )}
             </View>
 
             <View style={styles.field}>
