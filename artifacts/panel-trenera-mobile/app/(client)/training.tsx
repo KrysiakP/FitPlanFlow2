@@ -441,6 +441,9 @@ export default function TrainingScreen() {
   // Cache of last session logs per exercise: exerciseId -> { reps, load }
   const lastSessionLogsRef = useRef<Record<string, { reps: number; load: string | null }>>({});
 
+  // Lock to prevent concurrent auto-log executions (async function with await inside)
+  const autoLogInProgressRef = useRef(false);
+
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const { data, isLoading, refetch, isRefetching } = useQuery<PlanAssignment>({
@@ -458,6 +461,7 @@ export default function TrainingScreen() {
     setLoggingState({ reps: "", load: "" });
     setExtraSets({});
     pendingNextSetRef.current = null;
+    autoLogInProgressRef.current = false;
     if (restIntervalRef.current) {
       clearInterval(restIntervalRef.current);
       restIntervalRef.current = null;
@@ -497,8 +501,9 @@ export default function TrainingScreen() {
     mutationFn: async ({ exerciseId, setNumber, reps, load }: { exerciseId: string; setNumber: number; reps: number; load: string }) => {
       return apiPost(`/api/exercises/${exerciseId}/log`, { reps, load: load || undefined, setNumber });
     },
-    onError: () => {
-      Alert.alert("Błąd", "Nie udało się zapisać serii. Spróbuj ponownie.");
+    onError: (error) => {
+      const msg = error instanceof Error ? error.message : "Spróbuj ponownie.";
+      Alert.alert("Nie udało się zapisać serii", msg);
     },
   });
 
@@ -594,6 +599,7 @@ export default function TrainingScreen() {
     setLoggingTarget(null);
     setExtraSets({});
     pendingNextSetRef.current = null;
+    autoLogInProgressRef.current = false;
     stopRestTimer();
     lastSessionLogsRef.current = {};
     const startTime = Date.now();
@@ -676,79 +682,89 @@ export default function TrainingScreen() {
   handleStartLogRef.current = handleStartLog;
 
   async function handleAutoLog(exerciseId: string, setNumber: number) {
-    if (logMutation.isPending) return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const exercise = exercises.find((ex) => ex.id === exerciseId);
-    if (isResting) stopRestTimer();
+    // Double-guard: isPending check + async execution lock (handleAutoLog has awaits inside)
+    if (logMutation.isPending || autoLogInProgressRef.current) return;
+    autoLogInProgressRef.current = true;
 
-    const currentSessionLog = setLogs[exerciseId];
-    let prefillReps = exercise?.reps != null ? String(exercise.reps) : "";
-    let prefillLoad = exercise?.load != null ? String(exercise.load).replace(/\s*kg\s*/i, "").trim() : "";
+    try {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const exercise = exercises.find((ex) => ex.id === exerciseId);
+      if (isResting) stopRestTimer();
 
-    if (currentSessionLog) {
-      const setNums = Object.keys(currentSessionLog).map(Number).sort((a, b) => b - a);
-      if (setNums.length > 0) {
-        const lastSet = currentSessionLog[setNums[0]];
-        prefillReps = String(lastSet.reps);
-        prefillLoad = (lastSet.load ?? "").replace(/\s*kg\s*/i, "").trim();
-      }
-    } else {
-      let cached = lastSessionLogsRef.current[exerciseId];
-      if (!cached) {
-        try {
-          const log = await apiGet<{ reps: number; load: string | null } | null>(
-            `/api/exercises/${exerciseId}/latest-log`
-          );
-          if (log) {
-            lastSessionLogsRef.current[exerciseId] = { reps: log.reps, load: log.load };
-            cached = lastSessionLogsRef.current[exerciseId];
+      const currentSessionLog = setLogs[exerciseId];
+      let prefillReps = exercise?.reps != null ? String(exercise.reps) : "";
+      let prefillLoad = exercise?.load != null ? String(exercise.load).replace(/\s*kg\s*/i, "").trim() : "";
+
+      if (currentSessionLog) {
+        const setNums = Object.keys(currentSessionLog).map(Number).sort((a, b) => b - a);
+        if (setNums.length > 0) {
+          const lastSet = currentSessionLog[setNums[0]];
+          prefillReps = String(lastSet.reps);
+          prefillLoad = (lastSet.load ?? "").replace(/\s*kg\s*/i, "").trim();
+        }
+      } else {
+        let cached = lastSessionLogsRef.current[exerciseId];
+        if (!cached) {
+          try {
+            const log = await apiGet<{ reps: number; load: string | null } | null>(
+              `/api/exercises/${exerciseId}/latest-log`
+            );
+            if (log) {
+              lastSessionLogsRef.current[exerciseId] = { reps: log.reps, load: log.load };
+              cached = lastSessionLogsRef.current[exerciseId];
+            }
+          } catch {
+            // Ignore
           }
-        } catch {
-          // Ignore
+        }
+        if (cached) {
+          prefillReps = String(cached.reps);
+          prefillLoad = (cached.load ?? "").replace(/\s*kg\s*/i, "").trim();
         }
       }
-      if (cached) {
-        prefillReps = String(cached.reps);
-        prefillLoad = (cached.load ?? "").replace(/\s*kg\s*/i, "").trim();
+
+      const reps = parseInt(prefillReps, 10);
+      if (!reps || reps <= 0) {
+        // No valid reps — fall back to the manual form
+        void handleStartLog(exerciseId, setNumber);
+        return;
       }
+      const load = prefillLoad;
+      const totalSetsForExercise = (exercise?.sets ?? 1) + (extraSets[exerciseId] ?? 0);
+      const nextSetNumber = setNumber + 1;
+      const hasNextSet = nextSetNumber <= totalSetsForExercise;
+
+      // Re-check after any awaits — another tap may have fired a mutation in the meantime
+      if (logMutation.isPending) return;
+
+      logMutation.mutate(
+        { exerciseId, setNumber, reps, load },
+        {
+          onSuccess: () => {
+            setCompletedSets((prev) => {
+              const next = { ...prev };
+              if (!next[exerciseId]) next[exerciseId] = new Set();
+              const updated = new Set(next[exerciseId]);
+              updated.add(setNumber);
+              next[exerciseId] = updated;
+              return next;
+            });
+            setSetLogs((prev) => ({
+              ...prev,
+              [exerciseId]: { ...(prev[exerciseId] ?? {}), [setNumber]: { reps, load } },
+            }));
+            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            void queryClient.invalidateQueries({ queryKey: ["exercise-logs"] });
+
+            if (exercise?.restTime && exercise.restTime > 0) {
+              startRestTimer(exercise.restTime);
+            }
+          },
+        }
+      );
+    } finally {
+      autoLogInProgressRef.current = false;
     }
-
-    const reps = parseInt(prefillReps, 10);
-    if (!reps || reps <= 0) {
-      // No valid reps — fall back to the manual form
-      void handleStartLog(exerciseId, setNumber);
-      return;
-    }
-    const load = prefillLoad;
-    const totalSetsForExercise = (exercise?.sets ?? 1) + (extraSets[exerciseId] ?? 0);
-    const nextSetNumber = setNumber + 1;
-    const hasNextSet = nextSetNumber <= totalSetsForExercise;
-
-    logMutation.mutate(
-      { exerciseId, setNumber, reps, load },
-      {
-        onSuccess: () => {
-          setCompletedSets((prev) => {
-            const next = { ...prev };
-            if (!next[exerciseId]) next[exerciseId] = new Set();
-            const updated = new Set(next[exerciseId]);
-            updated.add(setNumber);
-            next[exerciseId] = updated;
-            return next;
-          });
-          setSetLogs((prev) => ({
-            ...prev,
-            [exerciseId]: { ...(prev[exerciseId] ?? {}), [setNumber]: { reps, load } },
-          }));
-          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          void queryClient.invalidateQueries({ queryKey: ["exercise-logs"] });
-
-          if (exercise?.restTime && exercise.restTime > 0) {
-            startRestTimer(exercise.restTime);
-          }
-        },
-      }
-    );
   }
 
   // Keep the ref to handleAutoLog updated on every render
