@@ -384,9 +384,13 @@ export default function DietPlanDetailScreen() {
       Alert.alert("Błąd", "Podaj nazwę suplementu.");
       return;
     }
+    if (!suppForm.dose.trim()) {
+      Alert.alert("Błąd", "Podaj dawkę suplementu (np. 2000).");
+      return;
+    }
     const body = {
       name: suppForm.name.trim(),
-      dose: suppForm.dose.trim() || null,
+      dose: suppForm.dose.trim(),
       unit: suppForm.unit || "mg",
       timing: suppForm.timing || null,
       frequency: suppForm.frequency || "daily",
@@ -945,7 +949,7 @@ export default function DietPlanDetailScreen() {
 
               <View style={styles.macroInputRow}>
                 <View style={{ flex: 2 }}>
-                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Dawka</Text>
+                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Dawka *</Text>
                   <TextInput
                     value={suppForm.dose}
                     onChangeText={(v) => setSuppForm((p) => ({ ...p, dose: v }))}
