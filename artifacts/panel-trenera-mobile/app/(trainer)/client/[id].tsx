@@ -106,8 +106,37 @@ interface ClientProgressData {
   lastUpdated?: string | null;
 }
 
+interface WorkoutSession {
+  id: string;
+  workoutId: string;
+  planId: string;
+  workoutName: string | null;
+  exercisesCompleted: number;
+  totalExercises: number;
+  durationSeconds: number;
+  completedAt: string;
+}
+
 function formatDate(d: string) {
   try { return new Date(d).toLocaleDateString("pl-PL"); } catch { return d; }
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m < 60) return s > 0 ? `${m}min ${s}s` : `${m}min`;
+  const h = Math.floor(m / 60);
+  const rem = m % 60;
+  return rem > 0 ? `${h}h ${rem}min` : `${h}h`;
+}
+
+function formatDateTime(d: string) {
+  try {
+    const date = new Date(d);
+    return date.toLocaleDateString("pl-PL", { day: "numeric", month: "short", year: "numeric" }) +
+      ", " + date.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+  } catch { return d; }
 }
 
 export default function ClientDetailScreen() {
@@ -188,6 +217,12 @@ export default function ClientDetailScreen() {
     queryKey: ["client-medical-tests", id],
     queryFn: () => apiGet<MedicalTest[]>(`/api/clients/${id}/medical-tests`),
     enabled: !!id,
+  });
+
+  const { data: workoutSessions, isLoading: loadingWorkoutSessions } = useQuery<WorkoutSession[]>({
+    queryKey: ["client-workout-sessions", id],
+    queryFn: () => apiGet<WorkoutSession[]>(`/api/trainer/clients/${id}/workout-sessions`),
+    enabled: !!id && activeTab === "progress",
   });
 
   const markViewedMutation = useMutation({
@@ -614,6 +649,45 @@ export default function ClientDetailScreen() {
               <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak danych postępów</Text>
               </View>
+            )}
+
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Historia treningów</Text>
+            {loadingWorkoutSessions ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (workoutSessions ?? []).length === 0 ? (
+              <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak odbytych treningów</Text>
+              </View>
+            ) : (
+              (workoutSessions ?? []).slice(0, 20).map((session) => (
+                <View key={session.id} style={[styles.progressRow, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: "column", alignItems: "flex-start", gap: 6 }]}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, width: "100%" }}>
+                    <Ionicons name="barbell-outline" size={16} color={colors.primary} />
+                    <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.foreground, flex: 1 }}>
+                      {session.workoutName ?? "Trening"}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
+                      {formatDateTime(session.completedAt)}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: "row", gap: 16, paddingLeft: 24 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <Ionicons name="checkmark-circle-outline" size={13} color="#16a34a" />
+                      <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
+                        {session.exercisesCompleted}/{session.totalExercises} ćwiczeń
+                      </Text>
+                    </View>
+                    {session.durationSeconds > 0 && (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                        <Ionicons name="time-outline" size={13} color={colors.primary} />
+                        <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
+                          {formatDuration(session.durationSeconds)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              ))
             )}
 
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 24, marginBottom: 8 }}>
