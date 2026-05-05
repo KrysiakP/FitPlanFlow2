@@ -495,7 +495,7 @@ export default function DietPlanDetailScreen() {
             <View style={{ flex: 1 }}>
               <Text style={[styles.planName, { color: colors.foreground }]}>{plan.name}</Text>
               <Text style={[styles.planMeta, { color: colors.mutedForeground }]}>
-                {plan.mode ? (plan.mode === "full_plan" ? "Pełny plan" : plan.mode) : "Plan diety"}
+                {plan.mode === "full_plan" ? "Pełna rozpiska" : plan.mode === "macro_only" ? "Tylko makro" : "Plan diety"}
               </Text>
             </View>
             <Pressable
@@ -1085,10 +1085,8 @@ export default function DietPlanDetailScreen() {
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Tryb planu</Text>
               <View style={styles.repeatRow}>
                 {([
-                  { value: "full_plan", label: "Pełny plan" },
-                  { value: "split", label: "Split" },
-                  { value: "cutting", label: "Redukcja" },
-                  { value: "bulking", label: "Masa" },
+                  { value: "macro_only", label: "Tylko makro" },
+                  { value: "full_plan", label: "Pełna rozpiska" },
                 ] as { value: string; label: string }[]).map((opt) => {
                   const active = planForm.mode === opt.value;
                   return (
