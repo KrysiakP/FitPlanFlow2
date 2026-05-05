@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -544,6 +545,16 @@ export default function TrainingScreen() {
     };
   }, []);
 
+  // Resync elapsed timer when app returns from background
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active" && sessionStartTime) {
+        setElapsedSeconds(Math.floor((Date.now() - sessionStartTime) / 1000));
+      }
+    });
+    return () => sub.remove();
+  }, [sessionStartTime]);
+
   const plan = data?.plan;
   const workouts = plan?.workouts ?? [];
   const currentWorkout = workouts.find((w) => w.id === activeWorkout) ?? workouts[0] ?? null;
@@ -571,12 +582,13 @@ export default function TrainingScreen() {
     pendingNextSetRef.current = null;
     stopRestTimer();
     lastSessionLogsRef.current = {};
+    const startTime = Date.now();
     setElapsedSeconds(0);
-    setSessionStartTime(Date.now());
+    setSessionStartTime(startTime);
     setSessionActive(true);
     if (elapsedIntervalRef.current) clearInterval(elapsedIntervalRef.current);
     elapsedIntervalRef.current = setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1);
+      setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
     }, 1000);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }
