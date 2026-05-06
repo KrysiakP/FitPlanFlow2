@@ -1,2 +1,14 @@
 uploads = []
 outputs = []
+
+[[generated]]
+id = "mjJpb1upi8BsYK1eEd6lX"
+uri = "file://artifacts/panel-trenera-mobile/assets/images/icon.png"
+type = "image"
+title = "panel trenera app icon"
+
+[[generated]]
+id = "Ww4Vbx0ZtubwNcmYoUwU7"
+uri = "file://artifacts/panel-trenera-mobile/assets/images/adaptive-icon.png"
+type = "image"
+title = "adaptive icon foreground"
