@@ -5,6 +5,15 @@ import crypto from 'crypto';
 
 const DEFAULT_FROM_EMAIL = 'Panel Trenera <noreply@paneltrenera.pl>';
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export async function getResendClient() {
   // Try RESEND_KEY first (new), then fall back to RESEND_API_KEY (old)
   const apiKey = process.env.RESEND_KEY || process.env.RESEND_API_KEY;
@@ -97,7 +106,7 @@ export async function sendVerificationEmail({ email, firstName, token }: SendVer
           </div>
           
           <div style="background-color: #f8fafc; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
-            <h2 style="color: #1e293b; margin-top: 0;">Cześć ${firstName}!</h2>
+            <h2 style="color: #1e293b; margin-top: 0;">Cześć ${escapeHtml(firstName)}!</h2>
             
             <p>Dziękujemy za rejestrację w Panel Trenera. Aby aktywować swoje konto, potwierdź swój adres email klikając poniższy przycisk:</p>
             
@@ -132,7 +141,7 @@ export async function sendVerificationEmail({ email, firstName, token }: SendVer
         </html>
       `,
       text: `
-Cześć ${firstName}!
+Cześć ${escapeHtml(firstName)}!
 
 Dziękujemy za rejestrację w Panel Trenera. Aby aktywować swoje konto, potwierdź swój adres email klikając poniższy link:
 
@@ -192,9 +201,9 @@ export async function sendWelcomeEmail({ email, firstName, trainerName }: SendWe
           </div>
 
           <div style="background-color: #f8fafc; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
-            <h2 style="color: #1e293b; margin-top: 0;">Cześć ${firstName}!</h2>
+            <h2 style="color: #1e293b; margin-top: 0;">Cześć ${escapeHtml(firstName)}!</h2>
 
-            <p>Zaakceptowałeś/aś zaproszenie od trenera <strong>${trainerName}</strong> i dołączyłeś/aś do Panel Trenera. Twój trener może teraz śledzić Twoje postępy i zarządzać Twoim treningiem.</p>
+            <p>Zaakceptowałeś/aś zaproszenie od trenera <strong>${escapeHtml(trainerName)}</strong> i dołączyłeś/aś do Panel Trenera. Twój trener może teraz śledzić Twoje postępy i zarządzać Twoim treningiem.</p>
 
             <p>Zaloguj się do aplikacji, aby zobaczyć swój plan treningowy:</p>
 
@@ -221,9 +230,9 @@ export async function sendWelcomeEmail({ email, firstName, trainerName }: SendWe
         </html>
       `,
       text: `
-Cześć ${firstName}!
+Cześć ${escapeHtml(firstName)}!
 
-Zaakceptowałeś/aś zaproszenie od trenera ${trainerName} i dołączyłeś/aś do Panel Trenera. Twój trener może teraz śledzić Twoje postępy i zarządzać Twoim treningiem.
+Zaakceptowałeś/aś zaproszenie od trenera ${escapeHtml(trainerName)} i dołączyłeś/aś do Panel Trenera. Twój trener może teraz śledzić Twoje postępy i zarządzać Twoim treningiem.
 
 Zaloguj się do aplikacji: ${loginUrl}
 
@@ -260,7 +269,7 @@ export async function sendTrainerNotificationEmail({ email, trainerFirstName, cl
     const result = await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: `${clientName} dołączył/a do Twojego zespołu - Panel Trenera`,
+      subject: `${escapeHtml(clientName)} dołączył/a do Twojego zespołu - Panel Trenera`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -275,9 +284,9 @@ export async function sendTrainerNotificationEmail({ email, trainerFirstName, cl
           </div>
 
           <div style="background-color: #f8fafc; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
-            <h2 style="color: #1e293b; margin-top: 0;">Cześć ${trainerFirstName}!</h2>
+            <h2 style="color: #1e293b; margin-top: 0;">Cześć ${escapeHtml(trainerFirstName)}!</h2>
 
-            <p>Masz nowego podopiecznego! <strong>${clientName}</strong> zaakceptował/a Twoje zaproszenie i dołączył/a do Panel Trenera.</p>
+            <p>Masz nowego podopiecznego! <strong>${escapeHtml(clientName)}</strong> zaakceptował/a Twoje zaproszenie i dołączył/a do Panel Trenera.</p>
 
             <p>Możesz teraz zarządzać jego/jej planem treningowym w panelu trenera.</p>
 
@@ -304,9 +313,9 @@ export async function sendTrainerNotificationEmail({ email, trainerFirstName, cl
         </html>
       `,
       text: `
-Cześć ${trainerFirstName}!
+Cześć ${escapeHtml(trainerFirstName)}!
 
-Masz nowego podopiecznego! ${clientName} zaakceptował/a Twoje zaproszenie i dołączył/a do Panel Trenera.
+Masz nowego podopiecznego! ${escapeHtml(clientName)} zaakceptował/a Twoje zaproszenie i dołączył/a do Panel Trenera.
 
 Możesz teraz zarządzać jego/jej planem treningowym w panelu trenera: ${dashboardUrl}
 
@@ -357,7 +366,7 @@ export async function sendTrainerWelcomeEmail({ email, firstName }: SendTrainerW
           </div>
 
           <div style="background-color: #f8fafc; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
-            <h2 style="color: #1e293b; margin-top: 0;">Cześć ${firstName}!</h2>
+            <h2 style="color: #1e293b; margin-top: 0;">Cześć ${escapeHtml(firstName)}!</h2>
 
             <p>Twoje konto trenera w <strong>Panel Trenera</strong> zostało pomyślnie utworzone. Cieszymy się, że jesteś z nami!</p>
 
@@ -394,7 +403,7 @@ export async function sendTrainerWelcomeEmail({ email, firstName }: SendTrainerW
         </html>
       `,
       text: `
-Cześć ${firstName}!
+Cześć ${escapeHtml(firstName)}!
 
 Twoje konto trenera w Panel Trenera zostało pomyślnie utworzone. Cieszymy się, że jesteś z nami!
 
@@ -450,7 +459,7 @@ export async function sendClientInvitationEmail({
     const result = await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: `${trainerFirstName} zaprasza Cię do Panel Trenera`,
+      subject: `${escapeHtml(trainerFirstName)} zaprasza Cię do Panel Trenera`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -467,7 +476,7 @@ export async function sendClientInvitationEmail({
           <div style="background-color: #f8fafc; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
             <h2 style="color: #1e293b; margin-top: 0;">${greeting}</h2>
 
-            <p>Twój trener <strong>${trainerName}</strong> zaprasza Cię do korzystania z aplikacji <strong>Panel Trenera</strong>.</p>
+            <p>Twój trener <strong>${escapeHtml(trainerName)}</strong> zaprasza Cię do korzystania z aplikacji <strong>Panel Trenera</strong>.</p>
 
             <p>Dzięki Panel Trenera możesz:</p>
             <ul style="color: #475569; padding-left: 20px;">
@@ -525,7 +534,7 @@ export async function sendClientInvitationEmail({
       text: `
 ${greeting}
 
-Twój trener ${trainerName} zaprasza Cię do korzystania z aplikacji Panel Trenera.
+Twój trener ${escapeHtml(trainerName)} zaprasza Cię do korzystania z aplikacji Panel Trenera.
 
 ${invitationCode ? `Twój kod zaproszenia: ${invitationCode}\nWpisz go podczas rejestracji w aplikacji. Rejestracja musi być dokonana na adres: ${email}` : `Pobierz aplikację i zarejestruj się przy użyciu adresu e-mail ${email} — Twój trener połączy się z Tobą automatycznie.`}
 
@@ -587,7 +596,7 @@ export async function sendPasswordResetEmail({ email, firstName, token }: SendPa
           </div>
           
           <div style="background-color: #f8fafc; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
-            <h2 style="color: #1e293b; margin-top: 0;">Cześć ${firstName}!</h2>
+            <h2 style="color: #1e293b; margin-top: 0;">Cześć ${escapeHtml(firstName)}!</h2>
             
             <p>Otrzymaliśmy prośbę o zresetowanie hasła do Twojego konta w Panel Trenera. Kliknij poniższy przycisk, aby ustawić nowe hasło:</p>
             
@@ -622,7 +631,7 @@ export async function sendPasswordResetEmail({ email, firstName, token }: SendPa
         </html>
       `,
       text: `
-Cześć ${firstName}!
+Cześć ${escapeHtml(firstName)}!
 
 Otrzymaliśmy prośbę o zresetowanie hasła do Twojego konta w Panel Trenera. Kliknij poniższy link, aby ustawić nowe hasło:
 

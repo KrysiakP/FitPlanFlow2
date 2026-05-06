@@ -52,6 +52,7 @@ import fs from "fs";
 import { randomUUID } from "crypto";
 import Stripe from "stripe";
 import express from "express";
+import { authRateLimit } from "../app";
 import { checkPaymentNotifications } from "../services/paymentNotifications";
 import { deleteTestClient } from "../testClientService";
 import { getDemoClient, getDemoTrainingPlans, getDemoWeeklyReports, getDemoDietPlan, getDemoMedicalTests, getDemoPayments, isDemoId, DEMO_CLIENT_ID } from "../demoDataService";
@@ -664,7 +665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Auth routes
-  app.post("/api/register", async (req, res) => {
+  app.post("/api/register", authRateLimit, async (req, res) => {
     try {
       const validationResult = registerSchema.safeParse(req.body);
       if (!validationResult.success) {
@@ -794,7 +795,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Mobile-specific registration endpoint: skips email verification, auto-logs in
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/register", authRateLimit, async (req, res) => {
     try {
       const mobileRegisterSchema = z.object({
         email: z.string().email("Nieprawidłowy adres email"),
@@ -976,7 +977,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/login", async (req, res) => {
+  app.post("/api/login", authRateLimit, async (req, res) => {
     console.log("[LOGIN] Received login request:", { email: req.body?.email });
     try {
       const validationResult = loginSchema.safeParse(req.body);
@@ -1231,7 +1232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Forgot password endpoint - request password reset
-  app.post("/api/auth/forgot-password", async (req, res) => {
+  app.post("/api/auth/forgot-password", authRateLimit, async (req, res) => {
     try {
       const parseResult = forgotPasswordSchema.safeParse(req.body);
       

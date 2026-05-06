@@ -1,10 +1,28 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
 import pinoHttp from "pino-http";
 import { logger } from "./lib/logger";
 import path from "path";
 
 const app: Express = express();
+
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: false,
+  })
+);
+
+export const authRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Zbyt wiele prób. Spróbuj ponownie za 15 minut." },
+  skip: (req) => process.env.NODE_ENV === "test",
+});
 
 app.use(
   pinoHttp({
@@ -38,7 +56,9 @@ app.use(
         /\.replit\.app$/.test(origin) ||
         /\.repl\.co$/.test(origin) ||
         /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
-        /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin);
+        /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
+        origin === "https://paneltrenera.pl" ||
+        origin === "https://www.paneltrenera.pl";
 
       if (trusted) return callback(null, true);
       return callback(new Error("CORS: origin not allowed"));
