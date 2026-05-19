@@ -428,7 +428,7 @@ Panel Trenera - Polska marka
   }
 }
 
-const IOS_APP_URL = "https://apps.apple.com/pl/app/panel-trenera/id6746818671";
+const IOS_APP_URL = "https://apps.apple.com/app/id6766881136";
 const ANDROID_APP_URL = "https://play.google.com/store/apps/details?id=com.paneltrenera.app";
 
 interface SendClientInvitationEmailParams {
