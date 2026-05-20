@@ -49,3 +49,6 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.development]
+
+[userenv.shared]
+DEMO_SEED_SECRET = "AppleReview2024!"

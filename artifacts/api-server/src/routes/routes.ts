@@ -44,6 +44,10 @@ import {
   clientRelationships,
   workoutSessions,
   trainingPlans,
+  dietPlans,
+  weeklyReports,
+  clientPayments,
+  messages as messagesTable,
 } from "@workspace/db";
 import { z } from "zod";
 import multer from "multer";
@@ -6086,6 +6090,332 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error joining gym:", error);
       res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // DEMO SEED — Apple App Review
+  // POST /api/demo/seed  — idempotent, creates demo accounts + full data set
+  // ─────────────────────────────────────────────────────────────────────────
+
+  app.post("/api/demo/seed", async (req, res) => {
+    const DEMO_SECRET = process.env.DEMO_SEED_SECRET;
+    if (!DEMO_SECRET || req.headers["x-demo-secret"] !== DEMO_SECRET) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    try {
+      const TRAINER_EMAIL = "demo.trainer@paneltrenera.pl";
+      const CLIENT_EMAIL  = "demo.client@paneltrenera.pl";
+      const DEMO_PASSWORD = "Demo1234!";
+
+      // ── 1. Trainer account ────────────────────────────────────────────────
+      let trainer = await storage.getUserByEmail(TRAINER_EMAIL);
+      if (!trainer) {
+        const hashed = await hashPassword(DEMO_PASSWORD);
+        trainer = await storage.createUser({
+          email: TRAINER_EMAIL,
+          password: hashed,
+          firstName: "Jan",
+          lastName: "Kowalski",
+          role: "trainer",
+          emailVerified: true,
+          subscriptionStatus: "active",
+          subscriptionTier: "pro",
+          hasFreeAccess: true,
+          isTestUser: false,
+        } as any);
+      }
+
+      // ── 2. Client account ────────────────────────────────────────────────
+      let client = await storage.getUserByEmail(CLIENT_EMAIL);
+      if (!client) {
+        const hashed = await hashPassword(DEMO_PASSWORD);
+        client = await storage.createUser({
+          email: CLIENT_EMAIL,
+          password: hashed,
+          firstName: "Anna",
+          lastName: "Nowak",
+          role: "client",
+          emailVerified: true,
+          hasFreeAccess: true,
+          isTestUser: false,
+        } as any);
+      }
+
+      // ── 3. Profiles ───────────────────────────────────────────────────────
+      await storage.upsertUserProfile(trainer.id, {
+        userId: trainer.id,
+        specialization: "Trener siłowy i sylwetkowy",
+        bio: "Certyfikowany trener personalny z 8-letnim doświadczeniem. Specjalizacja: hipertrofia, redukcja tkanki tłuszczowej, trening funkcjonalny.",
+        phone: "+48 600 123 456",
+      });
+
+      await storage.upsertUserProfile(client.id, {
+        userId: client.id,
+        bio: "Ćwiczę od 6 miesięcy, chcę zbudować masę mięśniową.",
+        phone: "+48 700 987 654",
+        injuries: "Brak",
+        healthIssues: "Brak",
+      });
+
+      await storage.upsertClientProgress(client.id, {
+        clientId: client.id,
+        weight: "68",
+        height: "170",
+        goal: "Budowa masy mięśniowej i poprawa siły",
+        mood: "Bardzo dobry",
+        completedWorkouts: 12,
+        notes: "Regularnie przychodzi na treningi, bardzo zmotywowana.",
+      });
+
+      // ── 4. Training plan ──────────────────────────────────────────────────
+      const existingPlans = await storage.getTrainerPlans(trainer.id);
+      let plan = existingPlans.find(p => p.name === "Plan Siłowy – Masa (Demo)");
+
+      let exercises_A: any[] = [];
+      let exercises_B: any[] = [];
+      let exercises_C: any[] = [];
+
+      if (!plan) {
+        plan = await storage.createTrainingPlan(
+          { name: "Plan Siłowy – Masa (Demo)", description: "3-dniowy plan siłowy nakierowany na budowę masy mięśniowej." },
+          trainer.id
+        );
+
+        // Trening A – Klatka + Triceps
+        const workoutA = await storage.createWorkout(plan.id, { name: "Trening A – Klatka + Triceps", orderIndex: 0 });
+        exercises_A = await storage.createExercises(workoutA.id, [
+          { name: "Wyciskanie sztangi leżąc", sets: 4, reps: 8, load: "80", restTime: 120, orderIndex: 0, rir: 2, tempo: "3-1-2-0" },
+          { name: "Wyciskanie hantli na skosie", sets: 3, reps: 10, load: "24", restTime: 90, orderIndex: 1, rir: 2 },
+          { name: "Rozpiętki na maszynie", sets: 3, reps: 12, load: "40", restTime: 60, orderIndex: 2 },
+          { name: "Wyciskanie wąskim uchwytem", sets: 3, reps: 10, load: "60", restTime: 90, orderIndex: 3, rir: 2 },
+          { name: "Prostowanie ramion na wyciągu", sets: 3, reps: 12, load: "25", restTime: 60, orderIndex: 4 },
+        ]);
+
+        // Trening B – Plecy + Biceps
+        const workoutB = await storage.createWorkout(plan.id, { name: "Trening B – Plecy + Biceps", orderIndex: 1 });
+        exercises_B = await storage.createExercises(workoutB.id, [
+          { name: "Martwy ciąg", sets: 4, reps: 6, load: "100", restTime: 180, orderIndex: 0, rir: 2, tempo: "3-1-1-0" },
+          { name: "Wiosłowanie sztangą", sets: 4, reps: 8, load: "70", restTime: 120, orderIndex: 1, rir: 2 },
+          { name: "Podciąganie na drążku", sets: 3, reps: 8, load: "0", restTime: 120, orderIndex: 2 },
+          { name: "Wiosłowanie hantlem", sets: 3, reps: 10, load: "28", restTime: 90, orderIndex: 3 },
+          { name: "Uginanie ramion ze sztangą", sets: 3, reps: 10, load: "35", restTime: 60, orderIndex: 4 },
+        ]);
+
+        // Trening C – Nogi
+        const workoutC = await storage.createWorkout(plan.id, { name: "Trening C – Nogi", orderIndex: 2 });
+        exercises_C = await storage.createExercises(workoutC.id, [
+          { name: "Przysiady ze sztangą", sets: 4, reps: 8, load: "80", restTime: 180, orderIndex: 0, rir: 2, tempo: "3-1-2-0" },
+          { name: "Wyciskanie nogami", sets: 3, reps: 10, load: "120", restTime: 120, orderIndex: 1 },
+          { name: "Uginanie nóg w leżeniu", sets: 3, reps: 12, load: "40", restTime: 90, orderIndex: 2 },
+          { name: "Wykroki z hantlami", sets: 3, reps: 10, load: "20", restTime: 90, orderIndex: 3 },
+          { name: "Wspięcia na palce", sets: 4, reps: 15, load: "60", restTime: 60, orderIndex: 4 },
+        ]);
+      } else {
+        // Fetch existing exercises so we can log them
+        const [wA, wB, wC] = await Promise.all([
+          storage.getWorkoutsByPlanId(plan.id).then(ws => ws[0]),
+          storage.getWorkoutsByPlanId(plan.id).then(ws => ws[1]),
+          storage.getWorkoutsByPlanId(plan.id).then(ws => ws[2]),
+        ]);
+        if (wA) exercises_A = await storage.getExercisesByWorkoutId(wA.id);
+        if (wB) exercises_B = await storage.getExercisesByWorkoutId(wB.id);
+        if (wC) exercises_C = await storage.getExercisesByWorkoutId(wC.id);
+      }
+
+      // ── 5. Assign plan to client (also creates client relationship) ───────
+      const existingAssignment = await storage.getClientAssignment(client.id);
+      if (!existingAssignment) {
+        await storage.createAssignment({ planId: plan.id, clientId: client.id });
+      }
+
+      // ── 6. Trainer notes on client ────────────────────────────────────────
+      await storage.updateTrainerNotes(trainer.id, client.id,
+        "Anna bardzo dobrze reaguje na trening siłowy. W ciągu 6 miesięcy zwiększyła martwy ciąg z 40 kg do 70 kg. Należy zwrócić uwagę na technikę przysiadu – lekka tendencja do opadania kolan do środka. Zalecam kontynuację planu przez kolejne 8 tygodni."
+      );
+
+      // ── 7. Workout sessions (history) + exercise logs ─────────────────────
+      const existingSessions = await db.select().from(workoutSessions).where(eq(workoutSessions.clientId, client.id)).limit(1);
+      if (existingSessions.length === 0 && exercises_A.length > 0) {
+        const now = Date.now();
+        const day = 86400000;
+
+        // Session 1 – 14 days ago – Trening A
+        await db.insert(workoutSessions).values({
+          clientId: client.id,
+          workoutId: exercises_A[0].workoutId,
+          planId: plan.id,
+          exercisesCompleted: 5,
+          totalExercises: 5,
+          durationSeconds: 3720,
+          completedAt: new Date(now - 14 * day),
+        });
+        for (const ex of exercises_A) {
+          for (let s = 1; s <= (ex.sets ?? 3); s++) {
+            await storage.logExercise(client.id, ex.id, {
+              reps: ex.reps ?? 8,
+              load: ex.load ? String(Number(ex.load) - 5) : undefined,
+              setNumber: s,
+            });
+          }
+        }
+
+        // Session 2 – 10 days ago – Trening B
+        await db.insert(workoutSessions).values({
+          clientId: client.id,
+          workoutId: exercises_B[0]?.workoutId ?? exercises_A[0].workoutId,
+          planId: plan.id,
+          exercisesCompleted: 5,
+          totalExercises: 5,
+          durationSeconds: 4200,
+          completedAt: new Date(now - 10 * day),
+        });
+        for (const ex of exercises_B) {
+          for (let s = 1; s <= (ex.sets ?? 3); s++) {
+            await storage.logExercise(client.id, ex.id, {
+              reps: ex.reps ?? 8,
+              load: ex.load ? String(ex.load) : undefined,
+              setNumber: s,
+            });
+          }
+        }
+
+        // Session 3 – 5 days ago – Trening A (progres!)
+        await db.insert(workoutSessions).values({
+          clientId: client.id,
+          workoutId: exercises_A[0].workoutId,
+          planId: plan.id,
+          exercisesCompleted: 5,
+          totalExercises: 5,
+          durationSeconds: 3900,
+          completedAt: new Date(now - 5 * day),
+        });
+        for (const ex of exercises_A) {
+          for (let s = 1; s <= (ex.sets ?? 3); s++) {
+            await storage.logExercise(client.id, ex.id, {
+              reps: ex.reps ?? 8,
+              load: ex.load ? String(ex.load) : undefined,
+              setNumber: s,
+            });
+          }
+        }
+      }
+
+      // ── 8. Diet plan ──────────────────────────────────────────────────────
+      const existingDiets = await db.select().from(dietPlans)
+        .where(and(eq(dietPlans.trainerId, trainer.id), eq(dietPlans.clientId as any, client.id)))
+        .limit(1);
+
+      if (existingDiets.length === 0) {
+        const dietPlan = await storage.createDietPlan({
+          trainerId: trainer.id,
+          clientId: client.id,
+          name: "Dieta Masa – 2800 kcal",
+          description: "Plan żywieniowy na budowę masy mięśniowej. 5 posiłków dziennie, wysoka podaż białka.",
+          targetCalories: 2800,
+          targetProtein: 160,
+          targetFat: 90,
+          targetCarbs: 320,
+          mealsPerDay: 5,
+          mode: "full_plan",
+          recommendedProducts: "Kurczak, łosoś, wołowina, jajka, ryż, bataty, owsianka, brokuły, szpinak, oliwa z oliwek, awokado, orzechy, whey protein, kreatyna",
+          status: "active",
+          startDate: new Date(),
+        });
+
+        // Posiłki – 5 na każdy dzień (dni 1-7)
+        const meals = [
+          { order: 1, name: "Śniadanie",       time: "07:30", cal: 650, p: 40, f: 20, c: 80, desc: "Owsianka (100g) z bananem, 3 jajka sadzone, garść orzechów włoskich" },
+          { order: 2, name: "II Śniadanie",    time: "10:30", cal: 450, p: 35, f: 15, c: 50, desc: "Shake białkowy (30g whey) + baton owsiany + jabłko" },
+          { order: 3, name: "Obiad",           time: "13:30", cal: 750, p: 50, f: 25, c: 80, desc: "Pierś z kurczaka (200g) z ryżem brązowym (150g) i brokułami (150g), łyżka oliwy" },
+          { order: 4, name: "Posiłek potreningowy", time: "17:00", cal: 500, p: 25, f: 10, c: 80, desc: "Ryż biały (200g) + pierś z kurczaka (150g) + banan" },
+          { order: 5, name: "Kolacja",         time: "20:00", cal: 450, p: 40, f: 20, c: 30, desc: "Twaróg chudy (250g) z owocami leśnymi, łyżka miodu, 5 migdałów" },
+        ];
+
+        for (let day = 1; day <= 7; day++) {
+          for (const m of meals) {
+            await storage.createDietMeal({
+              planId: dietPlan.id,
+              dayOfWeek: day,
+              orderIndex: m.order,
+              name: m.name,
+              description: m.desc,
+              suggestedTime: m.time,
+              calories: m.cal,
+              protein: m.p,
+              fat: m.f,
+              carbs: m.c,
+            });
+          }
+        }
+
+        // Suplementy
+        await storage.createDietSupplement({ dietPlanId: dietPlan.id, name: "Kreatyna monohydrat", dose: "5", unit: "g", timing: "Po treningu", frequency: "Codziennie", orderIndex: 0 });
+        await storage.createDietSupplement({ dietPlanId: dietPlan.id, name: "Whey Protein", dose: "30", unit: "g", timing: "Po treningu lub rano", frequency: "Codziennie", orderIndex: 1 });
+        await storage.createDietSupplement({ dietPlanId: dietPlan.id, name: "Witamina D3", dose: "2000", unit: "IU", timing: "Z posiłkiem", frequency: "Codziennie", orderIndex: 2 });
+        await storage.createDietSupplement({ dietPlanId: dietPlan.id, name: "Omega-3", dose: "2", unit: "kapsułki", timing: "Z posiłkiem", frequency: "Codziennie", orderIndex: 3 });
+      }
+
+      // ── 9. Weekly reports ─────────────────────────────────────────────────
+      const existingReports = await db.select().from(weeklyReports).where(eq(weeklyReports.clientId, client.id)).limit(1);
+      if (existingReports.length === 0) {
+        const now = Date.now();
+        const week = 7 * 86400000;
+        await storage.createWeeklyReport(client.id, { reportDate: new Date(now - 3 * week), weight: "68.5", chest: "90", waist: "76", hips: "96", arm: "33", leg: "56", mood: "Dobry – czuję wzrost siły", cardio: "3x 20 min spacer/rower", supplements: "Kreatyna, whey, vit D3", thoughts: "Trudny tydzień w pracy, ale treningi idą coraz lepiej. Wyciskanie poszło w górę o 5 kg!", viewedByTrainer: true });
+        await storage.createWeeklyReport(client.id, { reportDate: new Date(now - 2 * week), weight: "69.0", chest: "91", waist: "75", hips: "96", arm: "33.5", leg: "57", mood: "Bardzo dobry", cardio: "2x 30 min rower", supplements: "Kreatyna, whey, vit D3, omega-3", thoughts: "Najlepszy tydzień od dawna. Przysiady doszły do 85 kg! Czuję się mocniejsza.", viewedByTrainer: true });
+        await storage.createWeeklyReport(client.id, { reportDate: new Date(now - 1 * week), weight: "69.2", chest: "91", waist: "74", hips: "95", arm: "34", leg: "57.5", mood: "Bardzo dobry – dużo energii", cardio: "3x 25 min rower eliptyczny", supplements: "Kreatyna, whey, vit D3, omega-3", thoughts: "Waga stabilna, obwody idą w górę – to dobry znak. Trener mówi że widać progres w sylwetce.", viewedByTrainer: false });
+      }
+
+      // ── 10. Payments ──────────────────────────────────────────────────────
+      const existingPayments = await db.select().from(clientPayments).where(eq(clientPayments.clientId, client.id)).limit(1);
+      if (existingPayments.length === 0) {
+        const now = Date.now();
+        const day = 86400000;
+        await storage.createPayment({ clientId: client.id, trainerId: trainer.id, amount: 30000, dueDate: new Date(now - 30 * day), isPaid: true, paidAt: new Date(now - 28 * day), notes: "Opłata miesięczna – kwiecień" });
+        await storage.createPayment({ clientId: client.id, trainerId: trainer.id, amount: 30000, dueDate: new Date(now + 5 * day), isPaid: false, notes: "Opłata miesięczna – maj", isRecurring: true, recurringAmount: 30000, recurringDayOfMonth: 1 });
+      }
+
+      // ── 11. Chat messages ─────────────────────────────────────────────────
+      const existingMessages = await db.select().from(messagesTable)
+        .where(and(eq(messagesTable.trainerId, trainer.id), eq(messagesTable.clientId, client.id)))
+        .limit(1);
+
+      if (existingMessages.length === 0) {
+        const now = Date.now();
+        const h = 3600000;
+        const pairs: Array<{ senderId: string; recipientId: string; body: string; offset: number }> = [
+          { senderId: trainer.id, recipientId: client.id, body: "Cześć Aniu! Jak się czujesz po wczorajszym treningu nóg? 💪", offset: 48 * h },
+          { senderId: client.id, recipientId: trainer.id, body: "Hej! Trochę zakwasy w udach, ale generalnie super! Wyciskanie poszło dużo lepiej niż tydzień temu 😊", offset: 47 * h },
+          { senderId: trainer.id, recipientId: client.id, body: "Świetnie! Widzę to w logach. Jutro Trening B – skupiamy się na martwym ciągu. Zacznij od 90 kg i oceń jak idzie.", offset: 46 * h },
+          { senderId: client.id, recipientId: trainer.id, body: "Ok! Mam pytanie – czy mogę dodać jakieś cardio w wolne dni? Chodzi mi o 20-30 minut spaceru.", offset: 45 * h },
+          { senderId: trainer.id, recipientId: client.id, body: "Tak, spokojnie. Spacer lub lekki rower 2-3x w tygodniu to dobry pomysł – wspiera regenerację i nie niszczy masy. Tylko nie za intensywnie 👍", offset: 44 * h },
+          { senderId: client.id, recipientId: trainer.id, body: "Dziękuję! Raport tygodniowy już wysłałam. Waga 69,2 kg – czuję że idziemy w dobrym kierunku!", offset: 24 * h },
+          { senderId: trainer.id, recipientId: client.id, body: "Widziałem – świetny progres w obwodach! Jestem z Ciebie dumny. Kontynuujemy plan, jutro po treningu porozmawiamy o kolejnych 8 tygodniach 🏋️", offset: 23 * h },
+        ];
+
+        for (const msg of pairs) {
+          await storage.createMessage({
+            trainerId: trainer.id,
+            clientId: client.id,
+            senderId: msg.senderId,
+            recipientId: msg.recipientId,
+            body: msg.body,
+            createdAt: new Date(now - msg.offset),
+          } as any);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: "Konta demo zostały skonfigurowane",
+        trainer: { email: TRAINER_EMAIL, password: DEMO_PASSWORD, role: "trainer", name: "Jan Kowalski" },
+        client:  { email: CLIENT_EMAIL,  password: DEMO_PASSWORD, role: "client",  name: "Anna Nowak" },
+      });
+
+    } catch (error) {
+      req.log.error({ error }, "Demo seed failed");
+      res.status(500).json({ message: "Błąd podczas tworzenia danych demo", error: String(error) });
     }
   });
 
