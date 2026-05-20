@@ -3532,7 +3532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updated = await storage.updateExercise(exerciseId, updateData);
       res.json(updated);
     } catch (error) {
-      console.error("Error updating exercise for client:", error);
+      req.log.error({ error }, "Error updating exercise for client");
       res.status(500).json({ message: "Nie udało się zaktualizować ćwiczenia" });
     }
   });
