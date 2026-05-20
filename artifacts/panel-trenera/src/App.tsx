@@ -44,6 +44,7 @@ import ResetPassword from "@/pages/reset-password";
 import LegalRegulamin from "@/pages/legal-regulamin";
 import LegalPolitykaPrivatnosci from "@/pages/legal-polityka-prywatnosci";
 import LegalPolitykaCookies from "@/pages/legal-polityka-cookies";
+import DeleteAccount from "@/pages/delete-account";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -69,6 +70,7 @@ function Router() {
         <Route path="/legal/regulamin" component={LegalRegulamin} />
         <Route path="/legal/polityka-prywatnosci" component={LegalPolitykaPrivatnosci} />
         <Route path="/legal/polityka-cookies" component={LegalPolitykaCookies} />
+        <Route path="/delete-account" component={DeleteAccount} />
         <Route component={Landing} />
       </Switch>
     );
@@ -137,6 +139,7 @@ function Router() {
             <Route path="/profile" component={ClientProfile} />
           </>
         )}
+        <Route path="/delete-account" component={DeleteAccount} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>
