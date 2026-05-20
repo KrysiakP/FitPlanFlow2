@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "../storage";
 import { db } from "../db";
 import { setupAuth, isAuthenticated, hashPassword, comparePassword, getSessionFromStore, unsignSessionCookie } from "../auth";
-import { generateVerificationToken, getTokenExpiry, sendVerificationEmail, sendPasswordResetEmail, getPasswordResetTokenExpiry, sendWelcomeEmail, sendTrainerNotificationEmail, sendTrainerWelcomeEmail, sendClientInvitationEmail } from "../email";
+import { generateVerificationToken, getTokenExpiry, sendVerificationEmail, sendPasswordResetEmail, getPasswordResetTokenExpiry, sendWelcomeEmail, sendTrainerNotificationEmail, sendTrainerWelcomeEmail, sendClientInvitationEmail, getResendClient } from "../email";
 // Object Storage - code adapted from javascript_object_storage blueprint
 import { ObjectStorageService, ObjectNotFoundError } from "../objectStorage";
 import { ObjectPermission } from "../objectAcl";
@@ -1279,6 +1279,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error in forgot password:", error);
       res.status(500).json({ message: "Wystąpił błąd podczas przetwarzania żądania" });
+    }
+  });
+
+  // Public: account deletion request
+  app.post("/api/public/delete-account-request", authRateLimit, async (req, res) => {
+    try {
+      const { email } = req.body as { email?: unknown };
+      if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        return res.status(400).json({ message: "Podaj prawidłowy adres e-mail." });
+      }
+      const sanitizedEmail = email.trim().toLowerCase();
+
+      req.log.info({ email: sanitizedEmail }, "[DELETE_ACCOUNT_REQUEST] Received account deletion request");
+
+      // Notify admin by email (best-effort, non-blocking)
+      try {
+        const { client, fromEmail } = await getResendClient();
+        await client.emails.send({
+          from: fromEmail,
+          to: "kontakt@paneltrenera.pl",
+          subject: `Prośba o usunięcie konta: ${sanitizedEmail}`,
+          html: `<p>Otrzymano prośbę o usunięcie konta dla adresu e-mail:</p><p><strong>${sanitizedEmail}</strong></p><p>Usuń konto w ciągu 30 dni.</p>`,
+        });
+      } catch (emailErr) {
+        req.log.warn({ emailErr }, "[DELETE_ACCOUNT_REQUEST] Failed to send admin notification email");
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      req.log.error({ error }, "Error processing delete account request");
+      res.status(500).json({ message: "Wystąpił błąd. Spróbuj ponownie później." });
     }
   });
 
