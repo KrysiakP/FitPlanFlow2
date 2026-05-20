@@ -1,18 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ArrowLeft, Trash2, CheckCircle, AlertTriangle } from "lucide-react";
-import { Link } from "wouter";
+import { ArrowLeft, Trash2, CheckCircle, AlertTriangle, LogIn } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import { PublicHeader } from "@/components/public-header";
 import { useAuth } from "@/hooks/useAuth";
-import { useEffect } from "react";
 
 export default function DeleteAccount() {
-  const { user } = useAuth();
-  const [email, setEmail] = useState(user?.email ?? "");
-  const [isLoading, setIsLoading] = useState(false);
+  const { user, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
 
@@ -20,19 +17,59 @@ export default function DeleteAccount() {
     document.title = "Usuń konto | Panel Trenera";
   }, []);
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <PublicHeader />
+        <div className="container mx-auto px-4 py-8 max-w-2xl">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-destructive/10">
+                  <Trash2 className="w-6 h-6 text-destructive" />
+                </div>
+                <CardTitle className="text-2xl font-heading">Usuń konto i dane</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 py-4">
+              <p className="text-muted-foreground">
+                Aby złożyć prośbę o usunięcie konta, musisz być zalogowany. Dzięki temu możemy potwierdzić Twoją tożsamość i mieć pewność, że usuwamy właściwe konto.
+              </p>
+              <Button className="w-full" onClick={() => setLocation("/login")}>
+                <LogIn className="w-4 h-4 mr-2" />
+                Zaloguj się, aby kontynuować
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Jeśli nie pamiętasz hasła, możesz je{" "}
+                <Link href="/forgot-password" className="underline hover:text-foreground">
+                  zresetować tutaj
+                </Link>
+                .
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError("Podaj prawidłowy adres e-mail.");
-      return;
-    }
-    setIsLoading(true);
+    setIsSubmitting(true);
     try {
-      const res = await fetch("/api/public/delete-account-request", {
+      const res = await fetch("/api/account/delete-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
+        credentials: "include",
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -43,13 +80,12 @@ export default function DeleteAccount() {
     } catch {
       setError("Błąd połączenia. Sprawdź internet i spróbuj ponownie.");
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {!user && <PublicHeader />}
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <Link href="/">
           <Button variant="ghost" className="mb-6">
@@ -64,12 +100,10 @@ export default function DeleteAccount() {
               <div className="p-2 rounded-full bg-destructive/10">
                 <Trash2 className="w-6 h-6 text-destructive" />
               </div>
-              <CardTitle className="text-2xl font-heading">
-                Usuń konto i dane
-              </CardTitle>
+              <CardTitle className="text-2xl font-heading">Usuń konto i dane</CardTitle>
             </div>
             <p className="text-muted-foreground text-sm mt-2">
-              Możesz w każdej chwili poprosić o usunięcie swojego konta i wszystkich powiązanych z nim danych.
+              Składasz prośbę o usunięcie konta dla: <strong>{user.email}</strong>
             </p>
           </CardHeader>
 
@@ -81,7 +115,7 @@ export default function DeleteAccount() {
                 </div>
                 <h3 className="text-xl font-semibold">Prośba wysłana</h3>
                 <p className="text-muted-foreground max-w-md">
-                  Otrzymaliśmy Twoją prośbę o usunięcie konta. Usuniemy konto i wszystkie dane w ciągu <strong>30 dni</strong>.
+                  Otrzymaliśmy Twoją prośbę o usunięcie konta <strong>{user.email}</strong>. Usuniemy konto i wszystkie dane w ciągu <strong>30 dni</strong>.
                 </p>
                 <p className="text-muted-foreground text-sm max-w-md">
                   Jeśli masz aktywną subskrypcję, pamiętaj o jej anulowaniu przed upływem tego okresu.
@@ -105,19 +139,6 @@ export default function DeleteAccount() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Adres e-mail konta do usunięcia</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="twoj@email.pl"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={isLoading}
-                      autoComplete="email"
-                    />
-                  </div>
-
                   {error && (
                     <p className="text-sm text-destructive">{error}</p>
                   )}
@@ -126,9 +147,9 @@ export default function DeleteAccount() {
                     type="submit"
                     variant="destructive"
                     className="w-full"
-                    disabled={isLoading}
+                    disabled={isSubmitting}
                   >
-                    {isLoading ? "Wysyłanie..." : "Wyślij prośbę o usunięcie konta"}
+                    {isSubmitting ? "Wysyłanie..." : "Wyślij prośbę o usunięcie konta"}
                   </Button>
 
                   <p className="text-xs text-muted-foreground text-center">

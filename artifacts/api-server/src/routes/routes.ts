@@ -1282,16 +1282,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Public: account deletion request
-  app.post("/api/public/delete-account-request", authRateLimit, async (req, res) => {
+  // Authenticated: account deletion request — only the logged-in user can request deletion of their own account
+  app.post("/api/account/delete-request", isAuthenticated, authRateLimit, async (req, res) => {
     try {
-      const { email } = req.body as { email?: unknown };
-      if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-        return res.status(400).json({ message: "Podaj prawidłowy adres e-mail." });
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Nie znaleziono konta." });
       }
-      const sanitizedEmail = email.trim().toLowerCase();
 
-      req.log.info({ email: sanitizedEmail }, "[DELETE_ACCOUNT_REQUEST] Received account deletion request");
+      req.log.info({ userId, email: user.email }, "[DELETE_ACCOUNT_REQUEST] Received account deletion request");
 
       // Notify admin by email (best-effort, non-blocking)
       try {
@@ -1299,8 +1299,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await client.emails.send({
           from: fromEmail,
           to: "kontakt@paneltrenera.pl",
-          subject: `Prośba o usunięcie konta: ${sanitizedEmail}`,
-          html: `<p>Otrzymano prośbę o usunięcie konta dla adresu e-mail:</p><p><strong>${sanitizedEmail}</strong></p><p>Usuń konto w ciągu 30 dni.</p>`,
+          subject: `Prośba o usunięcie konta: ${user.email}`,
+          html: `<p>Użytkownik złożył prośbę o usunięcie swojego konta:</p>
+<ul>
+  <li><strong>E-mail:</strong> ${user.email}</li>
+  <li><strong>Imię i nazwisko:</strong> ${user.firstName} ${user.lastName}</li>
+  <li><strong>ID:</strong> ${user.id}</li>
+  <li><strong>Rola:</strong> ${user.role}</li>
+</ul>
+<p>Usuń konto w ciągu 30 dni.</p>`,
         });
       } catch (emailErr) {
         req.log.warn({ emailErr }, "[DELETE_ACCOUNT_REQUEST] Failed to send admin notification email");
