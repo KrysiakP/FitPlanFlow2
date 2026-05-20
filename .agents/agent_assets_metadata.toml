@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "mjJpb1upi8BsYK1eEd6lX"
@@ -12,3 +11,9 @@ id = "Ww4Vbx0ZtubwNcmYoUwU7"
 uri = "file://artifacts/panel-trenera-mobile/assets/images/adaptive-icon.png"
 type = "image"
 title = "adaptive icon foreground"
+
+[[outputs]]
+id = "uE-fex3CeCaTEeJUOx1u_"
+uri = "file://paneltrenera-keystore.zip"
+type = "unspecified"
+title = "Pobierz keystore Android"
