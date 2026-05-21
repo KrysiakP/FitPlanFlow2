@@ -17,6 +17,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTheme, type ThemePreference } from "@/context/ThemeContext";
 import { apiGet } from "@/lib/api";
 import * as Haptics from "expo-haptics";
+import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 
 type GymMe = {
   id: string;
@@ -185,6 +186,8 @@ export default function GymProfile() {
         <Ionicons name="log-out-outline" size={20} color={colors.destructive} />
         <Text style={[styles.logoutText, { color: colors.destructive }]}>Wyloguj się</Text>
       </Pressable>
+
+      <DeleteAccountButton />
 
       <Text style={[styles.footer, { color: colors.mutedForeground }]}>
         Panel Trenera — Siłownia v1.0{"\n"}paneltrenera.pl

@@ -22,6 +22,7 @@ import { useTheme, type ThemePreference } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
 import { apiGet } from "@/lib/api";
 import { apiFetch } from "@/context/AuthContext";
+import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
 
@@ -204,6 +205,8 @@ export default function ClientProfileScreen() {
           <Ionicons name="log-out-outline" size={20} color={colors.destructive} />
           <Text style={[styles.logoutText, { color: colors.destructive }]}>Wyloguj się</Text>
         </Pressable>
+
+        <DeleteAccountButton />
 
         <Text style={[styles.footer, { color: colors.mutedForeground }]}>
           Panel Trenera v1.0{"\n"}paneltrenera.pl
