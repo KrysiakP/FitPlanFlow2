@@ -308,50 +308,6 @@ export default function TrainerProfileScreen() {
         );
       })}
 
-      {user?.isAdmin && (
-        <>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Administrator</Text>
-          <View style={[styles.adminBanner, { backgroundColor: "#fef3c718", borderColor: "#f59e0b40" }]}>
-            <Ionicons name="shield-checkmark" size={16} color="#f59e0b" />
-            <Text style={[styles.adminBannerText, { color: "#b45309" }]}>Tryb administratora platformy</Text>
-          </View>
-          <MenuRow
-            icon="business-outline"
-            label="Siłownie"
-            desc="Twórz i zarządzaj kontami siłowni"
-            colors={colors}
-            onPress={() => router.push("/(trainer)/admin-gyms")}
-            testID="button-admin-gyms"
-          />
-        </>
-      )}
-
-      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Narzędzia trenera</Text>
-      <MenuRow
-        icon="barbell-outline"
-        label="Biblioteka ćwiczeń"
-        desc="Przeglądaj i zarządzaj ćwiczeniami"
-        colors={colors}
-        onPress={() => router.push("/(trainer)/exercise-library")}
-        testID="button-exercise-library"
-      />
-      <MenuRow
-        icon="mail-outline"
-        label="Zaproszenia"
-        desc="Zarządzaj zaproszeniami dla klientów"
-        colors={colors}
-        onPress={() => router.push("/(trainer)/invitations")}
-        testID="button-invitations"
-      />
-      <MenuRow
-        icon="gift-outline"
-        label="Polecenia"
-        desc="Program poleceń i twój kod"
-        colors={colors}
-        onPress={() => router.push("/(trainer)/referrals")}
-        testID="button-referrals"
-      />
-
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ustawienia</Text>
       <ThemeToggleRow colors={colors} />
       <MenuRow
@@ -362,8 +318,6 @@ export default function TrainerProfileScreen() {
         onPress={() => router.push("/notifications")}
         testID="button-notifications"
       />
-      <MenuRow icon="globe-outline" label="Panel trenera web" desc="Otwórz pełny panel w przeglądarce" colors={colors} onPress={() => Linking.openURL("https://paneltrenera.pl")} />
-      <MenuRow icon="people-outline" label="Zaproś klienta" desc="Wyślij zaproszenie nowemu klientowi" colors={colors} onPress={() => Linking.openURL("https://paneltrenera.pl/zaproszenie")} />
       <MenuRow icon="shield-checkmark-outline" label="Prywatność i RODO" desc="Zarządzaj zgodami i danymi" colors={colors} onPress={() => router.push("/(auth)/privacy")} testID="button-privacy" />
       <MenuRow icon="help-circle-outline" label="Pomoc i kontakt" desc="FAQ i support techniczny" colors={colors} onPress={() => router.push("/(auth)/help")} testID="button-help" />
 
@@ -510,8 +464,6 @@ const styles = StyleSheet.create({
   planFeatureText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
   planCta: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 11, borderRadius: 12 },
   planCtaText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  adminBanner: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 10 },
-  adminBannerText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   themeToggleRow: { flexDirection: "row", borderRadius: 10, borderWidth: 1, overflow: "hidden" },
   themeOption: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 7 },
   themeOptionLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },

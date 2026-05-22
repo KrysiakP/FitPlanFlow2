@@ -23,9 +23,9 @@ function NativeTrainerTabs() {
         <Icon sf={{ default: "message", selected: "message.fill" }} />
         <Label>{chatLabel}</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="payments">
-        <Icon sf={{ default: "wallet.pass", selected: "wallet.pass.fill" }} />
-        <Label>Płatności</Label>
+      <NativeTabs.Trigger name="tools">
+        <Icon sf={{ default: "wrench.and.screwdriver", selected: "wrench.and.screwdriver.fill" }} />
+        <Label>Narzędzia</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person", selected: "person.fill" }} />
@@ -89,13 +89,13 @@ function ClassicTrainerTabs() {
         }}
       />
       <Tabs.Screen
-        name="payments"
+        name="tools"
         options={{
-          title: "Płatności",
+          title: "Narzędzia",
           tabBarIcon: ({ color }) =>
             isIOS
-              ? <SymbolView name="wallet.pass.fill" tintColor={color} size={22} />
-              : <Ionicons name="wallet-outline" size={22} color={color} />,
+              ? <SymbolView name="wrench.and.screwdriver.fill" tintColor={color} size={22} />
+              : <Ionicons name="construct-outline" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -110,6 +110,7 @@ function ClassicTrainerTabs() {
       />
 
       {/* Hidden screens — accessible via router.push */}
+      <Tabs.Screen name="payments" options={{ href: null }} />
       <Tabs.Screen name="plans" options={{ href: null }} />
       <Tabs.Screen name="exercise-library" options={{ href: null }} />
       <Tabs.Screen name="diets" options={{ href: null }} />
