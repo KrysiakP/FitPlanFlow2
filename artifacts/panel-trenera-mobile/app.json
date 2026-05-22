@@ -140,7 +140,7 @@
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
+      "reactCompiler": false
     },
     "updates": {
       "url": "https://u.expo.dev/8f3482f8-2f9b-4074-8cb1-a22d38136796"
