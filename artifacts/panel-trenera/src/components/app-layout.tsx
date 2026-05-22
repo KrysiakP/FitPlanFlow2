@@ -376,6 +376,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem asChild className="cursor-pointer" data-testid="link-profile">
+                <Link href={user?.role === "trainer" ? "/trainer-profile" : "/client-profile"}>
+                  <User className="w-4 h-4 mr-2" />
+                  Mój profil
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => logoutMutation.mutate()}
                 className="cursor-pointer"
