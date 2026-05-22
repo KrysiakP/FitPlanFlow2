@@ -10,7 +10,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { DrawerMenuButton } from "@/components/DrawerMenuButton";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -160,7 +159,6 @@ export default function TrainerProfileScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.stickyHeader, { paddingTop: topPad + 8, backgroundColor: colors.background }]}>
-        <DrawerMenuButton />
         <Text style={[styles.pageTitle, { color: colors.foreground }]}>Profil</Text>
       </View>
     <ScrollView
