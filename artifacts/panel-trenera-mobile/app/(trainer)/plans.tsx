@@ -57,7 +57,7 @@ export default function TrainerPlansScreen() {
       setNewPlanName("");
       setNewPlanDesc("");
       setCreateError(null);
-      router.push(`/(trainer)/plan/${plan.id}`);
+      router.push(`/plan/${plan.id}`);
     },
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : "Nie udało się utworzyć planu.";
@@ -137,7 +137,7 @@ export default function TrainerPlansScreen() {
               key={plan.id}
               activeOpacity={0.75}
               testID={`card-plan-${plan.id}`}
-              onPress={() => router.push(`/(trainer)/plan/${plan.id}`)}
+              onPress={() => router.push(`/plan/${plan.id}`)}
               style={[styles.planCard, { backgroundColor: colors.card, borderColor: colors.border }]}
             >
               <View style={styles.planHeader}>
