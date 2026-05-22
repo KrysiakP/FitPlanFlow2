@@ -7,7 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, User, Crown, CreditCard, Gift, ArrowLeft, Mail, Phone, Briefcase } from "lucide-react";
+import { AlertCircle, User, Crown, CreditCard, Gift, ArrowLeft, Mail, Phone, Briefcase, Trash2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link, useParams, useLocation } from "wouter";
@@ -493,6 +493,27 @@ export default function TrainerProfile() {
                 </Card>
               </TabsContent>
             </Tabs>
+
+          <Card className="border-destructive/40 mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <Trash2 className="w-5 h-5" />
+                Strefa niebezpieczna
+              </CardTitle>
+              <CardDescription>
+                Trwałe usunięcie konta i wszystkich powiązanych danych
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild variant="destructive" size="sm">
+                <Link href="/delete-account">
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Usuń konto i dane
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
           </div>
         </>
       )}
