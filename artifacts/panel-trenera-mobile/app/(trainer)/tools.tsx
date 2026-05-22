@@ -72,7 +72,7 @@ export default function ToolsScreen() {
           label="Płatności"
           desc="Monitoruj opłaty i wystawiaj faktury"
           colors={colors}
-          onPress={() => router.push("/(trainer)/payments")}
+          onPress={() => router.push("/payments")}
           testID="button-tools-payments"
         />
         <MenuRow
@@ -80,7 +80,7 @@ export default function ToolsScreen() {
           label="Zaproszenia"
           desc="Zarządzaj zaproszeniami dla klientów"
           colors={colors}
-          onPress={() => router.push("/(trainer)/invitations")}
+          onPress={() => router.push("/invitations")}
           testID="button-tools-invitations"
         />
 
@@ -90,7 +90,7 @@ export default function ToolsScreen() {
           label="Biblioteka ćwiczeń"
           desc="Przeglądaj i zarządzaj ćwiczeniami"
           colors={colors}
-          onPress={() => router.push("/(trainer)/exercise-library")}
+          onPress={() => router.push("/exercise-library")}
           testID="button-tools-exercise-library"
         />
 
@@ -100,7 +100,7 @@ export default function ToolsScreen() {
           label="Polecenia"
           desc="Program poleceń i Twój unikalny kod"
           colors={colors}
-          onPress={() => router.push("/(trainer)/referrals")}
+          onPress={() => router.push("/referrals")}
           testID="button-tools-referrals"
         />
         <MenuRow
@@ -132,7 +132,7 @@ export default function ToolsScreen() {
               label="Siłownie"
               desc="Twórz i zarządzaj kontami siłowni"
               colors={colors}
-              onPress={() => router.push("/(trainer)/admin-gyms")}
+              onPress={() => router.push("/admin-gyms")}
               testID="button-tools-admin-gyms"
             />
           </>

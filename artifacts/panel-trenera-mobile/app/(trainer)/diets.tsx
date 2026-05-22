@@ -108,7 +108,7 @@ export default function TrainerDietsScreen() {
       setSelectedClientId(null);
       setClientSearch("");
       setPlanMode("full_plan");
-      router.push(`/(trainer)/diet/${data.id}`);
+      router.push(`/diet/${data.id}`);
     },
     onError: () => {
       // handled silently — user can retry
@@ -188,7 +188,7 @@ export default function TrainerDietsScreen() {
                 key={plan.id}
                 onPress={() => {
                   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push(`/(trainer)/diet/${plan.id}`);
+                  router.push(`/diet/${plan.id}`);
                 }}
                 style={({ pressed }) => [
                   styles.planCard,

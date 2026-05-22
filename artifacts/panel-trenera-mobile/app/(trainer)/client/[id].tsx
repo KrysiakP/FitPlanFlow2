@@ -270,7 +270,7 @@ export default function ClientDetailScreen() {
       setCreatePlanModalVisible(false);
       setNewPlanName("");
       setNewPlanDesc("");
-      router.push(`/(trainer)/plan/${plan.id}`);
+      router.push(`/plan/${plan.id}`);
     },
     onError: () => Alert.alert("Blad", "Nie udalo sie utworzyc planu. Sprobuj ponownie."),
   });
@@ -308,7 +308,7 @@ export default function ClientDetailScreen() {
       setCreateDietModalVisible(false);
       setNewDietName("");
       setNewDietDesc("");
-      router.push(`/(trainer)/diet/${diet.id}`);
+      router.push(`/diet/${diet.id}`);
     },
     onError: () => Alert.alert("Błąd", "Nie udało się utworzyć planu diety. Spróbuj ponownie."),
   });
@@ -464,7 +464,7 @@ export default function ClientDetailScreen() {
               <>
                 {/* Plan header card */}
                 <Pressable
-                  onPress={() => router.push(`/(trainer)/plan/${assignment.plan!.id}`)}
+                  onPress={() => router.push(`/plan/${assignment.plan!.id}`)}
                   style={({ pressed }) => [styles.planBigCard, { backgroundColor: colors.primary, opacity: pressed ? 0.9 : 1 }]}
                   testID="button-open-plan"
                 >
@@ -489,7 +489,7 @@ export default function ClientDetailScreen() {
                 <View style={styles.workoutsHeader}>
                   <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Treningi</Text>
                   <Pressable
-                    onPress={() => router.push(`/(trainer)/plan/${assignment.plan!.id}`)}
+                    onPress={() => router.push(`/plan/${assignment.plan!.id}`)}
                     style={({ pressed }) => [styles.addWorkoutBtn, { borderColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
                     testID="button-add-workout"
                   >
@@ -502,7 +502,7 @@ export default function ClientDetailScreen() {
                   <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
                 ) : (planDetail?.workouts ?? []).length === 0 ? (
                   <Pressable
-                    onPress={() => router.push(`/(trainer)/plan/${assignment.plan!.id}`)}
+                    onPress={() => router.push(`/plan/${assignment.plan!.id}`)}
                     style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}
                   >
                     <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak treningow. Dodaj pierwszy trening.</Text>
@@ -511,7 +511,7 @@ export default function ClientDetailScreen() {
                   [...(planDetail?.workouts ?? [])].sort((a, b) => a.orderIndex - b.orderIndex).map((workout, idx) => (
                     <Pressable
                       key={workout.id}
-                      onPress={() => router.push(`/(trainer)/plan/${assignment.plan!.id}`)}
+                      onPress={() => router.push(`/plan/${assignment.plan!.id}`)}
                       style={({ pressed }) => [
                         styles.workoutRow,
                         { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
@@ -573,7 +573,7 @@ export default function ClientDetailScreen() {
               (dietPlans ?? []).map((diet) => (
                 <Pressable
                   key={diet.id}
-                  onPress={() => router.push(`/(trainer)/diet/${diet.id}`)}
+                  onPress={() => router.push(`/diet/${diet.id}`)}
                   style={({ pressed }) => [
                     styles.workoutRow,
                     { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },

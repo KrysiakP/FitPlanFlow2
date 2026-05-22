@@ -218,7 +218,7 @@ export default function TrainerClientsScreen() {
                 name={`${c.firstName} ${c.lastName}`}
                 email={c.email}
                 planName={c.assignment?.plan?.name ?? null}
-                onPress={() => router.push(`/(trainer)/client/${c.id}`)}
+                onPress={() => router.push(`/client/${c.id}`)}
               />
             ))
           )}
