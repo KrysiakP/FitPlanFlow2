@@ -6,35 +6,39 @@ import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Ionicons } from "@expo/vector-icons";
 import { Platform, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { SafeAreaInsetsContext, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useUnreadCount } from "@/hooks/useChat";
 
 const IS_EXPO_GO = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 function NativeTrainerTabs() {
+  const outerInsets = useSafeAreaInsets();
   const { data: unreadData } = useUnreadCount();
   const unreadCount = unreadData?.count ?? 0;
   const chatLabel = unreadCount > 0 ? `Wiadomości (${unreadCount > 99 ? "99+" : unreadCount})` : "Wiadomości";
 
   return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "person.2", selected: "person.2.fill" }} />
-        <Label>Podopieczni</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="chat">
-        <Icon sf={{ default: "message", selected: "message.fill" }} />
-        <Label>{chatLabel}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="tools">
-        <Icon sf={{ default: "wrench.and.screwdriver", selected: "wrench.and.screwdriver.fill" }} />
-        <Label>Narzędzia</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: "person", selected: "person.fill" }} />
-        <Label>Profil</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
+    <SafeAreaInsetsContext.Provider value={outerInsets}>
+      <NativeTabs>
+        <NativeTabs.Trigger name="index">
+          <Icon sf={{ default: "person.2", selected: "person.2.fill" }} />
+          <Label>Podopieczni</Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="chat">
+          <Icon sf={{ default: "message", selected: "message.fill" }} />
+          <Label>{chatLabel}</Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="tools">
+          <Icon sf={{ default: "wrench.and.screwdriver", selected: "wrench.and.screwdriver.fill" }} />
+          <Label>Narzędzia</Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="profile">
+          <Icon sf={{ default: "person", selected: "person.fill" }} />
+          <Label>Profil</Label>
+        </NativeTabs.Trigger>
+      </NativeTabs>
+    </SafeAreaInsetsContext.Provider>
   );
 }
 
