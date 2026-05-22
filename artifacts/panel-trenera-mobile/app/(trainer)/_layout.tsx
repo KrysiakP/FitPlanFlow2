@@ -1,161 +1,132 @@
-import type { ComponentProps } from "react";
-import { Drawer } from "expo-router/drawer";
-import { DrawerContentScrollView, DrawerItemList, type DrawerContentComponentProps } from "@react-navigation/drawer";
+import { BlurView } from "expo-blur";
+import { isLiquidGlassAvailable } from "expo-glass-effect";
+import { Tabs } from "expo-router";
+import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
+import { SymbolView } from "expo-symbols";
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Platform, StyleSheet, Text, View, useColorScheme } from "react-native";
 import { useColors } from "@/hooks/useColors";
-import { useAuth } from "@/context/AuthContext";
 import { useUnreadCount } from "@/hooks/useChat";
 
-type IoniconsName = ComponentProps<typeof Ionicons>["name"];
-
-function TrainerDrawerContent(props: DrawerContentComponentProps) {
-  const colors = useColors();
-  const insets = useSafeAreaInsets();
-  const { user } = useAuth();
-  const initials = ((user?.firstName?.[0] ?? "") + (user?.lastName?.[0] ?? "")).toUpperCase();
+function NativeTrainerTabs() {
+  const { data: unreadData } = useUnreadCount();
+  const unreadCount = unreadData?.count ?? 0;
+  const chatLabel = unreadCount > 0 ? `Wiadomości (${unreadCount > 99 ? "99+" : unreadCount})` : "Wiadomości";
 
   return (
-    <View style={[styles.drawerContainer, { backgroundColor: colors.background }]}>
-      <View style={[styles.drawerHeader, { paddingTop: insets.top + 16, backgroundColor: colors.primary }]}>
-        <View style={styles.avatarRow}>
-          <View style={[styles.avatar, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
-          <View style={styles.headerInfo}>
-            <Text style={styles.headerName}>{user?.firstName} {user?.lastName}</Text>
-            <Text style={styles.headerRole}>Trener</Text>
-          </View>
-        </View>
-      </View>
+    <NativeTabs>
+      <NativeTabs.Trigger name="index">
+        <Icon sf={{ default: "person.2", selected: "person.2.fill" }} />
+        <Label>Podopieczni</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="chat">
+        <Icon sf={{ default: "message", selected: "message.fill" }} />
+        <Label>{chatLabel}</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="payments">
+        <Icon sf={{ default: "wallet.pass", selected: "wallet.pass.fill" }} />
+        <Label>Płatności</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="profile">
+        <Icon sf={{ default: "person", selected: "person.fill" }} />
+        <Label>Profil</Label>
+      </NativeTabs.Trigger>
+    </NativeTabs>
+  );
+}
 
-      <DrawerContentScrollView
-        {...props}
-        contentContainerStyle={styles.scrollContent}
-        style={{ backgroundColor: colors.background }}
-      >
-        <DrawerItemList {...props} />
-      </DrawerContentScrollView>
+function ClassicTrainerTabs() {
+  const colors = useColors();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const isIOS = Platform.OS === "ios";
+  const isWeb = Platform.OS === "web";
 
-    </View>
+  const { data: unreadData } = useUnreadCount();
+  const unreadCount = unreadData?.count ?? 0;
+
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.mutedForeground,
+        tabBarStyle: {
+          position: "absolute",
+          backgroundColor: isIOS ? "transparent" : colors.background,
+          borderTopWidth: isWeb ? 1 : 0,
+          borderTopColor: colors.border,
+          elevation: 0,
+          ...(isWeb ? { height: 84 } : {}),
+        },
+        tabBarBackground: () =>
+          isIOS ? (
+            <BlurView intensity={100} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
+          ) : isWeb ? (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
+          ) : null,
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: "Podopieczni",
+          tabBarIcon: ({ color }) =>
+            isIOS
+              ? <SymbolView name="person.2.fill" tintColor={color} size={22} />
+              : <Ionicons name="people-outline" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="chat"
+        options={{
+          title: "Wiadomości",
+          tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? "99+" : unreadCount) : undefined,
+          tabBarIcon: ({ color }) =>
+            isIOS
+              ? <SymbolView name="message.fill" tintColor={color} size={22} />
+              : <Ionicons name="chatbubble-outline" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="payments"
+        options={{
+          title: "Płatności",
+          tabBarIcon: ({ color }) =>
+            isIOS
+              ? <SymbolView name="wallet.pass.fill" tintColor={color} size={22} />
+              : <Ionicons name="wallet-outline" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profil",
+          tabBarIcon: ({ color }) =>
+            isIOS
+              ? <SymbolView name="person.fill" tintColor={color} size={22} />
+              : <Ionicons name="person-outline" size={22} color={color} />,
+        }}
+      />
+
+      {/* Hidden screens — accessible via router.push */}
+      <Tabs.Screen name="plans" options={{ href: null }} />
+      <Tabs.Screen name="exercise-library" options={{ href: null }} />
+      <Tabs.Screen name="diets" options={{ href: null }} />
+      <Tabs.Screen name="invitations" options={{ href: null }} />
+      <Tabs.Screen name="referrals" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
+      <Tabs.Screen name="admin-gyms" options={{ href: null }} />
+      <Tabs.Screen name="client/[id]" options={{ href: null }} />
+      <Tabs.Screen name="plan/[id]" options={{ href: null }} />
+      <Tabs.Screen name="diet/[id]" options={{ href: null }} />
+    </Tabs>
   );
 }
 
 export default function TrainerLayout() {
-  const colors = useColors();
-  const { data: unreadData } = useUnreadCount();
-  const unreadCount = unreadData?.count ?? 0;
-
-  type DrawerScreen = {
-    name: string;
-    title: string;
-    icon: IoniconsName;
-    iconFocused: IoniconsName;
-    hidden?: boolean;
-    customHeader?: boolean;
-  };
-
-  const screens: DrawerScreen[] = [
-    { name: "index", title: "Podopieczni", icon: "people-outline", iconFocused: "people", customHeader: true },
-    { name: "plans", title: "Plany treningowe", icon: "clipboard-outline", iconFocused: "clipboard", hidden: true },
-    { name: "exercise-library", title: "Biblioteka ćwiczeń", icon: "barbell-outline", iconFocused: "barbell" },
-    { name: "diets", title: "Diety", icon: "nutrition-outline", iconFocused: "nutrition", hidden: true },
-    { name: "invitations", title: "Zaproszenia", icon: "mail-outline", iconFocused: "mail" },
-    {
-      name: "chat",
-      title: "Wiadomości",
-      icon: "chatbubble-outline",
-      iconFocused: "chatbubble",
-      customHeader: true,
-    },
-    { name: "payments", title: "Płatności", icon: "wallet-outline", iconFocused: "wallet" },
-    { name: "referrals", title: "Polecenia", icon: "gift-outline", iconFocused: "gift" },
-    { name: "notifications", title: "Powiadomienia", icon: "notifications-outline", iconFocused: "notifications" },
-    { name: "profile", title: "Profil i subskrypcja", icon: "person-circle-outline", iconFocused: "person-circle", customHeader: true },
-    { name: "client/[id]", title: "Klient", icon: "person-outline", iconFocused: "person", hidden: true },
-    { name: "plan/[id]", title: "Plan treningowy", icon: "clipboard-outline", iconFocused: "clipboard", hidden: true },
-    { name: "diet/[id]", title: "Plan diety", icon: "nutrition-outline", iconFocused: "nutrition", hidden: true },
-    { name: "admin-gyms", title: "Admin — Siłownie", icon: "business-outline", iconFocused: "business", hidden: true },
-  ];
-
-  return (
-    <Drawer
-      drawerContent={(props) => <TrainerDrawerContent {...props} />}
-      screenOptions={{
-        headerShown: true,
-        headerStyle: { backgroundColor: colors.background },
-        headerTintColor: colors.foreground,
-        headerTitleStyle: { fontFamily: "Inter_700Bold", fontSize: 18 },
-        headerShadowVisible: false,
-        drawerStyle: { backgroundColor: colors.background, width: 280 },
-        drawerActiveTintColor: colors.primary,
-        drawerInactiveTintColor: colors.mutedForeground,
-        drawerActiveBackgroundColor: colors.primary + "14",
-        drawerLabelStyle: { fontFamily: "Inter_600SemiBold", fontSize: 15, marginLeft: -8 },
-        drawerItemStyle: { borderRadius: 10, marginHorizontal: 8, marginVertical: 2 },
-      }}
-    >
-      {screens.map((s) => (
-        <Drawer.Screen
-          key={s.name}
-          name={s.name}
-          options={{
-            title: s.title,
-            headerShown: s.customHeader ? false : true,
-            drawerItemStyle: s.hidden
-              ? { display: "none" }
-              : { borderRadius: 10, marginHorizontal: 8, marginVertical: 2 },
-            drawerIcon: ({ focused, color }) =>
-              s.name === "chat" && unreadCount > 0 ? (
-                <View style={{ position: "relative" }}>
-                  <Ionicons name={focused ? "chatbubble" : "chatbubble-outline"} size={22} color={color} />
-                  <View style={styles.chatBadge}>
-                    <Text style={styles.chatBadgeText}>
-                      {unreadCount > 9 ? "9+" : unreadCount}
-                    </Text>
-                  </View>
-                </View>
-              ) : (
-                <Ionicons name={focused ? s.iconFocused : s.icon} size={22} color={color} />
-              ),
-          }}
-        />
-      ))}
-    </Drawer>
-  );
+  if (isLiquidGlassAvailable()) return <NativeTrainerTabs />;
+  return <ClassicTrainerTabs />;
 }
 
-const styles = StyleSheet.create({
-  drawerContainer: { flex: 1 },
-  drawerHeader: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  avatarRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: { color: "#fff", fontSize: 20, fontFamily: "Inter_700Bold" },
-  headerInfo: { flex: 1 },
-  headerName: { color: "#fff", fontSize: 16, fontFamily: "Inter_700Bold" },
-  headerRole: { color: "rgba(255,255,255,0.75)", fontSize: 13, fontFamily: "Inter_400Regular" },
-  scrollContent: { paddingTop: 8 },
-  chatBadge: {
-    position: "absolute",
-    top: -5,
-    right: -7,
-    backgroundColor: "#ef4444",
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 3,
-  },
-  chatBadgeText: { color: "#fff", fontSize: 10, fontFamily: "Inter_700Bold" },
-});
+const styles = StyleSheet.create({});

@@ -21,7 +21,6 @@ import { router } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { ClientCard } from "@/components/ClientCard";
-import { DrawerMenuButton } from "@/components/DrawerMenuButton";
 import { apiGet, apiPost } from "@/lib/api";
 
 interface ClientWithPlan {
@@ -133,7 +132,6 @@ export default function TrainerClientsScreen() {
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <View style={[styles.headerSection, { paddingTop: topPad + 16, backgroundColor: colors.background }]}>
           <View style={styles.titleRow}>
-            <DrawerMenuButton />
             <Text style={[styles.pageTitle, { color: colors.foreground }]}>Klienci</Text>
             <View style={[styles.countBadge, { backgroundColor: colors.primary + "1a" }]}>
               <Text style={[styles.countText, { color: colors.primary }]}>{data?.length ?? 0}</Text>
