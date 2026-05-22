@@ -1,4 +1,5 @@
 import { BlurView } from "expo-blur";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
 import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
@@ -7,6 +8,8 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { Platform, StyleSheet, Text, View, useColorScheme } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { useUnreadCount } from "@/hooks/useChat";
+
+const IS_EXPO_GO = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 function NativeClientTabs() {
   const { data: unreadData } = useUnreadCount();
@@ -177,12 +180,14 @@ function ClassicClientTabs() {
 }
 
 export default function ClientLayout() {
-  let useLiquidGlass = false;
-  try {
-    useLiquidGlass = isLiquidGlassAvailable();
-  } catch {
-    useLiquidGlass = false;
+  if (!IS_EXPO_GO) {
+    let useLiquidGlass = false;
+    try {
+      useLiquidGlass = isLiquidGlassAvailable();
+    } catch {
+      useLiquidGlass = false;
+    }
+    if (useLiquidGlass) return <NativeClientTabs />;
   }
-  if (useLiquidGlass) return <NativeClientTabs />;
   return <ClassicClientTabs />;
 }
