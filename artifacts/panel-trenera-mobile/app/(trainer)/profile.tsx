@@ -326,6 +326,32 @@ export default function TrainerProfileScreen() {
         </>
       )}
 
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Narzędzia trenera</Text>
+      <MenuRow
+        icon="barbell-outline"
+        label="Biblioteka ćwiczeń"
+        desc="Przeglądaj i zarządzaj ćwiczeniami"
+        colors={colors}
+        onPress={() => router.push("/(trainer)/exercise-library")}
+        testID="button-exercise-library"
+      />
+      <MenuRow
+        icon="mail-outline"
+        label="Zaproszenia"
+        desc="Zarządzaj zaproszeniami dla klientów"
+        colors={colors}
+        onPress={() => router.push("/(trainer)/invitations")}
+        testID="button-invitations"
+      />
+      <MenuRow
+        icon="gift-outline"
+        label="Polecenia"
+        desc="Program poleceń i twój kod"
+        colors={colors}
+        onPress={() => router.push("/(trainer)/referrals")}
+        testID="button-referrals"
+      />
+
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ustawienia</Text>
       <ThemeToggleRow colors={colors} />
       <MenuRow
