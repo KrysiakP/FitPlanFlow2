@@ -8,11 +8,14 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: "trainer" | "client" | null;
+  role: "trainer" | "client" | "gym_owner" | null;
   profileImageUrl?: string | null;
   subscriptionStatus?: string | null;
   subscriptionTier?: string | null;
   trialEndsAt?: string | null;
+  isAdmin?: boolean;
+  phone?: string | null;
+  goal?: string | null;
 }
 
 interface AuthContextType {
