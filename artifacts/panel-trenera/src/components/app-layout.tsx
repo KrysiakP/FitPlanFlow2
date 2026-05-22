@@ -130,6 +130,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     ...(user?.isAdmin ? [{ href: "/admin/charity-donations", icon: ShieldCheck, label: "Panel Admin" }] : []),
     { href: "/pomagamy", icon: Heart, label: "PomagaMY" },
     { href: "/pricing", icon: Crown, label: "Subskrypcja" },
+    { href: "/trainer-profile", icon: User, label: "Mój profil" },
   ];
 
   const clientNavItems = [
@@ -143,6 +144,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/chat", icon: MessageSquare, label: "Wiadomości" },
     { href: "/payment-schedule", icon: DollarSign, label: "Płatności" },
     { href: "/pomagamy", icon: Heart, label: "PomagaMY" },
+    { href: "/client-profile", icon: User, label: "Mój profil" },
   ];
 
   const navItems = isTrainer ? trainerNavItems : clientNavItems;
