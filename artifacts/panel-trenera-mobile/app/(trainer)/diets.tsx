@@ -14,7 +14,6 @@ import {
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { DrawerMenuButton } from "@/components/DrawerMenuButton";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -155,7 +154,7 @@ export default function TrainerDietsScreen() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.stickyHeader, { paddingTop: topPad + 8, backgroundColor: colors.background }]}>
         <View style={styles.headerRow}>
-          <DrawerMenuButton />
+          <Ionicons name="chevron-back" size={28} color={colors.primary} onPress={() => router.back()} />
           <Text style={[styles.pageTitle, { color: colors.foreground }]}>Plany diety</Text>
           <View style={[styles.countBadge, { backgroundColor: colors.primary + "1a" }]}>
             <Text style={[styles.countText, { color: colors.primary }]}>{plans.length}</Text>

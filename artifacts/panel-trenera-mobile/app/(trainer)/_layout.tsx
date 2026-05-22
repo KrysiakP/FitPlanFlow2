@@ -52,10 +52,18 @@ function ClassicTrainerTabs() {
   const { data: unreadData } = useUnreadCount();
   const unreadCount = unreadData?.count ?? 0;
 
+  const headerStyle = {
+    backgroundColor: colors.background,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    elevation: 0,
+    shadowOpacity: 0,
+  } as const;
+  const headerTitleStyle = { color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 17 } as const;
+
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
         tabBarStyle: {
@@ -72,11 +80,15 @@ function ClassicTrainerTabs() {
           ) : isWeb ? (
             <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
           ) : null,
+        headerStyle,
+        headerTitleStyle,
+        headerTintColor: colors.primary,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
+          headerShown: false,
           title: "Podopieczni",
           tabBarIcon: ({ color }) =>
             isIOS
@@ -87,6 +99,7 @@ function ClassicTrainerTabs() {
       <Tabs.Screen
         name="chat"
         options={{
+          headerShown: false,
           title: "Wiadomości",
           tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? "99+" : unreadCount) : undefined,
           tabBarIcon: ({ color }) =>
@@ -98,6 +111,7 @@ function ClassicTrainerTabs() {
       <Tabs.Screen
         name="tools"
         options={{
+          headerShown: false,
           title: "Narzędzia",
           tabBarIcon: ({ color }) =>
             isIOS
@@ -108,6 +122,7 @@ function ClassicTrainerTabs() {
       <Tabs.Screen
         name="profile"
         options={{
+          headerShown: false,
           title: "Profil",
           tabBarIcon: ({ color }) =>
             isIOS
@@ -116,18 +131,18 @@ function ClassicTrainerTabs() {
         }}
       />
 
-      {/* Hidden screens — accessible via router.push */}
-      <Tabs.Screen name="payments" options={{ href: null }} />
-      <Tabs.Screen name="plans" options={{ href: null }} />
-      <Tabs.Screen name="exercise-library" options={{ href: null }} />
-      <Tabs.Screen name="diets" options={{ href: null }} />
-      <Tabs.Screen name="invitations" options={{ href: null }} />
-      <Tabs.Screen name="referrals" options={{ href: null }} />
-      <Tabs.Screen name="notifications" options={{ href: null }} />
-      <Tabs.Screen name="admin-gyms" options={{ href: null }} />
-      <Tabs.Screen name="client/[id]" options={{ href: null }} />
-      <Tabs.Screen name="plan/[id]" options={{ href: null }} />
-      <Tabs.Screen name="diet/[id]" options={{ href: null }} />
+      {/* Hidden screens — show native header with back button for proper safe-area handling */}
+      <Tabs.Screen name="payments" options={{ href: null, title: "Płatności" }} />
+      <Tabs.Screen name="plans" options={{ href: null, title: "Plany" }} />
+      <Tabs.Screen name="exercise-library" options={{ href: null, title: "Ćwiczenia" }} />
+      <Tabs.Screen name="diets" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen name="invitations" options={{ href: null, title: "Zaproszenia" }} />
+      <Tabs.Screen name="referrals" options={{ href: null, title: "Polecenia" }} />
+      <Tabs.Screen name="notifications" options={{ href: null, title: "Powiadomienia" }} />
+      <Tabs.Screen name="admin-gyms" options={{ href: null, title: "Siłownie" }} />
+      <Tabs.Screen name="client/[id]" options={{ href: null, title: "" }} />
+      <Tabs.Screen name="plan/[id]" options={{ href: null, title: "" }} />
+      <Tabs.Screen name="diet/[id]" options={{ href: null, title: "" }} />
     </Tabs>
   );
 }
