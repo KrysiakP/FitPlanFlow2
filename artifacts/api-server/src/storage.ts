@@ -328,6 +328,9 @@ export interface IStorage {
   markPushNotificationRead(id: string, userId: string): Promise<PushNotificationHistory>;
   markAllPushNotificationsRead(userId: string): Promise<void>;
   getUnreadPushNotificationCount(userId: string): Promise<number>;
+
+  // Account deletion
+  deleteUser(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3003,6 +3006,14 @@ export class DatabaseStorage implements IStorage {
       .from(pushNotificationHistory)
       .where(and(eq(pushNotificationHistory.userId, userId), eq(pushNotificationHistory.isRead, false)));
     return result[0]?.count ?? 0;
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    // Delete all sessions belonging to this user (connect-pg-simple stores userId in sess JSON)
+    await db.execute(sql`DELETE FROM sessions WHERE sess->>'userId' = ${userId}`);
+    // Deleting the user row cascades to all related tables (mobile_tokens, push_tokens,
+    // training_plans, workouts, exercises, diet_plans, client_relationships, etc.)
+    await db.delete(users).where(eq(users.id, userId));
   }
 }
 

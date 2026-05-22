@@ -1291,31 +1291,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Nie znaleziono konta." });
       }
 
-      req.log.info({ userId, email: user.email }, "[DELETE_ACCOUNT_REQUEST] Received account deletion request");
+      req.log.info({ userId, email: user.email }, "[DELETE_ACCOUNT] Starting account deletion");
 
-      // Notify admin by email (best-effort, non-blocking)
+      // Capture user info before deletion
+      const { email, firstName, lastName, role } = user;
+
+      // Delete the account — cascades to all related tables (plans, sessions, tokens, etc.)
+      await storage.deleteUser(userId);
+
+      req.log.info({ userId, email }, "[DELETE_ACCOUNT] Account deleted successfully");
+
+      // Destroy the current request session (best-effort — sessions already cleared by deleteUser)
+      req.session.destroy(() => {});
+
+      // Send emails in parallel (best-effort, non-blocking)
       try {
         const { client, fromEmail } = await getResendClient();
-        await client.emails.send({
-          from: fromEmail,
-          to: "kontakt@paneltrenera.pl",
-          subject: `Prośba o usunięcie konta: ${user.email}`,
-          html: `<p>Użytkownik złożył prośbę o usunięcie swojego konta:</p>
+        await Promise.all([
+          // Confirmation to the deleted user
+          client.emails.send({
+            from: fromEmail,
+            to: email,
+            subject: "Twoje konto zostało usunięte – Panel Trenera",
+            html: `<p>Cześć ${firstName},</p>
+<p>Twoje konto w aplikacji <strong>Panel Trenera</strong> zostało trwale usunięte.</p>
+<p>Wszystkie Twoje dane (plany treningowe, dieta, postępy, wiadomości) zostały usunięte z naszych serwerów.</p>
+<p>Jeśli chcesz wrócić, możesz zarejestrować się ponownie na <a href="https://paneltrenera.pl">paneltrenera.pl</a>.</p>
+<br/>
+<p>Pozdrawiamy,<br/>Zespół Panel Trenera</p>`,
+          }),
+          // Notification to admin
+          client.emails.send({
+            from: fromEmail,
+            to: "kontakt@paneltrenera.pl",
+            subject: `Konto usunięte: ${email}`,
+            html: `<p>Konto użytkownika zostało automatycznie usunięte:</p>
 <ul>
-  <li><strong>E-mail:</strong> ${user.email}</li>
-  <li><strong>Imię i nazwisko:</strong> ${user.firstName} ${user.lastName}</li>
-  <li><strong>ID:</strong> ${user.id}</li>
-  <li><strong>Rola:</strong> ${user.role}</li>
+  <li><strong>E-mail:</strong> ${email}</li>
+  <li><strong>Imię i nazwisko:</strong> ${firstName} ${lastName}</li>
+  <li><strong>ID:</strong> ${userId}</li>
+  <li><strong>Rola:</strong> ${role}</li>
 </ul>
-<p>Usuń konto w ciągu 30 dni.</p>`,
-        });
+<p>Wszystkie dane zostały trwale usunięte z bazy danych.</p>`,
+          }),
+        ]);
       } catch (emailErr) {
-        req.log.warn({ emailErr }, "[DELETE_ACCOUNT_REQUEST] Failed to send admin notification email");
+        req.log.warn({ emailErr }, "[DELETE_ACCOUNT] Failed to send notification emails");
       }
 
       res.json({ success: true });
     } catch (error) {
-      req.log.error({ error }, "Error processing delete account request");
+      req.log.error({ error }, "Error deleting account");
       res.status(500).json({ message: "Wystąpił błąd. Spróbuj ponownie później." });
     }
   });
