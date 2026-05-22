@@ -85,9 +85,9 @@ function ClassicClientTabs() {
         },
         tabBarBackground: () =>
           isIOS ? (
-            <BlurView intensity={100} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
+            <BlurView pointerEvents="none" intensity={100} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
           ) : isWeb ? (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
+            <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
           ) : null,
       }}
     >
@@ -177,6 +177,12 @@ function ClassicClientTabs() {
 }
 
 export default function ClientLayout() {
-  if (isLiquidGlassAvailable()) return <NativeClientTabs />;
+  let useLiquidGlass = false;
+  try {
+    useLiquidGlass = isLiquidGlassAvailable();
+  } catch {
+    useLiquidGlass = false;
+  }
+  if (useLiquidGlass) return <NativeClientTabs />;
   return <ClassicClientTabs />;
 }
