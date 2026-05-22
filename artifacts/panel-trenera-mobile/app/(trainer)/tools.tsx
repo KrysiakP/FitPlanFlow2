@@ -19,12 +19,11 @@ interface MenuRowProps {
   label: string;
   desc?: string;
   colors: ReturnType<typeof useColors>;
-  onPress?: () => void;
+  onPress: () => void;
   testID?: string;
-  badge?: number;
 }
 
-function MenuRow({ icon, label, desc, colors, onPress, testID, badge }: MenuRowProps) {
+function MenuRow({ icon, label, desc, colors, onPress, testID }: MenuRowProps) {
   return (
     <Pressable
       onPress={onPress}
@@ -39,23 +38,22 @@ function MenuRow({ icon, label, desc, colors, onPress, testID, badge }: MenuRowP
       </View>
       <View style={styles.menuInfo}>
         <Text style={[styles.menuLabel, { color: colors.foreground }]}>{label}</Text>
-        {desc && <Text style={[styles.menuDesc, { color: colors.mutedForeground }]}>{desc}</Text>}
+        {desc ? <Text style={[styles.menuDesc, { color: colors.mutedForeground }]}>{desc}</Text> : null}
       </View>
-      {badge != null && badge > 0 && (
-        <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-          <Text style={styles.badgeText}>{badge > 99 ? "99+" : badge}</Text>
-        </View>
-      )}
       <Ionicons name="chevron-forward" size={16} color={colors.mutedForeground} />
     </Pressable>
   );
+}
+
+function openUrl(url: string) {
+  Linking.openURL(url).catch(() => {});
 }
 
 export default function ToolsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const topPad = Platform.OS === "web" ? 0 : insets.top;
+  const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -110,7 +108,7 @@ export default function ToolsScreen() {
           label="Panel trenera web"
           desc="Otwórz pełny panel w przeglądarce"
           colors={colors}
-          onPress={() => Linking.openURL("https://paneltrenera.pl")}
+          onPress={() => openUrl("https://paneltrenera.pl")}
           testID="button-tools-web"
         />
         <MenuRow
@@ -118,11 +116,11 @@ export default function ToolsScreen() {
           label="Zaproś klienta"
           desc="Wyślij zaproszenie nowemu klientowi"
           colors={colors}
-          onPress={() => Linking.openURL("https://paneltrenera.pl/zaproszenie")}
+          onPress={() => openUrl("https://paneltrenera.pl/zaproszenie")}
           testID="button-tools-invite"
         />
 
-        {user?.isAdmin && (
+        {user?.isAdmin ? (
           <>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Administrator</Text>
             <View style={[styles.adminBanner, { backgroundColor: "#fef3c718", borderColor: "#f59e0b40" }]}>
@@ -138,7 +136,7 @@ export default function ToolsScreen() {
               testID="button-tools-admin-gyms"
             />
           </>
-        )}
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -155,8 +153,6 @@ const styles = StyleSheet.create({
   menuInfo: { flex: 1 },
   menuLabel: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   menuDesc: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  badge: { minWidth: 22, height: 22, borderRadius: 11, justifyContent: "center", alignItems: "center", paddingHorizontal: 6 },
-  badgeText: { color: "#fff", fontSize: 11, fontFamily: "Inter_700Bold" },
   adminBanner: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 10 },
   adminBannerText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
 });
