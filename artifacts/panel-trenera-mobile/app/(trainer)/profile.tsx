@@ -206,107 +206,111 @@ export default function TrainerProfileScreen() {
         </Pressable>
       </View>
 
-      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Cennik planów</Text>
-      <Text style={[styles.pricingNote, { color: colors.mutedForeground }]}>
-        Zakup i zmiana planu odbywa się przez paneltrenera.pl
-      </Text>
-      {PRICING_PLANS.map((plan) => {
-        const isCurrent = tier === plan.id;
-        return (
-          <View
-            key={plan.id}
-            style={[
-              styles.planCard,
-              {
-                backgroundColor: isCurrent ? colors.primary + "0f" : colors.card,
-                borderColor: isCurrent ? colors.primary : colors.border,
-                borderWidth: isCurrent ? 2 : 1,
-              },
-            ]}
-            testID={`card-pricing-${plan.id}`}
-          >
-            <View style={styles.planCardHeader}>
-              <View style={styles.planCardLeft}>
-                <View style={styles.planNameRow}>
-                  <Text style={[styles.planName, { color: isCurrent ? colors.primary : colors.foreground }]}>
-                    {plan.name}
-                  </Text>
-                  {isCurrent && (
-                    <View style={[styles.currentBadge, { backgroundColor: colors.primary }]}>
-                      <Text style={styles.currentBadgeText}>Aktualny</Text>
-                    </View>
-                  )}
-                  {plan.highlighted && !isCurrent && (
-                    <View style={[styles.popularBadge, { backgroundColor: colors.primary + "18" }]}>
-                      <Text style={[styles.popularBadgeText, { color: colors.primary }]}>Popularny</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={[styles.planDesc, { color: colors.mutedForeground }]}>{plan.description}</Text>
-              </View>
-              <View style={styles.planPriceBox}>
-                {plan.customPricing ? (
-                  <Text style={[styles.planPriceCustom, { color: isCurrent ? colors.primary : colors.foreground }]}>
-                    Wycena
-                  </Text>
-                ) : (
-                  <>
-                    <Text style={[styles.planPrice, { color: isCurrent ? colors.primary : colors.foreground }]}>
-                      {plan.price === 0 ? "0" : plan.price} zł
-                    </Text>
-                    <Text style={[styles.planPricePer, { color: colors.mutedForeground }]}>/mies.</Text>
-                  </>
-                )}
-              </View>
-            </View>
-
-            <View style={[styles.planFeaturesList]}>
-              {plan.features.map((feature) => (
-                <View key={feature} style={styles.planFeatureRow}>
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={15}
-                    color={isCurrent ? colors.primary : "#16a34a"}
-                  />
-                  <Text style={[styles.planFeatureText, { color: colors.mutedForeground }]}>
-                    {feature}
-                  </Text>
-                </View>
-              ))}
-            </View>
-
-            {!isCurrent && (
-              <Pressable
-                onPress={() => Linking.openURL("https://paneltrenera.pl/cennik")}
-                style={({ pressed }) => [
-                  styles.planCta,
+      {Platform.OS !== "ios" && (
+        <>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Cennik planów</Text>
+          <Text style={[styles.pricingNote, { color: colors.mutedForeground }]}>
+            Zakup i zmiana planu odbywa się przez paneltrenera.pl
+          </Text>
+          {PRICING_PLANS.map((plan) => {
+            const isCurrent = tier === plan.id;
+            return (
+              <View
+                key={plan.id}
+                style={[
+                  styles.planCard,
                   {
-                    backgroundColor: plan.highlighted ? colors.primary : "transparent",
-                    borderColor: plan.highlighted ? colors.primary : colors.border,
-                    borderWidth: 1,
-                    opacity: pressed ? 0.8 : 1,
+                    backgroundColor: isCurrent ? colors.primary + "0f" : colors.card,
+                    borderColor: isCurrent ? colors.primary : colors.border,
+                    borderWidth: isCurrent ? 2 : 1,
                   },
                 ]}
-                testID={`button-select-plan-${plan.id}`}
+                testID={`card-pricing-${plan.id}`}
               >
-                <Text
-                  style={[
-                    styles.planCtaText,
-                    { color: plan.highlighted ? "#fff" : colors.foreground },
-                  ]}
-                >
-                  {plan.customPricing ? "Skontaktuj się" : "Wybierz plan"}
-                </Text>
-                <Ionicons
-                  name="open-outline"
-                  size={14}
-                  color={plan.highlighted ? "#fff" : colors.mutedForeground}
-                />
-              </Pressable>
-            )}
-          </View>
-        );
-      })}
+                <View style={styles.planCardHeader}>
+                  <View style={styles.planCardLeft}>
+                    <View style={styles.planNameRow}>
+                      <Text style={[styles.planName, { color: isCurrent ? colors.primary : colors.foreground }]}>
+                        {plan.name}
+                      </Text>
+                      {isCurrent && (
+                        <View style={[styles.currentBadge, { backgroundColor: colors.primary }]}>
+                          <Text style={styles.currentBadgeText}>Aktualny</Text>
+                        </View>
+                      )}
+                      {plan.highlighted && !isCurrent && (
+                        <View style={[styles.popularBadge, { backgroundColor: colors.primary + "18" }]}>
+                          <Text style={[styles.popularBadgeText, { color: colors.primary }]}>Popularny</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={[styles.planDesc, { color: colors.mutedForeground }]}>{plan.description}</Text>
+                  </View>
+                  <View style={styles.planPriceBox}>
+                    {plan.customPricing ? (
+                      <Text style={[styles.planPriceCustom, { color: isCurrent ? colors.primary : colors.foreground }]}>
+                        Wycena
+                      </Text>
+                    ) : (
+                      <>
+                        <Text style={[styles.planPrice, { color: isCurrent ? colors.primary : colors.foreground }]}>
+                          {plan.price === 0 ? "0" : plan.price} zł
+                        </Text>
+                        <Text style={[styles.planPricePer, { color: colors.mutedForeground }]}>/mies.</Text>
+                      </>
+                    )}
+                  </View>
+                </View>
+
+                <View style={[styles.planFeaturesList]}>
+                  {plan.features.map((feature) => (
+                    <View key={feature} style={styles.planFeatureRow}>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={15}
+                        color={isCurrent ? colors.primary : "#16a34a"}
+                      />
+                      <Text style={[styles.planFeatureText, { color: colors.mutedForeground }]}>
+                        {feature}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+
+                {!isCurrent && (
+                  <Pressable
+                    onPress={() => Linking.openURL("https://paneltrenera.pl/cennik")}
+                    style={({ pressed }) => [
+                      styles.planCta,
+                      {
+                        backgroundColor: plan.highlighted ? colors.primary : "transparent",
+                        borderColor: plan.highlighted ? colors.primary : colors.border,
+                        borderWidth: 1,
+                        opacity: pressed ? 0.8 : 1,
+                      },
+                    ]}
+                    testID={`button-select-plan-${plan.id}`}
+                  >
+                    <Text
+                      style={[
+                        styles.planCtaText,
+                        { color: plan.highlighted ? "#fff" : colors.foreground },
+                      ]}
+                    >
+                      {plan.customPricing ? "Skontaktuj się" : "Wybierz plan"}
+                    </Text>
+                    <Ionicons
+                      name="open-outline"
+                      size={14}
+                      color={plan.highlighted ? "#fff" : colors.mutedForeground}
+                    />
+                  </Pressable>
+                )}
+              </View>
+            );
+          })}
+        </>
+      )}
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ustawienia</Text>
       <ThemeToggleRow colors={colors} />
