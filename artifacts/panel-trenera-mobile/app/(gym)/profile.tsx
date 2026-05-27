@@ -7,6 +7,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Linking,
+  Platform,
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -158,14 +159,16 @@ export default function GymProfile() {
         <Text style={[styles.usageText, { color: colors.mutedForeground }]}>
           {gym?.stats.activeTrainers ?? 0} / {gym?.maxTrainers ?? "?"} aktywnych trenerów
         </Text>
-        <Pressable
-          onPress={() => Linking.openURL("https://paneltrenera.pl/cennik")}
-          style={({ pressed }) => [styles.upgradeBtn, { borderColor: tier.color + "60", opacity: pressed ? 0.8 : 1 }]}
-          testID="button-upgrade-package"
-        >
-          <Ionicons name="arrow-up-circle-outline" size={16} color={tier.color} />
-          <Text style={[styles.upgradeBtnText, { color: tier.color }]}>Zmień pakiet na paneltrenera.pl</Text>
-        </Pressable>
+        {Platform.OS !== "ios" && (
+          <Pressable
+            onPress={() => Linking.openURL("https://paneltrenera.pl/cennik")}
+            style={({ pressed }) => [styles.upgradeBtn, { borderColor: tier.color + "60", opacity: pressed ? 0.8 : 1 }]}
+            testID="button-upgrade-package"
+          >
+            <Ionicons name="arrow-up-circle-outline" size={16} color={tier.color} />
+            <Text style={[styles.upgradeBtnText, { color: tier.color }]}>Zmień pakiet na paneltrenera.pl</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* Settings */}

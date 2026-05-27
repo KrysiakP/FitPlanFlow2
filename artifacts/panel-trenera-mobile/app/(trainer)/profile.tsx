@@ -194,26 +194,20 @@ export default function TrainerProfileScreen() {
             <Ionicons name="star" size={16} color="#fff" />
           </View>
         </View>
-        <View style={[styles.subDivider, { backgroundColor: "rgba(255,255,255,0.2)" }]} />
-        <Pressable
-          onPress={() =>
-            Linking.openURL(
-              Platform.OS === "ios"
-                ? "https://myfitplan.replit.app/pricing"
-                : "https://paneltrenera.pl/cennik"
-            )
-          }
-          style={({ pressed }) => [styles.subBtn, { opacity: pressed ? 0.8 : 1 }]}
-          testID="button-manage-subscription"
-        >
-          <Ionicons name="globe-outline" size={16} color="#fff" />
-          <Text style={styles.subBtnText}>
-            {Platform.OS === "ios"
-              ? "Zarządzaj subskrypcją na stronie"
-              : "Zarządzaj subskrypcją na paneltrenera.pl"}
-          </Text>
-          <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.7)" />
-        </Pressable>
+        {Platform.OS !== "ios" && (
+          <>
+            <View style={[styles.subDivider, { backgroundColor: "rgba(255,255,255,0.2)" }]} />
+            <Pressable
+              onPress={() => Linking.openURL("https://paneltrenera.pl/cennik")}
+              style={({ pressed }) => [styles.subBtn, { opacity: pressed ? 0.8 : 1 }]}
+              testID="button-manage-subscription"
+            >
+              <Ionicons name="globe-outline" size={16} color="#fff" />
+              <Text style={styles.subBtnText}>Zarządzaj subskrypcją na paneltrenera.pl</Text>
+              <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.7)" />
+            </Pressable>
+          </>
+        )}
       </View>
 
       {Platform.OS !== "ios" && (
