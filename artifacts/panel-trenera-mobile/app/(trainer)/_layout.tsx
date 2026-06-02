@@ -148,7 +148,7 @@ function ClassicTrainerTabs() {
 }
 
 export default function TrainerLayout() {
-  if (!IS_EXPO_GO) {
+  if (!IS_EXPO_GO && !Platform.isPad) {
     let useLiquidGlass = false;
     try {
       useLiquidGlass = isLiquidGlassAvailable();

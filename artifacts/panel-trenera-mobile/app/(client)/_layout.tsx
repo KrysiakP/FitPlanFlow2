@@ -125,7 +125,7 @@ function ClassicClientTabs() {
 }
 
 export default function ClientLayout() {
-  if (!IS_EXPO_GO) {
+  if (!IS_EXPO_GO && !Platform.isPad) {
     let useLiquidGlass = false;
     try {
       useLiquidGlass = isLiquidGlassAvailable();
