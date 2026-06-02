@@ -4,7 +4,7 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
 import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { Platform, StyleSheet, Text, View, useColorScheme } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { useUnreadCount } from "@/hooks/useChat";
@@ -33,26 +33,6 @@ function NativeClientTabs() {
       <NativeTabs.Trigger name="chat">
         <Icon sf={{ default: "message", selected: "message.fill" }} />
         <Label>{chatLabel}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="progress">
-        <Icon sf={{ default: "chart.line.uptrend.xyaxis", selected: "chart.line.uptrend.xyaxis" }} />
-        <Label>Postępy</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="referrals">
-        <Icon sf={{ default: "gift", selected: "gift.fill" }} />
-        <Label>Polecenia</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="notifications">
-        <Icon sf={{ default: "bell", selected: "bell.fill" }} />
-        <Label>Powiadomienia</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="medical-tests">
-        <Icon sf={{ default: "cross.case", selected: "cross.case.fill" }} />
-        <Label>Badania</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="weekly-report">
-        <Icon sf={{ default: "doc.text", selected: "doc.text.fill" }} />
-        <Label>Raport</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person", selected: "person.fill" }} />
@@ -127,46 +107,11 @@ function ClassicClientTabs() {
             isIOS ? <SymbolView name="message.fill" tintColor={color} size={22} /> : <Ionicons name="chatbubble-outline" size={22} color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="progress"
-        options={{
-          title: "Postępy",
-          tabBarIcon: ({ color }) =>
-            isIOS ? <SymbolView name="chart.line.uptrend.xyaxis" tintColor={color} size={22} /> : <Feather name="trending-up" size={22} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="referrals"
-        options={{
-          title: "Polecenia",
-          tabBarIcon: ({ color }) =>
-            isIOS ? <SymbolView name="gift.fill" tintColor={color} size={22} /> : <Ionicons name="gift-outline" size={22} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="notifications"
-        options={{
-          title: "Powiadomienia",
-          tabBarIcon: ({ color }) =>
-            isIOS ? <SymbolView name="bell.fill" tintColor={color} size={22} /> : <Ionicons name="notifications-outline" size={22} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="medical-tests"
-        options={{
-          title: "Badania",
-          tabBarIcon: ({ color }) =>
-            isIOS ? <SymbolView name="cross.case.fill" tintColor={color} size={22} /> : <Ionicons name="medical-outline" size={22} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="weekly-report"
-        options={{
-          title: "Raport",
-          tabBarIcon: ({ color }) =>
-            isIOS ? <SymbolView name="doc.text.fill" tintColor={color} size={22} /> : <Ionicons name="document-text-outline" size={22} color={color} />,
-        }}
-      />
+      <Tabs.Screen name="progress" options={{ href: null }} />
+      <Tabs.Screen name="referrals" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
+      <Tabs.Screen name="medical-tests" options={{ href: null }} />
+      <Tabs.Screen name="weekly-report" options={{ href: null }} />
       <Tabs.Screen
         name="profile"
         options={{
