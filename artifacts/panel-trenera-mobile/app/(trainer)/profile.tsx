@@ -216,13 +216,12 @@ export default function TrainerProfileScreen() {
         </Pressable>
       </View>
 
-      {Platform.OS !== "ios" && (
-        <>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Cennik planów</Text>
-          <Text style={[styles.pricingNote, { color: colors.mutedForeground }]}>
-            Zakup i zmiana planu odbywa się przez paneltrenera.pl
-          </Text>
-          {PRICING_PLANS.map((plan) => {
+      <>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Cennik planów</Text>
+        <Text style={[styles.pricingNote, { color: colors.mutedForeground }]}>
+          Zakup i zmiana planu odbywa się przez paneltrenera.pl
+        </Text>
+        {PRICING_PLANS.map((plan) => {
             const isCurrent = tier === plan.id;
             return (
               <View
@@ -318,9 +317,8 @@ export default function TrainerProfileScreen() {
                 )}
               </View>
             );
-          })}
-        </>
-      )}
+        })}
+      </>
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ustawienia</Text>
       <ThemeToggleRow colors={colors} />
