@@ -286,7 +286,7 @@ export default function TrainerProfileScreen() {
                   ))}
                 </View>
 
-                {!isCurrent && (
+                {!isCurrent && Platform.OS !== "ios" && (
                   <Pressable
                     onPress={() => Linking.openURL("https://paneltrenera.pl/cennik")}
                     style={({ pressed }) => [
