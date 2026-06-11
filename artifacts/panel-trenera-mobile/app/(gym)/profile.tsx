@@ -137,6 +137,8 @@ export default function GymProfile() {
       </View>
 
       {/* Package info */}
+      {Platform.OS !== "ios" && (
+      <>
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Subskrypcja</Text>
       <View style={[styles.packageCard, { borderColor: tier.color + "60", backgroundColor: tier.color + "08" }]}>
         <View style={styles.packageHeader}>
@@ -168,6 +170,8 @@ export default function GymProfile() {
           <Text style={[styles.upgradeBtnText, { color: tier.color }]}>Zmień pakiet na paneltrenera.pl</Text>
         </Pressable>
       </View>
+      </>
+      )}
 
       {/* Settings */}
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ustawienia</Text>
@@ -175,6 +179,8 @@ export default function GymProfile() {
       <MenuRow icon="globe-outline" label="Panel trenera web" desc="Otwórz pełny panel w przeglądarce" colors={colors} onPress={() => Linking.openURL("https://paneltrenera.pl")} />
       <MenuRow icon="shield-checkmark-outline" label="Prywatność i RODO" desc="Zarządzaj zgodami i danymi" colors={colors} onPress={() => router.push("/(auth)/privacy")} />
       <MenuRow icon="help-circle-outline" label="Pomoc i kontakt" desc="FAQ i support techniczny" colors={colors} onPress={() => router.push("/(auth)/help")} />
+
+      <DeleteAccountButton />
 
       <Pressable
         onPress={handleLogout}
@@ -187,8 +193,6 @@ export default function GymProfile() {
         <Ionicons name="log-out-outline" size={20} color={colors.destructive} />
         <Text style={[styles.logoutText, { color: colors.destructive }]}>Wyloguj się</Text>
       </Pressable>
-
-      <DeleteAccountButton />
 
       <Text style={[styles.footer, { color: colors.mutedForeground }]}>
         Panel Trenera — Siłownia v1.0{"\n"}paneltrenera.pl

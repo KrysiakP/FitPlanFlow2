@@ -181,6 +181,8 @@ export default function TrainerProfileScreen() {
         </View>
       </View>
 
+      {Platform.OS !== "ios" && (
+      <>
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Subskrypcja</Text>
       <View style={[styles.subscriptionCard, { backgroundColor: colors.primary }]}>
         <View style={styles.subHeader}>
@@ -196,27 +198,16 @@ export default function TrainerProfileScreen() {
         </View>
         <View style={[styles.subDivider, { backgroundColor: "rgba(255,255,255,0.2)" }]} />
         <Pressable
-          onPress={() =>
-            Linking.openURL(
-              Platform.OS === "ios"
-                ? "https://myfitplan.replit.app/pricing"
-                : "https://paneltrenera.pl/cennik"
-            )
-          }
+          onPress={() => Linking.openURL("https://paneltrenera.pl/cennik")}
           style={({ pressed }) => [styles.subBtn, { opacity: pressed ? 0.8 : 1 }]}
           testID="button-manage-subscription"
         >
           <Ionicons name="globe-outline" size={16} color="#fff" />
-          <Text style={styles.subBtnText}>
-            {Platform.OS === "ios"
-              ? "Zarządzaj subskrypcją na stronie"
-              : "Zarządzaj subskrypcją na paneltrenera.pl"}
-          </Text>
+          <Text style={styles.subBtnText}>Zarządzaj subskrypcją na paneltrenera.pl</Text>
           <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.7)" />
         </Pressable>
       </View>
 
-      <>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Cennik planów</Text>
         <Text style={[styles.pricingNote, { color: colors.mutedForeground }]}>
           Zakup i zmiana planu odbywa się przez paneltrenera.pl
@@ -319,6 +310,7 @@ export default function TrainerProfileScreen() {
             );
         })}
       </>
+      )}
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ustawienia</Text>
       <ThemeToggleRow colors={colors} />
@@ -333,6 +325,8 @@ export default function TrainerProfileScreen() {
       <MenuRow icon="shield-checkmark-outline" label="Prywatność i RODO" desc="Zarządzaj zgodami i danymi" colors={colors} onPress={() => router.push("/(auth)/privacy")} testID="button-privacy" />
       <MenuRow icon="help-circle-outline" label="Pomoc i kontakt" desc="FAQ i support techniczny" colors={colors} onPress={() => router.push("/(auth)/help")} testID="button-help" />
 
+      <DeleteAccountButton />
+
       <Pressable
         onPress={handleLogout}
         style={({ pressed }) => [
@@ -344,8 +338,6 @@ export default function TrainerProfileScreen() {
         <Ionicons name="log-out-outline" size={20} color={colors.destructive} />
         <Text style={[styles.logoutText, { color: colors.destructive }]}>Wyloguj się</Text>
       </Pressable>
-
-      <DeleteAccountButton />
 
       <Text style={[styles.footer, { color: colors.mutedForeground }]}>
         Panel Trenera v1.0{"\n"}paneltrenera.pl
