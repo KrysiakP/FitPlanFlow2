@@ -177,6 +177,7 @@ export default function GymProfile() {
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ustawienia</Text>
       <ThemeToggleRow colors={colors} />
       <MenuRow icon="globe-outline" label="Panel trenera web" desc="Otwórz pełny panel w przeglądarce" colors={colors} onPress={() => Linking.openURL("https://paneltrenera.pl")} />
+      <MenuRow icon="card-outline" label="Subskrypcja" desc="Zarządzaj subskrypcją na paneltrenera.pl" colors={colors} onPress={() => Linking.openURL("https://paneltrenera.pl")} />
       <MenuRow icon="shield-checkmark-outline" label="Prywatność i RODO" desc="Zarządzaj zgodami i danymi" colors={colors} onPress={() => router.push("/(auth)/privacy")} />
       <MenuRow icon="help-circle-outline" label="Pomoc i kontakt" desc="FAQ i support techniczny" colors={colors} onPress={() => router.push("/(auth)/help")} />
 
