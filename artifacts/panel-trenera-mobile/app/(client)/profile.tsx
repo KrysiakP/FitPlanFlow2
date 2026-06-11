@@ -194,6 +194,8 @@ export default function ClientProfileScreen() {
         <MenuRow icon="shield-checkmark-outline" label="Prywatność i RODO" desc="Zarządzaj zgodami i danymi" colors={colors} onPress={() => router.push("/(auth)/privacy")} testID="button-privacy" />
         <MenuRow icon="help-circle-outline" label="Pomoc i kontakt" desc="FAQ i kontakt z supportem" colors={colors} onPress={() => router.push("/(auth)/help")} testID="button-help" />
 
+        <DeleteAccountButton />
+
         <Pressable
           onPress={handleLogout}
           style={({ pressed }) => [
@@ -205,8 +207,6 @@ export default function ClientProfileScreen() {
           <Ionicons name="log-out-outline" size={20} color={colors.destructive} />
           <Text style={[styles.logoutText, { color: colors.destructive }]}>Wyloguj się</Text>
         </Pressable>
-
-        <DeleteAccountButton />
 
         <Text style={[styles.footer, { color: colors.mutedForeground }]}>
           Panel Trenera v1.0{"\n"}paneltrenera.pl
