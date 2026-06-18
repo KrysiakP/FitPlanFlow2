@@ -322,7 +322,14 @@ export default function TrainerProfileScreen() {
         onPress={() => router.push("/notifications")}
         testID="button-notifications"
       />
-      <MenuRow icon="card-outline" label="Subskrypcja" desc="Zarządzaj subskrypcją na paneltrenera.pl" colors={colors} onPress={() => Linking.openURL("https://paneltrenera.pl")} testID="button-subscription" />
+      {Platform.OS !== "ios" ? (
+        <MenuRow icon="card-outline" label="Subskrypcja" desc="Zarządzaj subskrypcją na paneltrenera.pl" colors={colors} onPress={() => Linking.openURL("https://paneltrenera.pl")} testID="button-subscription" />
+      ) : (
+        <View style={[styles.infoRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Ionicons name="card-outline" size={20} color={colors.mutedForeground} />
+          <Text style={[styles.infoRowText, { color: colors.mutedForeground }]}>Subskrypcją zarządzasz na paneltrenera.pl</Text>
+        </View>
+      )}
       <MenuRow icon="shield-checkmark-outline" label="Prywatność i RODO" desc="Zarządzaj zgodami i danymi" colors={colors} onPress={() => router.push("/(auth)/privacy")} testID="button-privacy" />
       <MenuRow icon="help-circle-outline" label="Pomoc i kontakt" desc="FAQ i support techniczny" colors={colors} onPress={() => router.push("/(auth)/help")} testID="button-help" />
 
@@ -472,4 +479,6 @@ const styles = StyleSheet.create({
   themeToggleRow: { flexDirection: "row", borderRadius: 10, borderWidth: 1, overflow: "hidden" },
   themeOption: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 7 },
   themeOptionLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  infoRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 8 },
+  infoRowText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
 });
