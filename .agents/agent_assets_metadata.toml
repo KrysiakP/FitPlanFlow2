@@ -11,3 +11,9 @@ id = "uE-fex3CeCaTEeJUOx1u_"
 uri = "file://paneltrenera-keystore.zip"
 type = "unspecified"
 title = "Pobierz keystore Android"
+
+[[outputs]]
+id = "6LZmUr6iU4J28PAASei7W"
+uri = "file://ios-fixes.zip"
+type = "unspecified"
+title = "iOS fixes — 4 pliki do zastąpienia na Macu"
