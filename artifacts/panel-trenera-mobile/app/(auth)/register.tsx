@@ -152,39 +152,64 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.form}>
-            <View style={styles.rolePicker}>
-              {(["trainer", "client"] as const).map((r) => {
-                const selected = role === r;
-                return (
-                  <Pressable
-                    key={r}
-                    onPress={() => setRole(r)}
-                    style={[
-                      styles.roleCard,
-                      {
-                        borderColor: selected ? colors.primary : colors.border,
-                        backgroundColor: selected ? colors.primary + "14" : colors.card,
-                      },
-                    ]}
-                    testID={`button-role-${r}`}
-                  >
-                    <Ionicons
-                      name={r === "trainer" ? "barbell-outline" : "person-outline"}
-                      size={24}
-                      color={selected ? colors.primary : colors.mutedForeground}
-                    />
-                    <Text
+            {Platform.OS !== "ios" && (
+              <View style={styles.rolePicker}>
+                {(["trainer", "client"] as const).map((r) => {
+                  const selected = role === r;
+                  return (
+                    <Pressable
+                      key={r}
+                      onPress={() => setRole(r)}
                       style={[
-                        styles.roleLabel,
-                        { color: selected ? colors.primary : colors.foreground },
+                        styles.roleCard,
+                        {
+                          borderColor: selected ? colors.primary : colors.border,
+                          backgroundColor: selected ? colors.primary + "14" : colors.card,
+                        },
                       ]}
+                      testID={`button-role-${r}`}
                     >
-                      {r === "trainer" ? "Trener" : "Podopieczny"}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+                      <Ionicons
+                        name={r === "trainer" ? "barbell-outline" : "person-outline"}
+                        size={24}
+                        color={selected ? colors.primary : colors.mutedForeground}
+                      />
+                      <Text
+                        style={[
+                          styles.roleLabel,
+                          { color: selected ? colors.primary : colors.foreground },
+                        ]}
+                      >
+                        {r === "trainer" ? "Trener" : "Podopieczny"}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+            {Platform.OS === "ios" && (
+              <View
+                style={[
+                  styles.roleCard,
+                  {
+                    borderColor: colors.primary,
+                    backgroundColor: colors.primary + "14",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 10,
+                    marginBottom: 4,
+                  },
+                ]}
+              >
+                <Ionicons name="person-outline" size={24} color={colors.primary} />
+                <Text style={[styles.roleLabel, { color: colors.primary }]}>Podopieczny</Text>
+              </View>
+            )}
+            {Platform.OS === "ios" && (
+              <Text style={[styles.iosTrainerNote, { color: colors.mutedForeground }]}>
+                Trenerzy rejestrują się na paneltrenera.pl
+              </Text>
+            )}
 
             {/* Referral code — only for trainer role */}
             {role === "trainer" && (
@@ -477,6 +502,12 @@ const styles = StyleSheet.create({
   rolePicker: {
     flexDirection: "row",
     gap: 12,
+  },
+  iosTrainerNote: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    marginBottom: 4,
   },
   roleCard: {
     flex: 1,
