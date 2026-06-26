@@ -228,14 +228,23 @@ export default function LoginScreen() {
               </Pressable>
             )}
 
-            <View style={[styles.divider, { borderColor: colors.border }]}>
-              <Text style={[styles.dividerText, { color: colors.mutedForeground }]}>
-                Nie masz konta?{" "}
-              </Text>
-              <Pressable onPress={() => router.replace("/(auth)/register")} testID="button-go-register">
-                <Text style={[styles.linkText, { color: colors.primary }]}>Zarejestruj się</Text>
-              </Pressable>
-            </View>
+            {Platform.OS === "ios" ? (
+              <View style={[styles.divider, { borderColor: colors.border }]}>
+                <Text style={[styles.dividerText, { color: colors.mutedForeground }]}>
+                  Aby założyć konto, wejdź na{" "}
+                </Text>
+                <Text style={[styles.linkText, { color: colors.primary }]}>paneltrenera.pl</Text>
+              </View>
+            ) : (
+              <View style={[styles.divider, { borderColor: colors.border }]}>
+                <Text style={[styles.dividerText, { color: colors.mutedForeground }]}>
+                  Nie masz konta?{" "}
+                </Text>
+                <Pressable onPress={() => router.replace("/(auth)/register")} testID="button-go-register">
+                  <Text style={[styles.linkText, { color: colors.primary }]}>Zarejestruj się</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
