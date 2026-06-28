@@ -1,4 +1,5 @@
 import {
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -51,26 +52,34 @@ export default function WelcomeScreen() {
 
       <View style={styles.actions}>
         <Pressable
-          onPress={() => router.push("/(auth)/register")}
+          onPress={() => router.push("/(auth)/login")}
           style={({ pressed }) => [
             styles.primaryBtn,
             { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
           ]}
-          testID="button-go-register"
-        >
-          <Text style={styles.primaryBtnText}>Zarejestruj się</Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() => router.push("/(auth)/login")}
-          style={({ pressed }) => [
-            styles.secondaryBtn,
-            { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.85 : 1 },
-          ]}
           testID="button-go-login"
         >
-          <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>Zaloguj się</Text>
+          <Text style={styles.primaryBtnText}>Zaloguj się</Text>
         </Pressable>
+
+        {Platform.OS !== "ios" && (
+          <Pressable
+            onPress={() => router.push("/(auth)/register")}
+            style={({ pressed }) => [
+              styles.secondaryBtn,
+              { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.85 : 1 },
+            ]}
+            testID="button-go-register"
+          >
+            <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>Zarejestruj się</Text>
+          </Pressable>
+        )}
+
+        {Platform.OS === "ios" && (
+          <Text style={[styles.registerNote, { color: colors.mutedForeground }]}>
+            Utwórz konto na paneltrenera.pl
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -138,6 +147,12 @@ const styles = StyleSheet.create({
   actions: {
     gap: 12,
     paddingBottom: 16,
+  },
+  registerNote: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    paddingVertical: 8,
   },
   primaryBtn: {
     height: 52,
