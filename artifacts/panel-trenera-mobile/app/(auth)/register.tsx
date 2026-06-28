@@ -23,6 +23,12 @@ export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const { register } = useAuth();
 
+  useEffect(() => {
+    if (Platform.OS === "ios") {
+      router.replace("/(auth)/login");
+    }
+  }, []);
+
   const [role, setRole] = useState<"client" | "trainer">("client");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
