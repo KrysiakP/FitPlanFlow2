@@ -228,14 +228,7 @@ export default function LoginScreen() {
               </Pressable>
             )}
 
-            {Platform.OS === "ios" ? (
-              <View style={[styles.divider, { borderColor: colors.border }]}>
-                <Text style={[styles.dividerText, { color: colors.mutedForeground }]}>
-                  Aby założyć konto, wejdź na{" "}
-                </Text>
-                <Text style={[styles.linkText, { color: colors.primary }]}>paneltrenera.pl</Text>
-              </View>
-            ) : (
+            {Platform.OS !== "ios" && (
               <View style={[styles.divider, { borderColor: colors.border }]}>
                 <Text style={[styles.dividerText, { color: colors.mutedForeground }]}>
                   Nie masz konta?{" "}
