@@ -75,11 +75,6 @@ export default function WelcomeScreen() {
           </Pressable>
         )}
 
-        {Platform.OS === "ios" && (
-          <Text style={[styles.registerNote, { color: colors.mutedForeground }]}>
-            Utwórz konto na paneltrenera.pl
-          </Text>
-        )}
       </View>
     </View>
   );
