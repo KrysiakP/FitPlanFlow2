@@ -62,18 +62,16 @@ export default function WelcomeScreen() {
           <Text style={styles.primaryBtnText}>Zaloguj się</Text>
         </Pressable>
 
-        {Platform.OS !== "ios" && (
-          <Pressable
-            onPress={() => router.push("/(auth)/register")}
-            style={({ pressed }) => [
-              styles.secondaryBtn,
-              { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.85 : 1 },
-            ]}
-            testID="button-go-register"
-          >
-            <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>Zarejestruj się</Text>
-          </Pressable>
-        )}
+        <Pressable
+          onPress={() => router.push("/(auth)/register")}
+          style={({ pressed }) => [
+            styles.secondaryBtn,
+            { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.85 : 1 },
+          ]}
+          testID="button-go-register"
+        >
+          <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>Zarejestruj się</Text>
+        </Pressable>
 
       </View>
     </View>

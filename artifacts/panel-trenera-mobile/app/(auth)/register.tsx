@@ -23,12 +23,6 @@ export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const { register } = useAuth();
 
-  useEffect(() => {
-    if (Platform.OS === "ios") {
-      router.replace("/(auth)/login");
-    }
-  }, []);
-
   const [role, setRole] = useState<"client" | "trainer">("client");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -210,11 +204,6 @@ export default function RegisterScreen() {
                 <Ionicons name="person-outline" size={24} color={colors.primary} />
                 <Text style={[styles.roleLabel, { color: colors.primary }]}>Podopieczny</Text>
               </View>
-            )}
-            {Platform.OS === "ios" && (
-              <Text style={[styles.iosTrainerNote, { color: colors.mutedForeground }]}>
-                Trenerzy rejestrują się na paneltrenera.pl
-              </Text>
             )}
 
             {/* Referral code — only for trainer role */}
