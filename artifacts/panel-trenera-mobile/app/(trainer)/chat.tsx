@@ -278,7 +278,7 @@ export default function TrainerChatScreen() {
             {
               borderTopColor: colors.border,
               backgroundColor: colors.background,
-              paddingBottom: insets.bottom + 8,
+              paddingBottom: insets.bottom + (Platform.OS === "web" ? 84 : 49) + 8,
             },
           ]}
         >
