@@ -34,6 +34,14 @@ interface ClientWithPlan {
   } | null;
 }
 
+interface Invitation {
+  id: string;
+  clientEmail: string;
+  status: string;
+  createdAt: string;
+  expiresAt?: string | null;
+}
+
 export default function TrainerClientsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -52,6 +60,14 @@ export default function TrainerClientsScreen() {
     queryFn: () => apiGet<ClientWithPlan[]>("/api/trainer/clients"),
     enabled: !!user?.id,
   });
+
+  const { data: invitationsData, refetch: refetchInvitations } = useQuery<Invitation[]>({
+    queryKey: ["invitations"],
+    queryFn: () => apiGet<Invitation[]>("/api/invitations"),
+    enabled: !!user?.id,
+  });
+
+  const pendingInvitations = (invitationsData ?? []).filter((i) => i.status === "pending");
 
   const remindAllMutation = useMutation({
     mutationFn: (message: string) =>
@@ -127,6 +143,13 @@ export default function TrainerClientsScreen() {
     );
   });
 
+  const filteredPending = pendingInvitations.filter((inv) => {
+    if (!search) return true;
+    return inv.clientEmail.toLowerCase().includes(search.toLowerCase());
+  });
+
+  const totalCount = (data?.length ?? 0) + pendingInvitations.length;
+
   return (
     <>
       <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -134,7 +157,7 @@ export default function TrainerClientsScreen() {
           <View style={styles.titleRow}>
             <Text style={[styles.pageTitle, { color: colors.foreground }]}>Klienci</Text>
             <View style={[styles.countBadge, { backgroundColor: colors.primary + "1a" }]}>
-              <Text style={[styles.countText, { color: colors.primary }]}>{data?.length ?? 0}</Text>
+              <Text style={[styles.countText, { color: colors.primary }]}>{totalCount}</Text>
             </View>
             <View style={{ flex: 1 }} />
             {(data?.length ?? 0) > 0 && (
@@ -180,13 +203,19 @@ export default function TrainerClientsScreen() {
         </View>
 
         <ScrollView
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 90 }]}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={() => { void refetch(); void refetchInvitations(); }}
+              tintColor={colors.primary}
+            />
+          }
           showsVerticalScrollIndicator={false}
         >
           {isLoading ? (
             <ActivityIndicator color={colors.primary} style={styles.loader} />
-          ) : clients.length === 0 ? (
+          ) : clients.length === 0 && filteredPending.length === 0 ? (
             <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Ionicons name="people-outline" size={36} color={colors.mutedForeground} />
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
@@ -212,17 +241,45 @@ export default function TrainerClientsScreen() {
               )}
             </View>
           ) : (
-            clients.map((c) => (
-              <ClientCard
-                key={c.id}
-                name={`${c.firstName} ${c.lastName}`}
-                email={c.email}
-                planName={c.assignment?.plan?.name ?? null}
-                onPress={() => router.push(`/client/${c.id}`)}
-              />
-            ))
+            <>
+              {clients.map((c) => (
+                <ClientCard
+                  key={c.id}
+                  name={`${c.firstName} ${c.lastName}`}
+                  email={c.email}
+                  planName={c.assignment?.plan?.name ?? null}
+                  onPress={() => router.push(`/client/${c.id}`)}
+                />
+              ))}
+
+              {filteredPending.length > 0 && (
+                <>
+                  {clients.length > 0 && (
+                    <View style={[styles.sectionDivider, { borderColor: colors.border }]} />
+                  )}
+                  <Text style={[styles.pendingLabel, { color: colors.mutedForeground }]}>
+                    Oczekuje na akceptację ({filteredPending.length})
+                  </Text>
+                  {filteredPending.map((inv) => (
+                    <PendingInvitationRow key={inv.id} email={inv.clientEmail} colors={colors} />
+                  ))}
+                </>
+              )}
+            </>
           )}
         </ScrollView>
+
+        {/* FAB */}
+        <Pressable
+          onPress={handleInviteOpen}
+          style={({ pressed }) => [
+            styles.fab,
+            { backgroundColor: colors.primary, bottom: insets.bottom + 80, opacity: pressed ? 0.85 : 1 },
+          ]}
+          testID="button-fab-invite"
+        >
+          <Ionicons name="add" size={28} color="#fff" />
+        </Pressable>
       </View>
 
       <Modal
@@ -404,6 +461,61 @@ export default function TrainerClientsScreen() {
   );
 }
 
+type Colors = ReturnType<typeof useColors>;
+
+function PendingInvitationRow({ email, colors }: { email: string; colors: Colors }) {
+  const initials = email.slice(0, 2).toUpperCase();
+  return (
+    <View style={[pendingStyles.row, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[pendingStyles.avatar, { backgroundColor: colors.mutedForeground + "22" }]}>
+        <Text style={[pendingStyles.avatarText, { color: colors.mutedForeground }]}>{initials}</Text>
+      </View>
+      <View style={pendingStyles.info}>
+        <Text style={[pendingStyles.email, { color: colors.foreground }]} numberOfLines={1}>
+          {email}
+        </Text>
+        <View style={[pendingStyles.badge, { backgroundColor: "#f59e0b22" }]}>
+          <Ionicons name="time-outline" size={11} color="#f59e0b" />
+          <Text style={[pendingStyles.badgeText, { color: "#f59e0b" }]}>Oczekuje na akceptację</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const pendingStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 10,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  info: { flex: 1, gap: 6 },
+  email: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  badgeText: { fontSize: 11, fontFamily: "Inter_500Medium" },
+});
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
   headerSection: { paddingHorizontal: 20, paddingBottom: 16 },
@@ -423,9 +535,25 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
   content: { paddingHorizontal: 20, paddingTop: 8 },
   loader: { marginTop: 40 },
+  sectionDivider: { borderTopWidth: 1, marginVertical: 16 },
+  pendingLabel: { fontSize: 13, fontFamily: "Inter_500Medium", marginBottom: 8 },
   emptyBox: { borderRadius: 16, borderWidth: 1, padding: 32, alignItems: "center", gap: 12 },
   emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
   emptyDesc: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
+  fab: {
+    position: "absolute",
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
   modalBox: {
     borderTopLeftRadius: 20,
