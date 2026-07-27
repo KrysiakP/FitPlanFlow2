@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "8877eda3-6c5c-4dce-b2fa-8d4b780d9140"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "pl.paneltrenera.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}
