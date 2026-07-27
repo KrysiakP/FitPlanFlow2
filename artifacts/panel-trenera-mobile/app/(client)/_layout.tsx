@@ -1,46 +1,10 @@
 import { BlurView } from "expo-blur";
-import Constants, { ExecutionEnvironment } from "expo-constants";
-import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
-import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Ionicons } from "@expo/vector-icons";
-import { Platform, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { useUnreadCount } from "@/hooks/useChat";
-
-const IS_EXPO_GO = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
-
-function NativeClientTabs() {
-  const { data: unreadData } = useUnreadCount();
-  const unreadCount = unreadData?.count ?? 0;
-  const chatLabel = unreadCount > 0 ? `Czat (${unreadCount > 99 ? "99+" : unreadCount})` : "Czat";
-
-  return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>Panel</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="training">
-        <Icon sf={{ default: "dumbbell", selected: "dumbbell.fill" }} />
-        <Label>Trening</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="diet">
-        <Icon sf={{ default: "fork.knife", selected: "fork.knife" }} />
-        <Label>Dieta</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="chat">
-        <Icon sf={{ default: "message", selected: "message.fill" }} />
-        <Label>{chatLabel}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: "person", selected: "person.fill" }} />
-        <Label>Profil</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
-  );
-}
 
 function ClassicClientTabs() {
   const colors = useColors();
@@ -125,14 +89,5 @@ function ClassicClientTabs() {
 }
 
 export default function ClientLayout() {
-  if (!IS_EXPO_GO && !(Platform as any).isPad) {
-    let useLiquidGlass = false;
-    try {
-      useLiquidGlass = isLiquidGlassAvailable();
-    } catch {
-      useLiquidGlass = false;
-    }
-    if (useLiquidGlass) return <NativeClientTabs />;
-  }
   return <ClassicClientTabs />;
 }

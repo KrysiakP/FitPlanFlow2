@@ -12,12 +12,12 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { ClientCard } from "@/components/ClientCard";
@@ -54,6 +54,11 @@ export default function TrainerClientsScreen() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
   const topPad = insets.top;
+  const params = useLocalSearchParams<{ invite?: string }>();
+
+  useEffect(() => {
+    if (params.invite) handleInviteOpen();
+  }, [params.invite]);
 
   const { data, isLoading, refetch, isRefetching } = useQuery<ClientWithPlan[]>({
     queryKey: ["trainer-clients"],

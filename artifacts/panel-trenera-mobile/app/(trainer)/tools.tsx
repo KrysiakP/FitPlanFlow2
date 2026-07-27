@@ -116,7 +116,7 @@ export default function ToolsScreen() {
           label="Zaproś klienta"
           desc="Wyślij zaproszenie nowemu klientowi"
           colors={colors}
-          onPress={() => openUrl("https://paneltrenera.pl/zaproszenie")}
+          onPress={() => router.push({ pathname: "/", params: { invite: Date.now().toString() } })}
           testID="button-tools-invite"
         />
 
