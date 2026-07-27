@@ -803,7 +803,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const mobileRegisterSchema = z.object({
         email: z.string().email("Nieprawidłowy adres email"),
-        password: z.string().min(6, "Hasło musi mieć co najmniej 6 znaków"),
+        password: z.string().min(8, "Hasło musi mieć co najmniej 8 znaków"),
         firstName: z.string().min(1, "Imię jest wymagane"),
         lastName: z.string().optional().default(""),
         role: z.enum(["client", "trainer"]).optional().default("client"),
@@ -1232,7 +1232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const resetPasswordSchema = z.object({
     token: z.string().min(1, "Token jest wymagany"),
-    newPassword: z.string().min(6, "Hasło musi mieć co najmniej 6 znaków"),
+    newPassword: z.string().min(8, "Hasło musi mieć co najmniej 8 znaków"),
   });
 
   // Forgot password endpoint - request password reset
@@ -1347,7 +1347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reset password endpoint - set new password using token
-  app.post("/api/auth/reset-password", async (req, res) => {
+  app.post("/api/auth/reset-password", authRateLimit, async (req, res) => {
     try {
       const parseResult = resetPasswordSchema.safeParse(req.body);
       
@@ -5675,7 +5675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ownerEmail: z.string().email(),
       ownerFirstName: z.string().min(1),
       ownerLastName: z.string().min(1),
-      ownerPassword: z.string().min(6),
+      ownerPassword: z.string().min(8),
       planTier: z.enum(["starter", "pro", "enterprise"]).default("starter"),
       maxTrainers: z.number().int().min(1).max(500).default(5),
       contactEmail: z.string().email().optional(),

@@ -51,4 +51,4 @@ channel = "stable-25_05"
 [userenv.development]
 
 [userenv.shared]
-DEMO_SEED_SECRET = "AppleReview2024!"
+# DEMO_SEED_SECRET moved to Replit Secrets vault (was hardcoded and publicly exposed in git history)

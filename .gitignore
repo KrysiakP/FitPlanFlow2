@@ -55,3 +55,10 @@ google-services-key.json
 artifacts/panel-trenera-mobile/google-services-key.json
 attached_assets/massive-acrobat-*.json
 .config/
+
+# Code-signing credentials (never commit — rotate via Apple Developer / Google Play Console if ever exposed)
+*.p12
+*.pfx
+*.jks
+*.keystore
+*keystore*.zip

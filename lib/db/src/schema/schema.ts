@@ -1082,7 +1082,7 @@ export const insertGlobalExerciseSchema = createInsertSchema(globalExercises).om
 
 export const registerSchema = z.object({
   email: z.string().email("Nieprawidłowy adres email"),
-  password: z.string().min(6, "Hasło musi mieć co najmniej 6 znaków"),
+  password: z.string().min(8, "Hasło musi mieć co najmniej 8 znaków"),
   firstName: z.string().min(1, "Imię jest wymagane"),
   lastName: z.string().min(1, "Nazwisko jest wymagane"),
   role: z.enum(["trainer", "client"]),
