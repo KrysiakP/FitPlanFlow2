@@ -106,6 +106,7 @@ function ClassicTrainerTabs() {
       <Tabs.Screen name="admin-gyms" options={{ href: null, title: "Siłownie" }} />
       <Tabs.Screen name="rest-timer" options={{ href: null, title: "Timer przerwy" }} />
       <Tabs.Screen name="pomagamy" options={{ href: null, title: "PomagaMY" }} />
+      <Tabs.Screen name="business-stats" options={{ href: null, title: "Statystyki biznesowe" }} />
       <Tabs.Screen name="client/[id]" options={{ href: null, title: "" }} />
       <Tabs.Screen name="plan/[id]" options={{ href: null, title: "" }} />
       <Tabs.Screen name="diet/[id]" options={{ href: null, title: "" }} />

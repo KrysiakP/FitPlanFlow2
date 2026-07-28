@@ -6,6 +6,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -150,6 +151,19 @@ export default function TrainerProfileScreen() {
   const tier = user?.subscriptionTier ?? "start";
   const tierLabel = TIER_LABELS[tier] ?? tier;
   const isActive = user?.subscriptionStatus === "active";
+
+  async function handleShareProfile() {
+    const domain = process.env.EXPO_PUBLIC_DOMAIN || "paneltrenera.pl";
+    const url = `https://${domain}/t/${user?.id}`;
+    try {
+      await Share.share({
+        message: `Sprawdź mój profil trenera i zostaw opinię: ${url}`,
+        url,
+      });
+    } catch {
+      // user cancelled share sheet — nothing to do
+    }
+  }
 
   async function handleLogout() {
     Alert.alert("Wylogowanie", "Czy na pewno chcesz się wylogować?", [
@@ -326,6 +340,14 @@ export default function TrainerProfileScreen() {
       )}
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ustawienia</Text>
+      <MenuRow
+        icon="share-social-outline"
+        label="Udostępnij profil"
+        desc="Wyślij klientom link do publicznego profilu i opinii"
+        colors={colors}
+        onPress={handleShareProfile}
+        testID="button-share-profile"
+      />
       <ThemeToggleRow colors={colors} />
       <MenuRow
         icon="notifications-outline"

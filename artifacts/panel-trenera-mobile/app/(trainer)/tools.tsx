@@ -68,6 +68,14 @@ export default function ToolsScreen() {
       >
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Zarządzanie</Text>
         <MenuRow
+          icon="stats-chart-outline"
+          label="Statystyki biznesowe"
+          desc="Przychody, zaległości i liczba klientów"
+          colors={colors}
+          onPress={() => router.push("/business-stats")}
+          testID="button-tools-business-stats"
+        />
+        <MenuRow
           icon="wallet-outline"
           label="Płatności"
           desc="Monitoruj opłaty i wystawiaj faktury"

@@ -10,7 +10,7 @@ import { startOfWeek, endOfWeek, isWithinInterval, format } from "date-fns";
 import { pl } from "date-fns/locale";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { PlanAssignment, TrainingPlan, Workout, Exercise, WeeklyReport, PlanInvitation, User, ClientRelationship, SessionBooking } from "@shared/schema";
+import type { PlanAssignment, TrainingPlan, Workout, Exercise, WeeklyReport, PlanInvitation, User, SessionBooking } from "@shared/schema";
 
 type AssignmentWithPlan = PlanAssignment & {
   plan: TrainingPlan & { 
@@ -39,8 +39,9 @@ export default function ClientDashboard() {
     queryKey: ["/api/invitations"],
   });
 
-  const { data: relationship } = useQuery<ClientRelationship & { trainer: User }>({
-    queryKey: ["/api/client/relationship"],
+  const { data: myTrainer } = useQuery<User>({
+    queryKey: ["/api/my-trainer"],
+    retry: false,
   });
 
   const { data: upcomingSessions } = useQuery<SessionBooking[]>({
@@ -263,7 +264,7 @@ export default function ClientDashboard() {
         </Card>
       )}
 
-      {relationship && relationship.trainer && relationship.status === "active" && (
+      {myTrainer && (
         <Card data-testid="card-trainer-info" className="hover-elevate">
           <CardHeader>
             <CardTitle className="font-heading flex items-center gap-2">
@@ -278,25 +279,25 @@ export default function ClientDashboard() {
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-4">
                 <Avatar className="w-14 h-14">
-                  <AvatarImage 
-                    src={relationship.trainer.profileImageDisplayUrl || relationship.trainer.profileImageUrl || undefined} 
-                    alt={`${relationship.trainer.firstName} ${relationship.trainer.lastName}`}
+                  <AvatarImage
+                    src={myTrainer.profileImageDisplayUrl || myTrainer.profileImageUrl || undefined}
+                    alt={`${myTrainer.firstName} ${myTrainer.lastName}`}
                   />
                   <AvatarFallback className="bg-primary/10 text-primary font-medium text-lg">
-                    {getInitials(relationship.trainer.firstName, relationship.trainer.lastName)}
+                    {getInitials(myTrainer.firstName, myTrainer.lastName)}
                   </AvatarFallback>
                 </Avatar>
                 <div>
                   <p className="font-heading font-semibold text-lg" data-testid="text-trainer-name">
-                    {relationship.trainer.firstName} {relationship.trainer.lastName}
+                    {myTrainer.firstName} {myTrainer.lastName}
                   </p>
                   <p className="text-sm text-muted-foreground" data-testid="text-trainer-email">
-                    {relationship.trainer.email}
+                    {myTrainer.email}
                   </p>
                 </div>
               </div>
               <Button asChild variant="outline" size="sm" data-testid="button-view-trainer-profile">
-                <Link href={`/profile/${relationship.trainerId}`}>
+                <Link href={`/t/${myTrainer.id}`}>
                   <UserIcon className="w-4 h-4 mr-2" />
                   Zobacz profil
                 </Link>

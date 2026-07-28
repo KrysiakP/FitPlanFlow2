@@ -7,7 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, User, Crown, CreditCard, Gift, ArrowLeft, Mail, Phone, Briefcase, Trash2 } from "lucide-react";
+import { AlertCircle, User, Crown, CreditCard, Gift, ArrowLeft, Mail, Phone, Briefcase, Trash2, Share2, Copy } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link, useParams, useLocation } from "wouter";
@@ -337,6 +337,39 @@ export default function TrainerProfile() {
               </TabsList>
 
               <TabsContent value="info" className="space-y-6">
+                {isOwnProfile && (
+                  <Card data-testid="card-public-profile-share">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Share2 className="w-4 h-4" />
+                        Publiczny profil
+                      </CardTitle>
+                      <CardDescription>
+                        Udostępnij ten link klientom, żeby zobaczyli Twój profil i mogli zostawić opinię
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <code className="text-xs bg-muted px-3 py-2 rounded-md break-all">
+                          {window.location.origin}/t/{user?.id}
+                        </code>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/t/${user?.id}`);
+                            toast({ title: "Link skopiowany" });
+                          }}
+                          data-testid="button-copy-public-link"
+                        >
+                          <Copy className="w-4 h-4 mr-2" />
+                          Kopiuj link
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 <Card>
                   <CardHeader>
                     <CardTitle>Dane profilowe</CardTitle>

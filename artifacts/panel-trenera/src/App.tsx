@@ -45,6 +45,7 @@ import LegalRegulamin from "@/pages/legal-regulamin";
 import LegalPolitykaPrivatnosci from "@/pages/legal-polityka-prywatnosci";
 import LegalPolitykaCookies from "@/pages/legal-polityka-cookies";
 import DeleteAccount from "@/pages/delete-account";
+import TrainerPublicProfile from "@/pages/trainer-public-profile";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -71,6 +72,7 @@ function Router() {
         <Route path="/legal/polityka-prywatnosci" component={LegalPolitykaPrivatnosci} />
         <Route path="/legal/polityka-cookies" component={LegalPolitykaCookies} />
         <Route path="/delete-account" component={DeleteAccount} />
+        <Route path="/t/:trainerId" component={TrainerPublicProfile} />
         <Route component={Landing} />
       </Switch>
     );
@@ -116,6 +118,7 @@ function Router() {
             <Route path="/legal/regulamin" component={LegalRegulamin} />
             <Route path="/legal/polityka-prywatnosci" component={LegalPolitykaPrivatnosci} />
             <Route path="/legal/polityka-cookies" component={LegalPolitykaCookies} />
+            <Route path="/t/:trainerId" component={TrainerPublicProfile} />
             <Route path="/profile/:userId" component={TrainerProfile} />
             <Route path="/profile" component={TrainerProfile} />
           </>
@@ -135,6 +138,7 @@ function Router() {
             <Route path="/legal/regulamin" component={LegalRegulamin} />
             <Route path="/legal/polityka-prywatnosci" component={LegalPolitykaPrivatnosci} />
             <Route path="/legal/polityka-cookies" component={LegalPolitykaCookies} />
+            <Route path="/t/:trainerId" component={TrainerPublicProfile} />
             <Route path="/profile/:userId" component={ClientProfile} />
             <Route path="/profile" component={ClientProfile} />
           </>

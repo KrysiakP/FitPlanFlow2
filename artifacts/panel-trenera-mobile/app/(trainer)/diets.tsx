@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -126,6 +127,17 @@ export default function TrainerDietsScreen() {
     },
   });
 
+  const copyMutation = useMutation({
+    mutationFn: (id: string) => apiPost(`/api/diets/plans/${id}/copy`, {}),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["trainer-diet-plans"] });
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    },
+    onError: () => {
+      Alert.alert("Błąd", "Nie udało się skopiować planu diety.");
+    },
+  });
+
   function handleCreate() {
     if (!newName.trim()) return;
     const safeClientId = selectedClientId?.startsWith("demo-") ? null : selectedClientId;
@@ -224,6 +236,18 @@ export default function TrainerDietsScreen() {
                   <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
                     <Text style={[styles.statusText, { color: sc.text }]}>{STATUS_LABELS[plan.status] ?? plan.status}</Text>
                   </View>
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      copyMutation.mutate(plan.id);
+                    }}
+                    disabled={copyMutation.isPending}
+                    style={[styles.deleteBtn, { backgroundColor: colors.primary + "1a", marginRight: 8 }]}
+                    testID={`button-copy-diet-plan-${plan.id}`}
+                  >
+                    <Ionicons name="copy-outline" size={16} color={colors.primary} />
+                  </Pressable>
                   <Pressable
                     onPress={(e) => {
                       e.stopPropagation();

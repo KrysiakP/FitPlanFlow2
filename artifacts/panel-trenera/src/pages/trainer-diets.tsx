@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, User, Apple, ChefHat, Pill } from "lucide-react";
+import { Plus, Pencil, Trash2, User, Apple, ChefHat, Pill, Copy } from "lucide-react";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +47,26 @@ export default function TrainerDiets() {
 
   const { data: plans, isLoading } = useQuery<DietPlanWithClient[]>({
     queryKey: ["/api/diets/plans"],
+  });
+
+  const copyPlanMutation = useMutation({
+    mutationFn: async (planId: string) => {
+      await apiRequest("POST", `/api/diets/plans/${planId}/copy`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/diets/plans"] });
+      toast({
+        title: "Plan skopiowany",
+        description: "Nowy plan dietetyczny został utworzony",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Błąd",
+        description: "Nie udało się skopiować planu",
+        variant: "destructive",
+      });
+    },
   });
 
   const deletePlanMutation = useMutation({
@@ -268,6 +288,16 @@ export default function TrainerDiets() {
                     <Pencil className="w-4 h-4 mr-2" />
                     Edytuj
                   </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copyPlanMutation.mutate(plan.id)}
+                  disabled={copyPlanMutation.isPending}
+                  data-testid={`button-copy-diet-plan-${plan.id}`}
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Kopiuj
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>

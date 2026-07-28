@@ -1,8 +1,13 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ClipboardList, Users, UserPlus, Dumbbell, FileText, Heart, Crown, ShieldCheck, UtensilsCrossed, MessageSquare, DollarSign } from "lucide-react";
+import { useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { ClipboardList, Users, UserPlus, Dumbbell, FileText, Heart, Crown, ShieldCheck, UtensilsCrossed, MessageSquare, DollarSign, TrendingUp, AlertTriangle } from "lucide-react";
 import { Link } from "wouter";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
+import { format, startOfMonth, subMonths } from "date-fns";
+import { pl } from "date-fns/locale";
+import type { ClientPayment } from "@shared/schema";
 
 export default function TrainerDashboard() {
   const { user } = useAuth();
@@ -14,6 +19,36 @@ export default function TrainerDashboard() {
   }>({
     queryKey: ["/api/trainer/stats"],
   });
+
+  const { data: payments } = useQuery<ClientPayment[]>({
+    queryKey: ["/api/payments"],
+  });
+
+  const businessStats = useMemo(() => {
+    const list = payments ?? [];
+    const now = new Date();
+
+    const monthlyRevenue = Array.from({ length: 6 }).map((_, i) => {
+      const monthDate = subMonths(now, 5 - i);
+      const monthStart = startOfMonth(monthDate);
+      const total = list
+        .filter((p) => {
+          if (!p.isPaid || !p.paidAt) return false;
+          const paidDate = new Date(p.paidAt);
+          return paidDate.getFullYear() === monthStart.getFullYear() && paidDate.getMonth() === monthStart.getMonth();
+        })
+        .reduce((sum, p) => sum + p.amount, 0);
+      return {
+        month: format(monthStart, "LLL", { locale: pl }),
+        przychod: Math.round(total / 100),
+      };
+    });
+
+    const thisMonthTotal = monthlyRevenue[monthlyRevenue.length - 1]?.przychod ?? 0;
+    const overdueCount = list.filter((p) => !p.isPaid && new Date(p.dueDate) < now).length;
+
+    return { monthlyRevenue, thisMonthTotal, overdueCount };
+  }, [payments]);
 
   return (
     <div className="space-y-4 md:space-y-8">
@@ -252,6 +287,75 @@ export default function TrainerDashboard() {
             </CardContent>
           </Card>
         </Link>
+      </div>
+
+      <div>
+        <h2 className="font-heading font-bold text-xl md:text-2xl mb-4" data-testid="text-business-stats-title">
+          Statystyki biznesowe
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-4 md:mb-6">
+          <Card data-testid="card-stat-revenue-month">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Przychód (ten miesiąc)</CardTitle>
+              <TrendingUp className="w-4 h-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-revenue-this-month">
+                {businessStats.thisMonthTotal} zł
+              </div>
+              <p className="text-xs text-muted-foreground">Zapłacone faktury w tym miesiącu</p>
+            </CardContent>
+          </Card>
+
+          <Link href="/payment-schedule">
+            <Card className="hover-elevate cursor-pointer" data-testid="card-stat-overdue">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Zaległe płatności</CardTitle>
+                <AlertTriangle className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold" data-testid="text-overdue-count">
+                  {businessStats.overdueCount}
+                </div>
+                <p className="text-xs text-muted-foreground">Wymagają przypomnienia</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Card data-testid="card-stat-active-clients">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Aktywni podopieczni</CardTitle>
+              <Users className="w-4 h-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats?.totalClients ?? 0}</div>
+              <p className="text-xs text-muted-foreground">Obecnie prowadzeni</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card data-testid="card-revenue-chart">
+          <CardHeader>
+            <CardTitle className="font-heading text-base flex items-center gap-2">
+              <DollarSign className="w-4 h-4" />
+              Przychód w czasie
+            </CardTitle>
+            <CardDescription>Zapłacone płatności w ostatnich 6 miesiącach</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={businessStats.monthlyRevenue}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                  <YAxis tickLine={false} axisLine={false} width={40} />
+                  <Tooltip formatter={(value: number) => [`${value} zł`, "Przychód"]} />
+                  <Bar dataKey="przychod" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border-primary/20 mt-4 md:mt-8">

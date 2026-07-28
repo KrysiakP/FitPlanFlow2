@@ -14,13 +14,14 @@ import {
 } from "react-native";
 import { useState, useCallback } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme, type ThemePreference } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
-import { apiGet } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
 import { apiFetch } from "@/context/AuthContext";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 
@@ -170,6 +171,8 @@ export default function ClientProfileScreen() {
             <Text style={[styles.roleText, { color: colors.primary }]}>Podopieczny</Text>
           </View>
         </View>
+
+        <TrainerReviewSection colors={colors} />
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ustawienia</Text>
 
@@ -349,6 +352,85 @@ interface MenuRowProps {
   testID?: string;
 }
 
+interface MyTrainerInfo {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
+
+function TrainerReviewSection({ colors }: { colors: ReturnType<typeof useColors> }) {
+  const qc = useQueryClient();
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const { data: myTrainer } = useQuery<MyTrainerInfo>({
+    queryKey: ["my-trainer"],
+    queryFn: () => apiGet<MyTrainerInfo>("/api/my-trainer"),
+    retry: false,
+  });
+
+  const submitMutation = useMutation({
+    mutationFn: () => apiPost(`/api/trainers/${myTrainer!.id}/reviews`, { rating, comment: comment.trim() || null }),
+    onSuccess: () => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setSubmitted(true);
+      qc.invalidateQueries({ queryKey: ["my-trainer"] });
+    },
+    onError: () => Alert.alert("Błąd", "Nie udało się zapisać opinii"),
+  });
+
+  if (!myTrainer) return null;
+
+  return (
+    <View style={[styles.trainerReviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 4 }]}>
+        Twój trener: {myTrainer.firstName} {myTrainer.lastName}
+      </Text>
+      {submitted ? (
+        <Text style={{ fontSize: 13, color: colors.mutedForeground }}>Dziękujemy za opinię!</Text>
+      ) : (
+        <>
+          <Text style={{ fontSize: 13, color: colors.mutedForeground, marginBottom: 10 }}>
+            Oceń współpracę — Twoja opinia pojawi się na publicznym profilu trenera
+          </Text>
+          <View style={{ flexDirection: "row", gap: 4, marginBottom: 10 }}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <Pressable key={n} onPress={() => setRating(n)} testID={`button-rate-trainer-${n}`}>
+                <Ionicons
+                  name={n <= rating ? "star" : "star-outline"}
+                  size={28}
+                  color={n <= rating ? "#f59e0b" : colors.mutedForeground}
+                />
+              </Pressable>
+            ))}
+          </View>
+          <TextInput
+            style={[styles.reviewInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+            placeholder="Opisz swoje doświadczenie (opcjonalnie)"
+            placeholderTextColor={colors.mutedForeground}
+            value={comment}
+            onChangeText={setComment}
+            multiline
+            numberOfLines={3}
+            testID="input-trainer-review-comment"
+          />
+          <Pressable
+            onPress={() => submitMutation.mutate()}
+            disabled={rating === 0 || submitMutation.isPending}
+            style={[styles.reviewSubmitBtn, { backgroundColor: colors.primary, opacity: (rating === 0 || submitMutation.isPending) ? 0.6 : 1 }]}
+            testID="button-submit-trainer-review"
+          >
+            <Text style={styles.reviewSubmitBtnText}>
+              {submitMutation.isPending ? "Zapisywanie..." : "Wyślij opinię"}
+            </Text>
+          </Pressable>
+        </>
+      )}
+    </View>
+  );
+}
+
 function MenuRow({ icon, label, desc, colors, onPress, testID }: MenuRowProps) {
   return (
     <Pressable
@@ -424,6 +506,10 @@ const styles = StyleSheet.create({
   roleBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, marginTop: 4 },
   roleText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   sectionTitle: { fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 10 },
+  trainerReviewCard: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 24 },
+  reviewInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, fontFamily: "Inter_400Regular", minHeight: 70, textAlignVertical: "top", marginBottom: 12 },
+  reviewSubmitBtn: { borderRadius: 10, paddingVertical: 12, alignItems: "center" },
+  reviewSubmitBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   menuRow: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: 14, borderWidth: 1, marginBottom: 8 },
   menuIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: "center", alignItems: "center" },
   menuInfo: { flex: 1 },

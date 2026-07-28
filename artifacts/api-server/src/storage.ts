@@ -87,6 +87,9 @@ import {
   sessionBookings,
   type SessionBooking,
   type InsertSessionBookingInput,
+  trainerReviews,
+  type TrainerReview,
+  type InsertTrainerReviewInput,
 } from "@workspace/db";
 import { db } from "./db";
 import { eq, and, desc, or, isNull, sql, gte, lte, asc, inArray } from "drizzle-orm";
@@ -169,6 +172,11 @@ export interface IStorage {
   getLatestExerciseLog(clientId: string, exerciseId: string): Promise<ExerciseLog | undefined>;
   getLatestExerciseLogsBySet(clientId: string, exerciseId: string): Promise<ExerciseLog[]>;
   
+  // Trainer review operations
+  upsertTrainerReview(trainerId: string, clientId: string, data: InsertTrainerReviewInput): Promise<TrainerReview>;
+  getTrainerReviews(trainerId: string): Promise<(TrainerReview & { clientFirstName: string | null; clientLastName: string | null })[]>;
+  hasClientEverHadTrainer(trainerId: string, clientId: string): Promise<boolean>;
+
   // Session booking operations
   createSessionBooking(trainerId: string, data: InsertSessionBookingInput): Promise<SessionBooking>;
   getTrainerSessionBookings(trainerId: string): Promise<SessionBooking[]>;
@@ -215,6 +223,7 @@ export interface IStorage {
   // Diet Plans
   createDietPlan(plan: InsertDietPlan): Promise<DietPlan>;
   getDietPlanById(id: string): Promise<DietPlan | null>;
+  copyDietPlan(originalPlanId: string, trainerId: string): Promise<DietPlan>;
   getTrainerDietPlans(trainerId: string): Promise<DietPlan[]>;
   getClientActiveDietPlan(clientId: string): Promise<DietPlan | null>;
   updateDietPlan(id: string, updates: Partial<InsertDietPlan>): Promise<DietPlan>;
@@ -1167,6 +1176,46 @@ export class DatabaseStorage implements IStorage {
     return report;
   }
 
+  async upsertTrainerReview(trainerId: string, clientId: string, data: InsertTrainerReviewInput): Promise<TrainerReview> {
+    const [review] = await db
+      .insert(trainerReviews)
+      .values({ trainerId, clientId, rating: data.rating, comment: data.comment ?? null })
+      .onConflictDoUpdate({
+        target: [trainerReviews.trainerId, trainerReviews.clientId],
+        set: { rating: data.rating, comment: data.comment ?? null },
+      })
+      .returning();
+    return review;
+  }
+
+  async getTrainerReviews(trainerId: string): Promise<(TrainerReview & { clientFirstName: string | null; clientLastName: string | null })[]> {
+    const rows = await db
+      .select({
+        id: trainerReviews.id,
+        trainerId: trainerReviews.trainerId,
+        clientId: trainerReviews.clientId,
+        rating: trainerReviews.rating,
+        comment: trainerReviews.comment,
+        createdAt: trainerReviews.createdAt,
+        clientFirstName: users.firstName,
+        clientLastName: users.lastName,
+      })
+      .from(trainerReviews)
+      .leftJoin(users, eq(trainerReviews.clientId, users.id))
+      .where(eq(trainerReviews.trainerId, trainerId))
+      .orderBy(desc(trainerReviews.createdAt));
+    return rows;
+  }
+
+  async hasClientEverHadTrainer(trainerId: string, clientId: string): Promise<boolean> {
+    const [rel] = await db
+      .select({ id: clientRelationships.id })
+      .from(clientRelationships)
+      .where(and(eq(clientRelationships.trainerId, trainerId), eq(clientRelationships.clientId, clientId)))
+      .limit(1);
+    return !!rel;
+  }
+
   async createSessionBooking(trainerId: string, data: InsertSessionBookingInput): Promise<SessionBooking> {
     const [booking] = await db
       .insert(sessionBookings)
@@ -1865,6 +1914,69 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(dietPlans)
       .where(eq(dietPlans.id, id));
+  }
+
+  async copyDietPlan(originalPlanId: string, trainerId: string): Promise<DietPlan> {
+    return await db.transaction(async (tx) => {
+      const [originalPlan] = await tx.select().from(dietPlans).where(eq(dietPlans.id, originalPlanId));
+      if (!originalPlan) {
+        throw new Error("Diet plan not found");
+      }
+
+      const newPlanId = randomUUID();
+      const [newPlan] = await tx
+        .insert(dietPlans)
+        .values({
+          id: newPlanId,
+          trainerId,
+          clientId: null,
+          name: `[KOPIA] ${originalPlan.name}`,
+          description: originalPlan.description,
+          targetCalories: originalPlan.targetCalories,
+          targetProtein: originalPlan.targetProtein,
+          targetFat: originalPlan.targetFat,
+          targetCarbs: originalPlan.targetCarbs,
+          mealsPerDay: originalPlan.mealsPerDay,
+          mode: originalPlan.mode,
+          recommendedProducts: originalPlan.recommendedProducts,
+          status: "active",
+        })
+        .returning();
+
+      const originalMeals = await tx.select().from(dietMeals).where(eq(dietMeals.planId, originalPlanId));
+      for (const meal of originalMeals) {
+        await tx.insert(dietMeals).values({
+          id: randomUUID(),
+          planId: newPlanId,
+          dayOfWeek: meal.dayOfWeek,
+          orderIndex: meal.orderIndex,
+          name: meal.name,
+          description: meal.description,
+          suggestedTime: meal.suggestedTime,
+          calories: meal.calories,
+          protein: meal.protein,
+          fat: meal.fat,
+          carbs: meal.carbs,
+        });
+      }
+
+      const originalSupplements = await tx.select().from(dietSupplements).where(eq(dietSupplements.dietPlanId, originalPlanId));
+      for (const supplement of originalSupplements) {
+        await tx.insert(dietSupplements).values({
+          id: randomUUID(),
+          dietPlanId: newPlanId,
+          name: supplement.name,
+          dose: supplement.dose,
+          unit: supplement.unit,
+          timing: supplement.timing,
+          frequency: supplement.frequency,
+          notes: supplement.notes,
+          orderIndex: supplement.orderIndex,
+        });
+      }
+
+      return newPlan;
+    });
   }
   
   // Diet Meals

@@ -23,6 +23,7 @@ import {
   insertExerciseLogSchema,
   insertWeeklyReportSchema,
   insertSessionBookingSchema,
+  insertTrainerReviewSchema,
   updateUserRoleSchema,
   registerSchema,
   loginSchema,
@@ -4251,6 +4252,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/diets/plans/:id/copy", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { id } = req.params;
+
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą kopiować plany dietetyczne" });
+      }
+
+      const plan = await storage.getDietPlanById(id);
+      if (!plan) {
+        return res.status(404).json({ message: "Plan dietetyczny nie został znaleziony" });
+      }
+      if (plan.trainerId !== userId) {
+        return res.status(403).json({ message: "Nie masz uprawnień do tego planu" });
+      }
+
+      const copiedPlan = await storage.copyDietPlan(id, userId);
+      res.status(201).json(copiedPlan);
+    } catch (error) {
+      console.error("Error copying diet plan:", error);
+      res.status(500).json({ message: "Nie udało się skopiować planu dietetycznego" });
+    }
+  });
+
   // Diet Meals - Trainer endpoints
   app.post("/api/diets/plans/:planId/meals", isAuthenticated, async (req, res) => {
     try {
@@ -4864,6 +4891,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Charity donations endpoints
+  // Public trainer profile — no authentication required, safe to share externally
+  app.get("/api/public/trainers/:trainerId", async (req, res) => {
+    try {
+      const { trainerId } = req.params;
+      const trainer = await storage.getUser(trainerId);
+      if (!trainer || trainer.role !== "trainer") {
+        return res.status(404).json({ message: "Nie znaleziono trenera" });
+      }
+
+      const profile = await storage.getUserProfile(trainerId);
+      const reviews = await storage.getTrainerReviews(trainerId);
+      const averageRating = reviews.length > 0
+        ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10
+        : null;
+
+      res.json({
+        id: trainer.id,
+        firstName: trainer.firstName,
+        lastName: trainer.lastName,
+        profileImageUrl: profile?.profileImageUrl ?? null,
+        bio: profile?.bio ?? null,
+        specialization: profile?.specialization ?? null,
+        averageRating,
+        reviewCount: reviews.length,
+        reviews: reviews.map((r) => ({
+          id: r.id,
+          rating: r.rating,
+          comment: r.comment,
+          createdAt: r.createdAt,
+          clientFirstName: r.clientFirstName,
+          clientLastInitial: r.clientLastName ? `${r.clientLastName[0]}.` : "",
+        })),
+      });
+    } catch (error) {
+      console.error("Error fetching public trainer profile:", error);
+      res.status(500).json({ message: "Nie udało się pobrać profilu trenera" });
+    }
+  });
+
+  // Client leaves/updates a review for a trainer they have (or had) a relationship with
+  app.post("/api/trainers/:trainerId/reviews", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const { trainerId } = req.params;
+
+      if (user?.role !== "client") {
+        return res.status(403).json({ message: "Tylko podopieczni mogą wystawiać opinie" });
+      }
+
+      const hasRelationship = await storage.hasClientEverHadTrainer(trainerId, userId);
+      if (!hasRelationship) {
+        return res.status(403).json({ message: "Możesz ocenić tylko trenera, z którym współpracowałeś" });
+      }
+
+      const validationResult = insertTrainerReviewSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ message: "Nieprawidłowe dane wejściowe", errors: validationResult.error.errors });
+      }
+
+      const review = await storage.upsertTrainerReview(trainerId, userId, validationResult.data);
+      res.status(201).json(review);
+    } catch (error) {
+      console.error("Error submitting trainer review:", error);
+      res.status(500).json({ message: "Nie udało się zapisać opinii" });
+    }
+  });
+
   app.get("/api/charity-donations", async (req, res) => {
     try {
       const donations = await storage.listCharityDonations();
