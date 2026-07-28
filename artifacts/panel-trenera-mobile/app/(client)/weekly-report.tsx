@@ -22,6 +22,34 @@ import * as ImagePicker from "expo-image-picker";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPost, apiPatch, uploadImageToObjectStorage, setReportPhoto } from "@/lib/api";
 
+function getWeekStartKey(date: Date): string {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
+}
+
+function calculateReportStreak(reportDates: string[]): number {
+  const weekStarts = Array.from(new Set(reportDates.map((d) => getWeekStartKey(new Date(d))))).sort((a, b) => b.localeCompare(a));
+  if (weekStarts.length === 0) return 0;
+  let streak = 1;
+  let current = new Date(weekStarts[0]);
+  for (let i = 1; i < weekStarts.length; i++) {
+    const prevWeek = new Date(current);
+    prevWeek.setDate(prevWeek.getDate() - 7);
+    const prevWeekKey = prevWeek.toISOString().slice(0, 10);
+    if (weekStarts[i] === prevWeekKey) {
+      streak++;
+      current = prevWeek;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
 interface WeeklyReport {
   id: string;
   reportDate: string;
@@ -345,6 +373,15 @@ export default function WeeklyReportScreen() {
             <Text style={styles.addBtnText}>Nowy raport</Text>
           </Pressable>
         </View>
+
+        {sorted.length > 0 && calculateReportStreak(sorted.map((r) => r.reportDate)) >= 2 && (
+          <View style={[styles.streakBadge, { backgroundColor: "#f9731618", borderColor: "#f9731640" }]} testID="badge-report-streak">
+            <Ionicons name="flame" size={20} color="#f97316" />
+            <Text style={[styles.streakText, { color: "#f97316" }]}>
+              {calculateReportStreak(sorted.map((r) => r.reportDate))} tygodni z rzędu z raportem — tak trzymaj!
+            </Text>
+          </View>
+        )}
 
         {isLoading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
@@ -772,6 +809,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   addBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  streakBadge: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 16 },
+  streakText: { flex: 1, fontSize: 13, fontFamily: "Inter_600SemiBold" },
   emptyBox: {
     borderRadius: 16,
     borderWidth: 1,

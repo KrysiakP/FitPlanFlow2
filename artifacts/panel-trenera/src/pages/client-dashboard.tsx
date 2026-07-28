@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ClipboardList, Calendar, AlertCircle, Bell, Mail, UserCheck, X, User as UserIcon, Dumbbell, Play } from "lucide-react";
 import { Link } from "wouter";
-import { startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
+import { startOfWeek, endOfWeek, isWithinInterval, format } from "date-fns";
+import { pl } from "date-fns/locale";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { PlanAssignment, TrainingPlan, Workout, Exercise, WeeklyReport, PlanInvitation, User, ClientRelationship } from "@shared/schema";
+import type { PlanAssignment, TrainingPlan, Workout, Exercise, WeeklyReport, PlanInvitation, User, ClientRelationship, SessionBooking } from "@shared/schema";
 
 type AssignmentWithPlan = PlanAssignment & {
   plan: TrainingPlan & { 
@@ -40,6 +41,10 @@ export default function ClientDashboard() {
 
   const { data: relationship } = useQuery<ClientRelationship & { trainer: User }>({
     queryKey: ["/api/client/relationship"],
+  });
+
+  const { data: upcomingSessions } = useQuery<SessionBooking[]>({
+    queryKey: ["/api/client/sessions"],
   });
 
   const getInitials = (firstName?: string | null, lastName?: string | null) => {
@@ -126,6 +131,25 @@ export default function ClientDashboard() {
           Sprawdź swój plan treningowy i zacznij trenować
         </p>
       </div>
+
+      {upcomingSessions && upcomingSessions.length > 0 && (
+        <Card className="border-primary/30" data-testid="card-upcoming-session">
+          <CardHeader className="pb-2">
+            <CardTitle className="font-heading flex items-center gap-2 text-lg">
+              <Calendar className="w-5 h-5 text-primary" />
+              Najbliższa sesja
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="font-medium capitalize" data-testid="text-next-session-date">
+              {format(new Date(upcomingSessions[0].scheduledAt), "EEEE, d MMMM yyyy, HH:mm", { locale: pl })}
+            </p>
+            {upcomingSessions[0].location && (
+              <p className="text-sm text-muted-foreground mt-1">{upcomingSessions[0].location}</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {showWeeklyReportReminder && (
         <Alert data-testid="alert-weekly-report-reminder">

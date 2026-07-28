@@ -46,6 +46,141 @@ function getTestTypeLabel(type?: string | null): string {
   return TEST_TYPE_LABELS[type ?? ""] ?? "Inne";
 }
 
+function getWeekStartKey(date: Date): string {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
+}
+
+function calculateReportStreak(reportDates: string[]): number {
+  const weekStarts = Array.from(new Set(reportDates.map((d) => getWeekStartKey(new Date(d))))).sort((a, b) => b.localeCompare(a));
+  if (weekStarts.length === 0) return 0;
+  let streak = 1;
+  let current = new Date(weekStarts[0]);
+  for (let i = 1; i < weekStarts.length; i++) {
+    const prevWeek = new Date(current);
+    prevWeek.setDate(prevWeek.getDate() - 7);
+    const prevWeekKey = prevWeek.toISOString().slice(0, 10);
+    if (weekStarts[i] === prevWeekKey) {
+      streak++;
+      current = prevWeek;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
+const COMPARISON_METRICS: { label: string; field: "weight" | "chest" | "waist" | "hips" | "arm" | "leg"; unit: string }[] = [
+  { label: "Waga", field: "weight", unit: " kg" },
+  { label: "Klatka", field: "chest", unit: " cm" },
+  { label: "Talia", field: "waist", unit: " cm" },
+  { label: "Biodro", field: "hips", unit: " cm" },
+  { label: "Ramię", field: "arm", unit: " cm" },
+  { label: "Udo", field: "leg", unit: " cm" },
+];
+
+function parseNumericValue(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const cleaned = value.replace(",", ".").replace(/[^\d.-]/g, "");
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : num;
+}
+
+function formatDiff(diff: number | null, unit: string): { text: string; color: string } {
+  if (diff === null) return { text: "-", color: "" };
+  if (Math.abs(diff) < 0.05) return { text: `0${unit}`, color: "" };
+  const abs = Math.abs(diff).toFixed(1);
+  return diff > 0 ? { text: `+${abs}${unit}`, color: "#16a34a" } : { text: `-${abs}${unit}`, color: "#ef4444" };
+}
+
+function calculateComparison(oldReport: WeeklyReport, newReport: WeeklyReport) {
+  return COMPARISON_METRICS.map((m) => {
+    const oldVal = parseNumericValue(oldReport[m.field]);
+    const newVal = parseNumericValue(newReport[m.field]);
+    const diff = oldVal !== null && newVal !== null ? newVal - oldVal : null;
+    return { ...m, ...formatDiff(diff, m.unit) };
+  }).filter((m) => m.text !== "-");
+}
+
+function ProgressComparisonSection({ reports, colors }: { reports: WeeklyReport[]; colors: ReturnType<typeof useColors> }) {
+  if (reports.length < 2) return null;
+
+  const newest = reports[0];
+  const previous = reports[1];
+  const first = reports[reports.length - 1];
+
+  const total = calculateComparison(first, newest);
+  const recent = calculateComparison(previous, newest);
+
+  function renderRow(comparison: ReturnType<typeof calculateComparison>, title: string, from: string, to: string, testIdPrefix: string) {
+    if (comparison.length === 0) return null;
+    return (
+      <View style={{ marginBottom: 16 }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 4 }}>
+          <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.foreground }}>{title}</Text>
+          <Text style={{ fontSize: 11, color: colors.mutedForeground }}>
+            {formatDate(from)} → {formatDate(to)}
+          </Text>
+        </View>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+          {comparison.map((metric) => (
+            <View
+              key={`${testIdPrefix}-${metric.field}`}
+              style={[styles.comparisonCard, { backgroundColor: colors.accent }]}
+              testID={`${testIdPrefix}-${metric.field}`}
+            >
+              <Text style={{ fontSize: 11, color: colors.mutedForeground, marginBottom: 2 }}>{metric.label}</Text>
+              <Text style={{ fontSize: 14, fontFamily: "Inter_700Bold", color: metric.color || colors.foreground }}>
+                {metric.text}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.comparisonCardOuter, { backgroundColor: colors.card, borderColor: colors.primary + "33" }]}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <Ionicons name="bar-chart-outline" size={18} color={colors.primary} />
+        <Text style={{ fontSize: 15, fontFamily: "Inter_700Bold", color: colors.foreground }}>Porównanie progresu</Text>
+      </View>
+      <Text style={{ fontSize: 12, color: colors.mutedForeground, marginBottom: 14 }}>
+        Przegląd zmian między raportami ({reports.length} raportów)
+      </Text>
+      {renderRow(total, "Całkowity progres (pierwszy → najnowszy)", first.reportDate, newest.reportDate, "total-progress")}
+      {previous.id !== first.id && renderRow(recent, "Ostatni progres (poprzedni → najnowszy)", previous.reportDate, newest.reportDate, "recent-progress")}
+
+      {first.photoUrl && newest.photoUrl && first.id !== newest.id && (
+        <View style={{ marginTop: 4 }}>
+          <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.foreground, marginBottom: 8 }}>
+            Zdjęcia: przed / po
+          </Text>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <View style={{ flex: 1 }}>
+              <Image source={{ uri: first.photoUrl }} style={styles.comparisonPhoto} testID="image-progress-before" />
+              <Text style={{ fontSize: 11, color: colors.mutedForeground, textAlign: "center", marginTop: 4 }}>
+                {formatDate(first.reportDate)}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Image source={{ uri: newest.photoUrl }} style={styles.comparisonPhoto} testID="image-progress-after" />
+              <Text style={{ fontSize: 11, color: colors.mutedForeground, textAlign: "center", marginTop: 4 }}>
+                {formatDate(newest.reportDate)}
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
 interface WeeklyReport {
   id: string;
   reportDate: string;
@@ -104,6 +239,23 @@ interface ClientProgressData {
   completedWorkouts?: number | null;
   notes?: string | null;
   lastUpdated?: string | null;
+}
+
+interface SessionBooking {
+  id: string;
+  clientId: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  location?: string | null;
+  status: string;
+}
+
+interface ExerciseLogEntry {
+  id: string;
+  exerciseId: string;
+  reps: number;
+  load?: string | null;
+  loggedAt: string;
 }
 
 interface WorkoutSession {
@@ -201,6 +353,51 @@ export default function ClientDetailScreen() {
     enabled: !!assignedPlanId && activeTab === "plans",
   });
 
+  const { data: allTrainerSessions } = useQuery<SessionBooking[]>({
+    queryKey: ["trainer-sessions"],
+    queryFn: () => apiGet<SessionBooking[]>("/api/trainer/sessions"),
+    enabled: !!id,
+  });
+  const clientSessions = (allTrainerSessions ?? [])
+    .filter((s) => s.clientId === id)
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+
+  const [sessionModalVisible, setSessionModalVisible] = useState(false);
+  const [sessionDate, setSessionDate] = useState("");
+  const [sessionTime, setSessionTime] = useState("18:00");
+  const [sessionDuration, setSessionDuration] = useState("60");
+  const [sessionLocation, setSessionLocation] = useState("");
+
+  const createSessionMutation = useMutation({
+    mutationFn: () => {
+      const scheduledAt = new Date(`${sessionDate}T${sessionTime}:00`);
+      return apiPost("/api/sessions", {
+        clientId: id,
+        scheduledAt: scheduledAt.toISOString(),
+        durationMinutes: parseInt(sessionDuration, 10) || 60,
+        location: sessionLocation.trim() || null,
+      });
+    },
+    onSuccess: () => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ["trainer-sessions"] });
+      setSessionModalVisible(false);
+      setSessionDate("");
+      setSessionTime("18:00");
+      setSessionDuration("60");
+      setSessionLocation("");
+    },
+    onError: () => Alert.alert("Błąd", "Nie udało się zaplanować sesji. Sprawdź poprawność daty i godziny."),
+  });
+
+  const cancelSessionMutation = useMutation({
+    mutationFn: (sessionId: string) => apiDelete(`/api/sessions/${sessionId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["trainer-sessions"] });
+    },
+    onError: () => Alert.alert("Błąd", "Nie udało się anulować sesji."),
+  });
+
   const { data: trainerNotesData } = useQuery<{ notes: string | null }>({
     queryKey: ["trainer-notes", id],
     queryFn: () => apiGet<{ notes: string | null }>(`/api/trainer/clients/${id}/notes`),
@@ -224,6 +421,35 @@ export default function ClientDetailScreen() {
     queryFn: () => apiGet<WorkoutSession[]>(`/api/trainer/clients/${id}/workout-sessions`),
     enabled: !!id && activeTab === "progress",
   });
+
+  const { data: exerciseLogs } = useQuery<ExerciseLogEntry[]>({
+    queryKey: ["client-exercise-logs", id],
+    queryFn: () => apiGet<ExerciseLogEntry[]>(`/api/trainer/clients/${id}/exercise-logs`),
+    enabled: !!id && activeTab === "progress",
+  });
+
+  const { data: exercisesLibrary } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["exercises-library"],
+    queryFn: () => apiGet<{ id: string; name: string }[]>("/api/exercises/library"),
+    enabled: activeTab === "progress",
+  });
+
+  const personalRecords = (() => {
+    if (!exerciseLogs || !exercisesLibrary) return [];
+    const nameById = new Map(exercisesLibrary.map((e) => [e.id, e.name]));
+    const bestByExercise = new Map<string, { load: number; reps: number; loggedAt: string }>();
+    for (const log of exerciseLogs) {
+      const loadNum = parseNumericValue(log.load);
+      if (loadNum === null) continue;
+      const existing = bestByExercise.get(log.exerciseId);
+      if (!existing || loadNum > existing.load) {
+        bestByExercise.set(log.exerciseId, { load: loadNum, reps: log.reps, loggedAt: log.loggedAt });
+      }
+    }
+    return Array.from(bestByExercise.entries())
+      .map(([exerciseId, best]) => ({ exerciseId, name: nameById.get(exerciseId) ?? "Ćwiczenie", ...best }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  })();
 
   const markViewedMutation = useMutation({
     mutationFn: (reportId: string) => apiPost(`/api/reports/${reportId}/mark-as-viewed`, {}),
@@ -333,6 +559,30 @@ export default function ClientDetailScreen() {
     },
   });
 
+  const archiveMutation = useMutation({
+    mutationFn: () => apiPost(`/api/clients/${id}/archive`, {}),
+    onSuccess: () => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ["trainer-clients"] });
+      Alert.alert("Współpraca zakończona", "Relacja z podopiecznym została zarchiwizowana.");
+      router.back();
+    },
+    onError: () => {
+      Alert.alert("Błąd", "Nie udało się zakończyć współpracy.");
+    },
+  });
+
+  function confirmArchiveClient() {
+    Alert.alert(
+      "Czy na pewno chcesz zakończyć współpracę?",
+      `Ta akcja zarchiwizuje relację z ${clientData?.firstName ?? ""} ${clientData?.lastName ?? ""}. Będziesz mógł nadal przeglądać historię współpracy, ale nie będziesz mógł dodawać nowych planów treningowych ani dietetycznych.`,
+      [
+        { text: "Anuluj", style: "cancel" },
+        { text: "Zakończ współpracę", style: "destructive", onPress: () => archiveMutation.mutate() },
+      ]
+    );
+  }
+
   const latestProgress = progress ?? null;
 
   return (
@@ -385,6 +635,44 @@ export default function ClientDetailScreen() {
             </Pressable>
           </View>
         )}
+
+        <View style={[styles.sessionsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: clientSessions.length > 0 ? 10 : 0 }}>
+            <Text style={[styles.sessionsSectionTitle, { color: colors.foreground }]}>Nadchodzące sesje</Text>
+            <Pressable
+              onPress={() => setSessionModalVisible(true)}
+              style={({ pressed }) => [styles.scheduleBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
+              testID="button-schedule-session"
+            >
+              <Ionicons name="calendar-outline" size={14} color="#fff" />
+              <Text style={styles.scheduleBtnText}>Zaplanuj</Text>
+            </Pressable>
+          </View>
+          {clientSessions.map((session) => (
+            <View key={session.id} style={[styles.sessionRow, { borderColor: colors.border }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.foreground }}>
+                  {formatDateTime(session.scheduledAt)}
+                </Text>
+                <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 2 }}>
+                  {session.durationMinutes} min{session.location ? ` • ${session.location}` : ""}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() =>
+                  Alert.alert("Anuluj sesję", "Czy na pewno chcesz anulować tę sesję?", [
+                    { text: "Nie", style: "cancel" },
+                    { text: "Tak, anuluj", style: "destructive", onPress: () => cancelSessionMutation.mutate(session.id) },
+                  ])
+                }
+                testID={`button-cancel-session-${session.id}`}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle-outline" size={20} color={colors.destructive} />
+              </Pressable>
+            </View>
+          ))}
+        </View>
 
         <View style={[styles.tabBar, { borderColor: colors.border }]}>
           {(
@@ -651,6 +939,32 @@ export default function ClientDetailScreen() {
               </View>
             )}
 
+            {personalRecords.length > 0 && (
+              <>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Rekordy życiowe</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+                  {personalRecords.map((pr) => (
+                    <View
+                      key={pr.exerciseId}
+                      style={[styles.prCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                      testID={`card-pr-${pr.exerciseId}`}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                        <Ionicons name="trophy" size={14} color="#f59e0b" />
+                        <Text style={[styles.prName, { color: colors.foreground }]} numberOfLines={1}>{pr.name}</Text>
+                      </View>
+                      <Text style={[styles.prValue, { color: colors.foreground }]}>
+                        {pr.load}kg × {pr.reps}
+                      </Text>
+                      <Text style={{ fontSize: 10, color: colors.mutedForeground, marginTop: 2 }}>
+                        {formatDate(pr.loggedAt)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Historia treningów</Text>
             {loadingWorkoutSessions ? (
               <ActivityIndicator color={colors.primary} />
@@ -722,6 +1036,20 @@ export default function ClientDetailScreen() {
         {activeTab === "reports" && (
           <>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Raporty tygodniowe</Text>
+            {!loadingReports && (clientReports ?? []).length > 0 && calculateReportStreak((clientReports ?? []).map((r) => r.reportDate)) >= 2 && (
+              <View style={[styles.streakBadge, { backgroundColor: "#f9731618", borderColor: "#f9731640" }]} testID="badge-report-streak">
+                <Ionicons name="flame" size={18} color="#f97316" />
+                <Text style={[styles.streakText, { color: "#f97316" }]}>
+                  {calculateReportStreak((clientReports ?? []).map((r) => r.reportDate))} tygodni z rzędu z raportem
+                </Text>
+              </View>
+            )}
+            {!loadingReports && (clientReports ?? []).length >= 2 && (
+              <ProgressComparisonSection
+                reports={[...(clientReports ?? [])].sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime())}
+                colors={colors}
+              />
+            )}
             {loadingReports ? (
               <ActivityIndicator color={colors.primary} />
             ) : (clientReports ?? []).length === 0 ? (
@@ -757,7 +1085,123 @@ export default function ClientDetailScreen() {
             )}
           </>
         )}
+
+        {clientData && (
+          <>
+            <View style={[styles.dangerDivider, { backgroundColor: colors.border }]} />
+            <Pressable
+              onPress={confirmArchiveClient}
+              disabled={archiveMutation.isPending}
+              style={({ pressed }) => [
+                styles.archiveBtn,
+                { borderColor: colors.destructive + "44", backgroundColor: colors.destructive + "0f", opacity: (pressed || archiveMutation.isPending) ? 0.7 : 1 },
+              ]}
+              testID="button-archive-client"
+            >
+              {archiveMutation.isPending ? (
+                <ActivityIndicator color={colors.destructive} size="small" />
+              ) : (
+                <>
+                  <Ionicons name="close-circle-outline" size={18} color={colors.destructive} />
+                  <Text style={[styles.archiveBtnText, { color: colors.destructive }]}>Zakończ współpracę</Text>
+                </>
+              )}
+            </Pressable>
+          </>
+        )}
       </ScrollView>
+
+      <Modal
+        visible={sessionModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { if (!createSessionMutation.isPending) setSessionModalVisible(false); }}
+      >
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.modalTitleRow}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Zaplanuj sesję</Text>
+              <Pressable
+                onPress={() => { if (!createSessionMutation.isPending) setSessionModalVisible(false); }}
+                testID="button-close-session-modal"
+              >
+                <Ionicons name="close" size={22} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+
+            <Text style={[styles.fieldLabelSmall, { color: colors.mutedForeground }]}>Data (RRRR-MM-DD)</Text>
+            <TextInput
+              style={[styles.remindInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, minHeight: 0 }]}
+              value={sessionDate}
+              onChangeText={setSessionDate}
+              placeholder="2026-08-05"
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="numeric"
+              maxLength={10}
+              testID="input-session-date"
+            />
+
+            <Text style={[styles.fieldLabelSmall, { color: colors.mutedForeground }]}>Godzina (GG:MM)</Text>
+            <TextInput
+              style={[styles.remindInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, minHeight: 0 }]}
+              value={sessionTime}
+              onChangeText={setSessionTime}
+              placeholder="18:00"
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="numeric"
+              maxLength={5}
+              testID="input-session-time"
+            />
+
+            <Text style={[styles.fieldLabelSmall, { color: colors.mutedForeground }]}>Czas trwania (min)</Text>
+            <TextInput
+              style={[styles.remindInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, minHeight: 0 }]}
+              value={sessionDuration}
+              onChangeText={setSessionDuration}
+              placeholder="60"
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="numeric"
+              maxLength={3}
+              testID="input-session-duration"
+            />
+
+            <Text style={[styles.fieldLabelSmall, { color: colors.mutedForeground }]}>Miejsce (opcjonalnie)</Text>
+            <TextInput
+              style={[styles.remindInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, minHeight: 0 }]}
+              value={sessionLocation}
+              onChangeText={setSessionLocation}
+              placeholder="np. Siłownia Fit Club"
+              placeholderTextColor={colors.mutedForeground}
+              testID="input-session-location"
+            />
+
+            <Pressable
+              onPress={() => {
+                if (!sessionDate || !sessionTime) {
+                  Alert.alert("Brak danych", "Podaj datę i godzinę sesji.");
+                  return;
+                }
+                createSessionMutation.mutate();
+              }}
+              disabled={createSessionMutation.isPending}
+              style={({ pressed }) => [
+                styles.remindSendBtn,
+                { backgroundColor: colors.primary, opacity: (createSessionMutation.isPending || pressed) ? 0.75 : 1 },
+              ]}
+              testID="button-confirm-schedule-session"
+            >
+              {createSessionMutation.isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="calendar-outline" size={16} color="#fff" />
+              )}
+              <Text style={styles.remindSendBtnText}>
+                {createSessionMutation.isPending ? "Zapisywanie…" : "Zaplanuj sesję"}
+              </Text>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <Modal
         visible={remindModalVisible}
@@ -1130,6 +1574,23 @@ const styles = StyleSheet.create({
   clientName: { fontSize: 22, fontFamily: "Inter_700Bold", flex: 1 },
   remindBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
   remindBtnText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  dangerDivider: { height: 1, marginTop: 28, marginBottom: 16 },
+  comparisonCardOuter: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 16 },
+  comparisonCard: { borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, minWidth: "30%", flexGrow: 1 },
+  comparisonPhoto: { width: "100%", aspectRatio: 3 / 4, borderRadius: 12, backgroundColor: "#0002" },
+  streakBadge: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 14 },
+  streakText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  prCard: { borderRadius: 12, borderWidth: 1, padding: 12, minWidth: "31%", flexGrow: 1 },
+  prName: { fontSize: 12, fontFamily: "Inter_600SemiBold", flex: 1 },
+  prValue: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  sessionsSection: { borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 16 },
+  sessionsSectionTitle: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  scheduleBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },
+  scheduleBtnText: { color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  sessionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderTopWidth: 1, paddingTop: 10, marginTop: 10 },
+  fieldLabelSmall: { fontSize: 12, fontFamily: "Inter_500Medium", marginBottom: 6, marginTop: 10 },
+  archiveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderWidth: 1, borderRadius: 12, paddingVertical: 13 },
+  archiveBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   planHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
   sectionTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
   assignBtn: {

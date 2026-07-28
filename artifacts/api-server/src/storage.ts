@@ -84,6 +84,9 @@ import {
   pushNotificationHistory,
   type PushNotificationHistory,
   type InsertPushNotificationHistory,
+  sessionBookings,
+  type SessionBooking,
+  type InsertSessionBookingInput,
 } from "@workspace/db";
 import { db } from "./db";
 import { eq, and, desc, or, isNull, sql, gte, lte, asc, inArray } from "drizzle-orm";
@@ -166,6 +169,12 @@ export interface IStorage {
   getLatestExerciseLog(clientId: string, exerciseId: string): Promise<ExerciseLog | undefined>;
   getLatestExerciseLogsBySet(clientId: string, exerciseId: string): Promise<ExerciseLog[]>;
   
+  // Session booking operations
+  createSessionBooking(trainerId: string, data: InsertSessionBookingInput): Promise<SessionBooking>;
+  getTrainerSessionBookings(trainerId: string): Promise<SessionBooking[]>;
+  getClientSessionBookings(clientId: string): Promise<SessionBooking[]>;
+  cancelSessionBooking(id: string, trainerId: string): Promise<boolean>;
+
   // Weekly reports operations
   createWeeklyReport(clientId: string, data: Omit<InsertWeeklyReport, 'clientId'>): Promise<WeeklyReport>;
   getClientWeeklyReports(clientId: string): Promise<WeeklyReport[]>;
@@ -1156,6 +1165,39 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return report;
+  }
+
+  async createSessionBooking(trainerId: string, data: InsertSessionBookingInput): Promise<SessionBooking> {
+    const [booking] = await db
+      .insert(sessionBookings)
+      .values({ ...data, trainerId })
+      .returning();
+    return booking;
+  }
+
+  async getTrainerSessionBookings(trainerId: string): Promise<SessionBooking[]> {
+    return await db
+      .select()
+      .from(sessionBookings)
+      .where(and(eq(sessionBookings.trainerId, trainerId), eq(sessionBookings.status, "scheduled")))
+      .orderBy(asc(sessionBookings.scheduledAt));
+  }
+
+  async getClientSessionBookings(clientId: string): Promise<SessionBooking[]> {
+    return await db
+      .select()
+      .from(sessionBookings)
+      .where(and(eq(sessionBookings.clientId, clientId), eq(sessionBookings.status, "scheduled")))
+      .orderBy(asc(sessionBookings.scheduledAt));
+  }
+
+  async cancelSessionBooking(id: string, trainerId: string): Promise<boolean> {
+    const result = await db
+      .update(sessionBookings)
+      .set({ status: "cancelled" })
+      .where(and(eq(sessionBookings.id, id), eq(sessionBookings.trainerId, trainerId)))
+      .returning();
+    return result.length > 0;
   }
 
   async getClientWeeklyReports(clientId: string): Promise<WeeklyReport[]> {

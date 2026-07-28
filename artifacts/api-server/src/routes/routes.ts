@@ -22,6 +22,7 @@ import {
   updateClientProgressSchema,
   insertExerciseLogSchema,
   insertWeeklyReportSchema,
+  insertSessionBookingSchema,
   updateUserRoleSchema,
   registerSchema,
   loginSchema,
@@ -2862,6 +2863,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Trainer viewing client exercise logs
+  // Session bookings - trainer schedules a training session with a client
+  app.post("/api/sessions", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą planować sesje" });
+      }
+
+      const validationResult = insertSessionBookingSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ message: "Nieprawidłowe dane wejściowe", errors: validationResult.error.errors });
+      }
+
+      const trainerClients = await storage.getTrainerClients(userId);
+      const isTrainerClient = trainerClients.some((client) => client.id === validationResult.data.clientId);
+      if (!isTrainerClient) {
+        return res.status(403).json({ message: "Możesz umawiać sesje tylko z własnymi podopiecznymi" });
+      }
+
+      const booking = await storage.createSessionBooking(userId, validationResult.data);
+      res.status(201).json(booking);
+    } catch (error) {
+      console.error("Error creating session booking:", error);
+      res.status(500).json({ message: "Nie udało się zaplanować sesji" });
+    }
+  });
+
+  app.get("/api/trainer/sessions", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mają dostęp do tego zasobu" });
+      }
+      const sessions = await storage.getTrainerSessionBookings(userId);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error fetching trainer sessions:", error);
+      res.status(500).json({ message: "Nie udało się pobrać sesji" });
+    }
+  });
+
+  app.get("/api/client/sessions", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const sessions = await storage.getClientSessionBookings(userId);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error fetching client sessions:", error);
+      res.status(500).json({ message: "Nie udało się pobrać sesji" });
+    }
+  });
+
+  app.delete("/api/sessions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { id } = req.params;
+      const cancelled = await storage.cancelSessionBooking(id, userId);
+      if (!cancelled) {
+        return res.status(404).json({ message: "Nie znaleziono sesji lub brak uprawnień" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error cancelling session booking:", error);
+      res.status(500).json({ message: "Nie udało się anulować sesji" });
+    }
+  });
+
   app.get("/api/trainer/clients/:clientId/exercise-logs", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;

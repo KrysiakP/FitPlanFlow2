@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { FileText, User, Calendar, Weight, Ruler, Activity, Heart, Pill, MessageSquare, Image as ImageIcon, ArrowRight, BarChart3 } from "lucide-react";
+import { FileText, User, Calendar, Weight, Ruler, Activity, Heart, Pill, MessageSquare, Image as ImageIcon, ArrowRight, BarChart3, Flame } from "lucide-react";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import type { User as UserType, WeeklyReport } from "@shared/schema";
@@ -38,6 +38,34 @@ function formatDiff(diff: number | null, unit: string = ""): { text: string; typ
     text: `-${absValue}${unit}`, 
     type: "negative"
   };
+}
+
+function getWeekStartKey(date: Date): string {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
+}
+
+function calculateReportStreak(reportDates: (string | Date)[]): number {
+  const weekStarts = Array.from(new Set(reportDates.map((d) => getWeekStartKey(new Date(d))))).sort((a, b) => b.localeCompare(a));
+  if (weekStarts.length === 0) return 0;
+  let streak = 1;
+  let current = new Date(weekStarts[0]);
+  for (let i = 1; i < weekStarts.length; i++) {
+    const prevWeek = new Date(current);
+    prevWeek.setDate(prevWeek.getDate() - 7);
+    const prevWeekKey = prevWeek.toISOString().slice(0, 10);
+    if (weekStarts[i] === prevWeekKey) {
+      streak++;
+      current = prevWeek;
+    } else {
+      break;
+    }
+  }
+  return streak;
 }
 
 function calculateComparison(oldReport: WeeklyReport, newReport: WeeklyReport) {
@@ -125,6 +153,36 @@ function ProgressComparisonSection({ reports }: { reports: WeeklyReport[] }) {
           previousReport.reportDate,
           newestReport.reportDate,
           "recent-progress"
+        )}
+
+        {firstReport.photoUrl && newestReport.photoUrl && firstReport.id !== newestReport.id && (
+          <div className="space-y-3" data-testid="section-photo-comparison">
+            <h4 className="font-medium text-sm">Zdjęcia: przed / po</h4>
+            <div className="grid grid-cols-2 gap-4 max-w-md">
+              <div className="space-y-1">
+                <img
+                  src={firstReport.photoUrl}
+                  alt="Zdjęcie przed"
+                  className="w-full aspect-[3/4] object-cover rounded-lg border"
+                  data-testid="img-progress-before"
+                />
+                <p className="text-xs text-muted-foreground text-center">
+                  {format(new Date(firstReport.reportDate), "dd.MM.yyyy")}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <img
+                  src={newestReport.photoUrl}
+                  alt="Zdjęcie po"
+                  className="w-full aspect-[3/4] object-cover rounded-lg border"
+                  data-testid="img-progress-after"
+                />
+                <p className="text-xs text-muted-foreground text-center">
+                  {format(new Date(newestReport.reportDate), "dd.MM.yyyy")}
+                </p>
+              </div>
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>
@@ -311,6 +369,18 @@ export default function TrainerReports() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {sortedReports.length > 0 && calculateReportStreak(sortedReports.map((r) => r.reportDate)) >= 2 && (
+        <div
+          className="flex items-center gap-3 rounded-lg border border-orange-500/25 bg-orange-500/10 p-4"
+          data-testid="badge-report-streak"
+        >
+          <Flame className="w-5 h-5 text-orange-500" />
+          <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
+            {calculateReportStreak(sortedReports.map((r) => r.reportDate))} tygodni z rzędu z raportem
+          </span>
+        </div>
       )}
 
       {sortedReports.length >= 2 && (

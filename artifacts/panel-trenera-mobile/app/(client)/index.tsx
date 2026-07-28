@@ -34,6 +34,13 @@ interface InvitationTrainer {
   email: string;
 }
 
+interface ClientSession {
+  id: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  location?: string | null;
+}
+
 interface PendingInvitation {
   id: string;
   clientEmail: string;
@@ -63,6 +70,12 @@ export default function ClientDashboard() {
   });
 
   const pendingInvitations = (invitations ?? []).filter((i) => i.status === "pending");
+
+  const { data: upcomingSessions } = useQuery<ClientSession[]>({
+    queryKey: ["client-sessions"],
+    queryFn: () => apiGet<ClientSession[]>("/api/client/sessions"),
+    enabled: !!user?.id,
+  });
 
   const acceptMutation = useMutation({
     mutationFn: (id: string) => apiPost(`/api/invitations/${id}/accept`, {}),
@@ -113,6 +126,29 @@ export default function ClientDashboard() {
           </Text>
         </View>
       </View>
+
+      {(upcomingSessions ?? []).length > 0 && (
+        <View style={[styles.sessionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <Ionicons name="calendar" size={18} color={colors.primary} />
+            <Text style={[styles.sessionCardTitle, { color: colors.foreground }]}>Najbliższa sesja</Text>
+          </View>
+          <Text style={[styles.sessionCardDate, { color: colors.foreground }]}>
+            {new Date(upcomingSessions![0].scheduledAt).toLocaleString("pl-PL", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </Text>
+          {upcomingSessions![0].location ? (
+            <Text style={{ fontSize: 13, color: colors.mutedForeground, marginTop: 2 }}>
+              {upcomingSessions![0].location}
+            </Text>
+          ) : null}
+        </View>
+      )}
 
       {pendingInvitations.length > 0 && (
         <View style={styles.invitationsSection}>
@@ -263,6 +299,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   avatarText: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  sessionCard: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 20 },
+  sessionCardTitle: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  sessionCardDate: { fontSize: 16, fontFamily: "Inter_600SemiBold", textTransform: "capitalize" },
   invitationsSection: {
     marginBottom: 20,
     gap: 10,

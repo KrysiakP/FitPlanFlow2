@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertWeeklyReportSchema, type WeeklyReport, type InsertWeeklyReportInput } from "@shared/schema";
-import { Calendar as CalendarIcon, Upload, FileImage, TrendingUp, Activity, Pencil } from "lucide-react";
+import { Calendar as CalendarIcon, Upload, FileImage, TrendingUp, Activity, Pencil, Flame } from "lucide-react";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,34 @@ import { useState } from "react";
 // Object Storage uploader - code adapted from javascript_object_storage blueprint
 import { ObjectUploader } from "@/components/ObjectUploader";
 import type { UploadResult } from "@uppy/core";
+
+function getWeekStartKey(date: Date): string {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
+}
+
+function calculateReportStreak(reportDates: (string | Date)[]): number {
+  const weekStarts = Array.from(new Set(reportDates.map((d) => getWeekStartKey(new Date(d))))).sort((a, b) => b.localeCompare(a));
+  if (weekStarts.length === 0) return 0;
+  let streak = 1;
+  let current = new Date(weekStarts[0]);
+  for (let i = 1; i < weekStarts.length; i++) {
+    const prevWeek = new Date(current);
+    prevWeek.setDate(prevWeek.getDate() - 7);
+    const prevWeekKey = prevWeek.toISOString().slice(0, 10);
+    if (weekStarts[i] === prevWeekKey) {
+      streak++;
+      current = prevWeek;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
 
 export default function WeeklyReport() {
   const { toast } = useToast();
@@ -258,6 +286,18 @@ export default function WeeklyReport() {
           Wypełnij swój cotygodniowy raport postępów, aby śledzić swoje wyniki
         </p>
       </div>
+
+      {sortedReports.length > 0 && calculateReportStreak(sortedReports.map((r) => r.reportDate)) >= 2 && (
+        <div
+          className="flex items-center gap-3 rounded-lg border border-orange-500/25 bg-orange-500/10 p-4"
+          data-testid="badge-report-streak"
+        >
+          <Flame className="w-5 h-5 text-orange-500" />
+          <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
+            {calculateReportStreak(sortedReports.map((r) => r.reportDate))} tygodni z rzędu z raportem — tak trzymaj!
+          </span>
+        </div>
+      )}
 
       <Card>
         <CardHeader>

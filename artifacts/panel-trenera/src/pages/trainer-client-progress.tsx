@@ -26,7 +26,8 @@ import {
   BarChart3,
   Clock,
   CheckCircle2,
-  Play
+  Play,
+  Trophy
 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, eachWeekOfInterval, subWeeks, parseISO } from "date-fns";
 import { pl } from "date-fns/locale";
@@ -135,6 +136,16 @@ export default function TrainerClientProgress() {
     queryKey: [`/api/trainer/clients/${clientId}/workout-sessions`],
     enabled: !!clientId,
   });
+
+  const { data: exercisesLibrary } = useQuery<Exercise[]>({
+    queryKey: ["/api/exercises/library"],
+  });
+
+  const exerciseNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    (exercisesLibrary ?? []).forEach((e: any) => map.set(e.id, e.name));
+    return map;
+  }, [exercisesLibrary]);
 
   const sortedReports = useMemo(() => {
     if (!reports) return [];
@@ -758,14 +769,17 @@ export default function TrainerClientProgress() {
                                   <span className="text-sm font-medium text-muted-foreground">
                                     #{index + 1}
                                   </span>
-                                  <span className="font-medium truncate max-w-[200px]">
-                                    Ćwiczenie
+                                  <span className="font-medium truncate max-w-[200px]" data-testid={`text-exercise-name-${exercise.exerciseId}`}>
+                                    {exerciseNameById.get(exercise.exerciseId) ?? "Ćwiczenie"}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-4">
                                   <div className="text-right">
-                                    <p className="text-sm text-muted-foreground">Max obciążenie</p>
-                                    <p className="font-semibold">{exercise.maxLoad} kg</p>
+                                    <p className="text-sm text-muted-foreground flex items-center justify-end gap-1">
+                                      <Trophy className="w-3 h-3 text-amber-500" />
+                                      Rekord
+                                    </p>
+                                    <p className="font-semibold" data-testid={`text-pr-${exercise.exerciseId}`}>{exercise.maxLoad} kg</p>
                                   </div>
                                   <div className="text-right">
                                     <p className="text-sm text-muted-foreground">Sesji</p>

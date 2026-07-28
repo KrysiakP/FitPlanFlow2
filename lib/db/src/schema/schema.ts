@@ -205,6 +205,19 @@ export const clientRelationships = pgTable("client_relationships", {
     .where(sql`status = 'active'`),
 }));
 
+// Session bookings - scheduled training sessions between trainer and client
+export const sessionBookings = pgTable("session_bookings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  trainerId: varchar("trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  scheduledAt: timestamp("scheduled_at").notNull(), // data i godzina sesji
+  durationMinutes: integer("duration_minutes").notNull().default(60),
+  location: varchar("location"), // np. "Siłownia XYZ", opcjonalne
+  notes: text("notes"), // notatki trenera do sesji
+  status: varchar("status", { length: 20 }).notNull().default("scheduled"), // scheduled, cancelled, completed
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Plan invitations - trainer invites client to a plan (plan optional)
 export const planInvitations = pgTable("plan_invitations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -600,6 +613,17 @@ export const weeklyReportsRelations = relations(weeklyReports, ({ one }) => ({
   }),
 }));
 
+export const sessionBookingsRelations = relations(sessionBookings, ({ one }) => ({
+  trainer: one(users, {
+    fields: [sessionBookings.trainerId],
+    references: [users.id],
+  }),
+  client: one(users, {
+    fields: [sessionBookings.clientId],
+    references: [users.id],
+  }),
+}));
+
 export const clientRelationshipsRelations = relations(clientRelationships, ({ one }) => ({
   trainer: one(users, {
     fields: [clientRelationships.trainerId],
@@ -800,6 +824,8 @@ export type InsertExerciseLog = typeof exerciseLogs.$inferInsert;
 
 // Types for weekly reports
 export type WeeklyReport = typeof weeklyReports.$inferSelect;
+export type SessionBooking = typeof sessionBookings.$inferSelect;
+export type InsertSessionBookingInput = z.infer<typeof insertSessionBookingSchema>;
 export type InsertWeeklyReport = typeof weeklyReports.$inferInsert;
 
 // Types for client relationships
@@ -927,6 +953,15 @@ export const insertWeeklyReportSchema = createInsertSchema(weeklyReports).omit({
   createdAt: true,
 }).extend({
   reportDate: z.coerce.date(),
+});
+
+export const insertSessionBookingSchema = createInsertSchema(sessionBookings).omit({
+  id: true,
+  trainerId: true,
+  status: true,
+  createdAt: true,
+}).extend({
+  scheduledAt: z.coerce.date(),
 });
 
 export const insertClientRelationshipSchema = createInsertSchema(clientRelationships).omit({

@@ -70,7 +70,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
-import type { User as UserType, PlanAssignment, TrainingPlan, ClientProgress, WeeklyReport, UserProfile, MedicalTest, WorkoutSession } from "@shared/schema";
+import type { User as UserType, PlanAssignment, TrainingPlan, ClientProgress, WeeklyReport, UserProfile, MedicalTest, WorkoutSession, SessionBooking } from "@shared/schema";
 
 type WorkoutSessionWithDetails = WorkoutSession & { workoutName: string | null };
 
@@ -126,6 +126,57 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
   const { data: workoutSessionsData, isLoading: isLoadingSessions } = useQuery<WorkoutSessionWithDetails[]>({
     queryKey: [`/api/trainer/clients/${client.id}/workout-sessions`],
     enabled: !!client.id && !client.isDemo,
+  });
+
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleTime, setScheduleTime] = useState("18:00");
+  const [scheduleDuration, setScheduleDuration] = useState("60");
+  const [scheduleLocation, setScheduleLocation] = useState("");
+
+  const { data: trainerBookings } = useQuery<SessionBooking[]>({
+    queryKey: ["/api/trainer/sessions"],
+    enabled: !!client.id,
+  });
+  const clientBookings = (trainerBookings ?? [])
+    .filter((s) => s.clientId === client.id)
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+
+  const createBookingMutation = useMutation({
+    mutationFn: async () => {
+      const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}:00`);
+      return await apiRequest("POST", "/api/sessions", {
+        clientId: client.id,
+        scheduledAt: scheduledAt.toISOString(),
+        durationMinutes: parseInt(scheduleDuration, 10) || 60,
+        location: scheduleLocation.trim() || null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/sessions"] });
+      setIsScheduleDialogOpen(false);
+      setScheduleDate("");
+      setScheduleTime("18:00");
+      setScheduleDuration("60");
+      setScheduleLocation("");
+      toast({ title: "Sesja zaplanowana" });
+    },
+    onError: () => {
+      toast({ title: "Błąd", description: "Nie udało się zaplanować sesji", variant: "destructive" });
+    },
+  });
+
+  const cancelBookingMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/sessions/${id}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/sessions"] });
+      toast({ title: "Sesja anulowana" });
+    },
+    onError: () => {
+      toast({ title: "Błąd", description: "Nie udało się anulować sesji", variant: "destructive" });
+    },
   });
 
   const updateNotesMutation = useMutation({
@@ -874,6 +925,87 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
           </Collapsible>
         </>
       )}
+
+      <Card data-testid={`card-sessions-${client.id}`}>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="font-heading text-base flex items-center gap-2">
+            <Calendar className="w-4 h-4" />
+            Nadchodzące sesje
+          </CardTitle>
+          <Button size="sm" className="gap-2" onClick={() => setIsScheduleDialogOpen(true)} data-testid={`button-schedule-session-${client.id}`}>
+            <Plus className="w-4 h-4" />
+            Zaplanuj sesję
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {clientBookings.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Brak zaplanowanych sesji</p>
+          ) : (
+            <div className="space-y-2">
+              {clientBookings.map((session) => (
+                <div
+                  key={session.id}
+                  className="flex items-center justify-between rounded-lg border p-3"
+                  data-testid={`row-session-${session.id}`}
+                >
+                  <div>
+                    <p className="font-medium text-sm">
+                      {format(new Date(session.scheduledAt), "EEEE, d MMMM yyyy, HH:mm", { locale: pl })}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {session.durationMinutes} min{session.location ? ` • ${session.location}` : ""}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => cancelBookingMutation.mutate(session.id)}
+                    disabled={cancelBookingMutation.isPending}
+                    data-testid={`button-cancel-session-${session.id}`}
+                  >
+                    <X className="w-4 h-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Zaplanuj sesję z {client.firstName} {client.lastName}</DialogTitle>
+            <DialogDescription>Podaj datę, godzinę i czas trwania sesji treningowej.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Data</label>
+              <Input type="date" value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)} data-testid="input-schedule-date" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Godzina</label>
+              <Input type="time" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} data-testid="input-schedule-time" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Czas trwania (min)</label>
+              <Input type="number" value={scheduleDuration} onChange={(e) => setScheduleDuration(e.target.value)} data-testid="input-schedule-duration" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Miejsce (opcjonalnie)</label>
+              <Input value={scheduleLocation} onChange={(e) => setScheduleLocation(e.target.value)} placeholder="np. Siłownia Fit Club" data-testid="input-schedule-location" />
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => createBookingMutation.mutate()}
+              disabled={createBookingMutation.isPending || !scheduleDate || !scheduleTime}
+              data-testid="button-confirm-schedule-session"
+            >
+              {createBookingMutation.isPending ? "Zapisywanie..." : "Zaplanuj sesję"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Separator />
 
