@@ -30,6 +30,13 @@ interface TrainingPlan {
   workouts?: { id: string; name: string }[];
 }
 
+interface ClientListItem {
+  id: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  email: string;
+}
+
 export default function TrainerPlansScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -41,6 +48,8 @@ export default function TrainerPlansScreen() {
   const [newPlanName, setNewPlanName] = useState("");
   const [newPlanDesc, setNewPlanDesc] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
+  const [assignModalPlan, setAssignModalPlan] = useState<TrainingPlan | null>(null);
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
 
   const { data, isLoading, refetch, isRefetching } = useQuery<TrainingPlan[]>({
     queryKey: ["training-plans"],
@@ -75,6 +84,42 @@ export default function TrainerPlansScreen() {
       Alert.alert("Błąd", "Nie udało się usunąć planu.");
     },
   });
+
+  const copyMutation = useMutation({
+    mutationFn: (id: string) => apiPost(`/api/plans/${id}/copy`, {}),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ["training-plans"] });
+    },
+    onError: () => {
+      Alert.alert("Błąd", "Nie udało się skopiować planu.");
+    },
+  });
+
+  const { data: clientsData } = useQuery<ClientListItem[]>({
+    queryKey: ["trainer-clients"],
+    queryFn: () => apiGet<ClientListItem[]>("/api/trainer/clients"),
+    enabled: !!assignModalPlan,
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: () =>
+      apiPost("/api/assignments/bulk", { planId: assignModalPlan!.id, clientIds: selectedClientIds }),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ["trainer-clients"] });
+      qc.invalidateQueries({ queryKey: ["training-plans"] });
+      setAssignModalPlan(null);
+      setSelectedClientIds([]);
+    },
+    onError: () => {
+      Alert.alert("Błąd", "Nie udało się przypisać planu.");
+    },
+  });
+
+  function toggleClientSelected(id: string) {
+    setSelectedClientIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  }
 
   function handleCreate() {
     const name = newPlanName.trim();
@@ -183,6 +228,32 @@ export default function TrainerPlansScreen() {
                 <View style={{ flex: 1 }} />
                 <Ionicons name="chevron-forward-outline" size={14} color={colors.mutedForeground} />
               </View>
+              <View style={[styles.planActionsRow, { borderTopColor: colors.border }]}>
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setSelectedClientIds([]);
+                    setAssignModalPlan(plan);
+                  }}
+                  style={[styles.planActionBtn, { borderColor: colors.border }]}
+                  testID={`button-assign-plan-${plan.id}`}
+                >
+                  <Ionicons name="people-outline" size={15} color={colors.foreground} />
+                  <Text style={[styles.planActionText, { color: colors.foreground }]}>Przypisz</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    copyMutation.mutate(plan.id);
+                  }}
+                  disabled={copyMutation.isPending}
+                  style={[styles.planActionBtn, { borderColor: colors.border, opacity: copyMutation.isPending ? 0.6 : 1 }]}
+                  testID={`button-copy-plan-${plan.id}`}
+                >
+                  <Ionicons name="copy-outline" size={15} color={colors.foreground} />
+                  <Text style={[styles.planActionText, { color: colors.foreground }]}>Kopiuj</Text>
+                </TouchableOpacity>
+              </View>
             </TouchableOpacity>
           ))
         )}
@@ -279,6 +350,72 @@ export default function TrainerPlansScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <Modal
+        visible={!!assignModalPlan}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setAssignModalPlan(null)}
+      >
+        <View style={styles.modalKav}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setAssignModalPlan(null)} />
+          <View style={[styles.modalSheet, { backgroundColor: colors.card, paddingBottom: insets.bottom + 24, maxHeight: "75%" }]}>
+            <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+              Przypisz „{assignModalPlan?.name}”
+            </Text>
+            <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
+              {(clientsData ?? []).map((client) => {
+                const selected = selectedClientIds.includes(client.id);
+                return (
+                  <TouchableOpacity
+                    key={client.id}
+                    onPress={() => toggleClientSelected(client.id)}
+                    style={[
+                      styles.clientPickRow,
+                      { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary + "0d" : "transparent" },
+                    ]}
+                    testID={`option-assign-client-${client.id}`}
+                  >
+                    <Text style={[styles.clientPickName, { color: colors.foreground }]}>
+                      {client.firstName || client.lastName ? `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim() : client.email}
+                    </Text>
+                    <Ionicons
+                      name={selected ? "checkmark-circle" : "ellipse-outline"}
+                      size={20}
+                      color={selected ? colors.primary : colors.mutedForeground}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+              {clientsData && clientsData.length === 0 && (
+                <Text style={{ color: colors.mutedForeground, paddingVertical: 16 }}>Brak podopiecznych do przypisania.</Text>
+              )}
+            </ScrollView>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.btnSecondary, { borderColor: colors.border }]}
+                onPress={() => setAssignModalPlan(null)}
+                testID="button-cancel-assign-plan"
+              >
+                <Text style={[styles.btnSecondaryText, { color: colors.foreground }]}>Anuluj</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btnPrimary, { backgroundColor: colors.primary, opacity: (assignMutation.isPending || selectedClientIds.length === 0) ? 0.6 : 1 }]}
+                onPress={() => assignMutation.mutate()}
+                disabled={assignMutation.isPending || selectedClientIds.length === 0}
+                testID="button-confirm-assign-plan"
+              >
+                {assignMutation.isPending ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.btnPrimaryText}>Przypisz ({selectedClientIds.length})</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -305,6 +442,11 @@ const styles = StyleSheet.create({
   workoutChipText: { fontSize: 12, fontFamily: "Inter_400Regular" },
   planFooter: { flexDirection: "row", alignItems: "center", gap: 6, borderTopWidth: 1, paddingHorizontal: 16, paddingVertical: 10 },
   planFooterText: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  planActionsRow: { flexDirection: "row", gap: 8, borderTopWidth: 1, padding: 12, paddingTop: 10 },
+  planActionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderRadius: 10, paddingVertical: 9 },
+  planActionText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  clientPickRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1, borderRadius: 12, padding: 14, marginBottom: 8 },
+  clientPickName: { fontSize: 15, fontFamily: "Inter_500Medium", flex: 1 },
   fab: { position: "absolute", right: 20, width: 56, height: 56, borderRadius: 28, justifyContent: "center", alignItems: "center", elevation: 4, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 },
   modalKav: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
   modalSheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingTop: 12, gap: 12 },

@@ -18,9 +18,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { WebView } from "react-native-webview";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/api";
+
+function getYouTubeEmbedId(url: string): string | null {
+  const match = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{6,})/
+  );
+  return match ? match[1] : null;
+}
 
 interface Exercise {
   id: string;
@@ -795,21 +803,32 @@ export default function ExerciseLibraryScreen() {
 
               {viewingExercise?.videoUrl ? (
                 <View style={styles.detailSection}>
-                  <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Link do wideo</Text>
-                  <Pressable
-                    onPress={() => viewingExercise.videoUrl && Linking.openURL(viewingExercise.videoUrl)}
-                    style={({ pressed }) => [
-                      styles.videoLinkBtn,
-                      { backgroundColor: colors.background, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
-                    ]}
-                    testID="button-open-video"
-                  >
-                    <Ionicons name="videocam-outline" size={18} color={colors.primary} />
-                    <Text style={[styles.videoLinkText, { color: colors.primary }]} numberOfLines={1}>
-                      {truncateUrl(viewingExercise.videoUrl, 48)}
-                    </Text>
-                    <Ionicons name="open-outline" size={16} color={colors.primary} />
-                  </Pressable>
+                  <Text style={[styles.detailLabel, { color: colors.mutedForeground }]}>Wideo</Text>
+                  {getYouTubeEmbedId(viewingExercise.videoUrl) ? (
+                    <View style={styles.videoEmbedBox} testID="video-embed-player">
+                      <WebView
+                        source={{ uri: `https://www.youtube.com/embed/${getYouTubeEmbedId(viewingExercise.videoUrl)}` }}
+                        style={styles.videoEmbed}
+                        allowsFullscreenVideo
+                        javaScriptEnabled
+                      />
+                    </View>
+                  ) : (
+                    <Pressable
+                      onPress={() => viewingExercise.videoUrl && Linking.openURL(viewingExercise.videoUrl)}
+                      style={({ pressed }) => [
+                        styles.videoLinkBtn,
+                        { backgroundColor: colors.background, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+                      ]}
+                      testID="button-open-video"
+                    >
+                      <Ionicons name="videocam-outline" size={18} color={colors.primary} />
+                      <Text style={[styles.videoLinkText, { color: colors.primary }]} numberOfLines={1}>
+                        {truncateUrl(viewingExercise.videoUrl, 48)}
+                      </Text>
+                      <Ionicons name="open-outline" size={16} color={colors.primary} />
+                    </Pressable>
+                  )}
                 </View>
               ) : null}
 
@@ -1023,6 +1042,17 @@ const styles = StyleSheet.create({
   },
   detailGridNum: { fontSize: 18, fontFamily: "Inter_700Bold" },
   detailGridLbl: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  videoEmbedBox: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#000",
+  },
+  videoEmbed: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
   videoLinkBtn: {
     flexDirection: "row",
     alignItems: "center",

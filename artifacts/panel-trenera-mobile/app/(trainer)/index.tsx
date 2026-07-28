@@ -66,6 +66,12 @@ export default function TrainerClientsScreen() {
     enabled: !!user?.id,
   });
 
+  const { data: plansForStats } = useQuery<{ id: string }[]>({
+    queryKey: ["training-plans"],
+    queryFn: () => apiGet<{ id: string }[]>("/api/plans"),
+    enabled: !!user?.id,
+  });
+
   const { data: invitationsData, refetch: refetchInvitations } = useQuery<Invitation[]>({
     queryKey: ["invitations"],
     queryFn: () => apiGet<Invitation[]>("/api/invitations"),
@@ -95,15 +101,24 @@ export default function TrainerClientsScreen() {
     },
   });
 
+  const [selectedInvitePlanId, setSelectedInvitePlanId] = useState<string | null>(null);
+
+  const { data: invitePlans } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["training-plans"],
+    queryFn: () => apiGet<{ id: string; name: string }[]>("/api/plans"),
+    enabled: inviteModalVisible,
+  });
+
   const inviteMutation = useMutation({
     mutationFn: (clientEmail: string) =>
-      apiPost<{ id: string }>("/api/invitations/send", { clientEmail }),
+      apiPost<{ id: string }>("/api/invitations/send", { clientEmail, planId: selectedInvitePlanId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invitations"] });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setInviteModalVisible(false);
       setInviteEmail("");
       setInviteError(null);
+      setSelectedInvitePlanId(null);
     },
     onError: (err: Error) => {
       const msg = err?.message ?? "";
@@ -120,6 +135,7 @@ export default function TrainerClientsScreen() {
   function handleInviteOpen() {
     setInviteEmail("");
     setInviteError(null);
+    setSelectedInvitePlanId(null);
     setInviteModalVisible(true);
   }
 
@@ -189,6 +205,24 @@ export default function TrainerClientsScreen() {
               <Ionicons name="person-add-outline" size={22} color={colors.primary} />
             </Pressable>
           </View>
+
+          <View style={styles.dashboardStatsRow}>
+            <View style={[styles.dashboardStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.dashboardStatValue, { color: colors.foreground }]}>{plansForStats?.length ?? 0}</Text>
+              <Text style={[styles.dashboardStatLabel, { color: colors.mutedForeground }]}>Plany treningowe</Text>
+            </View>
+            <View style={[styles.dashboardStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.dashboardStatValue, { color: colors.foreground }]}>{data?.length ?? 0}</Text>
+              <Text style={[styles.dashboardStatLabel, { color: colors.mutedForeground }]}>Podopieczni</Text>
+            </View>
+            <View style={[styles.dashboardStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.dashboardStatValue, { color: colors.foreground }]}>
+                {(data ?? []).filter((c) => c.assignment?.plan).length}
+              </Text>
+              <Text style={[styles.dashboardStatLabel, { color: colors.mutedForeground }]}>Przypisania</Text>
+            </View>
+          </View>
+
           <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Ionicons name="search-outline" size={18} color={colors.mutedForeground} />
             <TextInput
@@ -343,6 +377,43 @@ export default function TrainerClientsScreen() {
               autoFocus
               testID="input-invite-email"
             />
+
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Plan treningowy (opcjonalnie)</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.invitePlanScroll}>
+              <Pressable
+                onPress={() => setSelectedInvitePlanId(null)}
+                style={[
+                  styles.invitePlanChip,
+                  {
+                    backgroundColor: !selectedInvitePlanId ? colors.primary : colors.background,
+                    borderColor: !selectedInvitePlanId ? colors.primary : colors.border,
+                  },
+                ]}
+                testID="option-invite-no-plan"
+              >
+                <Text style={[styles.invitePlanChipText, { color: !selectedInvitePlanId ? colors.primaryForeground : colors.foreground }]}>
+                  Bez planu
+                </Text>
+              </Pressable>
+              {(invitePlans ?? []).map((plan) => {
+                const active = selectedInvitePlanId === plan.id;
+                return (
+                  <Pressable
+                    key={plan.id}
+                    onPress={() => setSelectedInvitePlanId(plan.id)}
+                    style={[
+                      styles.invitePlanChip,
+                      { backgroundColor: active ? colors.primary : colors.background, borderColor: active ? colors.primary : colors.border },
+                    ]}
+                    testID={`option-invite-plan-${plan.id}`}
+                  >
+                    <Text style={[styles.invitePlanChipText, { color: active ? colors.primaryForeground : colors.foreground }]} numberOfLines={1}>
+                      {plan.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
 
             {inviteError && (
               <Text style={styles.inviteErrorText}>{inviteError}</Text>
@@ -526,6 +597,10 @@ const styles = StyleSheet.create({
   headerSection: { paddingHorizontal: 20, paddingBottom: 16 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
   pageTitle: { fontSize: 22, fontFamily: "Inter_700Bold" },
+  dashboardStatsRow: { flexDirection: "row", gap: 10, marginTop: 14, marginBottom: 14 },
+  dashboardStatCard: { flex: 1, borderRadius: 12, borderWidth: 1, paddingVertical: 12, alignItems: "center" },
+  dashboardStatValue: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  dashboardStatLabel: { fontSize: 11, fontFamily: "Inter_500Medium", marginTop: 2, textAlign: "center" },
   countBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
   countText: { fontSize: 14, fontFamily: "Inter_700Bold" },
   searchBar: {
@@ -611,6 +686,10 @@ const styles = StyleSheet.create({
   },
   inviteErrorText: { fontSize: 13, color: "#e53935", fontFamily: "Inter_400Regular", marginBottom: 4 },
   inviteModalBtns: { flexDirection: "row", gap: 12, marginTop: 8 },
+  fieldLabel: { fontSize: 13, fontFamily: "Inter_500Medium", marginBottom: 8, marginTop: 4 },
+  invitePlanScroll: { marginBottom: 4 },
+  invitePlanChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, marginRight: 8, maxWidth: 160 },
+  invitePlanChipText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   inviteCancelBtn: {
     flex: 1,
     height: 48,

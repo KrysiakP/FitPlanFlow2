@@ -94,6 +94,15 @@ export default function ToolsScreen() {
           testID="button-tools-exercise-library"
         />
 
+        <MenuRow
+          icon="timer-outline"
+          label="Timer przerwy"
+          desc="Odmierzaj czas odpoczynku między seriami"
+          colors={colors}
+          onPress={() => router.push("/rest-timer")}
+          testID="button-tools-rest-timer"
+        />
+
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Rozwój</Text>
         <MenuRow
           icon="gift-outline"
@@ -102,6 +111,14 @@ export default function ToolsScreen() {
           colors={colors}
           onPress={() => router.push("/referrals")}
           testID="button-tools-referrals"
+        />
+        <MenuRow
+          icon="heart-outline"
+          label="PomagaMY"
+          desc="Zobacz jak pomagamy dzieciom"
+          colors={colors}
+          onPress={() => router.push("/pomagamy")}
+          testID="button-tools-pomagamy"
         />
         <MenuRow
           icon="globe-outline"

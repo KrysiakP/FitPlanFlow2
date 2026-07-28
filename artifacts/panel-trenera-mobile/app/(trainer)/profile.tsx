@@ -1,4 +1,5 @@
 import type { ComponentProps } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Linking,
@@ -7,9 +8,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -17,6 +20,13 @@ import { useAuth } from "@/context/AuthContext";
 import { useTheme, type ThemePreference } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
+import { apiGet, apiPut } from "@/lib/api";
+
+interface TrainerProfileDetails {
+  bio: string | null;
+  phone: string | null;
+  specialization: string | null;
+}
 
 const TIER_LABELS: Record<string, string> = {
   start: "Start (darmowy)",
@@ -180,6 +190,9 @@ export default function TrainerProfileScreen() {
           <Text style={[styles.roleText, { color: colors.primary }]}>Trener</Text>
         </View>
       </View>
+
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Dane profilowe</Text>
+      <ProfileDetailsSection colors={colors} />
 
       {Platform.OS !== "ios" && (
       <>
@@ -355,6 +368,84 @@ export default function TrainerProfileScreen() {
   );
 }
 
+function ProfileDetailsSection({ colors }: { colors: ReturnType<typeof useColors> }) {
+  const qc = useQueryClient();
+  const { data } = useQuery<TrainerProfileDetails>({
+    queryKey: ["profile-details"],
+    queryFn: () => apiGet<TrainerProfileDetails>("/api/profile"),
+  });
+
+  const [bio, setBio] = useState("");
+  const [phone, setPhone] = useState("");
+  const [specialization, setSpecialization] = useState("");
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    if (!data || dirty) return;
+    setBio(data.bio ?? "");
+    setPhone(data.phone ?? "");
+    setSpecialization(data.specialization ?? "");
+  }, [data]);
+
+  const saveMutation = useMutation({
+    mutationFn: () => apiPut("/api/profile", { bio: bio || null, phone: phone || null, specialization: specialization || null }),
+    onSuccess: () => {
+      setDirty(false);
+      qc.invalidateQueries({ queryKey: ["profile-details"] });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    },
+    onError: () => Alert.alert("Błąd", "Nie udało się zapisać danych profilowych"),
+  });
+
+  return (
+    <View style={[styles.profileDetailsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>O mnie</Text>
+      <TextInput
+        value={bio}
+        onChangeText={(v) => { setBio(v); setDirty(true); }}
+        placeholder="Opowiedz o sobie, swoim doświadczeniu i osiągnięciach..."
+        placeholderTextColor={colors.mutedForeground}
+        multiline
+        numberOfLines={4}
+        style={[styles.textArea, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
+        testID="input-bio"
+      />
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 14 }]}>Telefon</Text>
+      <TextInput
+        value={phone}
+        onChangeText={(v) => { setPhone(v); setDirty(true); }}
+        placeholder="+48 123 456 789"
+        placeholderTextColor={colors.mutedForeground}
+        keyboardType="phone-pad"
+        style={[styles.textInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
+        testID="input-phone"
+      />
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 14 }]}>Specjalizacja</Text>
+      <TextInput
+        value={specialization}
+        onChangeText={(v) => { setSpecialization(v); setDirty(true); }}
+        placeholder="np. Trening siłowy, kulturystyka, fitness"
+        placeholderTextColor={colors.mutedForeground}
+        style={[styles.textInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
+        testID="input-specialization"
+      />
+      {dirty && (
+        <Pressable
+          onPress={() => saveMutation.mutate()}
+          disabled={saveMutation.isPending}
+          style={({ pressed }) => [
+            styles.saveDetailsBtn,
+            { backgroundColor: colors.primary, opacity: pressed || saveMutation.isPending ? 0.7 : 1 },
+          ]}
+          testID="button-save-profile-details"
+        >
+          <Text style={styles.saveDetailsBtnText}>{saveMutation.isPending ? "Zapisywanie..." : "Zapisz"}</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
 interface MenuRowProps {
   icon: ComponentProps<typeof Ionicons>["name"];
   label: string;
@@ -481,4 +572,10 @@ const styles = StyleSheet.create({
   themeOptionLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
   infoRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 8 },
   infoRowText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
+  profileDetailsCard: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 24 },
+  fieldLabel: { fontSize: 13, fontFamily: "Inter_500Medium", marginBottom: 6 },
+  textInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, fontFamily: "Inter_400Regular" },
+  textArea: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, fontFamily: "Inter_400Regular", minHeight: 90, textAlignVertical: "top" },
+  saveDetailsBtn: { marginTop: 16, borderRadius: 10, paddingVertical: 12, alignItems: "center" },
+  saveDetailsBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });
