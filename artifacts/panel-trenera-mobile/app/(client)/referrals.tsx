@@ -13,6 +13,7 @@ import * as Clipboard from "expo-clipboard";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
@@ -156,6 +157,11 @@ export default function ClientReferralsScreen() {
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefetch} tintColor={colors.primary} />}
       showsVerticalScrollIndicator={false}
     >
+      <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
+        <Ionicons name="chevron-back" size={22} color={colors.primary} />
+        <Text style={[styles.backText, { color: colors.primary }]}>Wstecz</Text>
+      </Pressable>
+
       <Text style={[styles.pageTitle, { color: colors.foreground }]}>Program poleceń</Text>
       <Text style={[styles.pageSubtitle, { color: colors.mutedForeground }]}>
         Poleć Panel Trenera i zdobywaj darmowe dni subskrypcji
@@ -335,6 +341,8 @@ const statStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingHorizontal: 20 },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8 },
+  backText: { fontSize: 15, fontFamily: "Inter_500Medium" },
   pageTitle: { fontSize: 22, fontFamily: "Inter_700Bold", marginBottom: 4 },
   pageSubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", marginBottom: 20, lineHeight: 20 },
   loader: { marginTop: 40 },

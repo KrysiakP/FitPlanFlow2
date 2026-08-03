@@ -35,7 +35,6 @@ import {
   insertDietSupplementSchema,
   insertDailyHabitLogSchema,
   insertMealCheckmarkSchema,
-  insertMedicalTestSchema,
   insertClientPaymentSchema,
   insertMessageSchema,
   insertWorkoutSessionSchema,
@@ -61,7 +60,7 @@ import express from "express";
 import { authRateLimit } from "../app";
 import { checkPaymentNotifications } from "../services/paymentNotifications";
 import { deleteTestClient } from "../testClientService";
-import { getDemoClient, getDemoTrainingPlans, getDemoWeeklyReports, getDemoDietPlan, getDemoMedicalTests, getDemoPayments, isDemoId, DEMO_CLIENT_ID } from "../demoDataService";
+import { getDemoClient, getDemoTrainingPlans, getDemoWeeklyReports, getDemoDietPlan, getDemoPayments, isDemoId, DEMO_CLIENT_ID } from "../demoDataService";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { 
   apiVersion: '2024-11-20.acacia' as any 
@@ -2878,10 +2877,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Nieprawidłowe dane wejściowe", errors: validationResult.error.errors });
       }
 
-      const trainerClients = await storage.getTrainerClients(userId);
-      const isTrainerClient = trainerClients.some((client) => client.id === validationResult.data.clientId);
-      if (!isTrainerClient) {
-        return res.status(403).json({ message: "Możesz umawiać sesje tylko z własnymi podopiecznymi" });
+      if (validationResult.data.clientId) {
+        const trainerClients = await storage.getTrainerClients(userId);
+        const isTrainerClient = trainerClients.some((client) => client.id === validationResult.data.clientId);
+        if (!isTrainerClient) {
+          return res.status(403).json({ message: "Możesz umawiać sesje tylko z własnymi podopiecznymi" });
+        }
       }
 
       const booking = await storage.createSessionBooking(userId, validationResult.data);
@@ -3407,6 +3408,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/invitations/:id/resend", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      if (user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko trenerzy mogą ponownie wysyłać zaproszenia" });
+      }
+
+      const { id } = req.params;
+      const invitation = await storage.getInvitation(id);
+      if (!invitation || invitation.trainerId !== userId) {
+        return res.status(404).json({ message: "Zaproszenie nie zostało znalezione" });
+      }
+      if (invitation.status !== "pending") {
+        return res.status(409).json({ message: "Można ponownie wysłać tylko oczekujące zaproszenia" });
+      }
+
+      await sendClientInvitationEmail({
+        email: invitation.clientEmail,
+        clientFirstName: invitation.clientFirstName ?? "",
+        trainerName: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || "Trener",
+        trainerFirstName: user.firstName ?? "Twój trener",
+        invitationCode: invitation.invitationCode ?? undefined,
+      });
+
+      res.json({ message: "Zaproszenie wysłane ponownie" });
+    } catch (error) {
+      console.error("Error resending invitation:", error);
+      res.status(500).json({ message: "Nie udało się ponownie wysłać zaproszenia" });
+    }
+  });
+
   app.post("/api/invitations/:id/accept", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
@@ -3559,36 +3592,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      
-      if (user?.role !== "client") {
-        return res.status(403).json({ message: "Tylko klienci mogą logować wykonania ćwiczeń" });
+
+      if (user?.role !== "client" && user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko klienci i trenerzy mogą logować wykonania ćwiczeń" });
       }
 
       const { exerciseId } = req.params;
-      
+      const isTrainer = user.role === "trainer";
+      let clientId = userId;
+
+      if (isTrainer) {
+        const bodyClientId = typeof req.body?.clientId === "string" ? req.body.clientId : undefined;
+        if (!bodyClientId) {
+          return res.status(400).json({ message: "Brak clientId — trener musi wskazać podopiecznego" });
+        }
+        const hasAccess = await storage.hasActiveClientRelationship(userId, bodyClientId);
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Brak aktywnej współpracy z tym podopiecznym" });
+        }
+        clientId = bodyClientId;
+      }
+
       // Verify exercise exists before logging
       const exercise = await storage.getExerciseById(exerciseId);
       if (!exercise) {
         console.error(`Exercise not found: ${exerciseId}`);
         return res.status(404).json({ message: "Ćwiczenie nie zostało znalezione" });
       }
-      
+
       // Verify client has access to this exercise
-      const assignment = await storage.getClientAssignment(userId);
+      const assignment = await storage.getClientAssignment(clientId);
       if (!assignment) {
-        console.error(`Client ${userId} has no plan assignment`);
-        return res.status(403).json({ message: "Nie masz przypisanego planu treningowego" });
+        console.error(`Client ${clientId} has no plan assignment`);
+        return res.status(403).json({ message: "Podopieczny nie ma przypisanego planu treningowego" });
       }
-      
+
       // Get workouts for the assigned plan and verify this exercise belongs to one of them
       const workouts = await storage.getWorkoutsByPlanId(assignment.planId);
       const workoutIds = workouts.map(w => w.id);
-      
+
       if (!exercise.workoutId || !workoutIds.includes(exercise.workoutId)) {
         console.error(`Exercise ${exerciseId} (workoutId: ${exercise.workoutId}) is not in client's assigned plan ${assignment.planId}`);
-        return res.status(403).json({ message: "Nie masz dostępu do tego ćwiczenia" });
+        return res.status(403).json({ message: "Brak dostępu do tego ćwiczenia" });
       }
-      
+
       const validationResult = insertExerciseLogSchema.safeParse({
         ...req.body,
         exerciseId,
@@ -3596,18 +3643,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!validationResult.success) {
         console.error("Exercise log validation error:", validationResult.error.errors);
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.errors
         });
       }
 
       const { reps, load, notes, setNumber } = validationResult.data;
-      const log = await storage.logExercise(userId, exerciseId, { 
-        reps, 
-        load: load ?? undefined, 
+      const log = await storage.logExercise(clientId, exerciseId, {
+        reps,
+        load: load ?? undefined,
         notes: notes ?? undefined,
-        setNumber: setNumber ?? 1
+        setNumber: setNumber ?? 1,
+        loggedByUserId: isTrainer ? userId : undefined,
       });
       res.json(log);
     } catch (error) {
@@ -3680,13 +3728,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      
-      if (user?.role !== "client") {
-        return res.status(403).json({ message: "Tylko klienci mogą pobierać logi ćwiczeń" });
+
+      if (user?.role !== "client" && user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko klienci i trenerzy mogą pobierać logi ćwiczeń" });
       }
 
       const { exerciseId } = req.params;
-      const logs = await storage.getExerciseLogs(userId, exerciseId);
+      let clientId = userId;
+
+      if (user.role === "trainer") {
+        const queryClientId = typeof req.query.clientId === "string" ? req.query.clientId : undefined;
+        if (!queryClientId) {
+          return res.status(400).json({ message: "Brak clientId — trener musi wskazać podopiecznego" });
+        }
+        const hasAccess = await storage.hasActiveClientRelationship(userId, queryClientId);
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Brak aktywnej współpracy z tym podopiecznym" });
+        }
+        clientId = queryClientId;
+      }
+
+      const logs = await storage.getExerciseLogs(clientId, exerciseId);
       res.json(logs);
     } catch (error) {
       console.error("Error fetching exercise logs:", error);
@@ -3753,8 +3815,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
 
-      if (user?.role !== "client") {
-        return res.status(403).json({ message: "Tylko klienci mogą zapisywać sesje treningowe" });
+      if (user?.role !== "client" && user?.role !== "trainer") {
+        return res.status(403).json({ message: "Tylko klienci i trenerzy mogą zapisywać sesje treningowe" });
+      }
+
+      const isTrainer = user.role === "trainer";
+      let clientId = userId;
+
+      if (isTrainer) {
+        const bodyClientId = typeof req.body?.clientId === "string" ? req.body.clientId : undefined;
+        if (!bodyClientId) {
+          return res.status(400).json({ message: "Brak clientId — trener musi wskazać podopiecznego" });
+        }
+        const hasAccess = await storage.hasActiveClientRelationship(userId, bodyClientId);
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Brak aktywnej współpracy z tym podopiecznym" });
+        }
+        clientId = bodyClientId;
       }
 
       const validation = insertWorkoutSessionSchema.safeParse(req.body);
@@ -3776,19 +3853,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify the client has an active assignment to the given planId
-      const assignment = await storage.getClientAssignment(userId);
+      const assignment = await storage.getClientAssignment(clientId);
       if (!assignment || assignment.planId !== planId) {
-        return res.status(403).json({ message: "Plan treningowy nie należy do Ciebie" });
+        return res.status(403).json({ message: "Plan treningowy nie należy do tego podopiecznego" });
       }
 
       // Verify the workoutId belongs to this plan
       const planWorkouts = await storage.getWorkoutsByPlanId(planId);
       const workoutBelongsToPlan = planWorkouts.some((w) => w.id === workoutId);
       if (!workoutBelongsToPlan) {
-        return res.status(403).json({ message: "Trening nie należy do Twojego planu" });
+        return res.status(403).json({ message: "Trening nie należy do tego planu" });
       }
 
-      const session = await storage.createWorkoutSession(userId, validation.data);
+      const session = await storage.createWorkoutSession(clientId, validation.data, isTrainer ? userId : undefined);
       res.status(201).json(session);
     } catch (error) {
       console.error("Error saving workout session:", error);
@@ -5005,134 +5082,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting charity donation:", error);
       res.status(500).json({ message: "Nie udało się usunąć darowizny" });
-    }
-  });
-
-  // Medical Tests endpoints
-  
-  // POST /api/medical-tests (client only - create new test)
-  app.post("/api/medical-tests", isAuthenticated, async (req, res) => {
-    try {
-      const userId = req.session.userId!;
-      const user = await storage.getUser(userId);
-
-      if (user?.role !== "client") {
-        return res.status(403).json({ message: "Tylko podopieczni mogą dodawać badania" });
-      }
-
-      const validationResult = insertMedicalTestSchema.safeParse(req.body);
-
-      if (!validationResult.success) {
-        return res.status(400).json({ 
-          message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
-        });
-      }
-
-      const test = await storage.createMedicalTest(userId, validationResult.data);
-
-      res.status(201).json(test);
-    } catch (error) {
-      console.error("Error creating medical test:", error);
-      res.status(500).json({ message: "Nie udało się dodać badania medycznego" });
-    }
-  });
-
-  // GET /api/medical-tests (client - own tests)
-  app.get("/api/medical-tests", isAuthenticated, async (req, res) => {
-    try {
-      const userId = req.session.userId!;
-      const user = await storage.getUser(userId);
-
-      if (user?.role !== "client") {
-        return res.status(403).json({ message: "Tylko podopieczni mogą przeglądać swoje badania" });
-      }
-
-      const tests = await storage.getClientMedicalTests(userId);
-      res.json(tests);
-    } catch (error) {
-      console.error("Error fetching medical tests:", error);
-      res.status(500).json({ message: "Nie udało się pobrać badań medycznych" });
-    }
-  });
-
-  // GET /api/clients/:clientId/medical-tests (trainer - read only)
-  app.get("/api/clients/:clientId/medical-tests", isAuthenticated, async (req, res) => {
-    try {
-      const userId = req.session.userId!;
-      const user = await storage.getUser(userId);
-      const { clientId } = req.params;
-
-      if (user?.role !== "trainer") {
-        return res.status(403).json({ message: "Nieautoryzowany dostęp" });
-      }
-
-      // Return demo medical tests for demo client
-      if (isDemoId(clientId)) {
-        const demoTests = getDemoMedicalTests();
-        return res.json(demoTests);
-      }
-
-      const canAccess = await storage.canTrainerAccessClientTests(userId, clientId);
-      if (!canAccess) {
-        return res.status(403).json({ message: "Brak dostępu do tego podopiecznego" });
-      }
-
-      const tests = await storage.getClientMedicalTests(clientId);
-      res.json(tests);
-    } catch (error) {
-      console.error("Error fetching medical tests:", error);
-      res.status(500).json({ message: "Nie udało się pobrać badań medycznych" });
-    }
-  });
-
-  // PUT /api/medical-tests/:id (client only - update own test)
-  app.put("/api/medical-tests/:id", isAuthenticated, async (req, res) => {
-    try {
-      const userId = req.session.userId!;
-      const user = await storage.getUser(userId);
-      const { id } = req.params;
-
-      if (user?.role !== "client") {
-        return res.status(403).json({ message: "Tylko podopieczni mogą edytować badania" });
-      }
-
-      const validationResult = insertMedicalTestSchema.partial().safeParse(req.body);
-
-      if (!validationResult.success) {
-        return res.status(400).json({ 
-          message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
-        });
-      }
-
-      const updatedTest = await storage.updateMedicalTest(id, userId, validationResult.data);
-      res.json(updatedTest);
-    } catch (error) {
-      console.error("Error updating medical test:", error);
-      if (error instanceof Error && error.message === "Test not found or unauthorized") {
-        return res.status(404).json({ message: "Badanie nie znalezione lub brak uprawnień" });
-      }
-      res.status(500).json({ message: "Nie udało się zaktualizować badania" });
-    }
-  });
-
-  // DELETE /api/medical-tests/:id (client only)
-  app.delete("/api/medical-tests/:id", isAuthenticated, async (req, res) => {
-    try {
-      const userId = req.session.userId!;
-      const user = await storage.getUser(userId);
-      const { id } = req.params;
-
-      if (user?.role !== "client") {
-        return res.status(403).json({ message: "Tylko podopieczni mogą usuwać badania" });
-      }
-
-      await storage.deleteMedicalTest(id, userId);
-      res.sendStatus(204);
-    } catch (error) {
-      console.error("Error deleting medical test:", error);
-      res.status(500).json({ message: "Nie udało się usunąć badania" });
     }
   });
 

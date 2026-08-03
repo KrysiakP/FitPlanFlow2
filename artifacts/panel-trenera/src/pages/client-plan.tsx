@@ -1,9 +1,10 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useQueries, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Clock, Dumbbell, Video, Check, Plus, Minus, ChevronLeft, Play, Trash2, TrendingUp, TrendingDown, Minus as MinusIcon } from "lucide-react";
+import { Clock, Dumbbell, Video, Check, Plus, Minus, ChevronLeft, Play, Trash2, TrendingUp, TrendingDown, Minus as MinusIcon, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState, useEffect } from "react";
@@ -409,16 +410,11 @@ function parseLoadToKg(load: string | null | undefined): number {
 }
 
 function WorkoutProgressStats({ exercises }: { exercises: Exercise[] }) {
-  const exerciseQueries = exercises.map(ex => ({
-    exerciseId: ex.id,
-    exerciseName: ex.name,
-  }));
-
-  const allLogsQueries = exercises.map(exercise => 
-    useQuery<ExerciseLog[]>({
+  const allLogsQueries = useQueries({
+    queries: exercises.map((exercise) => ({
       queryKey: ["/api/exercises", exercise.id, "logs"],
-    })
-  );
+    })),
+  }) as { data?: ExerciseLog[]; isLoading: boolean }[];
 
   const isLoading = allLogsQueries.some(q => q.isLoading);
   const hasAnyData = allLogsQueries.some(q => q.data && q.data.length > 0);
@@ -692,7 +688,7 @@ export default function ClientPlan() {
   const searchString = useSearch();
   const [, setLocation] = useLocation();
 
-  const { data: assignment, isLoading } = useQuery<AssignmentWithPlan>({
+  const { data: assignment, isLoading, isError } = useQuery<AssignmentWithPlan>({
     queryKey: ["/api/client/assignment"],
   });
 
@@ -717,6 +713,15 @@ export default function ClientPlan() {
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Alert variant="destructive" data-testid="alert-plan-error">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>Nie udało się pobrać Twojego planu treningowego. Odśwież stronę, aby spróbować ponownie.</AlertDescription>
+      </Alert>
     );
   }
 

@@ -7,7 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, User, Crown, CreditCard, Gift, ArrowLeft, Mail, Phone, Briefcase, Trash2, Share2, Copy } from "lucide-react";
+import { AlertCircle, User, Crown, CreditCard, Gift, ArrowLeft, Mail, Phone, Briefcase, Trash2, Share2, Copy, Pill, Heart } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link, useParams, useLocation } from "wouter";
@@ -308,6 +308,43 @@ export default function TrainerProfile() {
                   <p className="text-base whitespace-pre-wrap" data-testid="text-profile-bio">
                     {displayProfile.bio}
                   </p>
+                </div>
+              )}
+
+              {viewingOtherProfile && displayUser?.role === "client" && displayProfile?.pharmacologicalSupport && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <Pill className="w-4 h-4" />
+                    Wsparcie farmakologiczne/Suplementacja
+                  </h4>
+                  <p className="text-sm whitespace-pre-wrap" data-testid="text-pharmacological-support">
+                    {displayProfile.pharmacologicalSupport}
+                  </p>
+                </div>
+              )}
+
+              {viewingOtherProfile && displayUser?.role === "client" && (displayProfile?.injuries || displayProfile?.healthIssues) && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <Heart className="w-4 h-4" />
+                    Profil medyczny
+                  </h4>
+                  {displayProfile.injuries && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-muted-foreground">Kontuzje i urazy</p>
+                      <p className="text-sm whitespace-pre-wrap" data-testid="text-injuries">
+                        {displayProfile.injuries}
+                      </p>
+                    </div>
+                  )}
+                  {displayProfile.healthIssues && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-muted-foreground">Problemy zdrowotne</p>
+                      <p className="text-sm whitespace-pre-wrap" data-testid="text-health-issues">
+                        {displayProfile.healthIssues}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

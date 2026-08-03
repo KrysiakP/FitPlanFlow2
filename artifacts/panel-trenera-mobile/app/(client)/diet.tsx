@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,7 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet, apiPost, ApiError } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -144,11 +145,15 @@ export default function DietScreen() {
   }>>({});
 
   // ---- queries ----
-  const { data: plan, isLoading: planLoading, refetch, isRefetching } = useQuery<DietPlan | null>({
+  const { data: plan, isLoading: planLoading, isError: planIsError, refetch, isRefetching } = useQuery<DietPlan | null>({
     queryKey: ["client-diet-plan"],
     queryFn: async () => {
-      try { return await apiGet<DietPlan>("/api/client/diet"); }
-      catch { return null; }
+      try {
+        return await apiGet<DietPlan>("/api/client/diet");
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) return null;
+        throw err;
+      }
     },
     retry: false,
   });
@@ -241,6 +246,7 @@ export default function DietScreen() {
     },
     onError: () => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Błąd zapisu", "Nie udało się zapisać dzisiejszego wpisu diety. Spróbuj ponownie.");
     },
   });
 
@@ -273,10 +279,18 @@ export default function DietScreen() {
     .filter((m) => m.dayOfWeek == null || m.dayOfWeek === activeDay)
     .sort((a, b) => a.orderIndex - b.orderIndex);
 
-  const loggedKcal = Object.values(mealState).reduce((a, s) => a + (toNum(s.kcal) ?? 0), 0);
-  const loggedProtein = Object.values(mealState).reduce((a, s) => a + (toNum(s.protein) ?? 0), 0);
-  const loggedFat = Object.values(mealState).reduce((a, s) => a + (toNum(s.fat) ?? 0), 0);
-  const loggedCarbs = Object.values(mealState).reduce((a, s) => a + (toNum(s.carbs) ?? 0), 0);
+  // Only sum meals actually shown on the selected day — mealState accumulates
+  // entries for every day the client has looked at, not just the active one.
+  const dayMealIds = new Set(dayMeals.map((m) => m.id));
+  const dayMealStateEntries = Object.entries(mealState).filter(([mealId]) => dayMealIds.has(mealId));
+  const loggedKcal = dayMealStateEntries.reduce((a, [, s]) => a + (toNum(s.kcal) ?? 0), 0);
+  const loggedProtein = dayMealStateEntries.reduce((a, [, s]) => a + (toNum(s.protein) ?? 0), 0);
+  const loggedFat = dayMealStateEntries.reduce((a, [, s]) => a + (toNum(s.fat) ?? 0), 0);
+  const loggedCarbs = dayMealStateEntries.reduce((a, [, s]) => a + (toNum(s.carbs) ?? 0), 0);
+
+  // The backend only tracks one checklist for the actual current calendar day —
+  // other day tabs are a preview of that day's meal list, not a separate editable log.
+  const isTodayTab = activeDay === getTodayDow();
 
   if (planLoading) {
     return (
@@ -294,13 +308,23 @@ export default function DietScreen() {
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
       >
         <Text style={[styles.pageTitle, { color: colors.foreground }]}>Dieta</Text>
-        <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Ionicons name="nutrition-outline" size={36} color={colors.mutedForeground} />
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Brak planu diety</Text>
-          <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
-            Twój trener jeszcze nie przypisał Ci planu żywieniowego.
-          </Text>
-        </View>
+        {planIsError ? (
+          <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Ionicons name="cloud-offline-outline" size={36} color={colors.mutedForeground} />
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Błąd ładowania</Text>
+            <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
+              Nie udało się pobrać planu diety. Pociągnij w dół, aby spróbować ponownie.
+            </Text>
+          </View>
+        ) : (
+          <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Ionicons name="nutrition-outline" size={36} color={colors.mutedForeground} />
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Brak planu diety</Text>
+            <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
+              Twój trener jeszcze nie przypisał Ci planu żywieniowego.
+            </Text>
+          </View>
+        )}
       </ScrollView>
     );
   }
@@ -438,6 +462,15 @@ export default function DietScreen() {
             })}
           </ScrollView>
 
+          {!isTodayTab && dayMeals.length > 0 && (
+            <View style={[styles.emptyMeals, { backgroundColor: colors.accent, borderColor: colors.border, flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 10 }]}>
+              <Ionicons name="eye-outline" size={16} color={colors.mutedForeground} />
+              <Text style={[styles.emptyMealsText, { color: colors.mutedForeground, textAlign: "left", flex: 1 }]}>
+                Podgląd — odhaczanie posiłków jest dostępne tylko dla dzisiejszego dnia.
+              </Text>
+            </View>
+          )}
+
           {/* Meal cards */}
           {dayMeals.length === 0 ? (
             <View style={[styles.emptyMeals, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -464,12 +497,14 @@ export default function DietScreen() {
                   {/* Meal header */}
                   <View style={styles.mealHeader}>
                     <Pressable
-                      onPress={() => toggleMeal(meal.id)}
+                      onPress={() => isTodayTab && toggleMeal(meal.id)}
+                      disabled={!isTodayTab}
                       style={[
                         styles.mealCheck,
                         {
                           backgroundColor: ms.checked ? colors.primary : "transparent",
                           borderColor: ms.checked ? colors.primary : colors.border,
+                          opacity: isTodayTab ? 1 : 0.5,
                         },
                       ]}
                     >
@@ -484,6 +519,7 @@ export default function DietScreen() {
                     {meal.calories != null && (
                       <Text style={[styles.mealTargetKcal, { color: colors.mutedForeground }]}>cel: {meal.calories} kcal</Text>
                     )}
+                    {isTodayTab && (
                     <Pressable
                       onPress={() => toggleExpand(meal.id)}
                       style={[styles.expandBtn, { backgroundColor: (ms.expanded || hasEaten) ? colors.primary + "15" : colors.accent }]}
@@ -494,6 +530,7 @@ export default function DietScreen() {
                         color={(ms.expanded || hasEaten) ? colors.primary : colors.mutedForeground}
                       />
                     </Pressable>
+                    )}
                   </View>
 
                   {/* Ingredients & notes */}
@@ -514,7 +551,7 @@ export default function DietScreen() {
                   )}
 
                   {/* Eaten intake (expandable) */}
-                  {ms.expanded && (
+                  {ms.expanded && isTodayTab && (
                     <View style={[styles.intakeExpanded, { borderTopColor: colors.border, backgroundColor: colors.background }]}>
                       <Text style={[styles.intakeExpandedTitle, { color: colors.mutedForeground }]}>Co zjadłeś?</Text>
                       <View style={styles.intakeGrid}>

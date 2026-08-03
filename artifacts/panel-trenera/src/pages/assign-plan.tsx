@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,7 +33,7 @@ export default function AssignPlan() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const { data: plan, isLoading: planLoading } = useQuery<PlanWithDetails>({
+  const { data: plan, isLoading: planLoading, isError: planIsError } = useQuery<PlanWithDetails>({
     queryKey: ["/api/plans", id],
   });
 
@@ -46,9 +47,20 @@ export default function AssignPlan() {
     refetchIntervalInBackground: false,
   });
 
-  const { data: clients = [] } = useQuery<User[]>({
+  const { data: clients = [], isLoading: clientsLoading, isError: clientsIsError } = useQuery<User[]>({
     queryKey: ["/api/trainer/clients"],
   });
+
+  // Tabs' defaultValue is uncontrolled and only reads its initial value once —
+  // clients is still [] on first render, so pick the right starting tab once
+  // the real client list has loaded instead of always defaulting to "new".
+  const [activeTab, setActiveTab] = useState<"existing" | "new">("new");
+  const tabInitialized = useRef(false);
+  useEffect(() => {
+    if (tabInitialized.current || clientsLoading) return;
+    tabInitialized.current = true;
+    setActiveTab(clients.length > 0 ? "existing" : "new");
+  }, [clientsLoading, clients.length]);
 
   const planInvitations = allInvitations?.filter(inv => inv.planId === id) || [];
 
@@ -107,6 +119,16 @@ export default function AssignPlan() {
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
+    );
+  }
+
+  if (planIsError) {
+    return (
+      <Alert variant="destructive" data-testid="alert-plan-error">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Błąd ładowania</AlertTitle>
+        <AlertDescription>Nie udało się pobrać planu treningowego. Odśwież stronę, aby spróbować ponownie.</AlertDescription>
+      </Alert>
     );
   }
 
@@ -201,7 +223,7 @@ export default function AssignPlan() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue={clients.length > 0 ? "existing" : "new"} className="w-full">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "existing" | "new")} className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-4">
                 <TabsTrigger value="existing" data-testid="tab-existing-clients">
                   <Users className="w-4 h-4 mr-2" />
@@ -214,7 +236,13 @@ export default function AssignPlan() {
               </TabsList>
 
               <TabsContent value="existing">
-                {clients.length === 0 ? (
+                {clientsIsError ? (
+                  <div className="text-center py-6 text-muted-foreground" data-testid="alert-clients-error">
+                    <AlertCircle className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                    <p>Nie udało się pobrać listy podopiecznych</p>
+                    <p className="text-sm mt-1">Odśwież stronę, aby spróbować ponownie</p>
+                  </div>
+                ) : clients.length === 0 ? (
                   <div className="text-center py-6 text-muted-foreground">
                     <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
                     <p>Nie masz jeszcze żadnych podopiecznych</p>

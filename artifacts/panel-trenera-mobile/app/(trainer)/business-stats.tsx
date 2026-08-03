@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { apiGet } from "@/lib/api";
 
@@ -24,15 +25,18 @@ export default function BusinessStatsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
 
-  const { data: payments } = useQuery<Payment[]>({
+  const { data: payments, isLoading: loadingPayments, isError: paymentsError, refetch: refetchPayments } = useQuery<Payment[]>({
     queryKey: ["payments"],
     queryFn: () => apiGet<Payment[]>("/api/payments"),
   });
 
-  const { data: clients } = useQuery<ClientWithPlan[]>({
+  const { data: clients, isLoading: loadingClients, isError: clientsError } = useQuery<ClientWithPlan[]>({
     queryKey: ["trainer-clients"],
     queryFn: () => apiGet<ClientWithPlan[]>("/api/trainer/clients"),
   });
+
+  const isLoading = loadingPayments || loadingClients;
+  const isError = paymentsError || clientsError;
 
   const stats = useMemo(() => {
     const list = payments ?? [];
@@ -60,9 +64,28 @@ export default function BusinessStatsScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.stickyHeader, { paddingTop: insets.top + 8, backgroundColor: colors.background }]}>
+        <Pressable onPress={() => router.replace("/panel")} style={({ pressed }) => [{ marginRight: 4 }, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
+        </Pressable>
         <Text style={[styles.pageTitle, { color: colors.foreground }]}>Statystyki biznesowe</Text>
       </View>
 
+      {isLoading ? (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : isError ? (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 32 }}>
+          <Ionicons name="cloud-offline-outline" size={36} color={colors.mutedForeground} />
+          <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Błąd ładowania</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 13, textAlign: "center" }}>
+            Nie udało się pobrać statystyk.
+          </Text>
+          <Pressable onPress={() => refetchPayments()} testID="button-retry-business-stats">
+            <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold" }}>Spróbuj ponownie</Text>
+          </Pressable>
+        </View>
+      ) : (
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
@@ -74,16 +97,30 @@ export default function BusinessStatsScreen() {
             <Text style={[styles.statValue, { color: colors.foreground }]}>{stats.thisMonthTotal} zł</Text>
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Przychód (ten miesiąc)</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Pressable
+            onPress={() => router.push("/payments")}
+            style={({ pressed }) => [
+              styles.statCard,
+              { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+            ]}
+            testID="button-stat-overdue-payments"
+          >
             <Ionicons name="alert-circle-outline" size={18} color="#ef4444" />
             <Text style={[styles.statValue, { color: colors.foreground }]}>{stats.overdueCount}</Text>
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Zaległe płatności</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push("/")}
+            style={({ pressed }) => [
+              styles.statCard,
+              { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+            ]}
+            testID="button-stat-active-clients"
+          >
             <Ionicons name="people-outline" size={18} color={colors.primary} />
             <Text style={[styles.statValue, { color: colors.foreground }]}>{(clients ?? []).length}</Text>
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Aktywni podopieczni</Text>
-          </View>
+          </Pressable>
         </View>
 
         <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -111,6 +148,7 @@ export default function BusinessStatsScreen() {
           </View>
         </View>
       </ScrollView>
+      )}
     </View>
   );
 }

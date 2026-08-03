@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, CreditCard, Clock } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface SubscriptionWarningModalProps {
   subscriptionStatus: string | null;
@@ -29,6 +30,7 @@ export function SubscriptionWarningModal({
 }: SubscriptionWarningModalProps) {
   const [, setLocation] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const { toast } = useToast();
 
   const getDaysRemaining = () => {
     if (!subscriptionCancelledAt) return 7;
@@ -56,6 +58,13 @@ export function SubscriptionWarningModal({
     },
     onSuccess: (data: { url: string }) => {
       window.location.href = data.url;
+    },
+    onError: () => {
+      toast({
+        title: "Błąd",
+        description: "Nie udało się otworzyć panelu zarządzania subskrypcją. Spróbuj ponownie.",
+        variant: "destructive",
+      });
     },
   });
 

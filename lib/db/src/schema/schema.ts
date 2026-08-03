@@ -166,6 +166,7 @@ export const exerciseLogs = pgTable("exercise_logs", {
   load: varchar("load"), // obciążenie użyte przez podopiecznego (np. "25kg")
   notes: text("notes"), // notatki podopiecznego
   loggedAt: timestamp("logged_at").defaultNow().notNull(),
+  loggedByUserId: varchar("logged_by_user_id").references(() => users.id), // null = zalogowane przez samego podopiecznego; ustawione = trener zalogował w jego imieniu (wspólny trening)
 });
 
 // Weekly reports - client's weekly progress reports
@@ -223,7 +224,8 @@ export const trainerReviews = pgTable("trainer_reviews", {
 export const sessionBookings = pgTable("session_bookings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   trainerId: varchar("trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  clientId: varchar("client_id").references(() => users.id, { onDelete: "cascade" }), // null = guest (no app account), see guestName
+  guestName: varchar("guest_name", { length: 200 }), // set when clientId is null — a client without the app, entered by name only
   scheduledAt: timestamp("scheduled_at").notNull(), // data i godzina sesji
   durationMinutes: integer("duration_minutes").notNull().default(60),
   location: varchar("location"), // np. "Siłownia XYZ", opcjonalne
@@ -481,6 +483,7 @@ export const workoutSessions = pgTable("workout_sessions", {
   totalExercises: integer("total_exercises").notNull().default(0),
   durationSeconds: integer("duration_seconds"),
   completedAt: timestamp("completed_at").defaultNow().notNull(),
+  loggedByUserId: varchar("logged_by_user_id").references(() => users.id), // null = zalogowane przez samego podopiecznego; ustawione = trener zalogował wspólny trening
 }, (table) => ({
   clientIdx: index("workout_sessions_client_idx").on(table.clientId),
   completedAtIdx: index("workout_sessions_completed_at_idx").on(table.completedAt),
@@ -972,6 +975,7 @@ export const insertExerciseLogSchema = createInsertSchema(exerciseLogs).omit({
   id: true,
   clientId: true,
   loggedAt: true,
+  loggedByUserId: true,
 });
 
 export const insertWeeklyReportSchema = createInsertSchema(weeklyReports).omit({
@@ -999,6 +1003,9 @@ export const insertSessionBookingSchema = createInsertSchema(sessionBookings).om
   createdAt: true,
 }).extend({
   scheduledAt: z.coerce.date(),
+}).refine((data) => !!data.clientId || !!data.guestName?.trim(), {
+  message: "Podaj podopiecznego z listy lub wpisz imię i nazwisko",
+  path: ["clientId"],
 });
 
 export const insertClientRelationshipSchema = createInsertSchema(clientRelationships).omit({
@@ -1239,6 +1246,7 @@ export const insertWorkoutSessionSchema = createInsertSchema(workoutSessions).om
   id: true,
   clientId: true,
   completedAt: true,
+  loggedByUserId: true,
 });
 export type InsertWorkoutSession = z.infer<typeof insertWorkoutSessionSchema>;
 export type WorkoutSession = typeof workoutSessions.$inferSelect;

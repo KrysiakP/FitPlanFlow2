@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Trash2, GripVertical, Library, Dumbbell, Circle, Copy, ChevronDown, CheckCircle } from "lucide-react";
+import { Plus, Trash2, GripVertical, Library, Dumbbell, Circle, Copy, ChevronDown, CheckCircle, AlertCircle } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -77,7 +78,7 @@ export default function PlanForm() {
   const urlParams = new URLSearchParams(window.location.search);
   const assignToClientId = urlParams.get("assignTo");
 
-  const { data: existingPlan, isLoading } = useQuery<PlanWithWorkouts>({
+  const { data: existingPlan, isLoading, isError, refetch: refetchExistingPlan } = useQuery<PlanWithWorkouts>({
     queryKey: ["/api/plans", id],
     enabled: isEdit,
   });
@@ -291,6 +292,23 @@ export default function PlanForm() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (isEdit && isError) {
+    return (
+      <div className="max-w-4xl">
+        <Alert variant="destructive" data-testid="alert-plan-load-error">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Nie udało się wczytać planu</AlertTitle>
+          <AlertDescription className="flex items-center justify-between">
+            <span>Edycja jest zablokowana, żeby nie nadpisać istniejącego planu pustymi danymi.</span>
+            <Button variant="outline" size="sm" onClick={() => refetchExistingPlan()} data-testid="button-retry-plan-load">
+              Spróbuj ponownie
+            </Button>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }

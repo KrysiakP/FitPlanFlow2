@@ -16,7 +16,7 @@ import { type ComponentProps, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPost, apiPut, apiPatch, apiDelete } from "@/lib/api";
@@ -113,8 +113,14 @@ const WEEK_DATES = getWeekDates();
 
 const TIMING_OPTIONS = ["rano", "przed treningiem", "z posiłkiem", "pomiędzy posiłkami", "po treningu", "wieczór"];
 const UNIT_OPTIONS = ["mg", "g", "ml", "kaps.", "tabletki", "łyżki"];
+const FREQUENCY_OPTIONS: { value: string; label: string }[] = [
+  { value: "daily", label: "Codziennie" },
+  { value: "e2d", label: "Co 2 dni" },
+  { value: "e3d", label: "Co 3 dni" },
+  { value: "weekly", label: "Raz w tygodniu" },
+];
 
-type MealRepeat = "none" | "daily" | "weekly" | "monthly";
+type MealRepeat = "none" | "daily";
 
 type MealFormState = {
   name: string;
@@ -174,8 +180,6 @@ export default function DietPlanDetailScreen() {
   const [suppModalVisible, setSuppModalVisible] = useState(false);
   const [editingSupp, setEditingSupp] = useState<DietSupplement | null>(null);
   const [suppForm, setSuppForm] = useState<SupplementFormState>(emptySupplementForm());
-  const [showTimingPicker, setShowTimingPicker] = useState(false);
-  const [showUnitPicker, setShowUnitPicker] = useState(false);
 
   // Plan header edit state
   const [planEditModalVisible, setPlanEditModalVisible] = useState(false);
@@ -493,6 +497,11 @@ export default function DietPlanDetailScreen() {
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetchAll} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
       >
+        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
+          <Text style={[styles.backText, { color: colors.primary }]}>Wstecz</Text>
+        </Pressable>
+
         {/* Plan header */}
         <View style={[styles.planHeader, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.planHeaderTop}>
@@ -876,10 +885,8 @@ export default function DietPlanDetailScreen() {
                   <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Częstotliwość</Text>
                   <View style={styles.repeatRow}>
                     {([
-                      { value: "none",    label: "Bez powtarzania", icon: "remove-circle-outline" },
+                      { value: "none",    label: "Tylko ten dzień", icon: "calendar-outline" },
                       { value: "daily",   label: "Codziennie",       icon: "sunny-outline" },
-                      { value: "weekly",  label: "Co tydzień",       icon: "calendar-outline" },
-                      { value: "monthly", label: "Co miesiąc",       icon: "calendar-number-outline" },
                     ] as { value: MealRepeat; label: string; icon: string }[]).map((opt) => {
                       const active = mealForm.repeat === opt.value;
                       return (
@@ -911,23 +918,15 @@ export default function DietPlanDetailScreen() {
                     <View style={[styles.repeatHint, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}>
                       <Ionicons name="information-circle-outline" size={14} color={colors.primary} />
                       <Text style={[styles.repeatHintText, { color: colors.primary }]}>
-                        Posiłek zostanie dodany do każdego dnia tygodnia (Pn–Nd).
+                        Posiłek zostanie dodany do każdego dnia tygodnia (Pn–Nd) — będzie się powtarzał co tydzień w te dni.
                       </Text>
                     </View>
                   )}
-                  {mealForm.repeat === "weekly" && (
+                  {mealForm.repeat === "none" && (
                     <View style={[styles.repeatHint, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}>
                       <Ionicons name="information-circle-outline" size={14} color={colors.primary} />
                       <Text style={[styles.repeatHintText, { color: colors.primary }]}>
-                        Posiłek będzie powtarzał się raz w tygodniu w wybranym dniu.
-                      </Text>
-                    </View>
-                  )}
-                  {mealForm.repeat === "monthly" && (
-                    <View style={[styles.repeatHint, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}>
-                      <Ionicons name="information-circle-outline" size={14} color={colors.primary} />
-                      <Text style={[styles.repeatHintText, { color: colors.primary }]}>
-                        Posiłek będzie powtarzał się raz w miesiącu w wybranym dniu.
+                        Posiłek zostanie dodany tylko do dnia „{DAYS.find((d) => d.value === activeDay)?.label ?? ""}" — będzie się powtarzał co tydzień w tym dniu.
                       </Text>
                     </View>
                   )}
@@ -984,44 +983,77 @@ export default function DietPlanDetailScreen() {
                 testID="input-supplement-name"
               />
 
-              <View style={styles.macroInputRow}>
-                <View style={{ flex: 2 }}>
-                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Dawka *</Text>
-                  <TextInput
-                    value={suppForm.dose}
-                    onChangeText={(v) => setSuppForm((p) => ({ ...p, dose: v }))}
-                    placeholder="np. 2000"
-                    placeholderTextColor={colors.mutedForeground}
-                    keyboardType="numeric"
-                    returnKeyType="done"
-                    style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
-                    testID="input-supplement-dose"
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Jednostka</Text>
-                  <Pressable
-                    onPress={() => setShowUnitPicker(true)}
-                    style={[styles.pickerBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
-                    testID="button-unit-picker"
-                  >
-                    <Text style={[styles.pickerBtnText, { color: colors.foreground }]}>{suppForm.unit || "mg"}</Text>
-                    <Ionicons name="chevron-down" size={14} color={colors.mutedForeground} />
-                  </Pressable>
-                </View>
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Dawka *</Text>
+              <TextInput
+                value={suppForm.dose}
+                onChangeText={(v) => setSuppForm((p) => ({ ...p, dose: v }))}
+                placeholder="np. 2000"
+                placeholderTextColor={colors.mutedForeground}
+                keyboardType="numeric"
+                returnKeyType="done"
+                style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+                testID="input-supplement-dose"
+              />
+
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Jednostka</Text>
+              <View style={styles.repeatRow}>
+                {UNIT_OPTIONS.map((u) => {
+                  const active = suppForm.unit === u;
+                  return (
+                    <Pressable
+                      key={u}
+                      onPress={() => setSuppForm((p) => ({ ...p, unit: u }))}
+                      style={[
+                        styles.repeatChip,
+                        { backgroundColor: active ? colors.primary : colors.background, borderColor: active ? colors.primary : colors.border },
+                      ]}
+                      testID={`chip-unit-${u}`}
+                    >
+                      <Text style={[styles.repeatChipText, { color: active ? "#fff" : colors.mutedForeground }]}>{u}</Text>
+                    </Pressable>
+                  );
+                })}
               </View>
 
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Pora przyjmowania</Text>
-              <Pressable
-                onPress={() => setShowTimingPicker(true)}
-                style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
-                testID="button-timing-picker"
-              >
-                <Text style={{ color: suppForm.timing ? colors.foreground : colors.mutedForeground, fontSize: 15, fontFamily: "Inter_400Regular" }}>
-                  {suppForm.timing || "Wybierz porę..."}
-                </Text>
-                <Ionicons name="chevron-down" size={14} color={colors.mutedForeground} />
-              </Pressable>
+              <View style={styles.repeatRow}>
+                {TIMING_OPTIONS.map((t) => {
+                  const active = suppForm.timing === t;
+                  return (
+                    <Pressable
+                      key={t}
+                      onPress={() => setSuppForm((p) => ({ ...p, timing: t }))}
+                      style={[
+                        styles.repeatChip,
+                        { backgroundColor: active ? colors.primary : colors.background, borderColor: active ? colors.primary : colors.border },
+                      ]}
+                      testID={`chip-timing-${t}`}
+                    >
+                      <Text style={[styles.repeatChipText, { color: active ? "#fff" : colors.mutedForeground }]}>{t}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Częstotliwość *</Text>
+              <View style={styles.repeatRow}>
+                {FREQUENCY_OPTIONS.map((opt) => {
+                  const active = suppForm.frequency === opt.value;
+                  return (
+                    <Pressable
+                      key={opt.value}
+                      onPress={() => setSuppForm((p) => ({ ...p, frequency: opt.value }))}
+                      style={[
+                        styles.repeatChip,
+                        { backgroundColor: active ? colors.primary : colors.background, borderColor: active ? colors.primary : colors.border },
+                      ]}
+                      testID={`chip-frequency-${opt.value}`}
+                    >
+                      <Text style={[styles.repeatChipText, { color: active ? "#fff" : colors.mutedForeground }]}>{opt.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
 
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Notatki (opcjonalnie)</Text>
               <TextInput
@@ -1060,48 +1092,6 @@ export default function DietPlanDetailScreen() {
           </Pressable>
         </Pressable>
         </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Timing picker modal */}
-      <Modal visible={showTimingPicker} transparent animationType="slide" onRequestClose={() => setShowTimingPicker(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowTimingPicker(false)}>
-          <Pressable style={[styles.modalSheet, { backgroundColor: colors.card }]} onPress={() => {}}>
-            <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Pora przyjmowania</Text>
-            {TIMING_OPTIONS.map((t) => (
-              <Pressable
-                key={t}
-                onPress={() => { setSuppForm((p) => ({ ...p, timing: t })); setShowTimingPicker(false); }}
-                style={[styles.clientItem, { borderBottomColor: colors.border, backgroundColor: suppForm.timing === t ? colors.primary + "10" : "transparent" }]}
-                testID={`option-timing-${t}`}
-              >
-                <Text style={[styles.clientItemText, { color: colors.foreground }]}>{t}</Text>
-                {suppForm.timing === t && <Ionicons name="checkmark" size={16} color={colors.primary} />}
-              </Pressable>
-            ))}
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      {/* Unit picker modal */}
-      <Modal visible={showUnitPicker} transparent animationType="slide" onRequestClose={() => setShowUnitPicker(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowUnitPicker(false)}>
-          <Pressable style={[styles.modalSheet, { backgroundColor: colors.card }]} onPress={() => {}}>
-            <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Jednostka</Text>
-            {UNIT_OPTIONS.map((u) => (
-              <Pressable
-                key={u}
-                onPress={() => { setSuppForm((p) => ({ ...p, unit: u })); setShowUnitPicker(false); }}
-                style={[styles.clientItem, { borderBottomColor: colors.border, backgroundColor: suppForm.unit === u ? colors.primary + "10" : "transparent" }]}
-                testID={`option-unit-${u}`}
-              >
-                <Text style={[styles.clientItemText, { color: colors.foreground }]}>{u}</Text>
-                {suppForm.unit === u && <Ionicons name="checkmark" size={16} color={colors.primary} />}
-              </Pressable>
-            ))}
-          </Pressable>
-        </Pressable>
       </Modal>
 
       {/* Plan header edit modal */}
@@ -1364,6 +1354,8 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   content: { paddingHorizontal: 20 },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 12 },
+  backText: { fontSize: 15, fontFamily: "Inter_500Medium" },
   planHeader: { borderRadius: 16, borderWidth: 1, marginBottom: 24 },
   planHeaderTop: { padding: 16 },
   planName: { fontSize: 20, fontFamily: "Inter_700Bold" },

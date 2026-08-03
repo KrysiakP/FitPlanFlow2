@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, Crown, CreditCard, UserPlus, ShieldCheck, Heart, UtensilsCrossed, Apple, GraduationCap, TrendingUp, DollarSign, Clock, MessageSquare, Bell, Activity, Gift } from "lucide-react";
+import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, Crown, CreditCard, UserPlus, ShieldCheck, Heart, UtensilsCrossed, Apple, GraduationCap, TrendingUp, DollarSign, Clock, MessageSquare, Bell, Gift } from "lucide-react";
 import { RestTimerButton } from "@/components/rest-timer";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Link, useLocation } from "wouter";
@@ -22,11 +22,13 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useUnreadCount } from "@/hooks/use-chat";
+import { useToast } from "@/hooks/use-toast";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { toast } = useToast();
 
   const isTrainer = user?.role === "trainer";
 
@@ -75,6 +77,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
     },
+    onError: () => {
+      toast({
+        title: "Błąd",
+        description: "Nie udało się oznaczyć powiadomienia jako przeczytane",
+        variant: "destructive",
+      });
+    },
   });
 
   const markAllNotificationsReadMutation = useMutation({
@@ -83,6 +92,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+    },
+    onError: () => {
+      toast({
+        title: "Błąd",
+        description: "Nie udało się oznaczyć powiadomień jako przeczytane",
+        variant: "destructive",
+      });
     },
   });
 
@@ -108,6 +124,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     onSuccess: () => {
       queryClient.clear();
       window.location.href = "/";
+    },
+    onError: () => {
+      toast({
+        title: "Błąd",
+        description: "Nie udało się wylogować. Spróbuj ponownie.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -140,7 +163,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/client/diet", icon: Apple, label: "Dieta" },
     { href: "/weekly-report", icon: FileText, label: "Raport tygodniowy" },
     { href: "/my-progress", icon: TrendingUp, label: "Mój progres" },
-    { href: "/my-medical-tests", icon: Activity, label: "Badania medyczne" },
     { href: "/chat", icon: MessageSquare, label: "Wiadomości" },
     { href: "/payment-schedule", icon: DollarSign, label: "Płatności" },
     { href: "/pomagamy", icon: Heart, label: "PomagaMY" },

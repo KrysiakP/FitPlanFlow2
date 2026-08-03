@@ -26,8 +26,12 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<any> {
   const fullUrl = normalizeUrl(url);
-  console.log(`[API] ${method} ${fullUrl}`, data ? JSON.stringify(data).slice(0, 100) : "");
-  
+  // Never log request bodies — many forms here carry client health/personal
+  // data, and this would otherwise land in the browser console in production.
+  if (import.meta.env.DEV) {
+    console.log(`[API] ${method} ${fullUrl}`);
+  }
+
   try {
     const res = await fetch(fullUrl, {
       method,
@@ -36,7 +40,9 @@ export async function apiRequest(
       credentials: "include",
     });
 
-    console.log(`[API] Response: ${res.status} ${res.statusText}`);
+    if (import.meta.env.DEV) {
+      console.log(`[API] Response: ${res.status} ${res.statusText}`);
+    }
     await throwIfResNotOk(res);
     
     // Handle empty responses (204 No Content)

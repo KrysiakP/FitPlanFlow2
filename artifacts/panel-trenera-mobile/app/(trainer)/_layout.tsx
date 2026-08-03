@@ -2,14 +2,15 @@ import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { Ionicons } from "@expo/vector-icons";
-import { Platform, StyleSheet, View, useColorScheme } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
+import { useTheme } from "@/context/ThemeContext";
 import { useUnreadCount } from "@/hooks/useChat";
 
 function ClassicTrainerTabs() {
   const colors = useColors();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
 
@@ -27,6 +28,7 @@ function ClassicTrainerTabs() {
 
   return (
     <Tabs
+      initialRouteName="panel"
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
@@ -73,14 +75,37 @@ function ClassicTrainerTabs() {
         }}
       />
       <Tabs.Screen
-        name="tools"
+        name="panel"
         options={{
           headerShown: false,
-          title: "Narzędzia",
+          title: "Panel",
+          tabBarLabel: () => null,
+          tabBarIcon: () => (
+            <View
+              style={[
+                styles.raisedIconWrap,
+                {
+                  backgroundColor: colors.primary,
+                  shadowColor: "#000",
+                },
+              ]}
+            >
+              {isIOS
+                ? <SymbolView name="house.fill" tintColor={colors.primaryForeground} size={26} />
+                : <Ionicons name="home" size={26} color={colors.primaryForeground} />}
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="kalendarz-trenera"
+        options={{
+          headerShown: false,
+          title: "Kalendarz",
           tabBarIcon: ({ color }) =>
             isIOS
-              ? <SymbolView name="wrench.and.screwdriver.fill" tintColor={color} size={22} />
-              : <Ionicons name="construct-outline" size={22} color={color} />,
+              ? <SymbolView name="calendar" tintColor={color} size={22} />
+              : <Ionicons name="calendar-outline" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -95,21 +120,22 @@ function ClassicTrainerTabs() {
         }}
       />
 
-      {/* Hidden screens — show native header with back button for proper safe-area handling */}
-      <Tabs.Screen name="payments" options={{ href: null, title: "Płatności" }} />
-      <Tabs.Screen name="plans" options={{ href: null, title: "Plany" }} />
-      <Tabs.Screen name="exercise-library" options={{ href: null, title: "Ćwiczenia" }} />
+      {/* Hidden screens — each builds its own custom header, so the native one is suppressed */}
+      <Tabs.Screen name="payments" options={{ href: null, headerShown: false, title: "Płatności" }} />
+      <Tabs.Screen name="plans" options={{ href: null, headerShown: false, title: "Plany" }} />
+      <Tabs.Screen name="exercise-library" options={{ href: null, headerShown: false, title: "Ćwiczenia" }} />
       <Tabs.Screen name="diets" options={{ href: null, headerShown: false }} />
-      <Tabs.Screen name="invitations" options={{ href: null, title: "Zaproszenia" }} />
-      <Tabs.Screen name="referrals" options={{ href: null, title: "Polecenia" }} />
-      <Tabs.Screen name="notifications" options={{ href: null, title: "Powiadomienia" }} />
-      <Tabs.Screen name="admin-gyms" options={{ href: null, title: "Siłownie" }} />
-      <Tabs.Screen name="rest-timer" options={{ href: null, title: "Timer przerwy" }} />
-      <Tabs.Screen name="pomagamy" options={{ href: null, title: "PomagaMY" }} />
-      <Tabs.Screen name="business-stats" options={{ href: null, title: "Statystyki biznesowe" }} />
-      <Tabs.Screen name="client/[id]" options={{ href: null, title: "" }} />
-      <Tabs.Screen name="plan/[id]" options={{ href: null, title: "" }} />
-      <Tabs.Screen name="diet/[id]" options={{ href: null, title: "" }} />
+      <Tabs.Screen name="invitations" options={{ href: null, headerShown: false, title: "Zaproszenia" }} />
+      <Tabs.Screen name="referrals" options={{ href: null, headerShown: false, title: "Polecenia" }} />
+      <Tabs.Screen name="notifications" options={{ href: null, headerShown: false, title: "Powiadomienia" }} />
+      <Tabs.Screen name="admin-gyms" options={{ href: null, headerShown: false, title: "Siłownie" }} />
+      <Tabs.Screen name="rest-timer" options={{ href: null, headerShown: false, title: "Timer przerwy" }} />
+      <Tabs.Screen name="pomagamy" options={{ href: null, headerShown: false, title: "PomagaMY" }} />
+      <Tabs.Screen name="business-stats" options={{ href: null, headerShown: false, title: "Statystyki biznesowe" }} />
+      <Tabs.Screen name="wspolny-trening" options={{ href: null, headerShown: false, title: "Wspólny trening" }} />
+      <Tabs.Screen name="client/[id]" options={{ href: null, headerShown: false, title: "" }} />
+      <Tabs.Screen name="plan/[id]" options={{ href: null, headerShown: false, title: "" }} />
+      <Tabs.Screen name="diet/[id]" options={{ href: null, headerShown: false, title: "" }} />
     </Tabs>
   );
 }
@@ -117,3 +143,18 @@ function ClassicTrainerTabs() {
 export default function TrainerLayout() {
   return <ClassicTrainerTabs />;
 }
+
+const styles = StyleSheet.create({
+  raisedIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: -22,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+});

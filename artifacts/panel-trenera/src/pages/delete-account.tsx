@@ -1,6 +1,17 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { ArrowLeft, Trash2, CheckCircle, AlertTriangle, LogIn } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { PublicHeader } from "@/components/public-header";
@@ -61,8 +72,7 @@ export default function DeleteAccount() {
     );
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submitDeleteRequest() {
     setError("");
     setIsSubmitting(true);
     try {
@@ -138,19 +148,41 @@ export default function DeleteAccount() {
                   </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-4">
                   {error && (
                     <p className="text-sm text-destructive">{error}</p>
                   )}
 
-                  <Button
-                    type="submit"
-                    variant="destructive"
-                    className="w-full"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? "Wysyłanie..." : "Wyślij prośbę o usunięcie konta"}
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        className="w-full"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? "Wysyłanie..." : "Wyślij prośbę o usunięcie konta"}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Na pewno usunąć konto {user.email}?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Konto, plany, historia treningów, raporty i płatności zostaną trwale usunięte w ciągu 30 dni. Tej operacji nie można cofnąć.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel data-testid="button-cancel-delete-account">Anuluj</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => submitDeleteRequest()}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          data-testid="button-confirm-delete-account"
+                        >
+                          Usuń konto
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
 
                   <p className="text-xs text-muted-foreground text-center">
                     Po otrzymaniu prośby usuniemy konto w ciągu 30 dni. W sprawach pilnych skontaktuj się z nami pod adresem{" "}
@@ -158,7 +190,7 @@ export default function DeleteAccount() {
                       kontakt@paneltrenera.pl
                     </a>
                   </p>
-                </form>
+                </div>
               </>
             )}
           </CardContent>

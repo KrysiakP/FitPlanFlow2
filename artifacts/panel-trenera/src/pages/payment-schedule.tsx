@@ -5,8 +5,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, DollarSign, Trash2, Check, Plus, Repeat } from "lucide-react";
+import { Calendar, DollarSign, Trash2, Check, Plus, Repeat, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -41,7 +53,7 @@ export default function PaymentSchedule() {
   const dialogCloseRef = useRef<HTMLButtonElement>(null);
   const isTrainer = user?.role === "trainer";
 
-  const { data: payments = [], isLoading } = useQuery<ClientPayment[]>({
+  const { data: payments = [], isLoading, isError } = useQuery<ClientPayment[]>({
     queryKey: ["/api/payments"],
   });
 
@@ -180,6 +192,17 @@ export default function PaymentSchedule() {
     );
   }
 
+  if (isError) {
+    return (
+      <div className="container mx-auto p-4 md:p-6">
+        <Alert variant="destructive" data-testid="alert-payments-error">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Nie udało się pobrać płatności. Odśwież stronę, aby spróbować ponownie.</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -251,7 +274,7 @@ export default function PaymentSchedule() {
                         <FormControl>
                           <Input
                             type="number"
-                            step="1"
+                            step="0.01"
                             min="0"
                             placeholder="200"
                             data-testid="input-amount"
@@ -259,7 +282,7 @@ export default function PaymentSchedule() {
                           />
                         </FormControl>
                         <p className="text-sm text-muted-foreground">
-                          Podaj kwotę w złotówkach (np. 200 = 200 zł)
+                          Podaj kwotę w złotówkach (np. 149.99)
                         </p>
                         <FormMessage />
                       </FormItem>
@@ -470,15 +493,36 @@ export default function PaymentSchedule() {
                             Zapłacono
                           </Button>
                         )}
-                        <Button
-                          size="icon"
-                          variant="destructive"
-                          onClick={() => deletePaymentMutation.mutate(payment.id)}
-                          disabled={deletePaymentMutation.isPending}
-                          data-testid={`button-delete-${payment.id}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="destructive"
+                              disabled={deletePaymentMutation.isPending}
+                              data-testid={`button-delete-${payment.id}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Usunąć tę płatność?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Ta operacja jest nieodwracalna i usunie zapis płatności na stałe.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel data-testid={`button-cancel-delete-${payment.id}`}>Anuluj</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deletePaymentMutation.mutate(payment.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                data-testid={`button-confirm-delete-${payment.id}`}
+                              >
+                                Usuń
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     )}
                   </div>
@@ -567,15 +611,36 @@ export default function PaymentSchedule() {
                                   Zapłacono
                                 </Button>
                               )}
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => deletePaymentMutation.mutate(payment.id)}
-                                disabled={deletePaymentMutation.isPending}
-                                data-testid={`button-delete-${payment.id}`}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    disabled={deletePaymentMutation.isPending}
+                                    data-testid={`button-delete-${payment.id}`}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Usunąć tę płatność?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Ta operacja jest nieodwracalna i usunie zapis płatności na stałe.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel data-testid={`button-cancel-delete-table-${payment.id}`}>Anuluj</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => deletePaymentMutation.mutate(payment.id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      data-testid={`button-confirm-delete-table-${payment.id}`}
+                                    >
+                                      Usuń
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </div>
                           </TableCell>
                         )}

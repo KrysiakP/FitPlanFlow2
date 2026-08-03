@@ -1,5 +1,17 @@
 import { apiFetch } from "@/context/AuthContext";
 
+// Carries the HTTP status so callers can tell "genuinely not found" (404)
+// apart from a real failure (network drop, 500) instead of collapsing both
+// into the same generic error / empty state.
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function extractErrorMessage(res: Response, fallback: string): Promise<string> {
   try {
     const data = await res.clone().json();
@@ -14,7 +26,7 @@ export async function apiGet<T>(path: string): Promise<T> {
   const res = await apiFetch(path);
   if (!res.ok) {
     const msg = await extractErrorMessage(res, `Błąd serwera (${res.status})`);
-    throw new Error(msg);
+    throw new ApiError(msg, res.status);
   }
   return res.json();
 }
@@ -23,7 +35,7 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   const res = await apiFetch(path, { method: "POST", body: JSON.stringify(body) });
   if (!res.ok) {
     const msg = await extractErrorMessage(res, `Błąd serwera (${res.status})`);
-    throw new Error(msg);
+    throw new ApiError(msg, res.status);
   }
   return res.json();
 }
@@ -32,7 +44,7 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
   const res = await apiFetch(path, { method: "PUT", body: JSON.stringify(body) });
   if (!res.ok) {
     const msg = await extractErrorMessage(res, `Błąd serwera (${res.status})`);
-    throw new Error(msg);
+    throw new ApiError(msg, res.status);
   }
   return res.json();
 }
@@ -41,7 +53,7 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   const res = await apiFetch(path, { method: "PATCH", body: JSON.stringify(body) });
   if (!res.ok) {
     const msg = await extractErrorMessage(res, `Błąd serwera (${res.status})`);
-    throw new Error(msg);
+    throw new ApiError(msg, res.status);
   }
   return res.json();
 }
@@ -50,7 +62,7 @@ export async function apiDelete<T = void>(path: string): Promise<T> {
   const res = await apiFetch(path, { method: "DELETE" });
   if (!res.ok) {
     const msg = await extractErrorMessage(res, `Błąd serwera (${res.status})`);
-    throw new Error(msg);
+    throw new ApiError(msg, res.status);
   }
   if (res.status === 204) return undefined as T;
   return res.json();

@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPost, apiPatch, uploadImageToObjectStorage, setReportPhoto } from "@/lib/api";
 
@@ -147,13 +148,6 @@ export default function WeeklyReportScreen() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: ReportFormData & { reportDate: string }) => {
-      let uploadedObjectPath: string | null = null;
-
-      if (hasNewUpload && photoUri) {
-        const { objectPath } = await uploadImageToObjectStorage(photoUri, photoMimeType);
-        uploadedObjectPath = objectPath;
-      }
-
       const payload: Record<string, unknown> = {
         reportDate: new Date(data.reportDate),
         weight: data.weight || null,
@@ -180,11 +174,12 @@ export default function WeeklyReportScreen() {
         report = await apiPost<WeeklyReport>("/api/reports", payload);
       }
 
-      if (hasNewUpload && uploadedObjectPath) {
+      if (hasNewUpload && photoUri) {
         try {
-          await setReportPhoto(report.id, uploadedObjectPath);
+          const { objectPath } = await uploadImageToObjectStorage(photoUri, photoMimeType);
+          await setReportPhoto(report.id, objectPath);
         } catch (photoErr) {
-          console.error("Photo attach failed (report saved):", photoErr);
+          console.error("Photo upload/attach failed (report saved):", photoErr);
           return { report, photoError: true };
         }
       }
@@ -357,6 +352,11 @@ export default function WeeklyReportScreen() {
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
       >
+        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
+          <Text style={[styles.backText, { color: colors.primary }]}>Wstecz</Text>
+        </Pressable>
+
         <View style={styles.pageHeader}>
           <View>
             <Text style={[styles.pageTitle, { color: colors.foreground }]}>Raport tygodniowy</Text>
@@ -617,7 +617,12 @@ export default function WeeklyReportScreen() {
                       </Pressable>
                     ) : (
                       <Pressable
-                        onPress={removeExistingPhoto}
+                        onPress={() =>
+                          Alert.alert("Usunąć zdjęcie?", "Zdjęcie zostanie usunięte z raportu po zapisaniu zmian.", [
+                            { text: "Anuluj", style: "cancel" },
+                            { text: "Usuń", style: "destructive", onPress: removeExistingPhoto },
+                          ])
+                        }
                         style={[styles.photoActionBtn, { backgroundColor: colors.card, borderColor: colors.border, flex: 1 }]}
                         testID="button-remove-photo"
                       >
@@ -791,6 +796,8 @@ function Row({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingHorizontal: 20 },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8 },
+  backText: { fontSize: 15, fontFamily: "Inter_500Medium" },
   pageHeader: {
     flexDirection: "row",
     alignItems: "flex-start",

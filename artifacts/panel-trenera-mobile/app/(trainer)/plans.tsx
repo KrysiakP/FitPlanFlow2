@@ -159,6 +159,11 @@ export default function TrainerPlansScreen() {
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
       >
+        <Pressable onPress={() => router.replace("/panel")} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
+          <Text style={[styles.backText, { color: colors.primary }]}>Wstecz</Text>
+        </Pressable>
+
         <View style={styles.headerRow}>
           <Text style={[styles.pageTitle, { color: colors.foreground }]}>Plany treningowe</Text>
           <View style={[styles.countBadge, { backgroundColor: colors.primary + "1a" }]}>
@@ -422,6 +427,8 @@ export default function TrainerPlansScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 20 },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8 },
+  backText: { fontSize: 15, fontFamily: "Inter_500Medium" },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16 },
   pageTitle: { fontSize: 22, fontFamily: "Inter_700Bold" },
   countBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },

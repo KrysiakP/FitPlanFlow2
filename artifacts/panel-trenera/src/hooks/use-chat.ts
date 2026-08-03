@@ -16,9 +16,13 @@ export interface Conversation {
 }
 
 // Hook to fetch conversations
+// Polls as a fallback in case the WebSocket connection has dropped and given
+// up reconnecting — without this, a stale-socket session shows no new
+// conversations/messages until the page is reloaded.
 export function useConversations() {
   return useQuery<Conversation[]>({
     queryKey: ["/api/chat/conversations"],
+    refetchInterval: 15_000,
   });
 }
 
@@ -27,6 +31,7 @@ export function useMessages(trainerId: string | null, clientId: string | null) {
   return useQuery<Message[]>({
     queryKey: ["/api/chat/messages", trainerId, clientId],
     enabled: !!trainerId && !!clientId,
+    refetchInterval: 8_000,
   });
 }
 
@@ -66,6 +71,11 @@ export function useMarkAsRead() {
       // Invalidate conversations to update unread count
       queryClient.invalidateQueries({ queryKey: ["/api/chat/conversations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/chat/unread-count"] });
+    },
+    onError: (error) => {
+      // Non-actionable background sync (fires on every conversation open) —
+      // log for debugging instead of interrupting the user with a toast.
+      console.error("Failed to mark conversation as read:", error);
     },
   });
 }

@@ -19,31 +19,28 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useColors } from "@/hooks/useColors";
 import { StatsCard } from "@/components/StatsCard";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 
-interface MedicalTest {
-  id: string;
-  testName: string;
-  testType?: string | null;
-  testDate: string;
-  orderingProvider?: string | null;
-  resultValue?: string | null;
-  unit?: string | null;
-  referenceRange?: string | null;
-  notes?: string | null;
+function formatDateLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
-const TEST_TYPE_LABELS: Record<string, string> = {
-  blood: "Badanie krwi",
-  hormone: "Badanie hormonalne",
-  cardio: "Badanie kardiologiczne",
-  other: "Inne",
-};
+function formatTimeLocal(d: Date): string {
+  const h = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${h}:${min}`;
+}
 
-function getTestTypeLabel(type?: string | null): string {
-  return TEST_TYPE_LABELS[type ?? ""] ?? "Inne";
+function parseDateLocal(dateStr: string, timeStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const [h, min] = timeStr.split(":").map(Number);
+  return new Date(y || new Date().getFullYear(), (m || 1) - 1, d || 1, h || 0, min || 0);
 }
 
 function getWeekStartKey(date: Date): string {
@@ -303,7 +300,7 @@ export default function ClientDetailScreen() {
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [customMessage, setCustomMessage] = useState("");
   const [notesText, setNotesText] = useState("");
-  const [activeTab, setActiveTab] = useState<"plans" | "diet" | "progress" | "reports" | "tests">("plans");
+  const [activeTab, setActiveTab] = useState<"plans" | "diet" | "progress" | "reports">("plans");
   const [createPlanModalVisible, setCreatePlanModalVisible] = useState(false);
   const [createDietModalVisible, setCreateDietModalVisible] = useState(false);
   const [dietToDelete, setDietToDelete] = useState<ClientDietPlan | null>(null);
@@ -367,6 +364,8 @@ export default function ClientDetailScreen() {
   const [sessionTime, setSessionTime] = useState("18:00");
   const [sessionDuration, setSessionDuration] = useState("60");
   const [sessionLocation, setSessionLocation] = useState("");
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const createSessionMutation = useMutation({
     mutationFn: () => {
@@ -407,12 +406,6 @@ export default function ClientDetailScreen() {
   const { data: clientReports, isLoading: loadingReports } = useQuery<WeeklyReport[]>({
     queryKey: ["client-weekly-reports", id],
     queryFn: () => apiGet<WeeklyReport[]>(`/api/clients/${id}/reports`),
-    enabled: !!id,
-  });
-
-  const { data: medicalTests, isLoading: loadingMedicalTests } = useQuery<MedicalTest[]>({
-    queryKey: ["client-medical-tests", id],
-    queryFn: () => apiGet<MedicalTest[]>(`/api/clients/${id}/medical-tests`),
     enabled: !!id,
   });
 
@@ -457,6 +450,9 @@ export default function ClientDetailScreen() {
       qc.invalidateQueries({ queryKey: ["client-weekly-reports", id] });
       qc.invalidateQueries({ queryKey: ["trainer-unread-reports"] });
     },
+    onError: () => {
+      console.error("Failed to mark report as viewed");
+    },
   });
 
   const updateNotesMutation = useMutation({
@@ -498,7 +494,7 @@ export default function ClientDetailScreen() {
       setNewPlanDesc("");
       router.push(`/plan/${plan.id}`);
     },
-    onError: () => Alert.alert("Blad", "Nie udalo sie utworzyc planu. Sprobuj ponownie."),
+    onError: () => Alert.alert("Błąd", "Nie udało się utworzyć planu. Spróbuj ponownie."),
   });
 
   const deleteDietMutation = useMutation({
@@ -511,6 +507,7 @@ export default function ClientDetailScreen() {
     },
     onError: () => {
       setDietToDelete(null);
+      Alert.alert("Błąd", "Nie udało się usunąć planu diety. Spróbuj ponownie.");
     },
   });
 
@@ -589,11 +586,11 @@ export default function ClientDetailScreen() {
     <>
       <ScrollView
         style={[styles.root, { backgroundColor: colors.background }]}
-        contentContainerStyle={[styles.content, { paddingTop: 16, paddingBottom: insets.bottom + 30 }]}
+        contentContainerStyle={[styles.content, { paddingTop: topPad + 16, paddingBottom: insets.bottom + 30 }]}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable onPress={() => router.back()} style={styles.backBtn} testID="button-back">
+        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
           <Ionicons name="chevron-back" size={22} color={colors.primary} />
           <Text style={[styles.backText, { color: colors.primary }]}>Podopieczni</Text>
         </Pressable>
@@ -639,14 +636,24 @@ export default function ClientDetailScreen() {
         <View style={[styles.sessionsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: clientSessions.length > 0 ? 10 : 0 }}>
             <Text style={[styles.sessionsSectionTitle, { color: colors.foreground }]}>Nadchodzące sesje</Text>
-            <Pressable
-              onPress={() => setSessionModalVisible(true)}
-              style={({ pressed }) => [styles.scheduleBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
-              testID="button-schedule-session"
-            >
-              <Ionicons name="calendar-outline" size={14} color="#fff" />
-              <Text style={styles.scheduleBtnText}>Zaplanuj</Text>
-            </Pressable>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <Pressable
+                onPress={() => router.push(`/wspolny-trening?clientId=${id}`)}
+                style={({ pressed }) => [styles.scheduleBtn, { backgroundColor: colors.primary + "1a", opacity: pressed ? 0.8 : 1 }]}
+                testID="button-shared-workout"
+              >
+                <Ionicons name="barbell-outline" size={14} color={colors.primary} />
+                <Text style={[styles.scheduleBtnText, { color: colors.primary }]}>Trenuj razem</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setSessionModalVisible(true)}
+                style={({ pressed }) => [styles.scheduleBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
+                testID="button-schedule-session"
+              >
+                <Ionicons name="calendar-outline" size={14} color="#fff" />
+                <Text style={styles.scheduleBtnText}>Zaplanuj</Text>
+              </Pressable>
+            </View>
           </View>
           {clientSessions.map((session) => (
             <View key={session.id} style={[styles.sessionRow, { borderColor: colors.border }]}>
@@ -681,7 +688,6 @@ export default function ClientDetailScreen() {
               { key: "plans", label: "Treningi" },
               { key: "progress", label: "Postepy" },
               { key: "reports", label: "Raporty" },
-              { key: "tests", label: "Badania" },
             ] as const
           ).map((tab) => {
             const isActive = activeTab === tab.key;
@@ -729,7 +735,7 @@ export default function ClientDetailScreen() {
                 </View>
                 <Text style={[styles.noPlanTitle, { color: colors.foreground }]}>Brak planu treningowego</Text>
                 <Text style={[styles.noPlanDesc, { color: colors.mutedForeground }]}>
-                  Utworz plan treningowy dla tego podopiecznego lub przypisz istniejacy.
+                  Utwórz plan treningowy dla tego podopiecznego lub przypisz istniejący.
                 </Text>
                 <Pressable
                   onPress={() => setCreatePlanModalVisible(true)}
@@ -737,7 +743,7 @@ export default function ClientDetailScreen() {
                   testID="button-create-plan"
                 >
                   <Ionicons name="add-circle-outline" size={18} color="#fff" />
-                  <Text style={styles.createPlanBtnText}>Utworz plan treningowy</Text>
+                  <Text style={styles.createPlanBtnText}>Utwórz plan treningowy</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => setAssignModalVisible(true)}
@@ -745,7 +751,7 @@ export default function ClientDetailScreen() {
                   testID="button-assign-existing-plan"
                 >
                   <Ionicons name="swap-horizontal-outline" size={16} color={colors.foreground} />
-                  <Text style={[styles.assignExistingBtnText, { color: colors.foreground }]}>Przypisz istniejacy plan</Text>
+                  <Text style={[styles.assignExistingBtnText, { color: colors.foreground }]}>Przypisz istniejący plan</Text>
                 </Pressable>
               </View>
             ) : (
@@ -793,7 +799,7 @@ export default function ClientDetailScreen() {
                     onPress={() => router.push(`/plan/${assignment.plan!.id}`)}
                     style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}
                   >
-                    <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak treningow. Dodaj pierwszy trening.</Text>
+                    <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak treningów. Dodaj pierwszy trening.</Text>
                   </Pressable>
                 ) : (
                   [...(planDetail?.workouts ?? [])].sort((a, b) => a.orderIndex - b.orderIndex).map((workout, idx) => (
@@ -812,7 +818,7 @@ export default function ClientDetailScreen() {
                       <View style={styles.workoutRowInfo}>
                         <Text style={[styles.workoutRowName, { color: colors.foreground }]}>{workout.name}</Text>
                         <Text style={[styles.workoutRowSub, { color: colors.mutedForeground }]}>
-                          {workout.exercises.length} {workout.exercises.length === 1 ? "cwiczenie" : workout.exercises.length < 5 ? "cwiczenia" : "cwiczen"}
+                          {workout.exercises.length} {workout.exercises.length === 1 ? "ćwiczenie" : workout.exercises.length < 5 ? "ćwiczenia" : "ćwiczeń"}
                         </Text>
                       </View>
                       <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
@@ -827,7 +833,7 @@ export default function ClientDetailScreen() {
                   testID="button-change-plan"
                 >
                   <Ionicons name="swap-horizontal-outline" size={14} color={colors.mutedForeground} />
-                  <Text style={[styles.changePlanLinkText, { color: colors.mutedForeground }]}>Zmien aktywny plan</Text>
+                  <Text style={[styles.changePlanLinkText, { color: colors.mutedForeground }]}>Zmień aktywny plan</Text>
                 </Pressable>
               </>
             )}
@@ -1069,23 +1075,6 @@ export default function ClientDetailScreen() {
           </>
         )}
 
-        {activeTab === "tests" && (
-          <>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Badania medyczne</Text>
-            {loadingMedicalTests ? (
-              <ActivityIndicator color={colors.primary} />
-            ) : (medicalTests ?? []).length === 0 ? (
-              <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Brak badań medycznych</Text>
-              </View>
-            ) : (
-              [...(medicalTests ?? [])].sort((a, b) => new Date(b.testDate).getTime() - new Date(a.testDate).getTime()).map((test) => (
-                <TrainerMedicalTestCard key={test.id} test={test} colors={colors} />
-              ))
-            )}
-          </>
-        )}
-
         {clientData && (
           <>
             <View style={[styles.dangerDivider, { backgroundColor: colors.border }]} />
@@ -1129,29 +1118,58 @@ export default function ClientDetailScreen() {
               </Pressable>
             </View>
 
-            <Text style={[styles.fieldLabelSmall, { color: colors.mutedForeground }]}>Data (RRRR-MM-DD)</Text>
-            <TextInput
-              style={[styles.remindInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, minHeight: 0 }]}
-              value={sessionDate}
-              onChangeText={setSessionDate}
-              placeholder="2026-08-05"
-              placeholderTextColor={colors.mutedForeground}
-              keyboardType="numeric"
-              maxLength={10}
+            <Text style={[styles.fieldLabelSmall, { color: colors.mutedForeground }]}>Data</Text>
+            <Pressable
+              onPress={() => setShowDatePicker((v) => !v)}
+              style={[
+                styles.remindInput,
+                { backgroundColor: colors.background, borderColor: colors.border, minHeight: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+              ]}
               testID="input-session-date"
-            />
+            >
+              <Text style={{ color: sessionDate ? colors.foreground : colors.mutedForeground, fontSize: 15, fontFamily: "Inter_400Regular" }}>
+                {sessionDate ? formatDateLocal(parseDateLocal(sessionDate, sessionTime)) : "Wybierz datę..."}
+              </Text>
+              <Ionicons name="calendar-outline" size={16} color={colors.mutedForeground} />
+            </Pressable>
+            {showDatePicker && (
+              <DateTimePicker
+                value={sessionDate ? parseDateLocal(sessionDate, sessionTime) : new Date()}
+                mode="date"
+                display={Platform.OS === "ios" ? "inline" : "default"}
+                minimumDate={new Date()}
+                onChange={(_event, date) => {
+                  setShowDatePicker(Platform.OS === "ios");
+                  if (date) setSessionDate(formatDateLocal(date));
+                }}
+              />
+            )}
 
-            <Text style={[styles.fieldLabelSmall, { color: colors.mutedForeground }]}>Godzina (GG:MM)</Text>
-            <TextInput
-              style={[styles.remindInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, minHeight: 0 }]}
-              value={sessionTime}
-              onChangeText={setSessionTime}
-              placeholder="18:00"
-              placeholderTextColor={colors.mutedForeground}
-              keyboardType="numeric"
-              maxLength={5}
+            <Text style={[styles.fieldLabelSmall, { color: colors.mutedForeground }]}>Godzina</Text>
+            <Pressable
+              onPress={() => setShowTimePicker((v) => !v)}
+              style={[
+                styles.remindInput,
+                { backgroundColor: colors.background, borderColor: colors.border, minHeight: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+              ]}
               testID="input-session-time"
-            />
+            >
+              <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_400Regular" }}>
+                {sessionTime}
+              </Text>
+              <Ionicons name="time-outline" size={16} color={colors.mutedForeground} />
+            </Pressable>
+            {showTimePicker && (
+              <DateTimePicker
+                value={parseDateLocal(sessionDate || formatDateLocal(new Date()), sessionTime)}
+                mode="time"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={(_event, date) => {
+                  setShowTimePicker(Platform.OS === "ios");
+                  if (date) setSessionTime(formatTimeLocal(date));
+                }}
+              />
+            )}
 
             <Text style={[styles.fieldLabelSmall, { color: colors.mutedForeground }]}>Czas trwania (min)</Text>
             <TextInput
@@ -1440,7 +1458,7 @@ export default function ClientDetailScreen() {
               </Pressable>
             </View>
             <Text style={[styles.remindModalHint, { color: colors.mutedForeground }]}>
-              Plan zostanie utworzony i przypisany do tego podopiecznego. Nastepnie mozesz dodac treningi.
+              Plan zostanie utworzony i przypisany do tego podopiecznego. Następnie możesz dodać treningi.
             </Text>
             <TextInput
               style={[styles.remindInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, minHeight: 48 }]}
@@ -1480,7 +1498,7 @@ export default function ClientDetailScreen() {
                 <Ionicons name="add-circle-outline" size={16} color="#fff" />
               )}
               <Text style={styles.remindSendBtnText}>
-                {createAndAssignMutation.isPending ? "Tworzenie..." : "Utworz i przejdz do edytora"}
+                {createAndAssignMutation.isPending ? "Tworzenie..." : "Utwórz i przejdź do edytora"}
               </Text>
             </Pressable>
           </View>
@@ -1507,14 +1525,14 @@ export default function ClientDetailScreen() {
             ) : plans.length === 0 ? (
               <View style={{ alignItems: "center", marginVertical: 24, gap: 12 }}>
                 <Text style={[styles.emptyText, { color: colors.mutedForeground, textAlign: "center" }]}>
-                  Brak planow. Utwórz plan w zakladce Treningi.
+                  Brak planów. Utwórz plan w zakładce Treningi.
                 </Text>
                 <Pressable
                   onPress={() => { setAssignModalVisible(false); setCreatePlanModalVisible(true); }}
                   style={({ pressed }) => [styles.remindSendBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1, paddingHorizontal: 20 }]}
                 >
                   <Ionicons name="add-circle-outline" size={16} color="#fff" />
-                  <Text style={styles.remindSendBtnText}>Utworz nowy plan</Text>
+                  <Text style={styles.remindSendBtnText}>Utwórz nowy plan</Text>
                 </Pressable>
               </View>
             ) : (
@@ -1524,7 +1542,17 @@ export default function ClientDetailScreen() {
                   return (
                     <Pressable
                       key={plan.id}
-                      onPress={() => { if (!assignMutation.isPending) assignMutation.mutate({ planId: plan.id }); }}
+                      onPress={() => {
+                        if (assignMutation.isPending || isCurrent) return;
+                        Alert.alert(
+                          "Zmienić plan treningowy?",
+                          `Podopieczny zobaczy plan „${plan.name}” zamiast obecnego. Ta zmiana jest natychmiastowa.`,
+                          [
+                            { text: "Anuluj", style: "cancel" },
+                            { text: "Zmień plan", onPress: () => assignMutation.mutate({ planId: plan.id }) },
+                          ]
+                        );
+                      }}
                       style={({ pressed }) => [
                         styles.planRow,
                         {
@@ -1718,6 +1746,8 @@ const styles = StyleSheet.create({
   reportDetailLabel: { fontSize: 13, fontFamily: "Inter_500Medium", minWidth: 110 },
   reportDetailValue: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
   reportPhoto: { width: "100%", height: 200, borderRadius: 10 },
+  lightboxOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.9)", justifyContent: "center", alignItems: "center" },
+  lightboxImage: { width: "100%", height: "100%" },
   dietDeleteBtn: { width: 30, height: 30, borderRadius: 8, justifyContent: "center", alignItems: "center", marginLeft: 2 },
   confirmSheet: { borderRadius: 20, margin: 24, padding: 24, alignItems: "center", gap: 12 },
   confirmIconWrap: { width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center", marginBottom: 4 },
@@ -1730,71 +1760,6 @@ const styles = StyleSheet.create({
   confirmDeleteText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });
 
-function TrainerMedicalTestCard({
-  test,
-  colors,
-}: {
-  test: MedicalTest;
-  colors: ReturnType<typeof useColors>;
-}) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <View
-      style={[styles.reportCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-      testID={`card-medical-test-trainer-${test.id}`}
-    >
-      <Pressable onPress={() => setExpanded((v) => !v)} style={styles.reportCardHeader}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.reportCardDate, { color: colors.foreground }]}>{test.testName}</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 }}>
-            <Text style={{ fontSize: 12, color: colors.mutedForeground }}>
-              {new Date(test.testDate).toLocaleDateString("pl-PL")}
-            </Text>
-            <View style={{ backgroundColor: colors.primary + "18", borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2 }}>
-              <Text style={{ fontSize: 11, color: colors.primary, fontFamily: "Inter_500Medium" }}>
-                {getTestTypeLabel(test.testType)}
-              </Text>
-            </View>
-          </View>
-        </View>
-        <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={18} color={colors.mutedForeground} />
-      </Pressable>
-
-      {expanded && (
-        <View style={[styles.reportCardBody, { borderTopColor: colors.border }]}>
-          {test.resultValue != null && test.resultValue !== "" && (
-            <View style={styles.reportDetailRow}>
-              <Text style={[styles.reportDetailLabel, { color: colors.mutedForeground }]}>Wynik:</Text>
-              <Text style={[styles.reportDetailValue, { color: colors.foreground }]}>
-                {test.resultValue}{test.unit ? ` ${test.unit}` : ""}
-              </Text>
-            </View>
-          )}
-          {test.referenceRange != null && test.referenceRange !== "" && (
-            <View style={styles.reportDetailRow}>
-              <Text style={[styles.reportDetailLabel, { color: colors.mutedForeground }]}>Zakres ref.:</Text>
-              <Text style={[styles.reportDetailValue, { color: colors.foreground }]}>{test.referenceRange}</Text>
-            </View>
-          )}
-          {test.orderingProvider != null && test.orderingProvider !== "" && (
-            <View style={styles.reportDetailRow}>
-              <Text style={[styles.reportDetailLabel, { color: colors.mutedForeground }]}>Lekarz:</Text>
-              <Text style={[styles.reportDetailValue, { color: colors.foreground }]}>{test.orderingProvider}</Text>
-            </View>
-          )}
-          {test.notes != null && test.notes !== "" && (
-            <View style={styles.reportDetailRow}>
-              <Text style={[styles.reportDetailLabel, { color: colors.mutedForeground }]}>Notatki:</Text>
-              <Text style={[styles.reportDetailValue, { color: colors.foreground }]}>{test.notes}</Text>
-            </View>
-          )}
-        </View>
-      )}
-    </View>
-  );
-}
-
 function TrainerReportCard({
   report,
   colors,
@@ -1805,6 +1770,7 @@ function TrainerReportCard({
   onMarkViewed: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [photoLightboxOpen, setPhotoLightboxOpen] = useState(false);
 
   const measurements = [
     { label: "Klatka", value: report.chest },
@@ -1893,15 +1859,38 @@ function TrainerReportCard({
           {report.photoUrl ? (
             <View style={{ marginTop: 4 }}>
               <Text style={[styles.reportDetailLabel, { color: colors.mutedForeground, marginBottom: 6 }]}>Zdjęcie:</Text>
-              <Image
-                source={{ uri: report.photoUrl }}
-                style={styles.reportPhoto}
-                resizeMode="cover"
-                testID={`img-report-photo-${report.id}`}
-              />
+              <Pressable onPress={() => setPhotoLightboxOpen(true)} testID={`button-report-photo-${report.id}`}>
+                <Image
+                  source={{ uri: report.photoUrl }}
+                  style={styles.reportPhoto}
+                  resizeMode="cover"
+                  testID={`img-report-photo-${report.id}`}
+                />
+              </Pressable>
             </View>
           ) : null}
         </View>
+      )}
+
+      {report.photoUrl && (
+        <Modal
+          visible={photoLightboxOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPhotoLightboxOpen(false)}
+        >
+          <Pressable
+            style={styles.lightboxOverlay}
+            onPress={() => setPhotoLightboxOpen(false)}
+            testID={`button-close-report-photo-${report.id}`}
+          >
+            <Image
+              source={{ uri: report.photoUrl }}
+              style={styles.lightboxImage}
+              resizeMode="contain"
+            />
+          </Pressable>
+        </Modal>
       )}
     </View>
   );

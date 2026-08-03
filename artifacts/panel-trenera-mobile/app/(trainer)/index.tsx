@@ -60,7 +60,7 @@ export default function TrainerClientsScreen() {
     if (params.invite) handleInviteOpen();
   }, [params.invite]);
 
-  const { data, isLoading, refetch, isRefetching } = useQuery<ClientWithPlan[]>({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery<ClientWithPlan[]>({
     queryKey: ["trainer-clients"],
     queryFn: () => apiGet<ClientWithPlan[]>("/api/trainer/clients"),
     enabled: !!user?.id,
@@ -254,6 +254,14 @@ export default function TrainerClientsScreen() {
         >
           {isLoading ? (
             <ActivityIndicator color={colors.primary} style={styles.loader} />
+          ) : isError ? (
+            <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Ionicons name="cloud-offline-outline" size={36} color={colors.mutedForeground} />
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Błąd ładowania</Text>
+              <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
+                Nie udało się pobrać listy podopiecznych. Pociągnij w dół, aby spróbować ponownie.
+              </Text>
+            </View>
           ) : clients.length === 0 && filteredPending.length === 0 ? (
             <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Ionicons name="people-outline" size={36} color={colors.mutedForeground} />
@@ -542,7 +550,14 @@ type Colors = ReturnType<typeof useColors>;
 function PendingInvitationRow({ email, colors }: { email: string; colors: Colors }) {
   const initials = email.slice(0, 2).toUpperCase();
   return (
-    <View style={[pendingStyles.row, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <Pressable
+      onPress={() => router.push("/invitations")}
+      style={({ pressed }) => [
+        pendingStyles.row,
+        { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+      ]}
+      testID="button-pending-invitation-row"
+    >
       <View style={[pendingStyles.avatar, { backgroundColor: colors.mutedForeground + "22" }]}>
         <Text style={[pendingStyles.avatarText, { color: colors.mutedForeground }]}>{initials}</Text>
       </View>
@@ -555,7 +570,8 @@ function PendingInvitationRow({ email, colors }: { email: string; colors: Colors
           <Text style={[pendingStyles.badgeText, { color: "#f59e0b" }]}>Oczekuje na akceptację</Text>
         </View>
       </View>
-    </View>
+      <Ionicons name="chevron-forward" size={16} color={colors.mutedForeground} />
+    </Pressable>
   );
 }
 

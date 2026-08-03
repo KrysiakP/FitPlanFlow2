@@ -6,7 +6,6 @@ import type {
   WeeklyReport,
   DietPlan,
   DietMeal,
-  MedicalTest,
   ClientPayment,
 } from "@workspace/db";
 
@@ -282,40 +281,6 @@ export function getDemoDietPlan(trainerId: string): DemoDietPlanWithMeals {
     meals: meals,
     isDemo: true as const,
   };
-}
-
-export function getDemoMedicalTests(): (MedicalTest & { isDemo: true })[] {
-  const now = new Date();
-  const twoMonthsAgo = new Date(now);
-  twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
-
-  const testsData = [
-    { testName: "Leukocyty (WBC)", testType: "blood", resultValue: "6.2", unit: "tys./µl", referenceRange: "4.0 - 10.0" },
-    { testName: "Erytrocyty (RBC)", testType: "blood", resultValue: "5.1", unit: "mln/µl", referenceRange: "4.5 - 5.5" },
-    { testName: "Hemoglobina (HGB)", testType: "blood", resultValue: "15.2", unit: "g/dl", referenceRange: "14.0 - 18.0" },
-    { testName: "Cholesterol całkowity", testType: "blood", resultValue: "185", unit: "mg/dl", referenceRange: "< 200" },
-    { testName: "Cholesterol LDL", testType: "blood", resultValue: "110", unit: "mg/dl", referenceRange: "< 130" },
-    { testName: "Cholesterol HDL", testType: "blood", resultValue: "55", unit: "mg/dl", referenceRange: "> 40" },
-    { testName: "Triglicerydy", testType: "blood", resultValue: "95", unit: "mg/dl", referenceRange: "< 150" },
-    { testName: "Glukoza na czczo", testType: "blood", resultValue: "92", unit: "mg/dl", referenceRange: "70 - 100" },
-  ];
-
-  return testsData.map((test, index) => ({
-    id: `demo-test-${String(index + 1).padStart(3, "0")}`,
-    clientId: DEMO_CLIENT_ID,
-    testName: test.testName,
-    testType: test.testType,
-    resultValue: test.resultValue,
-    unit: test.unit,
-    referenceRange: test.referenceRange,
-    testDate: twoMonthsAgo,
-    orderingProvider: "Dr. Anna Kowalska",
-    notes: null,
-    attachments: null,
-    createdAt: twoMonthsAgo,
-    updatedAt: twoMonthsAgo,
-    isDemo: true as const,
-  }));
 }
 
 export function getDemoPayments(trainerId: string): (ClientPayment & { isDemo: true })[] {

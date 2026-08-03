@@ -4,6 +4,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -13,7 +24,7 @@ import { insertPlanInvitationSchema } from "@shared/schema";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, Crown, Send, CheckCircle, Mail } from "lucide-react";
+import { AlertCircle, Crown, Send, CheckCircle, Mail, RotateCw, X } from "lucide-react";
 import { Link } from "wouter";
 import { useEffect, useRef } from "react";
 import { format } from "date-fns";
@@ -47,7 +58,7 @@ export default function InviteClient() {
     queryKey: ["/api/plans"],
   });
 
-  const { data: invitations = [], isLoading: invitationsLoading, isSuccess: invitationsSuccess } =
+  const { data: invitations = [], isLoading: invitationsLoading, isError: invitationsError, isSuccess: invitationsSuccess } =
     useQuery<InvitationWithPlan[]>({
       queryKey: ["/api/invitations"],
       refetchInterval: () =>
@@ -117,6 +128,39 @@ export default function InviteClient() {
   const onSubmit = (data: InsertPlanInvitationInput) => {
     sendInvitationMutation.mutate(data);
   };
+
+  const cancelInvitationMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/invitations/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invitations"] });
+      toast({ title: "Zaproszenie anulowane" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Błąd",
+        description: error.message || "Nie udało się anulować zaproszenia",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resendInvitationMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("POST", `/api/invitations/${id}/resend`);
+    },
+    onSuccess: () => {
+      toast({ title: "Zaproszenie wysłane ponownie" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Błąd",
+        description: error.message || "Nie udało się ponownie wysłać zaproszenia",
+        variant: "destructive",
+      });
+    },
+  });
 
   const isStartTier = !user?.subscriptionTier || user?.subscriptionTier === "start";
 
@@ -274,6 +318,11 @@ export default function InviteClient() {
               <Skeleton className="h-14 w-full" />
               <Skeleton className="h-14 w-full" />
             </div>
+          ) : invitationsError ? (
+            <Alert variant="destructive" data-testid="alert-invitations-error">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>Nie udało się pobrać zaproszeń. Odśwież stronę, aby spróbować ponownie.</AlertDescription>
+            </Alert>
           ) : invitations.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center" data-testid="text-no-invitations">
               Nie wysłałeś jeszcze żadnych zaproszeń.
@@ -295,7 +344,55 @@ export default function InviteClient() {
                       {format(new Date(invitation.createdAt), "d MMM yyyy, HH:mm", { locale: pl })}
                     </p>
                   </div>
-                  <div>{getStatusBadge(invitation.status)}</div>
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(invitation.status)}
+                    {invitation.status === "pending" && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => resendInvitationMutation.mutate(invitation.id)}
+                          disabled={resendInvitationMutation.isPending}
+                          data-testid={`button-resend-invitation-${invitation.id}`}
+                          title="Wyślij ponownie"
+                        >
+                          <RotateCw className="w-4 h-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              disabled={cancelInvitationMutation.isPending}
+                              data-testid={`button-cancel-invitation-${invitation.id}`}
+                              title="Anuluj"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Anulować zaproszenie?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Zaproszenie zostanie anulowane i nie będzie już mogło zostać zaakceptowane.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel data-testid={`button-cancel-cancel-invitation-${invitation.id}`}>Wróć</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => cancelInvitationMutation.mutate(invitation.id)}
+                                data-testid={`button-confirm-cancel-invitation-${invitation.id}`}
+                              >
+                                Anuluj zaproszenie
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

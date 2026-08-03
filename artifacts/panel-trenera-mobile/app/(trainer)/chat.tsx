@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useKeyboardVisible } from "@/hooks/useKeyboardVisible";
 import {
   useConversations,
   useMessages,
@@ -153,8 +154,9 @@ export default function TrainerChatScreen() {
   const [composeOpen, setComposeOpen] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const topPad = insets.top;
+  const keyboardVisible = useKeyboardVisible();
 
-  const { data: conversations = [], isLoading: convsLoading, refetch } = useConversations();
+  const { data: conversations = [], isLoading: convsLoading, isError: convsIsError, refetch } = useConversations();
 
   const { data: messages = [], isLoading: msgsLoading } = useMessages(
     selected ? (user?.id ?? null) : null,
@@ -218,7 +220,7 @@ export default function TrainerChatScreen() {
       <KeyboardAvoidingView
         style={[styles.root, { backgroundColor: colors.background }]}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        keyboardVerticalOffset={0}
       >
         <View
           style={[
@@ -278,7 +280,9 @@ export default function TrainerChatScreen() {
             {
               borderTopColor: colors.border,
               backgroundColor: colors.background,
-              paddingBottom: insets.bottom + (Platform.OS === "web" ? 84 : 49) + 8,
+              paddingBottom: keyboardVisible
+                ? insets.bottom + 8
+                : insets.bottom + (Platform.OS === "web" ? 84 : 49) + 8,
             },
           ]}
         >
@@ -355,6 +359,14 @@ export default function TrainerChatScreen() {
       {convsLoading ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : convsIsError ? (
+        <View style={[styles.emptyBox, { paddingTop: 60 }]}>
+          <Ionicons name="cloud-offline-outline" size={48} color={colors.mutedForeground} />
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Błąd ładowania</Text>
+          <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
+            Nie udało się wczytać wiadomości. Pociągnij w dół, aby spróbować ponownie.
+          </Text>
         </View>
       ) : conversations.length === 0 ? (
         <View style={[styles.emptyBox, { paddingTop: 60 }]}>

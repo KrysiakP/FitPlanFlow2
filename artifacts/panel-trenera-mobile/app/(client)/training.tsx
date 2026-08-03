@@ -19,8 +19,34 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPatch, apiPost } from "@/lib/api";
+
+const SESSION_SNAPSHOT_KEY = "training-session-snapshot";
+
+interface SessionSnapshot {
+  workoutId: string;
+  sessionStartTime: number;
+  completedSets: Record<string, number[]>;
+  setLogs: SetLogs;
+}
+
+function serializeCompletedSets(sets: CompletedSets): Record<string, number[]> {
+  const out: Record<string, number[]> = {};
+  for (const [exerciseId, setNumbers] of Object.entries(sets)) {
+    out[exerciseId] = Array.from(setNumbers);
+  }
+  return out;
+}
+
+function deserializeCompletedSets(sets: Record<string, number[]>): CompletedSets {
+  const out: CompletedSets = {};
+  for (const [exerciseId, setNumbers] of Object.entries(sets)) {
+    out[exerciseId] = new Set(setNumbers);
+  }
+  return out;
+}
 
 type Colors = ReturnType<typeof useColors>;
 
@@ -480,12 +506,63 @@ export default function TrainingScreen() {
   // Prevent auto-finish from firing more than once per session
   const autoFinishCalledRef = useRef(false);
 
+  // Rehydrate an in-progress session that survived an app kill (crash/OS reclaim),
+  // so already-logged sets aren't shown as unchecked and re-logged by accident.
+  const rehydratedRef = useRef(false);
+  useEffect(() => {
+    if (rehydratedRef.current) return;
+    rehydratedRef.current = true;
+    AsyncStorage.getItem(SESSION_SNAPSHOT_KEY)
+      .then((raw) => {
+        if (!raw) return;
+        const snapshot: SessionSnapshot = JSON.parse(raw);
+        setActiveWorkout(snapshot.workoutId);
+        setSessionActive(true);
+        setSessionStartTime(snapshot.sessionStartTime);
+        setCompletedSets(deserializeCompletedSets(snapshot.completedSets));
+        setSetLogs(snapshot.setLogs);
+        setElapsedSeconds(Math.max(0, Math.floor((Date.now() - snapshot.sessionStartTime) / 1000)));
+        if (elapsedIntervalRef.current) clearInterval(elapsedIntervalRef.current);
+        elapsedIntervalRef.current = setInterval(() => {
+          setElapsedSeconds(Math.floor((Date.now() - snapshot.sessionStartTime) / 1000));
+        }, 1000);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Persist the in-progress session on every change so it survives an app kill.
+  useEffect(() => {
+    if (!sessionActive || !activeWorkout || !sessionStartTime) {
+      AsyncStorage.removeItem(SESSION_SNAPSHOT_KEY).catch(() => {});
+      return;
+    }
+    const snapshot: SessionSnapshot = {
+      workoutId: activeWorkout,
+      sessionStartTime,
+      completedSets: serializeCompletedSets(completedSets),
+      setLogs,
+    };
+    AsyncStorage.setItem(SESSION_SNAPSHOT_KEY, JSON.stringify(snapshot)).catch(() => {});
+  }, [sessionActive, activeWorkout, sessionStartTime, completedSets, setLogs]);
+
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const { data, isLoading, refetch, isRefetching } = useQuery<PlanAssignment>({
     queryKey: ["client-assignment"],
     queryFn: () => apiGet<PlanAssignment>("/api/client/assignment"),
   });
+
+  // Poll for workouts logged by the trainer during a shared session, so the client
+  // sees updated reps/weight without needing to know a shared session even happened.
+  const [dismissedTrainerSessionIds, setDismissedTrainerSessionIds] = useState<Set<string>>(new Set());
+  const { data: workoutSessionsForSync } = useQuery<{ id: string; loggedByUserId?: string | null; completedAt: string }[]>({
+    queryKey: ["client-workout-sessions-sync"],
+    queryFn: () => apiGet("/api/workout-sessions"),
+    refetchInterval: sessionActive ? false : 15_000,
+  });
+  const latestTrainerSession = (workoutSessionsForSync ?? [])
+    .filter((s) => !!s.loggedByUserId && !dismissedTrainerSessionIds.has(s.id))
+    .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0];
 
 
   function resetSessionState() {
@@ -520,17 +597,25 @@ export default function TrainingScreen() {
       void queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
       resetSessionState();
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const completed = variables.exercisesCompleted >= variables.totalExercises;
       Alert.alert(
-        "Świetna robota!",
-        `Ukończyłeś trening. Zalogowano ${variables.exercisesCompleted}/${variables.totalExercises} ćwiczeń.`
+        completed ? "Świetna robota!" : "Trening przerwany",
+        completed
+          ? `Ukończyłeś trening. Zalogowano ${variables.exercisesCompleted}/${variables.totalExercises} ćwiczeń.`
+          : `Zapisano jako przerwany. Zalogowano ${variables.exercisesCompleted}/${variables.totalExercises} ćwiczeń.`
       );
     },
     onError: (_err, variables) => {
-      resetSessionState();
+      // Keep the session state intact so the trainer/client can retry the save
+      // instead of losing the only record of the workout that was just done.
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert(
         "Błąd zapisu sesji",
-        `Trening zakończony, ale nie udało się zapisać sesji (${variables.exercisesCompleted}/${variables.totalExercises} ćwiczeń).`,
-        [{ text: "OK" }]
+        `Nie udało się zapisać podsumowania treningu (${variables.exercisesCompleted}/${variables.totalExercises} ćwiczeń). Spróbuj ponownie — Twój postęp nie został utracony.`,
+        [
+          { text: "Odrzuć trening", style: "destructive", onPress: () => resetSessionState() },
+          { text: "Spróbuj ponownie", onPress: () => finishSessionWithCounts(variables.exercisesCompleted, variables.totalExercises) },
+        ]
       );
     },
   });
@@ -679,6 +764,25 @@ export default function TrainingScreen() {
 
   function finishSession() {
     finishSessionWithCounts(doneCount, exercises.length);
+  }
+
+  function handleSessionButtonPress() {
+    if (!sessionActive) {
+      startSession();
+      return;
+    }
+    if (allDone) {
+      finishSession();
+      return;
+    }
+    Alert.alert(
+      "Przerwać trening?",
+      `Wykonałeś ${doneCount}/${exercises.length} ćwiczeń. Trening zostanie zapisany jako przerwany.`,
+      [
+        { text: "Wróć do treningu", style: "cancel" },
+        { text: "Przerwij", style: "destructive", onPress: finishSession },
+      ]
+    );
   }
 
   function checkAndOfferPlanUpdate(
@@ -973,6 +1077,26 @@ export default function TrainingScreen() {
     >
       <Text style={[styles.pageTitle, { color: colors.foreground }]}>Trening</Text>
 
+      {latestTrainerSession && (
+        <View style={[styles.trainerSyncBanner, { backgroundColor: colors.primary + "14", borderColor: colors.primary + "30" }]}>
+          <Ionicons name="checkmark-circle-outline" size={18} color={colors.primary} />
+          <Text style={[styles.trainerSyncText, { color: colors.foreground }]}>
+            Twój trener zalogował wspólny trening. Twój postęp został zaktualizowany.
+          </Text>
+          <Pressable
+            onPress={() => {
+              setDismissedTrainerSessionIds((prev) => new Set(prev).add(latestTrainerSession.id));
+              void queryClient.invalidateQueries({ queryKey: ["client-assignment"] });
+              void refetch();
+            }}
+            testID="button-dismiss-trainer-sync-banner"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="close" size={18} color={colors.mutedForeground} />
+          </Pressable>
+        </View>
+      )}
+
       {isLoading ? (
         <ActivityIndicator color={colors.primary} style={styles.loader} />
       ) : !plan ? (
@@ -1000,11 +1124,26 @@ export default function TrainingScreen() {
                   <Pressable
                     key={w.id}
                     onPress={() => {
-                      setActiveWorkout(w.id);
-                      setCompletedSets({});
-                      setSetLogs({});
-                      setLoggingTarget(null);
-                      stopRestTimer();
+                      if (active) return;
+                      const switchWorkout = () => {
+                        setActiveWorkout(w.id);
+                        setCompletedSets({});
+                        setSetLogs({});
+                        setLoggingTarget(null);
+                        stopRestTimer();
+                      };
+                      if (sessionActive) {
+                        Alert.alert(
+                          "Zmienić trening?",
+                          "Trwa aktywna sesja. Zmiana treningu przerwie ją i wyczyści widoczny postęp (zalogowane serie pozostają zapisane).",
+                          [
+                            { text: "Anuluj", style: "cancel" },
+                            { text: "Zmień trening", style: "destructive", onPress: () => { resetSessionState(); switchWorkout(); } },
+                          ]
+                        );
+                      } else {
+                        switchWorkout();
+                      }
                     }}
                     style={[
                       styles.tab,
@@ -1043,7 +1182,7 @@ export default function TrainingScreen() {
                 )}
               </View>
               <Pressable
-                onPress={sessionActive ? finishSession : startSession}
+                onPress={handleSessionButtonPress}
                 disabled={isSaving}
                 style={[
                   styles.sessionBtn,
@@ -1175,6 +1314,8 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingHorizontal: 20 },
   pageTitle: { fontSize: 22, fontFamily: "Inter_700Bold", marginBottom: 16 },
+  trainerSyncBanner: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 16 },
+  trainerSyncText: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium" },
   loader: { marginTop: 40 },
   emptyBox: { borderRadius: 16, borderWidth: 1, padding: 32, alignItems: "center", gap: 12 },
   emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold" },

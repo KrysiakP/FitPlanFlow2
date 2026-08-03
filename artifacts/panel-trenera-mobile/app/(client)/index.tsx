@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   Pressable,
   RefreshControl,
@@ -84,6 +85,10 @@ export default function ClientDashboard() {
       qc.invalidateQueries({ queryKey: ["client-invitations"] });
       qc.invalidateQueries({ queryKey: ["client-assignment"] });
     },
+    onError: () => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Błąd", "Nie udało się zaakceptować zaproszenia. Spróbuj ponownie.");
+    },
   });
 
   const rejectMutation = useMutation({
@@ -92,7 +97,22 @@ export default function ClientDashboard() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       qc.invalidateQueries({ queryKey: ["client-invitations"] });
     },
+    onError: () => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Błąd", "Nie udało się odrzucić zaproszenia. Spróbuj ponownie.");
+    },
   });
+
+  function confirmReject(invitationId: string, trainerName: string) {
+    Alert.alert(
+      "Odrzucić zaproszenie?",
+      `Zaproszenie od ${trainerName} zostanie odrzucone.`,
+      [
+        { text: "Anuluj", style: "cancel" },
+        { text: "Odrzuć", style: "destructive", onPress: () => rejectMutation.mutate(invitationId) },
+      ]
+    );
+  }
 
   function handleRefresh() {
     void refetchAssignment();
@@ -183,7 +203,7 @@ export default function ClientDashboard() {
                 </View>
                 <View style={styles.invActions}>
                   <Pressable
-                    onPress={() => rejectMutation.mutate(inv.id)}
+                    onPress={() => confirmReject(inv.id, trainerName)}
                     disabled={isAccepting || isRejecting}
                     style={({ pressed }) => [
                       styles.rejectBtn,
@@ -246,7 +266,6 @@ export default function ClientDashboard() {
         <QuickCard icon="trending-up-outline" label="Postępy" colors={colors} onPress={() => router.push("/(client)/progress")} />
         <QuickCard icon="gift-outline" label="Polecenia" colors={colors} onPress={() => router.push("/(client)/referrals")} />
         <QuickCard icon="notifications-outline" label="Powiadomienia" colors={colors} onPress={() => router.push("/(client)/notifications")} />
-        <QuickCard icon="medical-outline" label="Badania" colors={colors} onPress={() => router.push("/(client)/medical-tests")} />
         <QuickCard icon="document-text-outline" label="Raport tyg." colors={colors} onPress={() => router.push("/(client)/weekly-report")} />
         <QuickCard icon="person-outline" label="Profil" colors={colors} onPress={() => router.push("/(client)/profile")} />
       </View>

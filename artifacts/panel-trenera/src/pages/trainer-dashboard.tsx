@@ -8,11 +8,13 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Toolti
 import { format, startOfMonth, subMonths } from "date-fns";
 import { pl } from "date-fns/locale";
 import type { ClientPayment } from "@shared/schema";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 export default function TrainerDashboard() {
   const { user } = useAuth();
 
-  const { data: stats } = useQuery<{
+  const { data: stats, isError: statsError } = useQuery<{
     totalPlans: number;
     totalClients: number;
     totalAssignments: number;
@@ -20,7 +22,7 @@ export default function TrainerDashboard() {
     queryKey: ["/api/trainer/stats"],
   });
 
-  const { data: payments } = useQuery<ClientPayment[]>({
+  const { data: payments, isError: paymentsError } = useQuery<ClientPayment[]>({
     queryKey: ["/api/payments"],
   });
 
@@ -52,6 +54,15 @@ export default function TrainerDashboard() {
 
   return (
     <div className="space-y-4 md:space-y-8">
+      {(statsError || paymentsError) && (
+        <Alert variant="destructive" data-testid="alert-dashboard-error">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Błąd ładowania</AlertTitle>
+          <AlertDescription>
+            Nie udało się pobrać części statystyk — liczby poniżej mogą być niekompletne. Odśwież stronę, aby spróbować ponownie.
+          </AlertDescription>
+        </Alert>
+      )}
       <div>
         <h1 className="font-heading font-bold text-2xl md:text-4xl mb-2" data-testid="text-dashboard-title">
           Panel trenera
@@ -322,16 +333,18 @@ export default function TrainerDashboard() {
             </Card>
           </Link>
 
-          <Card data-testid="card-stat-active-clients">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Aktywni podopieczni</CardTitle>
-              <Users className="w-4 h-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalClients ?? 0}</div>
-              <p className="text-xs text-muted-foreground">Obecnie prowadzeni</p>
-            </CardContent>
-          </Card>
+          <Link href="/clients">
+            <Card className="hover-elevate cursor-pointer" data-testid="card-stat-active-clients">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Aktywni podopieczni</CardTitle>
+                <Users className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.totalClients ?? 0}</div>
+                <p className="text-xs text-muted-foreground">Obecnie prowadzeni</p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         <Card data-testid="card-revenue-chart">

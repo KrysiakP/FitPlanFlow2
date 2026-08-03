@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useKeyboardVisible } from "@/hooks/useKeyboardVisible";
 import {
   useConversations,
   useMessages,
@@ -88,8 +89,9 @@ export default function ClientChatScreen() {
   const { user } = useAuth();
   const [inputText, setInputText] = useState("");
   const flatListRef = useRef<FlatList>(null);
+  const keyboardVisible = useKeyboardVisible();
 
-  const { data: conversations, isLoading: convsLoading } = useConversations();
+  const { data: conversations, isLoading: convsLoading, isError: convsIsError, refetch: refetchConversations } = useConversations();
   const conversation = conversations?.[0] ?? null;
 
   const { data: messages = [], isLoading: msgsLoading } = useMessages(
@@ -139,6 +141,25 @@ export default function ClientChatScreen() {
     );
   }
 
+  // Query failed — don't tell the client they have no trainer when we just
+  // failed to load the conversation list.
+  if (convsIsError) {
+    return (
+      <View style={[styles.centered, { backgroundColor: colors.background, paddingTop: topPad }]}>
+        <View style={[styles.emptyIconBox, { backgroundColor: colors.primary + "14" }]}>
+          <Ionicons name="cloud-offline-outline" size={36} color={colors.primary} />
+        </View>
+        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Błąd ładowania</Text>
+        <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
+          Nie udało się wczytać wiadomości.
+        </Text>
+        <Pressable onPress={() => refetchConversations()} style={{ marginTop: 12 }} testID="button-retry-conversations">
+          <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold" }}>Spróbuj ponownie</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   // No trainer relationship at all
   if (!conversation) {
     return (
@@ -161,10 +182,12 @@ export default function ClientChatScreen() {
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: colors.background }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+      keyboardVerticalOffset={0}
     >
       {/* Chat header */}
-      <View style={[styles.chatHeader, { paddingTop: topPad + 12, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+      <View
+        style={[styles.chatHeader, { paddingTop: topPad + 12, borderBottomColor: colors.border, backgroundColor: colors.background }]}
+      >
         <View style={[styles.avatarSmall, { backgroundColor: colors.primary + "20" }]}>
           <Text style={[styles.avatarSmallText, { color: colors.primary }]}>{trainerInitials}</Text>
         </View>
@@ -211,7 +234,7 @@ export default function ClientChatScreen() {
       />
 
       {/* Input row */}
-      <View style={[styles.inputRow, { borderTopColor: colors.border, backgroundColor: colors.background, paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 8 }]}>
+      <View style={[styles.inputRow, { borderTopColor: colors.border, backgroundColor: colors.background, paddingBottom: keyboardVisible ? insets.bottom + 8 : insets.bottom + TAB_BAR_HEIGHT + 8 }]}>
         <TextInput
           style={[
             styles.input,

@@ -17,6 +17,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
@@ -167,6 +169,7 @@ function PaymentCard({ payment, clientName, colors, onMarkPaid, onDelete, markin
 export default function TrainerPaymentsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const topPad = Platform.OS === "web" ? 67 : insets.top;
   const { user } = useAuth();
   const qc = useQueryClient();
 
@@ -178,7 +181,8 @@ export default function TrainerPaymentsScreen() {
     notes: "",
   });
   const [clientPickerVisible, setClientPickerVisible] = useState(false);
-  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
+  const [showDueDatePicker, setShowDueDatePicker] = useState(false);
+  const [markingPaidIds, setMarkingPaidIds] = useState<Set<string>>(new Set());
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteConfirmPayment, setDeleteConfirmPayment] = useState<ClientPayment | null>(null);
 
@@ -215,6 +219,7 @@ export default function TrainerPaymentsScreen() {
       qc.invalidateQueries({ queryKey: ["payments-upcoming"] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setModalVisible(false);
+      setShowDueDatePicker(false);
       setForm({ clientId: "", amount: "", dueDate: toDateInputValue(new Date()), notes: "" });
     },
     onError: (err: Error) => {
@@ -228,13 +233,24 @@ export default function TrainerPaymentsScreen() {
       qc.invalidateQueries({ queryKey: ["payments"] });
       qc.invalidateQueries({ queryKey: ["payments-upcoming"] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setMarkingPaidId(null);
     },
     onError: () => {
       Alert.alert("Błąd", "Nie udało się oznaczyć jako opłacone.");
-      setMarkingPaidId(null);
     },
   });
+
+  function handleMarkPaid(id: string) {
+    setMarkingPaidIds((prev) => new Set(prev).add(id));
+    markPaidMutation.mutate(id, {
+      onSettled: () => {
+        setMarkingPaidIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      },
+    });
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiDelete<{ message: string }>(`/api/payments/${id}`),
@@ -297,10 +313,15 @@ export default function TrainerPaymentsScreen() {
     <>
       <ScrollView
         style={[styles.root, { backgroundColor: colors.background }]}
-        contentContainerStyle={[styles.content, { paddingTop: 16, paddingBottom: insets.bottom + 30 }]}
+        contentContainerStyle={[styles.content, { paddingTop: topPad + 16, paddingBottom: insets.bottom + 30 }]}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
       >
+        <Pressable onPress={() => router.replace("/panel")} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
+          <Text style={[styles.backText, { color: colors.primary }]}>Wstecz</Text>
+        </Pressable>
+
         <Pressable
           onPress={() => setModalVisible(true)}
           style={({ pressed }) => [styles.addBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
@@ -325,12 +346,9 @@ export default function TrainerPaymentsScreen() {
                     payment={p}
                     clientName={getClientName(p.clientId)}
                     colors={colors}
-                    onMarkPaid={() => {
-                      setMarkingPaidId(p.id);
-                      markPaidMutation.mutate(p.id);
-                    }}
+                    onMarkPaid={() => handleMarkPaid(p.id)}
                     onDelete={() => handleDelete(p)}
-                    markingPaid={markingPaidId === p.id && markPaidMutation.isPending}
+                    markingPaid={markingPaidIds.has(p.id)}
                     deleting={deletingId === p.id && deleteMutation.isPending}
                   />
                 ))}
@@ -349,12 +367,9 @@ export default function TrainerPaymentsScreen() {
                     payment={p}
                     clientName={getClientName(p.clientId)}
                     colors={colors}
-                    onMarkPaid={() => {
-                      setMarkingPaidId(p.id);
-                      markPaidMutation.mutate(p.id);
-                    }}
+                    onMarkPaid={() => handleMarkPaid(p.id)}
                     onDelete={() => handleDelete(p)}
-                    markingPaid={markingPaidId === p.id && markPaidMutation.isPending}
+                    markingPaid={markingPaidIds.has(p.id)}
                     deleting={deletingId === p.id && deleteMutation.isPending}
                   />
                 ))}
@@ -453,16 +468,26 @@ export default function TrainerPaymentsScreen() {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={[styles.label, { color: colors.mutedForeground }]}>Termin płatności (RRRR-MM-DD)</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.background, color: colors.foreground, borderColor: colors.border }]}
-                value={form.dueDate}
-                onChangeText={(v) => setForm((f) => ({ ...f, dueDate: v }))}
-                placeholder="2025-12-31"
-                placeholderTextColor={colors.mutedForeground}
-                keyboardType="default"
+              <Text style={[styles.label, { color: colors.mutedForeground }]}>Termin płatności</Text>
+              <Pressable
+                onPress={() => setShowDueDatePicker((v) => !v)}
+                style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
                 testID="input-due-date"
-              />
+              >
+                <Text style={{ color: colors.foreground, fontSize: 15 }}>{form.dueDate}</Text>
+                <Ionicons name="calendar-outline" size={16} color={colors.mutedForeground} />
+              </Pressable>
+              {showDueDatePicker && (
+                <DateTimePicker
+                  value={new Date(`${form.dueDate}T00:00:00`)}
+                  mode="date"
+                  display={Platform.OS === "ios" ? "inline" : "default"}
+                  onChange={(_event, date) => {
+                    setShowDueDatePicker(Platform.OS === "ios");
+                    if (date) setForm((f) => ({ ...f, dueDate: toDateInputValue(date) }));
+                  }}
+                />
+              )}
             </View>
 
             <View style={styles.fieldGroup}>
@@ -491,7 +516,7 @@ export default function TrainerPaymentsScreen() {
 
             <View style={styles.modalBtns}>
               <Pressable
-                onPress={() => { setModalVisible(false); setForm({ clientId: "", amount: "", dueDate: toDateInputValue(new Date()), notes: "" }); }}
+                onPress={() => { setModalVisible(false); setShowDueDatePicker(false); setForm({ clientId: "", amount: "", dueDate: toDateInputValue(new Date()), notes: "" }); }}
                 style={({ pressed }) => [styles.cancelBtn, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
                 testID="button-cancel-payment"
               >
@@ -605,6 +630,8 @@ export default function TrainerPaymentsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingHorizontal: 20 },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8 },
+  backText: { fontSize: 15, fontFamily: "Inter_500Medium" },
   addBtn: {
     flexDirection: "row",
     alignItems: "center",

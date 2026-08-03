@@ -17,7 +17,6 @@ import {
   dietMeals,
   dailyHabitLogs,
   mealCheckmarks,
-  medicalTests,
   clientPayments,
   dietSupplements,
   type User,
@@ -56,8 +55,6 @@ import {
   type InsertDailyHabitLog,
   type MealCheckmark,
   type InsertMealCheckmark,
-  type MedicalTest,
-  type InsertMedicalTest,
   type ClientPayment,
   type InsertClientPayment,
   type DietSupplement,
@@ -166,7 +163,7 @@ export interface IStorage {
   upsertClientProgress(clientId: string, data: Partial<InsertClientProgress>): Promise<ClientProgress>;
   
   // Exercise logs operations
-  logExercise(clientId: string, exerciseId: string, data: { reps: number, load?: string, notes?: string, setNumber?: number }): Promise<ExerciseLog>;
+  logExercise(clientId: string, exerciseId: string, data: { reps: number, load?: string, notes?: string, setNumber?: number, loggedByUserId?: string }): Promise<ExerciseLog>;
   getExerciseLogs(clientId: string, exerciseId: string): Promise<ExerciseLog[]>;
   getAllClientExerciseLogs(clientId: string): Promise<ExerciseLog[]>;
   getLatestExerciseLog(clientId: string, exerciseId: string): Promise<ExerciseLog | undefined>;
@@ -176,6 +173,7 @@ export interface IStorage {
   upsertTrainerReview(trainerId: string, clientId: string, data: InsertTrainerReviewInput): Promise<TrainerReview>;
   getTrainerReviews(trainerId: string): Promise<(TrainerReview & { clientFirstName: string | null; clientLastName: string | null })[]>;
   hasClientEverHadTrainer(trainerId: string, clientId: string): Promise<boolean>;
+  hasActiveClientRelationship(trainerId: string, clientId: string): Promise<boolean>;
 
   // Session booking operations
   createSessionBooking(trainerId: string, data: InsertSessionBookingInput): Promise<SessionBooking>;
@@ -253,15 +251,7 @@ export interface IStorage {
   // Meal Checkmarks
   upsertMealCheckmark(checkmark: { habitLogId: string, mealId: string, completed: boolean }): Promise<MealCheckmark>;
   getHabitLogCheckmarks(habitLogId: string): Promise<MealCheckmark[]>;
-  
-  // Medical Tests
-  createMedicalTest(clientId: string, test: Omit<InsertMedicalTest, 'clientId'>): Promise<MedicalTest>;
-  updateMedicalTest(id: string, clientId: string, updates: Partial<Omit<InsertMedicalTest, 'clientId'>>): Promise<MedicalTest>;
-  deleteMedicalTest(id: string, clientId: string): Promise<void>;
-  getClientMedicalTests(clientId: string): Promise<MedicalTest[]>;
-  getMedicalTestById(id: string): Promise<MedicalTest | null>;
-  canTrainerAccessClientTests(trainerId: string, clientId: string): Promise<boolean>;
-  
+
   // Client Payments
   getClientPayments(userId: string, role: string): Promise<ClientPayment[]>;
   createPayment(data: InsertClientPayment): Promise<ClientPayment>;
@@ -337,7 +327,7 @@ export interface IStorage {
   deletePushToken(userId: string, token: string): Promise<void>;
 
   // Workout sessions
-  createWorkoutSession(clientId: string, data: InsertWorkoutSession): Promise<WorkoutSession>;
+  createWorkoutSession(clientId: string, data: InsertWorkoutSession, loggedByUserId?: string): Promise<WorkoutSession>;
   getClientWorkoutSessions(clientId: string): Promise<(WorkoutSession & { workoutName: string | null })[]>;
 
   // Push notification history
@@ -1085,7 +1075,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Exercise logs operations
-  async logExercise(clientId: string, exerciseId: string, data: { reps: number, load?: string, notes?: string, setNumber?: number }): Promise<ExerciseLog> {
+  async logExercise(clientId: string, exerciseId: string, data: { reps: number, load?: string, notes?: string, setNumber?: number, loggedByUserId?: string }): Promise<ExerciseLog> {
     const [log] = await db
       .insert(exerciseLogs)
       .values({
@@ -1095,6 +1085,7 @@ export class DatabaseStorage implements IStorage {
         load: data.load || null,
         notes: data.notes || null,
         setNumber: data.setNumber || 1,
+        loggedByUserId: data.loggedByUserId || null,
       })
       .returning();
     return log;
@@ -1212,6 +1203,19 @@ export class DatabaseStorage implements IStorage {
       .select({ id: clientRelationships.id })
       .from(clientRelationships)
       .where(and(eq(clientRelationships.trainerId, trainerId), eq(clientRelationships.clientId, clientId)))
+      .limit(1);
+    return !!rel;
+  }
+
+  async hasActiveClientRelationship(trainerId: string, clientId: string): Promise<boolean> {
+    const [rel] = await db
+      .select({ id: clientRelationships.id })
+      .from(clientRelationships)
+      .where(and(
+        eq(clientRelationships.trainerId, trainerId),
+        eq(clientRelationships.clientId, clientId),
+        eq(clientRelationships.status, "active")
+      ))
       .limit(1);
     return !!rel;
   }
@@ -2167,77 +2171,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(mealCheckmarks.habitLogId, habitLogId));
   }
   
-  // Medical Tests
-  async createMedicalTest(clientId: string, test: Omit<InsertMedicalTest, 'clientId'>): Promise<MedicalTest> {
-    const [newTest] = await db
-      .insert(medicalTests)
-      .values({
-        ...test,
-        clientId,
-      })
-      .returning();
-    return newTest;
-  }
-  
-  async updateMedicalTest(id: string, clientId: string, updates: Partial<Omit<InsertMedicalTest, 'clientId'>>): Promise<MedicalTest> {
-    const [updatedTest] = await db
-      .update(medicalTests)
-      .set({
-        ...updates,
-        updatedAt: new Date(),
-      })
-      .where(and(
-        eq(medicalTests.id, id),
-        eq(medicalTests.clientId, clientId)
-      ))
-      .returning();
-    
-    if (!updatedTest) {
-      throw new Error("Test not found or unauthorized");
-    }
-    
-    return updatedTest;
-  }
-  
-  async deleteMedicalTest(id: string, clientId: string): Promise<void> {
-    await db
-      .delete(medicalTests)
-      .where(and(
-        eq(medicalTests.id, id),
-        eq(medicalTests.clientId, clientId)
-      ));
-  }
-  
-  async getClientMedicalTests(clientId: string): Promise<MedicalTest[]> {
-    return await db
-      .select()
-      .from(medicalTests)
-      .where(eq(medicalTests.clientId, clientId))
-      .orderBy(desc(medicalTests.testDate));
-  }
-  
-  async getMedicalTestById(id: string): Promise<MedicalTest | null> {
-    const [test] = await db
-      .select()
-      .from(medicalTests)
-      .where(eq(medicalTests.id, id))
-      .limit(1);
-    return test || null;
-  }
-  
-  async canTrainerAccessClientTests(trainerId: string, clientId: string): Promise<boolean> {
-    const [relationship] = await db
-      .select()
-      .from(clientRelationships)
-      .where(and(
-        eq(clientRelationships.trainerId, trainerId),
-        eq(clientRelationships.clientId, clientId),
-        eq(clientRelationships.status, "active")
-      ))
-      .limit(1);
-    return !!relationship;
-  }
-  
   // Client Payments
   async getClientPayments(userId: string, role: string): Promise<ClientPayment[]> {
     if (role === 'trainer') {
@@ -3094,10 +3027,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Workout sessions
-  async createWorkoutSession(clientId: string, data: InsertWorkoutSession): Promise<WorkoutSession> {
+  async createWorkoutSession(clientId: string, data: InsertWorkoutSession, loggedByUserId?: string): Promise<WorkoutSession> {
     const [session] = await db
       .insert(workoutSessions)
-      .values({ ...data, clientId })
+      .values({ ...data, clientId, loggedByUserId: loggedByUserId || null })
       .returning();
     return session;
   }
@@ -3113,6 +3046,7 @@ export class DatabaseStorage implements IStorage {
         totalExercises: workoutSessions.totalExercises,
         durationSeconds: workoutSessions.durationSeconds,
         completedAt: workoutSessions.completedAt,
+        loggedByUserId: workoutSessions.loggedByUserId,
         workoutName: workouts.name,
       })
       .from(workoutSessions)

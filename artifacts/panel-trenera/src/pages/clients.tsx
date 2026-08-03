@@ -27,6 +27,9 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Calendar as DatePickerCalendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -56,7 +59,6 @@ import {
   FileText,
   Pill,
   Activity,
-  Download,
   Users,
   Dumbbell,
   Check,
@@ -64,13 +66,14 @@ import {
   Trash2,
   Info,
   Phone,
+  CalendarIcon,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
-import type { User as UserType, PlanAssignment, TrainingPlan, ClientProgress, WeeklyReport, UserProfile, MedicalTest, WorkoutSession, SessionBooking } from "@shared/schema";
+import type { User as UserType, PlanAssignment, TrainingPlan, ClientProgress, WeeklyReport, UserProfile, WorkoutSession, SessionBooking } from "@shared/schema";
 
 type WorkoutSessionWithDetails = WorkoutSession & { workoutName: string | null };
 
@@ -86,30 +89,24 @@ type PlanWithDetails = TrainingPlan & {
 
 function ClientDetails({ client }: { client: ClientWithAssignment }) {
   const [isProgressOpen, setIsProgressOpen] = useState(true);
-  const [isMedicalOpen, setIsMedicalOpen] = useState(false);
   const [isSessionsOpen, setIsSessionsOpen] = useState(true);
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesText, setNotesText] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const { data: clientProgress, isLoading: isLoadingProgress } = useQuery<ClientProgress | null>({
+  const { data: clientProgress, isLoading: isLoadingProgress, isError: isErrorProgress } = useQuery<ClientProgress | null>({
     queryKey: [`/api/trainer/clients/${client.id}/progress`],
     enabled: !!client.id,
   });
 
-  const { data: reports, isLoading: isLoadingReports } = useQuery<WeeklyReport[]>({
+  const { data: reports, isLoading: isLoadingReports, isError: isErrorReports } = useQuery<WeeklyReport[]>({
     queryKey: [`/api/clients/${client.id}/reports`],
     enabled: !!client.id,
   });
 
   const { data: clientProfile, isLoading: isLoadingProfile } = useQuery<UserProfile | null>({
     queryKey: [`/api/clients/${client.id}/profile`],
-    enabled: !!client.id,
-  });
-
-  const { data: medicalTests, isLoading: isLoadingMedicalTests } = useQuery<MedicalTest[]>({
-    queryKey: ["/api/clients", client.id, "medical-tests"],
     enabled: !!client.id,
   });
 
@@ -416,26 +413,46 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
                 >
                   Zmień plan
                 </Button>
-                <Button 
-                  variant="outline"
-                  size="sm" 
-                  onClick={() => unassignPlanMutation.mutate()}
-                  disabled={unassignPlanMutation.isPending}
-                  className="text-destructive hover:bg-destructive/10"
-                  data-testid={`button-unassign-plan-${client.id}`}
-                >
-                  {unassignPlanMutation.isPending ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-destructive border-t-transparent rounded-full animate-spin mr-1" />
-                      Usuwanie...
-                    </>
-                  ) : (
-                    <>
-                      <X className="w-4 h-4 mr-1" />
-                      Usuń plan
-                    </>
-                  )}
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={unassignPlanMutation.isPending}
+                      className="text-destructive hover:bg-destructive/10"
+                      data-testid={`button-unassign-plan-${client.id}`}
+                    >
+                      {unassignPlanMutation.isPending ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-destructive border-t-transparent rounded-full animate-spin mr-1" />
+                          Usuwanie...
+                        </>
+                      ) : (
+                        <>
+                          <X className="w-4 h-4 mr-1" />
+                          Usuń plan
+                        </>
+                      )}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Usunąć przypisany plan?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Podopieczny straci dostęp do tego planu treningowego. Będziesz mógł przypisać nowy plan w dowolnym momencie.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel data-testid={`button-cancel-unassign-plan-${client.id}`}>Anuluj</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => unassignPlanMutation.mutate()}
+                        data-testid={`button-confirm-unassign-plan-${client.id}`}
+                      >
+                        Usuń plan
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
             {client.assignment.plan.description && (
@@ -486,6 +503,10 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-4 w-5/6" />
             </div>
+          ) : isErrorProgress || isErrorReports ? (
+            <p className="text-sm text-destructive" data-testid={`text-progress-error-${client.id}`}>
+              Nie udało się wczytać postępów podopiecznego. Odśwież stronę, aby spróbować ponownie.
+            </p>
           ) : clientProgress || latestReport || clientProfile?.pharmacologicalSupport || clientProfile?.injuries || clientProfile?.healthIssues ? (
             <div className="space-y-6">
               {clientProgress && (
@@ -642,137 +663,6 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
             <p className="text-muted-foreground" data-testid={`text-no-progress-${client.id}`}>
               Podopieczny nie uzupełnił jeszcze swoich postępów
             </p>
-          )}
-        </CollapsibleContent>
-      </Collapsible>
-
-      <Separator />
-
-      <Collapsible open={isMedicalOpen} onOpenChange={setIsMedicalOpen}>
-        <CollapsibleTrigger asChild>
-          <Button 
-            variant="ghost" 
-            className="w-full justify-between p-0 h-auto hover:bg-transparent"
-            data-testid={`button-toggle-medical-${client.id}`}
-          >
-            <h3 className="font-heading font-semibold text-base md:text-lg flex items-center gap-2">
-              <Activity className="w-4 h-4 md:w-5 md:h-5" />
-              Badania medyczne
-              {medicalTests && medicalTests.length > 0 && (
-                <Badge variant="secondary" className="ml-2">{medicalTests.length}</Badge>
-              )}
-            </h3>
-            <ChevronDown className={`w-5 h-5 transition-transform ${isMedicalOpen ? "rotate-180" : ""}`} />
-          </Button>
-        </CollapsibleTrigger>
-
-        <CollapsibleContent className="mt-3">
-          {isLoadingMedicalTests ? (
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-            </div>
-          ) : !medicalTests || medicalTests.length === 0 ? (
-            <p className="text-muted-foreground text-sm" data-testid={`text-no-tests-${client.id}`}>
-              Podopieczny nie dodał jeszcze żadnych badań medycznych.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {medicalTests.map((test) => (
-                <Card
-                  key={test.id}
-                  className="hover-elevate"
-                  data-testid={`card-medical-test-${test.id}`}
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between gap-4 flex-wrap">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <Badge 
-                            variant={
-                              test.testType === "blood" ? "default" :
-                              test.testType === "hormone" ? "secondary" : 
-                              "outline"
-                            }
-                            data-testid={`badge-test-type-${test.id}`}
-                          >
-                            {test.testType === "blood" && "Badanie krwi"}
-                            {test.testType === "hormone" && "Badanie hormonalne"}
-                            {test.testType === "cardio" && "Badanie kardiologiczne"}
-                            {test.testType === "other" && "Inne"}
-                            {!test.testType && "Nie określono"}
-                          </Badge>
-                        </div>
-                        <CardTitle className="text-base mb-1" data-testid={`text-test-name-${test.id}`}>
-                          {test.testName}
-                        </CardTitle>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Calendar className="w-4 h-4" />
-                          <span data-testid={`text-test-date-${test.id}`}>
-                            {format(new Date(test.testDate), "d MMMM yyyy", { locale: pl })}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3 pt-2">
-                    {test.resultValue && (
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground mb-1">Wynik:</p>
-                        <p className="text-base" data-testid={`text-result-${test.id}`}>
-                          {test.resultValue} {test.unit || ""}
-                        </p>
-                      </div>
-                    )}
-                    {test.referenceRange && (
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground mb-1">Zakres referencyjny:</p>
-                        <p className="text-base" data-testid={`text-range-${test.id}`}>
-                          {test.referenceRange}
-                        </p>
-                      </div>
-                    )}
-                    {test.orderingProvider && (
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground mb-1">Lekarz zlecający:</p>
-                        <p className="text-base" data-testid={`text-provider-${test.id}`}>
-                          {test.orderingProvider}
-                        </p>
-                      </div>
-                    )}
-                    {test.notes && (
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground mb-1">Notatki:</p>
-                        <p className="text-base" data-testid={`text-notes-${test.id}`}>
-                          {test.notes}
-                        </p>
-                      </div>
-                    )}
-                    {test.attachments && Array.isArray(test.attachments) && test.attachments.length > 0 ? (
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground mb-2">Załączniki:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {(test.attachments as Array<{ id: string; name: string; url: string; size: number; uploadedAt: Date }>).map((attachment, idx) => (
-                            <Button
-                              key={idx}
-                              asChild
-                              variant="outline"
-                              size="sm"
-                              data-testid={`button-download-attachment-${test.id}-${idx}`}
-                            >
-                              <a href={attachment.url} target="_blank" rel="noopener noreferrer">
-                                <Download className="w-4 h-4 mr-2" />
-                                {attachment.name}
-                              </a>
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
           )}
         </CollapsibleContent>
       </Collapsible>
@@ -956,15 +846,35 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
                       {session.durationMinutes} min{session.location ? ` • ${session.location}` : ""}
                     </p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => cancelBookingMutation.mutate(session.id)}
-                    disabled={cancelBookingMutation.isPending}
-                    data-testid={`button-cancel-session-${session.id}`}
-                  >
-                    <X className="w-4 h-4 text-destructive" />
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={cancelBookingMutation.isPending}
+                        data-testid={`button-cancel-session-${session.id}`}
+                      >
+                        <X className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Odwołać sesję?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Sesja zaplanowana na {format(new Date(session.scheduledAt), "EEEE, d MMMM yyyy, HH:mm", { locale: pl })} zostanie odwołana.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel data-testid={`button-cancel-cancel-session-${session.id}`}>Anuluj</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => cancelBookingMutation.mutate(session.id)}
+                          data-testid={`button-confirm-cancel-session-${session.id}`}
+                        >
+                          Odwołaj sesję
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               ))}
             </div>
@@ -981,7 +891,34 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
           <div className="space-y-3">
             <div>
               <label className="text-sm font-medium mb-1 block">Data</label>
-              <Input type="date" value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)} data-testid="input-schedule-date" />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !scheduleDate && "text-muted-foreground"
+                    )}
+                    data-testid="input-schedule-date"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {scheduleDate ? (
+                      format(new Date(`${scheduleDate}T00:00:00`), "PPP", { locale: pl })
+                    ) : (
+                      <span>Wybierz datę</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <DatePickerCalendar
+                    mode="single"
+                    selected={scheduleDate ? new Date(`${scheduleDate}T00:00:00`) : undefined}
+                    onSelect={(date) => date && setScheduleDate(format(date, "yyyy-MM-dd"))}
+                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div>
               <label className="text-sm font-medium mb-1 block">Godzina</label>

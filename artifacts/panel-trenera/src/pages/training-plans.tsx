@@ -1,7 +1,8 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Users, Copy } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Copy, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -26,7 +27,7 @@ type PlanWithDetails = TrainingPlan & {
 export default function TrainingPlans() {
   const { toast } = useToast();
 
-  const { data: plans, isLoading } = useQuery<PlanWithDetails[]>({
+  const { data: plans, isLoading, isError } = useQuery<PlanWithDetails[]>({
     queryKey: ["/api/plans"],
   });
 
@@ -97,7 +98,12 @@ export default function TrainingPlans() {
         </Button>
       </div>
 
-      {!plans || plans.length === 0 ? (
+      {isError ? (
+        <Alert variant="destructive" data-testid="alert-plans-error">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Nie udało się pobrać planów treningowych. Odśwież stronę, aby spróbować ponownie.</AlertDescription>
+        </Alert>
+      ) : !plans || plans.length === 0 ? (
         <Card>
           <CardContent className="p-6 md:p-12 text-center space-y-4">
             <div className="w-12 h-12 md:w-16 md:h-16 bg-muted rounded-full flex items-center justify-center mx-auto">

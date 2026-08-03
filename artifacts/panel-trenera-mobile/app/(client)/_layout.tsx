@@ -2,14 +2,15 @@ import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { Ionicons } from "@expo/vector-icons";
-import { Platform, StyleSheet, View, useColorScheme } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
+import { useTheme } from "@/context/ThemeContext";
 import { useUnreadCount } from "@/hooks/useChat";
 
 function ClassicClientTabs() {
   const colors = useColors();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
 
@@ -74,7 +75,6 @@ function ClassicClientTabs() {
       <Tabs.Screen name="progress" options={{ href: null }} />
       <Tabs.Screen name="referrals" options={{ href: null }} />
       <Tabs.Screen name="notifications" options={{ href: null }} />
-      <Tabs.Screen name="medical-tests" options={{ href: null }} />
       <Tabs.Screen name="weekly-report" options={{ href: null }} />
       <Tabs.Screen
         name="profile"

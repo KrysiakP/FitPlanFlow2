@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { FileText, User, Calendar, Weight, Ruler, Activity, Heart, Pill, MessageSquare, Image as ImageIcon, ArrowRight, BarChart3, Flame } from "lucide-react";
+import { FileText, User, Calendar, Weight, Ruler, Activity, Heart, Pill, MessageSquare, Image as ImageIcon, ArrowRight, BarChart3, Flame, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import type { User as UserType, WeeklyReport } from "@shared/schema";
@@ -196,11 +197,11 @@ type ClientWithReports = UserType & {
 export default function TrainerReports() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
-  const { data: clients, isLoading: isLoadingClients } = useQuery<ClientWithReports[]>({
+  const { data: clients, isLoading: isLoadingClients, isError: isErrorClients } = useQuery<ClientWithReports[]>({
     queryKey: ["/api/trainer/clients"],
   });
 
-  const { data: reports, isLoading: isLoadingReports } = useQuery<WeeklyReport[]>({
+  const { data: reports, isLoading: isLoadingReports, isError: isErrorReports } = useQuery<WeeklyReport[]>({
     queryKey: [`/api/clients/${selectedClientId}/reports`],
     enabled: !!selectedClientId,
   });
@@ -259,6 +260,13 @@ export default function TrainerReports() {
           Przeglądaj cotygodniowe raporty postępów swoich podopiecznych
         </p>
       </div>
+
+      {isErrorClients && (
+        <Alert variant="destructive" data-testid="alert-clients-error">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Nie udało się pobrać listy podopiecznych. Odśwież stronę, aby spróbować ponownie.</AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardContent className="p-6">
@@ -353,7 +361,14 @@ export default function TrainerReports() {
         </div>
       )}
 
-      {selectedClientId && !isLoadingReports && sortedReports.length === 0 && (
+      {selectedClientId && !isLoadingReports && isErrorReports && (
+        <Alert variant="destructive" data-testid="alert-reports-error">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Nie udało się pobrać raportów tego podopiecznego. Spróbuj ponownie.</AlertDescription>
+        </Alert>
+      )}
+
+      {selectedClientId && !isLoadingReports && !isErrorReports && sortedReports.length === 0 && (
         <Card>
           <CardContent className="p-12 text-center space-y-4">
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">

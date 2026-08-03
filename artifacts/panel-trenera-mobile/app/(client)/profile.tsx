@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -12,14 +13,14 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@/context/AuthContext";
-import { useTheme, type ThemePreference } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPost } from "@/lib/api";
 import { apiFetch } from "@/context/AuthContext";
@@ -52,6 +53,7 @@ export default function ClientProfileScreen() {
   const [editPhone, setEditPhone] = useState("");
   const [editGoal, setEditGoal] = useState<string | null>(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -61,6 +63,7 @@ export default function ClientProfileScreen() {
     setEditPhone("");
     setEditGoal(null);
     setSuccessMsg(null);
+    setLoadError(false);
     setLoadingEdit(true);
     setEditVisible(true);
     try {
@@ -74,8 +77,13 @@ export default function ClientProfileScreen() {
       if (progressRes.status === "fulfilled") {
         setEditGoal(progressRes.value?.goal ?? null);
       }
+      // If either fetch failed, block saving — otherwise we'd overwrite the
+      // real saved values with blank defaults from the failed field.
+      if (profileRes.status === "rejected" || progressRes.status === "rejected") {
+        setLoadError(true);
+      }
     } catch {
-      // Use empty defaults if fetch fails
+      setLoadError(true);
     } finally {
       setLoadingEdit(false);
     }
@@ -176,7 +184,6 @@ export default function ClientProfileScreen() {
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Ustawienia</Text>
 
-        <ThemeToggleRow colors={colors} />
         <MenuRow
           icon="create-outline"
           label="Edytuj profil"
@@ -187,13 +194,20 @@ export default function ClientProfileScreen() {
         />
         <MenuRow
           icon="notifications-outline"
-          label="Powiadomienia"
+          label="Ustawienia powiadomień"
           desc="Zarządzaj powiadomieniami push"
           colors={colors}
           onPress={() => router.push("/notifications")}
           testID="button-notifications"
         />
-        <MenuRow icon="globe-outline" label="Zarządzaj kontem" desc="Otwórz Panel Trenera w przeglądarce" colors={colors} />
+        <MenuRow
+          icon="globe-outline"
+          label="Zarządzaj kontem"
+          desc="Otwórz Panel Trenera w przeglądarce"
+          colors={colors}
+          onPress={() => Linking.openURL("https://paneltrenera.pl").catch(() => {})}
+          testID="button-manage-account"
+        />
         <MenuRow icon="shield-checkmark-outline" label="Prywatność i RODO" desc="Zarządzaj zgodami i danymi" colors={colors} onPress={() => router.push("/(auth)/privacy")} testID="button-privacy" />
         <MenuRow icon="help-circle-outline" label="Pomoc i kontakt" desc="FAQ i kontakt z supportem" colors={colors} onPress={() => router.push("/(auth)/help")} testID="button-help" />
 
@@ -248,6 +262,18 @@ export default function ClientProfileScreen() {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
+              {loadError && (
+                <View style={[styles.successBanner, { backgroundColor: colors.destructive + "18", borderColor: colors.destructive + "44" }]}>
+                  <Ionicons name="alert-circle-outline" size={18} color={colors.destructive} />
+                  <Text style={[styles.successText, { color: colors.destructive, flex: 1 }]}>
+                    Nie udało się wczytać aktualnych danych profilu. Zapisywanie jest wyłączone, żeby nic nie nadpisać.
+                  </Text>
+                  <Pressable onPress={openEditModal} testID="button-edit-retry-load">
+                    <Ionicons name="refresh" size={20} color={colors.destructive} />
+                  </Pressable>
+                </View>
+              )}
+
               <View style={styles.section}>
                 <Text style={[styles.sectionLabel, { color: colors.foreground }]}>Cel treningowy</Text>
                 <Text style={[styles.sectionHint, { color: colors.mutedForeground }]}>
@@ -319,10 +345,10 @@ export default function ClientProfileScreen() {
 
               <Pressable
                 onPress={handleSave}
-                disabled={saving}
+                disabled={saving || loadError}
                 style={({ pressed }) => [
                   styles.saveBtn,
-                  { backgroundColor: colors.primary, opacity: pressed || saving ? 0.85 : 1 },
+                  { backgroundColor: colors.primary, opacity: loadError ? 0.4 : pressed || saving ? 0.85 : 1 },
                 ]}
                 testID="button-edit-save"
               >
@@ -370,11 +396,21 @@ function TrainerReviewSection({ colors }: { colors: ReturnType<typeof useColors>
     retry: false,
   });
 
+  // The server upserts reviews (no duplicate rows), but on this device we can
+  // still remember a prior submission so the form doesn't reappear blank.
+  useEffect(() => {
+    if (!myTrainer) return;
+    AsyncStorage.getItem(`trainer-review-submitted-${myTrainer.id}`)
+      .then((v) => { if (v === "true") setSubmitted(true); })
+      .catch(() => {});
+  }, [myTrainer?.id]);
+
   const submitMutation = useMutation({
     mutationFn: () => apiPost(`/api/trainers/${myTrainer!.id}/reviews`, { rating, comment: comment.trim() || null }),
     onSuccess: () => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSubmitted(true);
+      if (myTrainer) AsyncStorage.setItem(`trainer-review-submitted-${myTrainer.id}`, "true").catch(() => {});
       qc.invalidateQueries({ queryKey: ["my-trainer"] });
     },
     onError: () => Alert.alert("Błąd", "Nie udało się zapisać opinii"),
@@ -453,46 +489,6 @@ function MenuRow({ icon, label, desc, colors, onPress, testID }: MenuRowProps) {
   );
 }
 
-function ThemeToggleRow({ colors }: { colors: ReturnType<typeof useColors> }) {
-  const { preference, setPreference } = useTheme();
-  const options: { value: ThemePreference; icon: IoniconsName; label: string }[] = [
-    { value: "light", icon: "sunny-outline", label: "Jasny" },
-    { value: "system", icon: "phone-portrait-outline", label: "System" },
-    { value: "dark", icon: "moon-outline", label: "Ciemny" },
-  ];
-
-  return (
-    <View style={[styles.menuRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <View style={[styles.menuIcon, { backgroundColor: colors.accent }]}>
-        <Ionicons name="contrast-outline" size={18} color={colors.foreground} />
-      </View>
-      <View style={[styles.menuInfo, { flex: 1 }]}>
-        <Text style={[styles.menuLabel, { color: colors.foreground }]}>Motyw</Text>
-      </View>
-      <View style={[styles.themeToggleRow, { backgroundColor: colors.accent, borderColor: colors.border }]}>
-        {options.map((opt) => {
-          const active = preference === opt.value;
-          return (
-            <Pressable
-              key={opt.value}
-              onPress={() => { setPreference(opt.value); Haptics.selectionAsync(); }}
-              style={[
-                styles.themeOption,
-                active && { backgroundColor: colors.primary },
-              ]}
-              testID={`button-theme-${opt.value}`}
-            >
-              <Ionicons name={opt.icon} size={14} color={active ? colors.primaryForeground : colors.mutedForeground} />
-              <Text style={[styles.themeOptionLabel, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>
-                {opt.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   root: { flex: 1 },

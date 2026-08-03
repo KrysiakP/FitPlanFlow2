@@ -10,7 +10,6 @@ import {
   weeklyReports,
   dietPlans,
   dietMeals,
-  medicalTests,
   clientPayments,
 } from "@workspace/db";
 import { randomUUID } from "crypto";
@@ -79,9 +78,6 @@ export async function createTestClientWithSampleData(trainerId: string): Promise
     
     // Create diet plan with meals
     await createSampleDietPlan(trainerId, testClientId);
-    
-    // Create medical tests
-    await createSampleMedicalTests(testClientId);
     
     // Create payments
     await createSamplePayments(trainerId, testClientId);
@@ -296,42 +292,6 @@ async function createSampleDietPlan(trainerId: string, clientId: string): Promis
       protein: meal.protein,
       fat: meal.fat,
       carbs: meal.carbs,
-    });
-  }
-}
-
-async function createSampleMedicalTests(clientId: string): Promise<void> {
-  const now = new Date();
-  const twoMonthsAgo = new Date(now);
-  twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
-  
-  const testsData = [
-    // Morfologia
-    { testName: "Leukocyty (WBC)", testType: "blood", resultValue: "6.2", unit: "tys./µl", referenceRange: "4.0 - 10.0", testDate: twoMonthsAgo },
-    { testName: "Erytrocyty (RBC)", testType: "blood", resultValue: "5.1", unit: "mln/µl", referenceRange: "4.5 - 5.5", testDate: twoMonthsAgo },
-    { testName: "Hemoglobina (HGB)", testType: "blood", resultValue: "15.2", unit: "g/dl", referenceRange: "14.0 - 18.0", testDate: twoMonthsAgo },
-    // Lipidogram
-    { testName: "Cholesterol całkowity", testType: "blood", resultValue: "185", unit: "mg/dl", referenceRange: "< 200", testDate: twoMonthsAgo },
-    { testName: "Cholesterol LDL", testType: "blood", resultValue: "110", unit: "mg/dl", referenceRange: "< 130", testDate: twoMonthsAgo },
-    { testName: "Cholesterol HDL", testType: "blood", resultValue: "55", unit: "mg/dl", referenceRange: "> 40", testDate: twoMonthsAgo },
-    { testName: "Triglicerydy", testType: "blood", resultValue: "95", unit: "mg/dl", referenceRange: "< 150", testDate: twoMonthsAgo },
-    // Glukoza
-    { testName: "Glukoza na czczo", testType: "blood", resultValue: "92", unit: "mg/dl", referenceRange: "70 - 100", testDate: twoMonthsAgo },
-  ];
-  
-  for (const test of testsData) {
-    await db.insert(medicalTests).values({
-      id: randomUUID(),
-      clientId: clientId,
-      testName: test.testName,
-      testType: test.testType,
-      resultValue: test.resultValue,
-      unit: test.unit,
-      referenceRange: test.referenceRange,
-      testDate: test.testDate,
-      orderingProvider: "Dr. Anna Kowalska",
-      notes: null,
-      attachments: null,
     });
   }
 }

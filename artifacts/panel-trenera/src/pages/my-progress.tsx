@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,7 +19,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
-import type { WeeklyReport, ExerciseLog } from "@shared/schema";
+import type { WeeklyReport, ExerciseLog, PlanAssignment, TrainingPlan, Workout, Exercise } from "@shared/schema";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 function parseNumericValue(value: string | null | undefined): number {
@@ -28,13 +29,27 @@ function parseNumericValue(value: string | null | undefined): number {
 }
 
 export default function MyProgress() {
-  const { data: reports, isLoading: isLoadingReports } = useQuery<WeeklyReport[]>({
+  const { data: reports, isLoading: isLoadingReports, isError: isErrorReports } = useQuery<WeeklyReport[]>({
     queryKey: ["/api/reports"],
   });
 
-  const { data: exerciseLogs, isLoading: isLoadingLogs } = useQuery<ExerciseLog[]>({
+  const { data: exerciseLogs, isLoading: isLoadingLogs, isError: isErrorLogs } = useQuery<ExerciseLog[]>({
     queryKey: ["/api/exercise-logs"],
   });
+
+  // Resolve exerciseId -> exercise name from the client's own assigned plan
+  // (exercise-library is trainer-only, so it isn't a usable source here).
+  const { data: assignment } = useQuery<PlanAssignment & { plan: TrainingPlan & { workouts: (Workout & { exercises: Exercise[] })[] } }>({
+    queryKey: ["/api/client/assignment"],
+  });
+
+  const exerciseNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    (assignment?.plan?.workouts ?? []).forEach((w) => {
+      w.exercises.forEach((e) => map.set(e.id, e.name));
+    });
+    return map;
+  }, [assignment]);
 
   const sortedReports = reports 
     ? [...reports].sort((a, b) => new Date(a.reportDate).getTime() - new Date(b.reportDate).getTime())
@@ -74,6 +89,25 @@ export default function MyProgress() {
           <Skeleton className="h-96" />
           <Skeleton className="h-96" />
         </div>
+      </div>
+    );
+  }
+
+  if (isErrorReports || isErrorLogs) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="font-heading font-bold text-4xl mb-2" data-testid="text-progress-title">
+            Mój progres
+          </h1>
+        </div>
+        <Alert variant="destructive" data-testid="alert-progress-error">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Błąd ładowania</AlertTitle>
+          <AlertDescription>
+            Nie udało się pobrać Twoich postępów. Odśwież stronę, aby spróbować ponownie.
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -290,20 +324,31 @@ export default function MyProgress() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {exerciseLogs.slice(0, 5).map((log) => (
-                <div key={log.id} className="flex items-center justify-between p-3 rounded-lg border">
-                  <div className="flex-1">
-                    <p className="font-medium">{log.exerciseId}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {format(new Date(log.loggedAt), "d MMMM yyyy", { locale: pl })}
-                    </p>
+              {Array.from(
+                exerciseLogs.reduce((best, log) => {
+                  const existing = best.get(log.exerciseId);
+                  if (!existing || parseNumericValue(log.load) > parseNumericValue(existing.load)) {
+                    best.set(log.exerciseId, log);
+                  }
+                  return best;
+                }, new Map<string, ExerciseLog>()).values()
+              )
+                .sort((a, b) => parseNumericValue(b.load) - parseNumericValue(a.load))
+                .slice(0, 5)
+                .map((log) => (
+                  <div key={log.id} className="flex items-center justify-between p-3 rounded-lg border">
+                    <div className="flex-1">
+                      <p className="font-medium">{exerciseNameById.get(log.exerciseId) ?? "Ćwiczenie"}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(log.loggedAt), "d MMMM yyyy", { locale: pl })}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-lg">{log.reps} powtórzeń</p>
+                      {log.load && <p className="text-sm text-muted-foreground">{log.load}</p>}
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-lg">{log.reps} powtórzeń</p>
-                    {log.load && <p className="text-sm text-muted-foreground">{log.load}</p>}
-                  </div>
-                </div>
-              ))}
+                ))}
             </div>
           </CardContent>
         </Card>

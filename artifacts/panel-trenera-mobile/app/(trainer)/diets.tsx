@@ -83,7 +83,7 @@ export default function TrainerDietsScreen() {
   });
 
   const { data: clients = [] } = useQuery<Client[]>({
-    queryKey: ["trainer-clients-simple"],
+    queryKey: ["trainer-clients"],
     queryFn: () => apiGet<Client[]>("/api/trainer/clients"),
   });
 
@@ -111,7 +111,7 @@ export default function TrainerDietsScreen() {
       router.push(`/diet/${data.id}`);
     },
     onError: () => {
-      // handled silently — user can retry
+      Alert.alert("Błąd", "Nie udało się utworzyć planu diety. Spróbuj ponownie.");
     },
   });
 
@@ -124,6 +124,7 @@ export default function TrainerDietsScreen() {
     },
     onError: () => {
       setPlanToDelete(null);
+      Alert.alert("Błąd", "Nie udało się usunąć planu diety. Spróbuj ponownie.");
     },
   });
 
@@ -166,7 +167,7 @@ export default function TrainerDietsScreen() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.stickyHeader, { paddingTop: topPad + 8, backgroundColor: colors.background }]}>
         <View style={styles.headerRow}>
-          <Ionicons name="chevron-back" size={28} color={colors.primary} onPress={() => router.back()} />
+          <Ionicons name="chevron-back" size={28} color={colors.primary} onPress={() => router.replace("/panel")} />
           <Text style={[styles.pageTitle, { color: colors.foreground }]}>Plany diety</Text>
           <View style={[styles.countBadge, { backgroundColor: colors.primary + "1a" }]}>
             <Text style={[styles.countText, { color: colors.primary }]}>{plans.length}</Text>

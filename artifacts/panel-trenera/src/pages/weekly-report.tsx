@@ -11,7 +11,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertWeeklyReportSchema, type WeeklyReport, type InsertWeeklyReportInput } from "@shared/schema";
-import { Calendar as CalendarIcon, Upload, FileImage, TrendingUp, Activity, Pencil, Flame } from "lucide-react";
+import { Calendar as CalendarIcon, Upload, FileImage, TrendingUp, Activity, Pencil, Flame, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -76,7 +77,7 @@ export default function WeeklyReport() {
     },
   });
 
-  const { data: reports, isLoading } = useQuery<WeeklyReport[]>({
+  const { data: reports, isLoading, isError } = useQuery<WeeklyReport[]>({
     queryKey: ["/api/reports"],
   });
 
@@ -652,6 +653,11 @@ export default function WeeklyReport() {
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
           </div>
+        ) : isError ? (
+          <Alert variant="destructive" data-testid="alert-reports-error">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>Nie udało się pobrać raportów. Odśwież stronę, aby spróbować ponownie.</AlertDescription>
+          </Alert>
         ) : sortedReports.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {sortedReports.map((report) => (

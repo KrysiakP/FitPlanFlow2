@@ -19,6 +19,17 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertCharityDonationSchema, type CharityDonation, type InsertCharityDonationInput } from "@shared/schema";
@@ -369,15 +380,35 @@ export default function AdminCharityDonations() {
                         Dodano: {format(new Date(donation.uploadedAt), "d MMMM yyyy, HH:mm", { locale: pl })}
                       </p>
                     </div>
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      onClick={() => deleteMutation.mutate(donation.id)}
-                      disabled={deleteMutation.isPending}
-                      data-testid={`button-delete-${donation.id}`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          disabled={deleteMutation.isPending}
+                          data-testid={`button-delete-${donation.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Usunąć dokument darowizny?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Ta operacja jest nieodwracalna. Potwierdzenie darowizny zostanie trwale usunięte.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel data-testid={`button-cancel-delete-${donation.id}`}>Anuluj</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => deleteMutation.mutate(donation.id)}
+                            data-testid={`button-confirm-delete-${donation.id}`}
+                          >
+                            Usuń
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </CardContent>
               </Card>

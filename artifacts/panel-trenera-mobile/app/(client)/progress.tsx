@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import {
   ActivityIndicator,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { apiGet } from "@/lib/api";
@@ -81,7 +83,7 @@ export default function ProgressScreen() {
   const { user } = useAuth();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const { data, isLoading, refetch, isRefetching } = useQuery<ProgressEntry | null>({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery<ProgressEntry | null>({
     queryKey: ["client-progress", user?.id],
     queryFn: () => apiGet<ProgressEntry | null>("/api/client/progress"),
     enabled: !!user?.id,
@@ -137,6 +139,11 @@ export default function ProgressScreen() {
       }
       showsVerticalScrollIndicator={false}
     >
+      <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
+        <Ionicons name="chevron-back" size={22} color={colors.primary} />
+        <Text style={[styles.backText, { color: colors.primary }]}>Wstecz</Text>
+      </Pressable>
+
       <Text style={[styles.pageTitle, { color: colors.foreground }]}>Postępy</Text>
 
       {isLoading ? (
@@ -175,7 +182,17 @@ export default function ProgressScreen() {
             </View>
           </View>
 
-          {!latest && (
+          {!latest && isError && (
+            <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Ionicons name="cloud-offline-outline" size={28} color={colors.mutedForeground} />
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Błąd ładowania</Text>
+              <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
+                Nie udało się pobrać postępów. Pociągnij w dół, aby spróbować ponownie.
+              </Text>
+            </View>
+          )}
+
+          {!latest && !isError && (
             <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Ionicons name="trending-up-outline" size={28} color={colors.mutedForeground} />
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Brak pomiarów</Text>
@@ -479,6 +496,8 @@ const hStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingHorizontal: 20 },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8 },
+  backText: { fontSize: 15, fontFamily: "Inter_500Medium" },
   pageTitle: { fontSize: 22, fontFamily: "Inter_700Bold", marginBottom: 16 },
   loader: { marginTop: 40 },
   emptyBox: {

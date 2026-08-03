@@ -16,6 +16,7 @@ import {
 } from "@/components/chat-components";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ChatPage() {
   const { user } = useAuth();
@@ -38,12 +39,15 @@ export default function ChatPage() {
 
   // Send message mutation
   const sendMessageMutation = useSendMessage();
+  const { toast } = useToast();
 
   // Mark as read mutation
   const markAsReadMutation = useMarkAsRead();
 
-  // Connect to WebSocket
-  useWebSocket(user || null);
+  // Connect to WebSocket — conversations/messages also poll on an interval as
+  // a fallback, but surface the drop so a stale "live" chat isn't mistaken
+  // for one that's actually receiving new messages in real time.
+  const { isConnected } = useWebSocket(user || null);
 
   // Select conversation based on URL or default
   useEffect(() => {
@@ -100,7 +104,7 @@ export default function ChatPage() {
     }
   };
 
-  const handleSendMessage = (body: string) => {
+  const handleSendMessage = async (body: string) => {
     if (!selectedConversation || !user) return;
 
     // SECURITY: Only send recipientId and body - server derives senderId, trainerId, clientId from session
@@ -112,7 +116,16 @@ export default function ChatPage() {
       clientId: selectedConversation.clientId,
     };
 
-    sendMessageMutation.mutate(messageData);
+    try {
+      await sendMessageMutation.mutateAsync(messageData);
+    } catch {
+      toast({
+        title: "Nie udało się wysłać wiadomości",
+        description: "Sprawdź połączenie i spróbuj ponownie.",
+        variant: "destructive",
+      });
+      throw new Error("send failed");
+    }
   };
 
   if (!user) {
@@ -147,6 +160,15 @@ export default function ChatPage() {
           </span>
         </h1>
       </header>
+
+      {!isConnected && (
+        <div
+          className="shrink-0 px-4 py-1.5 text-xs text-center bg-amber-500/10 text-amber-700 dark:text-amber-400 border-b border-amber-500/20"
+          data-testid="banner-chat-disconnected"
+        >
+          Połączenie na żywo przerwane — wiadomości odświeżają się co kilka sekund.
+        </div>
+      )}
 
       <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Conversations sidebar - hidden on mobile when chat is open */}

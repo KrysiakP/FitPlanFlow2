@@ -215,7 +215,7 @@ export function MessageHistory({
 }
 
 interface MessageComposerProps {
-  onSend: (body: string) => void;
+  onSend: (body: string) => Promise<void> | void;
   isSending: boolean;
   disabled?: boolean;
 }
@@ -227,11 +227,17 @@ export function MessageComposer({
 }: MessageComposerProps) {
   const [message, setMessage] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (message.trim() && !isSending) {
-      onSend(message.trim());
+    const trimmed = message.trim();
+    if (!trimmed || isSending) return;
+    try {
+      await onSend(trimmed);
+      // Only clear once the send actually succeeded — on failure, keep the
+      // text so the trainer/client doesn't lose what they typed.
       setMessage("");
+    } catch {
+      // onSend already surfaces an error toast; leave the text in place.
     }
   };
 

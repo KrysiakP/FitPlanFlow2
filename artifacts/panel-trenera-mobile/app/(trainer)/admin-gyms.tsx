@@ -17,6 +17,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 
@@ -189,10 +190,15 @@ export default function AdminGymsScreen() {
     <>
       <ScrollView
         style={{ backgroundColor: colors.background }}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 }]}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
       >
+        <Pressable onPress={() => router.replace("/panel")} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
+          <Text style={[styles.backText, { color: colors.primary }]}>Wstecz</Text>
+        </Pressable>
+
         {/* Header */}
         <View style={[styles.adminBanner, { backgroundColor: "#fef3c718", borderColor: "#f59e0b40" }]}>
           <Ionicons name="shield-checkmark" size={20} color="#f59e0b" />
@@ -420,6 +426,8 @@ function StatChip({ icon, value, label, color }: { icon: React.ComponentProps<ty
 const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   content: { padding: 16 },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8 },
+  backText: { fontSize: 15, fontFamily: "Inter_500Medium" },
   adminBanner: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 16 },
   adminBannerText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   createBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, borderRadius: 14, marginBottom: 12 },

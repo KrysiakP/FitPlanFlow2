@@ -2,7 +2,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, User, Apple, ChefHat, Pill, Copy } from "lucide-react";
+import { Plus, Pencil, Trash2, User, Apple, ChefHat, Pill, Copy, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -45,7 +46,7 @@ function SupplementCountBadge({ planId, mode }: { planId: string; mode: string |
 export default function TrainerDiets() {
   const { toast } = useToast();
 
-  const { data: plans, isLoading } = useQuery<DietPlanWithClient[]>({
+  const { data: plans, isLoading, isError } = useQuery<DietPlanWithClient[]>({
     queryKey: ["/api/diets/plans"],
   });
 
@@ -156,7 +157,12 @@ export default function TrainerDiets() {
         </Button>
       </div>
 
-      {!plans || plans.length === 0 ? (
+      {isError ? (
+        <Alert variant="destructive" data-testid="alert-diet-plans-error">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Nie udało się pobrać planów dietetycznych. Odśwież stronę, aby spróbować ponownie.</AlertDescription>
+        </Alert>
+      ) : !plans || plans.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center space-y-4">
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">

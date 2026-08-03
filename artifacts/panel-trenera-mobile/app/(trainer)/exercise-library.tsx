@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { WebView } from "react-native-webview";
+import { router } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/api";
@@ -88,7 +89,7 @@ const PRESET_EXERCISES: Array<{ name: string; category: string }> = [
   // Klatka piersiowa
   {name:"Wyciskanie sztangi na ławce płaskiej",category:"Klatka piersiowa"},{name:"Wyciskanie hantli na ławce płaskiej",category:"Klatka piersiowa"},{name:"Wyciskanie na maszynie pneumatycznej",category:"Klatka piersiowa"},{name:"Rozpiętki hantli na ławce płaskiej",category:"Klatka piersiowa"},{name:"Rozpiętki na maszynie motylkowej",category:"Klatka piersiowa"},{name:"Rozpiętki na linie skrzyżowanej",category:"Klatka piersiowa"},{name:"Pull-overy z hantlą",category:"Klatka piersiowa"},{name:"Pull-overy na maszynie",category:"Klatka piersiowa"},{name:"Wyciskanie sztangi na ławce pochyłej",category:"Klatka piersiowa"},{name:"Wyciskanie hantli na ławce pochyłej",category:"Klatka piersiowa"},{name:"Wyciskanie sztangi na ławce ujemnej",category:"Klatka piersiowa"},{name:"Wyciskanie hantli na ławce ujemnej",category:"Klatka piersiowa"},{name:"Rozpiętki hantli na ławce pochyłej",category:"Klatka piersiowa"},{name:"Rozpiętki na linie skrzyżowanej (górna)",category:"Klatka piersiowa"},{name:"Wyciskanie sztangi do klatki piersiowej na maszynie Smith",category:"Klatka piersiowa"},{name:"Wyciskanie hantli na ławce Smith",category:"Klatka piersiowa"},{name:"Uciśnięcia z liny na klatce",category:"Klatka piersiowa"},{name:"Wyciskanie sztangi na ławce Smitha pochyłej",category:"Klatka piersiowa"},{name:"Dumbbell press na podłodze",category:"Klatka piersiowa"},{name:"Push-ups zwykłe",category:"Klatka piersiowa"},{name:"Push-ups szerokie",category:"Klatka piersiowa"},{name:"Push-ups wąskie",category:"Klatka piersiowa"},{name:"Push-ups diamendowe",category:"Klatka piersiowa"},{name:"Push-ups na deklinacji",category:"Klatka piersiowa"},{name:"Push-ups na inklinacji",category:"Klatka piersiowa"},
   // Plecy
-  {name:"Przyciągi sztangi do klatki",category:"Klatka piersiowa"},{name:"Przyciągi hantli do klatki",category:"Klatka piersiowa"},{name:"Przyciągi na maszynie rządowej",category:"Klatka piersiowa"},{name:"Przyciągi na maszynie pneumatycznej",category:"Klatka piersiowa"},{name:"Przyciągi liny do klatki",category:"Klatka piersiowa"},{name:"Przyciągi szerokie na linie skrzyżowanej",category:"Klatka piersiowa"},{name:"Przyciągi wąskie na linie skrzyżowanej",category:"Klatka piersiowa"},{name:"Przyciągi na pochyłej linie",category:"Klatka piersiowa"},{name:"Przyciągi na maszynie Smith",category:"Klatka piersiowa"},{name:"Przyciągi jednoręczne na linie",category:"Klatka piersiowa"},{name:"Przedni pull down na linie",category:"Klatka piersiowa"},{name:"Przyciągi tyłem głowy na linie",category:"Klatka piersiowa"},{name:"Przyciągi z hantlą jednoręczne",category:"Klatka piersiowa"},{name:"Przyciągi z kettlebell",category:"Klatka piersiowa"},
+  {name:"Przyciągi sztangi do klatki",category:"Plecy"},{name:"Przyciągi hantli do klatki",category:"Plecy"},{name:"Przyciągi na maszynie rządowej",category:"Plecy"},{name:"Przyciągi na maszynie pneumatycznej",category:"Plecy"},{name:"Przyciągi liny do klatki",category:"Plecy"},{name:"Przyciągi szerokie na linie skrzyżowanej",category:"Plecy"},{name:"Przyciągi wąskie na linie skrzyżowanej",category:"Plecy"},{name:"Przyciągi na pochyłej linie",category:"Plecy"},{name:"Przyciągi na maszynie Smith",category:"Plecy"},{name:"Przyciągi jednoręczne na linie",category:"Plecy"},{name:"Przedni pull down na linie",category:"Plecy"},{name:"Przyciągi tyłem głowy na linie",category:"Plecy"},{name:"Przyciągi z hantlą jednoręczne",category:"Plecy"},{name:"Przyciągi z kettlebell",category:"Plecy"},
   // Barki
   {name:"Wyciskanie sztangi nad głową",category:"Barki"},{name:"Wyciskanie hantli nad głową",category:"Barki"},{name:"Wyciskanie sztangi sztaba nad głową (military press)",category:"Barki"},{name:"Wyciskanie hantli nad głową (dumbbell shoulder press)",category:"Barki"},{name:"Wyciskanie na maszynie pressa ramion",category:"Barki"},{name:"Wyciskanie na linie skrzyżowanej",category:"Barki"},{name:"Wyciskanie Arnold (Arnold press)",category:"Barki"},{name:"Podnoszenia hantli boczne",category:"Barki"},{name:"Podnoszenia hantli boczne na maszynie kablowej",category:"Barki"},{name:"Podnoszenia sztangi do brody (upright row)",category:"Barki"},{name:"Podnoszenia liny do brody",category:"Barki"},{name:"Podnoszenia hantli do brody",category:"Barki"},{name:"Podnoszenia ramion z hantlami",category:"Barki"},{name:"Podnoszenia ramion na maszynie",category:"Barki"},{name:"Podnoszenia ramion z kettlebell",category:"Barki"},{name:"Skłony głowy do przodu na maszynie",category:"Barki"},{name:"Skłony głowy na maszynie blokującej",category:"Barki"},{name:"Ty-raisy (podnoszenia hantli w przód)",category:"Barki"},{name:"Ty-raisy na maszynie kablowej",category:"Barki"},{name:"Reverse pec deck (reverse flyes)",category:"Barki"},{name:"Reverse pec deck na maszynie",category:"Barki"},{name:"Ty-raisy z liną",category:"Barki"},{name:"Ty-raisy w przekroczeniu (crossover)",category:"Barki"},{name:"Ty-raisy jednoręczne z hantlą",category:"Barki"},{name:"Żuraw",category:"Barki"},{name:"Żuraw na maszynie",category:"Barki"},{name:"Żuraw jedno nóżka",category:"Barki"},
   // Plecy (ciąg dalszy)
@@ -313,12 +314,17 @@ export default function ExerciseLibraryScreen() {
     <>
       <ScrollView
         style={[styles.root, { backgroundColor: colors.background }]}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 30 }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 30 }]}
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />
         }
         showsVerticalScrollIndicator={false}
       >
+        <Pressable onPress={() => router.replace("/panel")} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
+          <Text style={[styles.backText, { color: colors.primary }]}>Wstecz</Text>
+        </Pressable>
+
         <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Ionicons name="search-outline" size={18} color={colors.mutedForeground} />
           <TextInput
@@ -853,6 +859,8 @@ export default function ExerciseLibraryScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingHorizontal: 16, paddingTop: 16 },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8 },
+  backText: { fontSize: 15, fontFamily: "Inter_500Medium" },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",

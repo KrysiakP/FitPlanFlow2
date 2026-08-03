@@ -88,6 +88,7 @@ export default function PlanDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const topPad = Platform.OS === "web" ? 67 : insets.top;
   const qc = useQueryClient();
 
   const [expandedWorkouts, setExpandedWorkouts] = useState<Set<string>>(new Set());
@@ -373,11 +374,16 @@ export default function PlanDetailScreen() {
     >
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[styles.content, { paddingTop: topPad + 16, paddingBottom: insets.bottom + 100 }]}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
+          <Text style={[styles.backText, { color: colors.primary }]}>Wstecz</Text>
+        </Pressable>
+
         <View style={[styles.planInfoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {editingPlanName ? (
             <View style={{ gap: 10 }}>
@@ -1059,6 +1065,8 @@ export default function PlanDetailScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingTop: 16, gap: 12 },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 4 },
+  backText: { fontSize: 15, fontFamily: "Inter_500Medium" },
   planInfoCard: { borderRadius: 14, borderWidth: 1, padding: 16, marginBottom: 4, gap: 8 },
   planNameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   planName: { fontSize: 20, fontFamily: "Inter_700Bold", flex: 1 },

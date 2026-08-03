@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -12,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Platform } from "react-native";
+import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPatch } from "@/lib/api";
 
@@ -117,7 +119,7 @@ export default function NotificationHistoryScreen() {
   const queryClient = useQueryClient();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const { data, isLoading, refetch, isRefetching } = useQuery<NotificationsResponse>({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery<NotificationsResponse>({
     queryKey: ["notification-history"],
     queryFn: () => apiGet<NotificationsResponse>("/api/notifications/mine"),
   });
@@ -125,11 +127,13 @@ export default function NotificationHistoryScreen() {
   const markReadMutation = useMutation({
     mutationFn: (id: string) => apiPatch<PushNotificationHistory>(`/api/notifications/mine/${id}/read`, {}),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notification-history"] }),
+    onError: () => console.error("Failed to mark notification as read"),
   });
 
   const markAllReadMutation = useMutation({
     mutationFn: () => apiPatch<{ message: string }>("/api/notifications/mine/read-all", {}),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notification-history"] }),
+    onError: () => Alert.alert("Błąd", "Nie udało się oznaczyć powiadomień jako przeczytane."),
   });
 
   const handlePress = useCallback(
@@ -148,6 +152,10 @@ export default function NotificationHistoryScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: topPad + 12, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
+          <Text style={[styles.backText, { color: colors.primary }]}>Wstecz</Text>
+        </Pressable>
         <View style={styles.headerRow}>
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>Powiadomienia</Text>
           {unreadCount > 0 && (
@@ -172,6 +180,14 @@ export default function NotificationHistoryScreen() {
       {isLoading ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : isError ? (
+        <View style={styles.centered}>
+          <Ionicons name="cloud-offline-outline" size={48} color={colors.mutedForeground} />
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Błąd ładowania</Text>
+          <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
+            Nie udało się pobrać powiadomień. Pociągnij w dół, aby spróbować ponownie.
+          </Text>
         </View>
       ) : notifications.length === 0 ? (
         <View style={styles.centered}>
@@ -212,6 +228,8 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8 },
+  backText: { fontSize: 15, fontFamily: "Inter_500Medium" },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",

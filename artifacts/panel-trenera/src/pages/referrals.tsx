@@ -13,6 +13,7 @@ import {
   Clock,
   UserPlus,
   ShoppingCart,
+  AlertCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -34,15 +35,15 @@ type ReferralWithUser = ReferralEvent & {
 export default function Referrals() {
   const { toast } = useToast();
 
-  const { data: referralCode, isLoading: isLoadingCode } = useQuery<ReferralCode | null>({
+  const { data: referralCode, isLoading: isLoadingCode, isError: isErrorCode } = useQuery<ReferralCode | null>({
     queryKey: ["/api/referrals/my-code"],
   });
 
-  const { data: stats, isLoading: isLoadingStats } = useQuery<ReferralStats>({
+  const { data: stats, isLoading: isLoadingStats, isError: isErrorStats } = useQuery<ReferralStats>({
     queryKey: ["/api/referrals/my-stats"],
   });
 
-  const { data: referrals, isLoading: isLoadingReferrals } = useQuery<ReferralWithUser[]>({
+  const { data: referrals, isLoading: isLoadingReferrals, isError: isErrorReferrals } = useQuery<ReferralWithUser[]>({
     queryKey: ["/api/referrals/my-referrals"],
   });
 
@@ -136,6 +137,13 @@ export default function Referrals() {
               <Skeleton className="h-16 w-full" />
               <Skeleton className="h-10 w-full" />
             </>
+          ) : isErrorCode ? (
+            <Alert variant="destructive" data-testid="alert-code-error">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Nie udało się pobrać kodu polecającego. Odśwież stronę, aby spróbować ponownie.
+              </AlertDescription>
+            </Alert>
           ) : referralCode ? (
             <>
               <div className="flex items-center justify-between gap-4 p-4 bg-primary/10 rounded-lg flex-wrap">
@@ -193,6 +201,12 @@ export default function Referrals() {
       </Card>
 
       {/* Section 2: Stats Cards */}
+      {isErrorStats && (
+        <Alert variant="destructive" data-testid="alert-stats-error">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Nie udało się pobrać statystyk poleceń. Odśwież stronę, aby spróbować ponownie.</AlertDescription>
+        </Alert>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {isLoadingStats ? (
           <>
@@ -286,6 +300,13 @@ export default function Referrals() {
               <Skeleton className="h-16 w-full" />
               <Skeleton className="h-16 w-full" />
             </div>
+          ) : isErrorReferrals ? (
+            <Alert variant="destructive" data-testid="alert-referrals-error">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Nie udało się pobrać historii poleceń. Odśwież stronę, aby spróbować ponownie.
+              </AlertDescription>
+            </Alert>
           ) : referrals && referrals.length > 0 ? (
             <div className="space-y-3">
               {referrals.map((referral) => (

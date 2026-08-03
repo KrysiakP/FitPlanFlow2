@@ -2,6 +2,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ClipboardList, Calendar, AlertCircle, Bell, Mail, UserCheck, X, User as UserIcon, Dumbbell, Play } from "lucide-react";
@@ -27,26 +38,30 @@ export default function ClientDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const { data: assignment } = useQuery<AssignmentWithPlan>({
+  const { data: assignment, isError: assignmentError } = useQuery<AssignmentWithPlan>({
     queryKey: ["/api/client/assignment"],
   });
 
-  const { data: reports } = useQuery<WeeklyReport[]>({
+  const { data: reports, isError: reportsError } = useQuery<WeeklyReport[]>({
     queryKey: ["/api/reports"],
   });
 
-  const { data: invitations } = useQuery<InvitationWithDetails[]>({
+  const { data: invitations, isError: invitationsError } = useQuery<InvitationWithDetails[]>({
     queryKey: ["/api/invitations"],
   });
 
+  // 404 (no trainer yet) is an expected outcome here, not a real error — don't
+  // fold it into the page-level error banner below.
   const { data: myTrainer } = useQuery<User>({
     queryKey: ["/api/my-trainer"],
     retry: false,
   });
 
-  const { data: upcomingSessions } = useQuery<SessionBooking[]>({
+  const { data: upcomingSessions, isError: sessionsError } = useQuery<SessionBooking[]>({
     queryKey: ["/api/client/sessions"],
   });
+
+  const hasLoadError = assignmentError || reportsError || invitationsError || sessionsError;
 
   const getInitials = (firstName?: string | null, lastName?: string | null) => {
     const first = firstName?.charAt(0) || "";
@@ -124,6 +139,14 @@ export default function ClientDashboard() {
 
   return (
     <div className="space-y-8">
+      {hasLoadError && (
+        <Alert variant="destructive" data-testid="alert-dashboard-error">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Nie udało się wczytać części danych. Odśwież stronę, aby spróbować ponownie.
+          </AlertDescription>
+        </Alert>
+      )}
       <div>
         <h1 className="font-heading font-bold text-4xl mb-2" data-testid="text-dashboard-title">
           Witaj, {user?.firstName || "Podopieczny"}!
@@ -234,26 +257,46 @@ export default function ClientDashboard() {
                             </>
                           )}
                         </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => rejectMutation.mutate(invitation.id)} 
-                          disabled={acceptMutation.isPending || rejectMutation.isPending}
-                          className="gap-2"
-                          data-testid={`button-reject-${invitation.id}`}
-                        >
-                          {rejectMutation.isPending ? (
-                            <>
-                              <div className="w-3 h-3 border-2 border-foreground border-t-transparent rounded-full animate-spin" />
-                              Odrzucanie...
-                            </>
-                          ) : (
-                            <>
-                              <X className="w-4 h-4" />
-                              Odrzuć
-                            </>
-                          )}
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={acceptMutation.isPending || rejectMutation.isPending}
+                              className="gap-2"
+                              data-testid={`button-reject-${invitation.id}`}
+                            >
+                              {rejectMutation.isPending ? (
+                                <>
+                                  <div className="w-3 h-3 border-2 border-foreground border-t-transparent rounded-full animate-spin" />
+                                  Odrzucanie...
+                                </>
+                              ) : (
+                                <>
+                                  <X className="w-4 h-4" />
+                                  Odrzuć
+                                </>
+                              )}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Odrzucić zaproszenie?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Zaproszenie od {invitation.trainer.firstName} {invitation.trainer.lastName} zostanie odrzucone. Trener będzie musiał wysłać je ponownie, jeśli zmienisz zdanie.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel data-testid={`button-cancel-reject-${invitation.id}`}>Anuluj</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => rejectMutation.mutate(invitation.id)}
+                                data-testid={`button-confirm-reject-${invitation.id}`}
+                              >
+                                Odrzuć
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
                   </div>

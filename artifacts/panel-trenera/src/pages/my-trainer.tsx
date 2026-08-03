@@ -48,7 +48,9 @@ export default function MyTrainer() {
     );
   }
 
-  if (error) {
+  const isNotFound = error instanceof Error && error.message.startsWith("404");
+
+  if (error && !isNotFound) {
     return (
       <div className="space-y-8">
         <div>
@@ -59,7 +61,29 @@ export default function MyTrainer() {
             Informacje o Twoim trenerze personalnym
           </p>
         </div>
-        <Alert variant="destructive" data-testid="alert-no-trainer">
+        <Alert variant="destructive" data-testid="alert-trainer-error">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Błąd ładowania</AlertTitle>
+          <AlertDescription>
+            Nie udało się pobrać danych trenera. Odśwież stronę, aby spróbować ponownie.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (error && isNotFound) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="font-heading font-bold text-4xl mb-2" data-testid="text-trainer-title">
+            Mój trener
+          </h1>
+          <p className="text-muted-foreground">
+            Informacje o Twoim trenerze personalnym
+          </p>
+        </div>
+        <Alert data-testid="alert-no-trainer">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Brak przypisanego trenera</AlertTitle>
           <AlertDescription>

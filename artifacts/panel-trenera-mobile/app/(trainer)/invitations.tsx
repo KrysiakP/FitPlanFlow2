@@ -18,6 +18,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPost, apiDelete } from "@/lib/api";
@@ -91,6 +92,18 @@ export default function TrainerInvitationsScreen() {
     },
   });
 
+  const resendMutation = useMutation({
+    mutationFn: (invitationId: string) =>
+      apiPost<{ message: string }>(`/api/invitations/${invitationId}/resend`, {}),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Wysłano", "Zaproszenie zostało wysłane ponownie.");
+    },
+    onError: () => {
+      Alert.alert("Błąd", "Nie udało się ponownie wysłać zaproszenia.");
+    },
+  });
+
   const invitations = data ?? [];
   const pending = invitations.filter((i) => i.status === "pending");
   const others = invitations.filter((i) => i.status !== "pending");
@@ -113,10 +126,15 @@ export default function TrainerInvitationsScreen() {
     <>
       <ScrollView
         style={[styles.root, { backgroundColor: colors.background }]}
-        contentContainerStyle={[styles.content, { paddingTop: 16, paddingBottom: insets.bottom + 30 }]}
+        contentContainerStyle={[styles.content, { paddingTop: topPad + 16, paddingBottom: insets.bottom + 30 }]}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
         showsVerticalScrollIndicator={false}
       >
+        <Pressable onPress={() => router.replace("/panel")} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
+          <Text style={[styles.backText, { color: colors.primary }]}>Wstecz</Text>
+        </Pressable>
+
         <View style={[styles.infoCard, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}>
           <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
           <Text style={[styles.infoText, { color: colors.foreground }]}>
@@ -151,6 +169,8 @@ export default function TrainerInvitationsScreen() {
                     invitation={inv}
                     colors={colors}
                     onShare={() => handleShare(inv)}
+                    onResend={() => resendMutation.mutate(inv.id)}
+                    resending={resendMutation.isPending && resendMutation.variables === inv.id}
                     onCancel={() => {
                       Alert.alert(
                         "Anuluj zaproszenie",
@@ -269,11 +289,13 @@ interface InvitationCardProps {
   invitation: Invitation;
   colors: Colors;
   onShare: () => void;
+  onResend?: () => void;
+  resending?: boolean;
   onCancel?: () => void;
   cancelling?: boolean;
 }
 
-function InvitationCard({ invitation, colors, onShare, onCancel, cancelling }: InvitationCardProps) {
+function InvitationCard({ invitation, colors, onShare, onResend, resending, onCancel, cancelling }: InvitationCardProps) {
   const statusColor: Record<string, string> = {
     pending: "#16a34a",
     accepted: "#0846ab",
@@ -310,6 +332,22 @@ function InvitationCard({ invitation, colors, onShare, onCancel, cancelling }: I
             <Pressable onPress={onShare} style={styles.shareBtn} testID="button-share-invitation">
               <Ionicons name="share-outline" size={20} color={colors.primary} />
             </Pressable>
+            {onResend && (
+              <Pressable
+                onPress={onResend}
+                disabled={resending}
+                style={[styles.shareBtn, { opacity: resending ? 0.5 : 1 }]}
+                testID="button-resend-invitation"
+                accessibilityLabel="Wyślij ponownie"
+                accessibilityRole="button"
+              >
+                {resending ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Ionicons name="refresh-outline" size={20} color={colors.primary} />
+                )}
+              </Pressable>
+            )}
             {onCancel && (
               <Pressable
                 onPress={onCancel}
@@ -336,6 +374,8 @@ function InvitationCard({ invitation, colors, onShare, onCancel, cancelling }: I
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingHorizontal: 20 },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8 },
+  backText: { fontSize: 15, fontFamily: "Inter_500Medium" },
   infoCard: {
     flexDirection: "row",
     alignItems: "flex-start",

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 
 const PRESET_TIMES = [30, 45, 60, 90, 120, 180];
@@ -71,7 +72,10 @@ export default function RestTimerScreen() {
 
   function handleSelectTime(value: number) {
     setSelectedTime(value);
-    if (!isRunning) setTimeLeft(value);
+    // Always sync timeLeft too — otherwise a mid-countdown tap leaves the
+    // progress bar counting down from the old duration while the new preset
+    // shows as selected.
+    setTimeLeft(value);
     AsyncStorage.setItem(STORAGE_KEYS.DURATION, value.toString()).catch(() => {});
   }
 
@@ -105,6 +109,9 @@ export default function RestTimerScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.stickyHeader, { paddingTop: insets.top + 8, backgroundColor: colors.background }]}>
+        <Pressable onPress={() => router.replace("/panel")} style={({ pressed }) => [{ marginRight: 4 }, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
+          <Ionicons name="chevron-back" size={22} color={colors.primary} />
+        </Pressable>
         <Text style={[styles.pageTitle, { color: colors.foreground }]}>Timer przerwy</Text>
       </View>
 

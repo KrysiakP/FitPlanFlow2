@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,6 +13,7 @@ import * as Clipboard from "expo-clipboard";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
@@ -109,6 +111,7 @@ function StatCard({ label, value, icon, iconColor, colors }: StatCardProps) {
 export default function TrainerReferralsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const topPad = Platform.OS === "web" ? 67 : insets.top;
   const { user } = useAuth();
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
@@ -162,10 +165,15 @@ export default function TrainerReferralsScreen() {
   return (
     <ScrollView
       style={[styles.root, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.content, { paddingTop: 16, paddingBottom: insets.bottom + 30 }]}
+      contentContainerStyle={[styles.content, { paddingTop: topPad + 16, paddingBottom: insets.bottom + 30 }]}
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefetch} tintColor={colors.primary} />}
       showsVerticalScrollIndicator={false}
     >
+      <Pressable onPress={() => router.replace("/panel")} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
+        <Ionicons name="chevron-back" size={22} color={colors.primary} />
+        <Text style={[styles.backText, { color: colors.primary }]}>Wstecz</Text>
+      </Pressable>
+
       {isLoading ? (
         <ActivityIndicator color={colors.primary} style={styles.loader} />
       ) : hasError ? (
@@ -351,6 +359,8 @@ const statStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingHorizontal: 20 },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8 },
+  backText: { fontSize: 15, fontFamily: "Inter_500Medium" },
   loader: { marginTop: 40 },
   codeCard: {
     borderRadius: 16,

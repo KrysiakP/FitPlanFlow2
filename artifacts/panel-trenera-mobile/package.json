@@ -57,6 +57,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "@react-native-community/datetimepicker": "8.4.4",
     "@react-navigation/drawer": "^7.9.8",
     "expo-clipboard": "^8.0.8",
     "expo-local-authentication": "^17.0.8",
@@ -64,6 +65,7 @@
     "expo-secure-store": "~15.0.8",
     "expo-updates": "~29.0.17",
     "react-compiler-runtime": "^1.0.0",
+    "react-native-calendars": "^1.1314.0",
     "react-native-webview": "13.15.0"
   }
 }

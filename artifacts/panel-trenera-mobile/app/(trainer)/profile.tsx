@@ -18,7 +18,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "@/context/AuthContext";
-import { useTheme, type ThemePreference } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 import { apiGet, apiPut } from "@/lib/api";
@@ -348,7 +347,6 @@ export default function TrainerProfileScreen() {
         onPress={handleShareProfile}
         testID="button-share-profile"
       />
-      <ThemeToggleRow colors={colors} />
       <MenuRow
         icon="notifications-outline"
         label="Powiadomienia"
@@ -360,10 +358,14 @@ export default function TrainerProfileScreen() {
       {Platform.OS !== "ios" ? (
         <MenuRow icon="card-outline" label="Subskrypcja" desc="Zarządzaj subskrypcją na paneltrenera.pl" colors={colors} onPress={() => Linking.openURL("https://paneltrenera.pl")} testID="button-subscription" />
       ) : (
-        <View style={[styles.infoRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Ionicons name="card-outline" size={20} color={colors.mutedForeground} />
-          <Text style={[styles.infoRowText, { color: colors.mutedForeground }]}>Subskrypcją zarządzasz na paneltrenera.pl</Text>
-        </View>
+        <MenuRow
+          icon="card-outline"
+          label="Subskrypcja"
+          desc="Zobacz swój plan i zarządzaj subskrypcją na paneltrenera.pl"
+          colors={colors}
+          onPress={() => Linking.openURL("https://paneltrenera.pl").catch(() => {})}
+          testID="button-subscription"
+        />
       )}
       <MenuRow icon="shield-checkmark-outline" label="Prywatność i RODO" desc="Zarządzaj zgodami i danymi" colors={colors} onPress={() => router.push("/(auth)/privacy")} testID="button-privacy" />
       <MenuRow icon="help-circle-outline" label="Pomoc i kontakt" desc="FAQ i support techniczny" colors={colors} onPress={() => router.push("/(auth)/help")} testID="button-help" />
@@ -392,7 +394,7 @@ export default function TrainerProfileScreen() {
 
 function ProfileDetailsSection({ colors }: { colors: ReturnType<typeof useColors> }) {
   const qc = useQueryClient();
-  const { data } = useQuery<TrainerProfileDetails>({
+  const { data, isError, refetch } = useQuery<TrainerProfileDetails>({
     queryKey: ["profile-details"],
     queryFn: () => apiGet<TrainerProfileDetails>("/api/profile"),
   });
@@ -421,9 +423,21 @@ function ProfileDetailsSection({ colors }: { colors: ReturnType<typeof useColors
 
   return (
     <View style={[styles.profileDetailsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      {isError && (
+        <View style={[styles.saveDetailsBtn, { backgroundColor: colors.destructive + "18", flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }]}>
+          <Ionicons name="alert-circle-outline" size={16} color={colors.destructive} />
+          <Text style={{ color: colors.destructive, fontSize: 12.5, flex: 1 }}>
+            Nie udało się wczytać danych profilu. Edycja jest wyłączona, żeby nic nie nadpisać.
+          </Text>
+          <Pressable onPress={() => refetch()} testID="button-retry-profile-details">
+            <Ionicons name="refresh" size={18} color={colors.destructive} />
+          </Pressable>
+        </View>
+      )}
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>O mnie</Text>
       <TextInput
         value={bio}
+        editable={!isError}
         onChangeText={(v) => { setBio(v); setDirty(true); }}
         placeholder="Opowiedz o sobie, swoim doświadczeniu i osiągnięciach..."
         placeholderTextColor={colors.mutedForeground}
@@ -435,6 +449,7 @@ function ProfileDetailsSection({ colors }: { colors: ReturnType<typeof useColors
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 14 }]}>Telefon</Text>
       <TextInput
         value={phone}
+        editable={!isError}
         onChangeText={(v) => { setPhone(v); setDirty(true); }}
         placeholder="+48 123 456 789"
         placeholderTextColor={colors.mutedForeground}
@@ -445,6 +460,7 @@ function ProfileDetailsSection({ colors }: { colors: ReturnType<typeof useColors
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 14 }]}>Specjalizacja</Text>
       <TextInput
         value={specialization}
+        editable={!isError}
         onChangeText={(v) => { setSpecialization(v); setDirty(true); }}
         placeholder="np. Trening siłowy, kulturystyka, fitness"
         placeholderTextColor={colors.mutedForeground}
@@ -454,10 +470,10 @@ function ProfileDetailsSection({ colors }: { colors: ReturnType<typeof useColors
       {dirty && (
         <Pressable
           onPress={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending}
+          disabled={saveMutation.isPending || isError}
           style={({ pressed }) => [
             styles.saveDetailsBtn,
-            { backgroundColor: colors.primary, opacity: pressed || saveMutation.isPending ? 0.7 : 1 },
+            { backgroundColor: colors.primary, opacity: isError ? 0.4 : pressed || saveMutation.isPending ? 0.7 : 1 },
           ]}
           testID="button-save-profile-details"
         >
@@ -499,46 +515,6 @@ function MenuRow({ icon, label, desc, colors, onPress, testID }: MenuRowProps) {
   );
 }
 
-function ThemeToggleRow({ colors }: { colors: ReturnType<typeof useColors> }) {
-  const { preference, setPreference } = useTheme();
-  const options: { value: ThemePreference; icon: ComponentProps<typeof Ionicons>["name"]; label: string }[] = [
-    { value: "light", icon: "sunny-outline", label: "Jasny" },
-    { value: "system", icon: "phone-portrait-outline", label: "System" },
-    { value: "dark", icon: "moon-outline", label: "Ciemny" },
-  ];
-
-  return (
-    <View style={[styles.menuRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <View style={[styles.menuIcon, { backgroundColor: colors.accent }]}>
-        <Ionicons name="contrast-outline" size={18} color={colors.foreground} />
-      </View>
-      <View style={[styles.menuInfo, { flex: 1 }]}>
-        <Text style={[styles.menuLabel, { color: colors.foreground }]}>Motyw</Text>
-      </View>
-      <View style={[styles.themeToggleRow, { backgroundColor: colors.accent, borderColor: colors.border }]}>
-        {options.map((opt) => {
-          const active = preference === opt.value;
-          return (
-            <Pressable
-              key={opt.value}
-              onPress={() => { setPreference(opt.value); Haptics.selectionAsync(); }}
-              style={[
-                styles.themeOption,
-                active && { backgroundColor: colors.primary },
-              ]}
-              testID={`button-theme-${opt.value}`}
-            >
-              <Ionicons name={opt.icon} size={14} color={active ? colors.primaryForeground : colors.mutedForeground} />
-              <Text style={[styles.themeOptionLabel, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>
-                {opt.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
