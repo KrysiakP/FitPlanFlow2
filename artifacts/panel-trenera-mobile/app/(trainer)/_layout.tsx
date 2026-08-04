@@ -28,7 +28,6 @@ function ClassicTrainerTabs() {
 
   return (
     <Tabs
-      initialRouteName="panel"
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
@@ -52,7 +51,7 @@ function ClassicTrainerTabs() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="clients"
         options={{
           headerShown: false,
           title: "Podopieczni",
@@ -75,7 +74,7 @@ function ClassicTrainerTabs() {
         }}
       />
       <Tabs.Screen
-        name="panel"
+        name="index"
         options={{
           headerShown: false,
           title: "Panel",

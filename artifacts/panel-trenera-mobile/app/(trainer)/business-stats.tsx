@@ -64,7 +64,7 @@ export default function BusinessStatsScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.stickyHeader, { paddingTop: insets.top + 8, backgroundColor: colors.background }]}>
-        <Pressable onPress={() => router.replace("/panel")} style={({ pressed }) => [{ marginRight: 4 }, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
+        <Pressable onPress={() => router.replace("/")} style={({ pressed }) => [{ marginRight: 4 }, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
           <Ionicons name="chevron-back" size={22} color={colors.primary} />
         </Pressable>
         <Text style={[styles.pageTitle, { color: colors.foreground }]}>Statystyki biznesowe</Text>
@@ -110,7 +110,7 @@ export default function BusinessStatsScreen() {
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Zaległe płatności</Text>
           </Pressable>
           <Pressable
-            onPress={() => router.push("/")}
+            onPress={() => router.push("/clients")}
             style={({ pressed }) => [
               styles.statCard,
               { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },

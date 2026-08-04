@@ -167,7 +167,7 @@ export default function TrainerDietsScreen() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.stickyHeader, { paddingTop: topPad + 8, backgroundColor: colors.background }]}>
         <View style={styles.headerRow}>
-          <Ionicons name="chevron-back" size={28} color={colors.primary} onPress={() => router.replace("/panel")} />
+          <Ionicons name="chevron-back" size={28} color={colors.primary} onPress={() => router.replace("/")} />
           <Text style={[styles.pageTitle, { color: colors.foreground }]}>Plany diety</Text>
           <View style={[styles.countBadge, { backgroundColor: colors.primary + "1a" }]}>
             <Text style={[styles.countText, { color: colors.primary }]}>{plans.length}</Text>

@@ -31,7 +31,7 @@ export default function PomagamyScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.stickyHeader, { paddingTop: insets.top + 8, backgroundColor: colors.background }]}>
-        <Pressable onPress={() => router.replace("/panel")} style={({ pressed }) => [{ marginRight: 4 }, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
+        <Pressable onPress={() => router.replace("/")} style={({ pressed }) => [{ marginRight: 4 }, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
           <Ionicons name="chevron-back" size={22} color={colors.primary} />
         </Pressable>
         <Text style={[styles.pageTitle, { color: colors.foreground }]}>PomagaMY</Text>

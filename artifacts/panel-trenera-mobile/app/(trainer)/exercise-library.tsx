@@ -320,7 +320,7 @@ export default function ExerciseLibraryScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <Pressable onPress={() => router.replace("/panel")} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
+        <Pressable onPress={() => router.replace("/")} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]} testID="button-back">
           <Ionicons name="chevron-back" size={22} color={colors.primary} />
           <Text style={[styles.backText, { color: colors.primary }]}>Wstecz</Text>
         </Pressable>

@@ -1,591 +1,242 @@
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { useEffect, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { ComponentProps } from "react";
+import { useMemo } from "react";
+import { Linking, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
-import { router, useLocalSearchParams } from "expo-router";
+import { router } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { ClientCard } from "@/components/ClientCard";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet } from "@/lib/api";
+import { StatsCard } from "@/components/StatsCard";
+
+type Colors = ReturnType<typeof useColors>;
+type IoniconsName = ComponentProps<typeof Ionicons>["name"];
+
+interface Payment {
+  id: string;
+  amount: number;
+  dueDate: string;
+  isPaid: boolean;
+  paidAt?: string | null;
+}
 
 interface ClientWithPlan {
   id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  assignment?: {
-    plan?: { id: string; name: string } | null;
-  } | null;
 }
 
-interface Invitation {
-  id: string;
-  clientEmail: string;
-  status: string;
-  createdAt: string;
-  expiresAt?: string | null;
-}
-
-export default function TrainerClientsScreen() {
+export default function TrainerPanelScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const qc = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [remindAllModalVisible, setRemindAllModalVisible] = useState(false);
-  const [broadcastMessage, setBroadcastMessage] = useState("");
-  const [inviteModalVisible, setInviteModalVisible] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteError, setInviteError] = useState<string | null>(null);
-  const topPad = insets.top;
-  const params = useLocalSearchParams<{ invite?: string }>();
+  const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  useEffect(() => {
-    if (params.invite) handleInviteOpen();
-  }, [params.invite]);
+  const { data: payments, isLoading: loadingPayments, refetch: refetchPayments, isRefetching: refetchingPayments } = useQuery<Payment[]>({
+    queryKey: ["payments"],
+    queryFn: () => apiGet<Payment[]>("/api/payments"),
+  });
 
-  const { data, isLoading, isError, refetch, isRefetching } = useQuery<ClientWithPlan[]>({
+  const { data: clients, isLoading: loadingClients, refetch: refetchClients, isRefetching: refetchingClients } = useQuery<ClientWithPlan[]>({
     queryKey: ["trainer-clients"],
     queryFn: () => apiGet<ClientWithPlan[]>("/api/trainer/clients"),
-    enabled: !!user?.id,
   });
 
-  const { data: plansForStats } = useQuery<{ id: string }[]>({
-    queryKey: ["training-plans"],
-    queryFn: () => apiGet<{ id: string }[]>("/api/plans"),
-    enabled: !!user?.id,
-  });
+  const isLoading = loadingPayments || loadingClients;
+  const isRefetching = refetchingPayments || refetchingClients;
 
-  const { data: invitationsData, refetch: refetchInvitations } = useQuery<Invitation[]>({
-    queryKey: ["invitations"],
-    queryFn: () => apiGet<Invitation[]>("/api/invitations"),
-    enabled: !!user?.id,
-  });
-
-  const pendingInvitations = (invitationsData ?? []).filter((i) => i.status === "pending");
-
-  const remindAllMutation = useMutation({
-    mutationFn: (message: string) =>
-      apiPost<{ sent: number; total: number }>(
-        "/api/trainer/clients/remind-all",
-        message.trim() ? { message: message.trim() } : {}
-      ),
-    onSuccess: (res) => {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setRemindAllModalVisible(false);
-      setBroadcastMessage("");
-      const detail =
-        res.sent > 0
-          ? `Próba wysyłki do ${res.total} podopiecznych. Dostarczono ${res.sent} powiadomień push.`
-          : `Wysłano do ${res.total} podopiecznych, ale żaden nie ma skonfigurowanych powiadomień push.`;
-      Alert.alert("Przypomnienia wysłane", detail);
-    },
-    onError: () => {
-      Alert.alert("Błąd", "Nie udało się wysłać przypomnień.");
-    },
-  });
-
-  const [selectedInvitePlanId, setSelectedInvitePlanId] = useState<string | null>(null);
-
-  const { data: invitePlans } = useQuery<{ id: string; name: string }[]>({
-    queryKey: ["training-plans"],
-    queryFn: () => apiGet<{ id: string; name: string }[]>("/api/plans"),
-    enabled: inviteModalVisible,
-  });
-
-  const inviteMutation = useMutation({
-    mutationFn: (clientEmail: string) =>
-      apiPost<{ id: string }>("/api/invitations/send", { clientEmail, planId: selectedInvitePlanId }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invitations"] });
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setInviteModalVisible(false);
-      setInviteEmail("");
-      setInviteError(null);
-      setSelectedInvitePlanId(null);
-    },
-    onError: (err: Error) => {
-      const msg = err?.message ?? "";
-      if (msg.includes("401") || msg.toLowerCase().includes("unauthorized")) {
-        setInviteError("Sesja wygasła. Zaloguj się ponownie.");
-      } else if (msg.toLowerCase().includes("already") || msg.toLowerCase().includes("już")) {
-        setInviteError("Ten klient już otrzymał zaproszenie lub jest Twoim podopiecznym.");
-      } else {
-        setInviteError("Nie udało się wysłać zaproszenia. Spróbuj ponownie.");
-      }
-    },
-  });
-
-  function handleInviteOpen() {
-    setInviteEmail("");
-    setInviteError(null);
-    setSelectedInvitePlanId(null);
-    setInviteModalVisible(true);
+  function handleRefresh() {
+    void refetchPayments();
+    void refetchClients();
   }
 
-  function handleInviteSend() {
-    const trimmed = inviteEmail.trim();
-    if (!trimmed) {
-      setInviteError("Podaj adres e-mail klienta.");
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmed)) {
-      setInviteError("Podaj poprawny adres e-mail.");
-      return;
-    }
-    setInviteError(null);
-    inviteMutation.mutate(trimmed);
+  function openUrl(url: string) {
+    Linking.openURL(url).catch(() => {});
   }
 
-  const clients = (data ?? []).filter((c) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      c.firstName.toLowerCase().includes(q) ||
-      c.lastName.toLowerCase().includes(q) ||
-      c.email.toLowerCase().includes(q)
+  const stats = useMemo(() => {
+    const list = payments ?? [];
+    const now = new Date();
+
+    const thisMonthTotal = Math.round(
+      list
+        .filter((p) => {
+          if (!p.isPaid || !p.paidAt) return false;
+          const paidDate = new Date(p.paidAt);
+          return paidDate.getFullYear() === now.getFullYear() && paidDate.getMonth() === now.getMonth();
+        })
+        .reduce((sum, p) => sum + p.amount, 0) / 100
     );
-  });
 
-  const filteredPending = pendingInvitations.filter((inv) => {
-    if (!search) return true;
-    return inv.clientEmail.toLowerCase().includes(search.toLowerCase());
-  });
+    const overdueCount = list.filter((p) => !p.isPaid && new Date(p.dueDate) < now).length;
 
-  const totalCount = (data?.length ?? 0) + pendingInvitations.length;
+    return { thisMonthTotal, overdueCount };
+  }, [payments]);
 
   return (
-    <>
-      <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <View style={[styles.headerSection, { paddingTop: topPad + 16, backgroundColor: colors.background }]}>
-          <View style={styles.titleRow}>
-            <Text style={[styles.pageTitle, { color: colors.foreground }]}>Klienci</Text>
-            <View style={[styles.countBadge, { backgroundColor: colors.primary + "1a" }]}>
-              <Text style={[styles.countText, { color: colors.primary }]}>{totalCount}</Text>
-            </View>
-            <View style={{ flex: 1 }} />
-            {(data?.length ?? 0) > 0 && (
-              <Pressable
-                onPress={() => {
-                  if (!remindAllMutation.isPending) setRemindAllModalVisible(true);
-                }}
-                disabled={remindAllMutation.isPending}
-                style={({ pressed }) => ({ opacity: (remindAllMutation.isPending || pressed) ? 0.6 : 1, marginRight: 14 })}
-                testID="button-remind-all-clients"
-              >
-                {remindAllMutation.isPending ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <Ionicons name="notifications-outline" size={22} color={colors.primary} />
-                )}
-              </Pressable>
-            )}
-            <Pressable
-              onPress={handleInviteOpen}
-              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-              testID="button-invite-client-header"
-            >
-              <Ionicons name="person-add-outline" size={22} color={colors.primary} />
-            </Pressable>
-          </View>
-
-          <View style={styles.dashboardStatsRow}>
-            <View style={[styles.dashboardStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.dashboardStatValue, { color: colors.foreground }]}>{plansForStats?.length ?? 0}</Text>
-              <Text style={[styles.dashboardStatLabel, { color: colors.mutedForeground }]}>Plany treningowe</Text>
-            </View>
-            <View style={[styles.dashboardStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.dashboardStatValue, { color: colors.foreground }]}>{data?.length ?? 0}</Text>
-              <Text style={[styles.dashboardStatLabel, { color: colors.mutedForeground }]}>Podopieczni</Text>
-            </View>
-            <View style={[styles.dashboardStatCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.dashboardStatValue, { color: colors.foreground }]}>
-                {(data ?? []).filter((c) => c.assignment?.plan).length}
-              </Text>
-              <Text style={[styles.dashboardStatLabel, { color: colors.mutedForeground }]}>Przypisania</Text>
-            </View>
-          </View>
-
-          <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Ionicons name="search-outline" size={18} color={colors.mutedForeground} />
-            <TextInput
-              style={[styles.searchInput, { color: colors.foreground }]}
-              placeholder="Szukaj klientów..."
-              placeholderTextColor={colors.mutedForeground}
-              value={search}
-              onChangeText={setSearch}
-              autoCapitalize="none"
-              autoCorrect={false}
-              testID="input-search-clients"
-            />
-            {search.length > 0 && (
-              <Ionicons name="close-circle" size={18} color={colors.mutedForeground} onPress={() => setSearch("")} />
-            )}
-          </View>
+    <ScrollView
+      style={[styles.root, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.content, { paddingTop: topPad + 16, paddingBottom: insets.bottom + 90 }]}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor={colors.primary} />}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.header}>
+        <View>
+          <Text style={[styles.greeting, { color: colors.mutedForeground }]}>Witaj,</Text>
+          <Text style={[styles.name, { color: colors.foreground }]}>
+            {user?.firstName} {user?.lastName}
+          </Text>
         </View>
+        <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+          <Text style={[styles.avatarText, { color: colors.primaryForeground }]}>
+            {(user?.firstName?.[0] ?? "") + (user?.lastName?.[0] ?? "")}
+          </Text>
+        </View>
+      </View>
 
-        <ScrollView
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={() => { void refetch(); void refetchInvitations(); }}
-              tintColor={colors.primary}
-            />
-          }
-          showsVerticalScrollIndicator={false}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={colors.primary} style={styles.loader} />
-          ) : isError ? (
-            <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Ionicons name="cloud-offline-outline" size={36} color={colors.mutedForeground} />
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Błąd ładowania</Text>
-              <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
-                Nie udało się pobrać listy podopiecznych. Pociągnij w dół, aby spróbować ponownie.
-              </Text>
-            </View>
-          ) : clients.length === 0 && filteredPending.length === 0 ? (
-            <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Ionicons name="people-outline" size={36} color={colors.mutedForeground} />
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                {search ? "Brak wyników" : "Brak klientów"}
-              </Text>
-              <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
-                {search
-                  ? `Nie znaleziono klientów dla "${search}"`
-                  : "Zaproś pierwszego klienta podając jego adres e-mail."}
-              </Text>
-              {!search && (
-                <Pressable
-                  onPress={handleInviteOpen}
-                  style={({ pressed }) => [
-                    styles.emptyInviteBtn,
-                    { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
-                  ]}
-                  testID="button-invite-first-client"
-                >
-                  <Ionicons name="person-add-outline" size={18} color="#fff" />
-                  <Text style={styles.emptyInviteBtnText}>Zaproś klienta</Text>
-                </Pressable>
-              )}
-            </View>
-          ) : (
-            <>
-              {clients.map((c) => (
-                <ClientCard
-                  key={c.id}
-                  name={`${c.firstName} ${c.lastName}`}
-                  email={c.email}
-                  planName={c.assignment?.plan?.name ?? null}
-                  onPress={() => router.push(`/client/${c.id}`)}
-                />
-              ))}
-
-              {filteredPending.length > 0 && (
-                <>
-                  {clients.length > 0 && (
-                    <View style={[styles.sectionDivider, { borderColor: colors.border }]} />
-                  )}
-                  <Text style={[styles.pendingLabel, { color: colors.mutedForeground }]}>
-                    Oczekuje na akceptację ({filteredPending.length})
-                  </Text>
-                  {filteredPending.map((inv) => (
-                    <PendingInvitationRow key={inv.id} email={inv.clientEmail} colors={colors} />
-                  ))}
-                </>
-              )}
-            </>
-          )}
-        </ScrollView>
-
-        {/* FAB */}
-        <Pressable
-          onPress={handleInviteOpen}
-          style={({ pressed }) => [
-            styles.fab,
-            { backgroundColor: colors.primary, bottom: insets.bottom + 80, opacity: pressed ? 0.85 : 1 },
-          ]}
-          testID="button-fab-invite"
-        >
-          <Ionicons name="add" size={28} color="#fff" />
+      <View style={styles.statsRow}>
+        <Pressable onPress={() => router.push("/payments")} style={{ flex: 1 }} testID="button-panel-stat-revenue">
+          <StatsCard
+            label="Przychód (ten miesiąc)"
+            value={isLoading ? "..." : `${stats.thisMonthTotal} zł`}
+            iconName="trending-up-outline"
+          />
+        </Pressable>
+        <Pressable onPress={() => router.push("/payments")} style={{ flex: 1 }} testID="button-panel-stat-overdue">
+          <StatsCard
+            label="Zaległe płatności"
+            value={isLoading ? "..." : stats.overdueCount}
+            iconName="alert-circle-outline"
+            color="#ef4444"
+          />
+        </Pressable>
+        <Pressable onPress={() => router.push("/clients")} style={{ flex: 1 }} testID="button-panel-stat-clients">
+          <StatsCard
+            label="Aktywni podopieczni"
+            value={isLoading ? "..." : (clients?.length ?? 0)}
+            iconName="people-outline"
+          />
         </Pressable>
       </View>
 
-      <Modal
-        visible={inviteModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
-          if (!inviteMutation.isPending) {
-            setInviteModalVisible(false);
-            setInviteEmail("");
-            setInviteError(null);
-          }
-        }}
-      >
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
-          <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.modalTitleRow}>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Zaproś klienta</Text>
-              <Pressable
-                onPress={() => {
-                  if (!inviteMutation.isPending) {
-                    setInviteModalVisible(false);
-                    setInviteEmail("");
-                    setInviteError(null);
-                  }
-                }}
-                testID="button-close-invite-modal"
-              >
-                <Ionicons name="close" size={22} color={colors.mutedForeground} />
-              </Pressable>
-            </View>
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Szybki dostęp</Text>
+      <View style={styles.quickGrid}>
+        <QuickCard icon="clipboard-outline" label="Plany treningowe" colors={colors} onPress={() => router.push("/plans")} />
+        <QuickCard icon="nutrition-outline" label="Plany diety" colors={colors} onPress={() => router.push("/diets")} />
+        <QuickCard icon="stats-chart-outline" label="Statystyki biznesowe" colors={colors} onPress={() => router.push("/business-stats")} />
+        <QuickCard icon="wallet-outline" label="Płatności" colors={colors} onPress={() => router.push("/payments")} />
+        <QuickCard icon="mail-outline" label="Zaproszenia" colors={colors} onPress={() => router.push("/invitations")} />
+        <QuickCard icon="barbell-outline" label="Biblioteka ćwiczeń" colors={colors} onPress={() => router.push("/exercise-library")} />
+        <QuickCard icon="timer-outline" label="Timer przerwy" colors={colors} onPress={() => router.push("/rest-timer")} />
+        <QuickCard icon="notifications-outline" label="Powiadomienia" colors={colors} onPress={() => router.push("/notifications")} />
+        {user?.isAdmin && (
+          <QuickCard icon="business-outline" label="Siłownie" colors={colors} onPress={() => router.push("/admin-gyms")} />
+        )}
+      </View>
 
-            <Text style={[styles.inviteHint, { color: colors.mutedForeground }]}>
-              Podaj adres e-mail klienta. Otrzyma link i zostanie automatycznie przypisany do Ciebie.
-            </Text>
-
-            <TextInput
-              style={[
-                styles.inviteInput,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: inviteError ? "#e53935" : colors.border,
-                  color: colors.foreground,
-                },
-              ]}
-              placeholder="klient@example.com"
-              placeholderTextColor={colors.mutedForeground}
-              value={inviteEmail}
-              onChangeText={(t) => { setInviteEmail(t); setInviteError(null); }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoFocus
-              testID="input-invite-email"
-            />
-
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Plan treningowy (opcjonalnie)</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.invitePlanScroll}>
-              <Pressable
-                onPress={() => setSelectedInvitePlanId(null)}
-                style={[
-                  styles.invitePlanChip,
-                  {
-                    backgroundColor: !selectedInvitePlanId ? colors.primary : colors.background,
-                    borderColor: !selectedInvitePlanId ? colors.primary : colors.border,
-                  },
-                ]}
-                testID="option-invite-no-plan"
-              >
-                <Text style={[styles.invitePlanChipText, { color: !selectedInvitePlanId ? colors.primaryForeground : colors.foreground }]}>
-                  Bez planu
-                </Text>
-              </Pressable>
-              {(invitePlans ?? []).map((plan) => {
-                const active = selectedInvitePlanId === plan.id;
-                return (
-                  <Pressable
-                    key={plan.id}
-                    onPress={() => setSelectedInvitePlanId(plan.id)}
-                    style={[
-                      styles.invitePlanChip,
-                      { backgroundColor: active ? colors.primary : colors.background, borderColor: active ? colors.primary : colors.border },
-                    ]}
-                    testID={`option-invite-plan-${plan.id}`}
-                  >
-                    <Text style={[styles.invitePlanChipText, { color: active ? colors.primaryForeground : colors.foreground }]} numberOfLines={1}>
-                      {plan.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            {inviteError && (
-              <Text style={styles.inviteErrorText}>{inviteError}</Text>
-            )}
-
-            <View style={styles.inviteModalBtns}>
-              <Pressable
-                onPress={() => {
-                  if (!inviteMutation.isPending) {
-                    setInviteModalVisible(false);
-                    setInviteEmail("");
-                    setInviteError(null);
-                  }
-                }}
-                style={({ pressed }) => [
-                  styles.inviteCancelBtn,
-                  { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
-                ]}
-                testID="button-cancel-invite"
-              >
-                <Text style={[styles.inviteCancelBtnText, { color: colors.foreground }]}>Anuluj</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleInviteSend}
-                disabled={inviteMutation.isPending}
-                style={({ pressed }) => [
-                  styles.inviteSendBtn,
-                  { backgroundColor: colors.primary, opacity: (inviteMutation.isPending || pressed) ? 0.7 : 1 },
-                ]}
-                testID="button-send-invite"
-              >
-                {inviteMutation.isPending ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="send-outline" size={16} color="#fff" />
-                    <Text style={styles.inviteSendBtnText}>Wyślij</Text>
-                  </>
-                )}
-              </Pressable>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      <Modal
-        visible={remindAllModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
-          if (!remindAllMutation.isPending) {
-            setRemindAllModalVisible(false);
-            setBroadcastMessage("");
-          }
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.modalTitleRow}>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Przypomnij wszystkim</Text>
-              <Pressable
-                onPress={() => {
-                  if (!remindAllMutation.isPending) {
-                    setRemindAllModalVisible(false);
-                    setBroadcastMessage("");
-                  }
-                }}
-                testID="button-close-remind-all-modal"
-              >
-                <Ionicons name="close" size={22} color={colors.mutedForeground} />
-              </Pressable>
-            </View>
-
-            <Text style={[styles.remindModalHint, { color: colors.mutedForeground }]}>
-              Opcjonalnie wpisz treść wiadomości. Jeśli pole będzie puste, zostanie użyta wiadomość domyślna. Powiadomienie trafi do wszystkich Twoich podopiecznych.
-            </Text>
-
-            <TextInput
-              style={[
-                styles.remindInput,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                  color: colors.foreground,
-                },
-              ]}
-              placeholder="np. Pamiętaj o tygodniowym check-inie!"
-              placeholderTextColor={colors.mutedForeground}
-              value={broadcastMessage}
-              onChangeText={setBroadcastMessage}
-              multiline
-              numberOfLines={3}
-              maxLength={200}
-              testID="input-remind-all-message"
-            />
-
-            <Pressable
-              onPress={() => {
-                if (!remindAllMutation.isPending) remindAllMutation.mutate(broadcastMessage);
-              }}
-              disabled={remindAllMutation.isPending}
-              style={({ pressed }) => [
-                styles.remindSendBtn,
-                { backgroundColor: colors.primary, opacity: (remindAllMutation.isPending || pressed) ? 0.75 : 1 },
-              ]}
-              testID="button-confirm-remind-all"
-            >
-              {remindAllMutation.isPending ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Ionicons name="send-outline" size={16} color="#fff" />
-              )}
-              <Text style={styles.remindSendBtnText}>
-                {remindAllMutation.isPending ? "Wysyłanie…" : "Wyślij do wszystkich"}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-    </>
+      <MenuRow
+        icon="gift-outline"
+        label="Polecenia"
+        desc="Program poleceń i Twój unikalny kod"
+        colors={colors}
+        onPress={() => router.push("/referrals")}
+        testID="button-panel-referrals"
+      />
+      <MenuRow
+        icon="heart-outline"
+        label="PomagaMY"
+        desc="Zobacz jak pomagamy dzieciom"
+        colors={colors}
+        onPress={() => router.push("/pomagamy")}
+        testID="button-panel-pomagamy"
+      />
+      <MenuRow
+        icon="globe-outline"
+        label="Panel trenera web"
+        desc="Otwórz pełny panel w przeglądarce"
+        colors={colors}
+        onPress={() => openUrl("https://paneltrenera.pl")}
+        testID="button-panel-web"
+      />
+      <MenuRow
+        icon="people-outline"
+        label="Zaproś klienta"
+        desc="Wyślij zaproszenie nowemu klientowi"
+        colors={colors}
+        onPress={() => router.push({ pathname: "/clients", params: { invite: Date.now().toString() } })}
+        testID="button-panel-invite"
+      />
+    </ScrollView>
   );
 }
 
-type Colors = ReturnType<typeof useColors>;
+interface MenuRowProps {
+  icon: IoniconsName;
+  label: string;
+  desc?: string;
+  colors: Colors;
+  onPress: () => void;
+  testID?: string;
+}
 
-function PendingInvitationRow({ email, colors }: { email: string; colors: Colors }) {
-  const initials = email.slice(0, 2).toUpperCase();
+function MenuRow({ icon, label, desc, colors, onPress, testID }: MenuRowProps) {
   return (
     <Pressable
-      onPress={() => router.push("/invitations")}
+      onPress={onPress}
+      testID={testID}
       style={({ pressed }) => [
-        pendingStyles.row,
+        styles.menuRow,
         { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
       ]}
-      testID="button-pending-invitation-row"
     >
-      <View style={[pendingStyles.avatar, { backgroundColor: colors.mutedForeground + "22" }]}>
-        <Text style={[pendingStyles.avatarText, { color: colors.mutedForeground }]}>{initials}</Text>
+      <View style={[styles.menuIcon, { backgroundColor: colors.accent }]}>
+        <Ionicons name={icon} size={18} color={colors.foreground} />
       </View>
-      <View style={pendingStyles.info}>
-        <Text style={[pendingStyles.email, { color: colors.foreground }]} numberOfLines={1}>
-          {email}
-        </Text>
-        <View style={[pendingStyles.badge, { backgroundColor: "#f59e0b22" }]}>
-          <Ionicons name="time-outline" size={11} color="#f59e0b" />
-          <Text style={[pendingStyles.badgeText, { color: "#f59e0b" }]}>Oczekuje na akceptację</Text>
-        </View>
+      <View style={styles.menuInfo}>
+        <Text style={[styles.menuLabel, { color: colors.foreground }]}>{label}</Text>
+        {desc ? <Text style={[styles.menuDesc, { color: colors.mutedForeground }]}>{desc}</Text> : null}
       </View>
       <Ionicons name="chevron-forward" size={16} color={colors.mutedForeground} />
     </Pressable>
   );
 }
 
-const pendingStyles = StyleSheet.create({
-  row: {
+interface QuickCardProps {
+  icon: IoniconsName;
+  label: string;
+  colors: Colors;
+  onPress?: () => void;
+}
+
+function QuickCard({ icon, label, colors, onPress }: QuickCardProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.quickCard,
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+          opacity: pressed ? 0.8 : 1,
+        },
+      ]}
+    >
+      <Ionicons name={icon} size={24} color={colors.primary} />
+      <Text style={[styles.quickLabel, { color: colors.foreground }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  content: { paddingHorizontal: 20 },
+  header: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 10,
+    marginBottom: 24,
   },
+  greeting: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  name: { fontSize: 22, fontFamily: "Inter_700Bold" },
   avatar: {
     width: 44,
     height: 44,
@@ -593,136 +244,22 @@ const pendingStyles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  avatarText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  info: { flex: 1, gap: 6 },
-  email: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  badge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 20,
-  },
-  badgeText: { fontSize: 11, fontFamily: "Inter_500Medium" },
-});
-
-const styles = StyleSheet.create({
-  root: { flex: 1 },
-  headerSection: { paddingHorizontal: 20, paddingBottom: 16 },
-  titleRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
-  pageTitle: { fontSize: 22, fontFamily: "Inter_700Bold" },
-  dashboardStatsRow: { flexDirection: "row", gap: 10, marginTop: 14, marginBottom: 14 },
-  dashboardStatCard: { flex: 1, borderRadius: 12, borderWidth: 1, paddingVertical: 12, alignItems: "center" },
-  dashboardStatValue: { fontSize: 20, fontFamily: "Inter_700Bold" },
-  dashboardStatLabel: { fontSize: 11, fontFamily: "Inter_500Medium", marginTop: 2, textAlign: "center" },
-  countBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
-  countText: { fontSize: 14, fontFamily: "Inter_700Bold" },
-  searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
+  avatarText: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  statsRow: { flexDirection: "row", gap: 10, marginBottom: 24 },
+  sectionTitle: { fontSize: 17, fontFamily: "Inter_700Bold", marginBottom: 12 },
+  quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 24 },
+  quickCard: {
+    width: "47%",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
     gap: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    height: 46,
+    alignItems: "flex-start",
   },
-  searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
-  content: { paddingHorizontal: 20, paddingTop: 8 },
-  loader: { marginTop: 40 },
-  sectionDivider: { borderTopWidth: 1, marginVertical: 16 },
-  pendingLabel: { fontSize: 13, fontFamily: "Inter_500Medium", marginBottom: 8 },
-  emptyBox: { borderRadius: 16, borderWidth: 1, padding: 32, alignItems: "center", gap: 12 },
-  emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
-  emptyDesc: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
-  fab: {
-    position: "absolute",
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  modalBox: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderWidth: 1,
-    padding: 20,
-    maxHeight: "70%",
-  },
-  modalTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
-  modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  remindModalHint: { fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 12, lineHeight: 18 },
-  remindInput: {
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    minHeight: 80,
-    textAlignVertical: "top",
-    marginBottom: 16,
-  },
-  remindSendBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  remindSendBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  emptyInviteBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 4,
-  },
-  emptyInviteBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  inviteHint: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18, marginBottom: 4 },
-  inviteInput: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    fontFamily: "Inter_400Regular",
-    marginBottom: 4,
-  },
-  inviteErrorText: { fontSize: 13, color: "#e53935", fontFamily: "Inter_400Regular", marginBottom: 4 },
-  inviteModalBtns: { flexDirection: "row", gap: 12, marginTop: 8 },
-  fieldLabel: { fontSize: 13, fontFamily: "Inter_500Medium", marginBottom: 8, marginTop: 4 },
-  invitePlanScroll: { marginBottom: 4 },
-  invitePlanChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, marginRight: 8, maxWidth: 160 },
-  invitePlanChipText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  inviteCancelBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  inviteCancelBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  inviteSendBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  inviteSendBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  quickLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  menuRow: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: 14, borderWidth: 1, marginBottom: 8 },
+  menuIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: "center", alignItems: "center" },
+  menuInfo: { flex: 1 },
+  menuLabel: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  menuDesc: { fontSize: 12, fontFamily: "Inter_400Regular" },
 });
