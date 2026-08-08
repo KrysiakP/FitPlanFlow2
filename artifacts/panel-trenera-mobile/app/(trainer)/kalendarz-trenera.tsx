@@ -117,8 +117,18 @@ export default function TrainerCalendarScreen() {
     setSessionDate(new Date());
     setDuration(60);
     setLocation("");
+  }
+
+  // Collapses the native date/time pickers before dismissing the Modal —
+  // closing both at once can leave an invisible native picker view stuck
+  // on top of the screen, blocking touches on everything but the tab bar.
+  function closeModal() {
     setShowDatePicker(false);
     setShowTimePicker(false);
+    setTimeout(() => {
+      setModalVisible(false);
+      resetForm();
+    }, 50);
   }
 
   const createMutation = useMutation({
@@ -132,8 +142,7 @@ export default function TrainerCalendarScreen() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trainer-sessions"] });
-      setModalVisible(false);
-      resetForm();
+      closeModal();
     },
   });
 
@@ -241,7 +250,7 @@ export default function TrainerCalendarScreen() {
         visible={modalVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={closeModal}
       >
         <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <ScrollView
@@ -399,7 +408,7 @@ export default function TrainerCalendarScreen() {
 
             <View style={styles.modalBtns}>
               <Pressable
-                onPress={() => { setModalVisible(false); resetForm(); }}
+                onPress={closeModal}
                 style={({ pressed }) => [styles.cancelBtn, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
                 testID="button-cancel-session"
               >
