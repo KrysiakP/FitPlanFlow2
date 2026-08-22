@@ -56,7 +56,7 @@ const PRICING_PLANS: PricingPlan[] = [
     description: "Idealny na start, wypróbuj za darmo",
     clientLimit: 3,
     features: [
-      "Do 3 podopiecznych",
+      "Do 1 podopiecznego",
       "Plany treningowe",
       "Biblioteka ćwiczeń",
       "Raporty tygodniowe",
@@ -69,7 +69,7 @@ const PRICING_PLANS: PricingPlan[] = [
     description: "Dla początkujących trenerów personalnych",
     clientLimit: 10,
     features: [
-      "Do 10 podopiecznych",
+      "Do 3 podopiecznych",
       "Plany treningowe",
       "Biblioteka ćwiczeń",
       "Raporty tygodniowe",
@@ -84,7 +84,7 @@ const PRICING_PLANS: PricingPlan[] = [
     clientLimit: 20,
     highlighted: true,
     features: [
-      "Do 20 podopiecznych",
+      "Do 5 podopiecznych",
       "Plany treningowe",
       "Biblioteka ćwiczeń",
       "Raporty tygodniowe",
@@ -99,7 +99,7 @@ const PRICING_PLANS: PricingPlan[] = [
     description: "Dla profesjonalnych trenerów",
     clientLimit: 35,
     features: [
-      "Do 35 podopiecznych",
+      "Do 10 podopiecznych",
       "Plany treningowe",
       "Biblioteka ćwiczeń",
       "Raporty tygodniowe",
@@ -114,7 +114,7 @@ const PRICING_PLANS: PricingPlan[] = [
     description: "Dla ekspertów z dużą bazą klientów",
     clientLimit: 50,
     features: [
-      "Do 50 podopiecznych",
+      "Do 20 podopiecznych",
       "Plany treningowe",
       "Biblioteka ćwiczeń",
       "Raporty tygodniowe",
@@ -130,7 +130,7 @@ const PRICING_PLANS: PricingPlan[] = [
     clientLimit: -1,
     customPricing: true,
     features: [
-      "Powyżej 50 podopiecznych",
+      "Powyżej 20 podopiecznych",
       "Plany treningowe",
       "Biblioteka ćwiczeń",
       "Raporty tygodniowe",

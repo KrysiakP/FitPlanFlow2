@@ -186,10 +186,10 @@ export default function InviteClient() {
       {isStartTier && (
         <Alert data-testid="alert-free-tier-limit">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Plan START - Limit 3 podopiecznych</AlertTitle>
+          <AlertTitle>Plan START - Limit 1 podopiecznego</AlertTitle>
           <AlertDescription className="space-y-2">
             <p>
-              Korzystasz z darmowego planu START. Możesz mieć maksymalnie 3 aktywnych podopiecznych.
+              Korzystasz z darmowego planu START. Możesz mieć maksymalnie 1 aktywnego podopiecznego.
             </p>
             <Button variant="outline" size="sm" className="gap-2" data-testid="button-upgrade-premium" asChild>
               <Link href="/pricing">

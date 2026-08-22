@@ -23,6 +23,7 @@ interface PlanConfig {
   highlighted?: boolean;
   trainerLimit?: string;
   customPricing?: boolean;
+  previousPrice?: number;
 }
 
 const plans: PlanConfig[] = [
@@ -32,9 +33,9 @@ const plans: PlanConfig[] = [
     price: 0,
     description: 'Idealny na start, wypróbuj platformę za darmo',
     icon: Dumbbell,
-    clientLimit: 3,
+    clientLimit: 1,
     features: [
-      'Do 3 aktywnych podopiecznych',
+      'Do 1 aktywnego podopiecznego',
       'Zarządzanie podopiecznymi',
       'Nieograniczona liczba planów treningowych',
       'Biblioteka ćwiczeń z filmami',
@@ -44,12 +45,13 @@ const plans: PlanConfig[] = [
   {
     id: 'solo',
     name: 'SOLO',
-    price: 99,
+    price: 29,
     description: 'Dla początkujących trenerów personalnych',
     icon: Star,
-    clientLimit: 10,
+    clientLimit: 3,
+    previousPrice: 99,
     features: [
-      'Do 10 aktywnych podopiecznych',
+      'Do 3 aktywnych podopiecznych',
       'Zarządzanie podopiecznymi',
       'Nieograniczona liczba planów treningowych',
       'Biblioteka ćwiczeń z filmami',
@@ -60,13 +62,14 @@ const plans: PlanConfig[] = [
   {
     id: 'pro',
     name: 'PRO',
-    price: 189,
+    price: 49,
     description: 'Dla rozwijających się trenerów',
     icon: Crown,
-    clientLimit: 20,
+    clientLimit: 5,
+    previousPrice: 189,
     highlighted: true,
     features: [
-      'Do 20 aktywnych podopiecznych',
+      'Do 5 aktywnych podopiecznych',
       'Zarządzanie podopiecznymi',
       'Nieograniczona liczba planów treningowych',
       'Biblioteka ćwiczeń z filmami',
@@ -78,12 +81,13 @@ const plans: PlanConfig[] = [
   {
     id: 'elite',
     name: 'ELITE',
-    price: 279,
+    price: 89,
     description: 'Dla profesjonalnych trenerów',
     icon: Zap,
-    clientLimit: 35,
+    clientLimit: 10,
+    previousPrice: 279,
     features: [
-      'Do 35 aktywnych podopiecznych',
+      'Do 10 aktywnych podopiecznych',
       'Zarządzanie podopiecznymi',
       'Nieograniczona liczba planów treningowych',
       'Biblioteka ćwiczeń z filmami',
@@ -95,12 +99,13 @@ const plans: PlanConfig[] = [
   {
     id: 'max',
     name: 'MAX',
-    price: 349,
-    description: 'Dla ekspertów z dużą bazą klientów',
+    price: 149,
+    description: 'Dla trenerów z większą bazą klientów',
     icon: Crown,
-    clientLimit: 50,
+    clientLimit: 20,
+    previousPrice: 349,
     features: [
-      'Do 50 aktywnych podopiecznych',
+      'Do 20 aktywnych podopiecznych',
       'Zarządzanie podopiecznymi',
       'Nieograniczona liczba planów treningowych',
       'Biblioteka ćwiczeń z filmami',
@@ -118,7 +123,7 @@ const plans: PlanConfig[] = [
     clientLimit: -1,
     customPricing: true,
     features: [
-      'Powyżej 50 podopiecznych',
+      'Powyżej 20 podopiecznych',
       'Zarządzanie podopiecznymi',
       'Nieograniczona liczba planów treningowych',
       'Biblioteka ćwiczeń z filmami',
@@ -379,11 +384,16 @@ export function PricingSection() {
                       <>
                         <span className="text-3xl font-bold">{plan.price} zł</span>
                         <span className="text-muted-foreground">/miesiąc</span>
+                        {plan.previousPrice && (
+                          <div className="mt-1 text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                            {Math.round((1 - Number(plan.price) / plan.previousPrice) * 100)}% taniej niż wcześniej
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
                   <div className="text-sm font-medium text-primary">
-                    {plan.clientLimit === -1 ? 'Unlimited clients' : `Max ${plan.clientLimit} podopiecznych`}
+                    {plan.clientLimit === -1 ? 'Powyżej 20 podopiecznych' : `Do ${plan.clientLimit} aktywnych podopiecznych`}
                   </div>
                   {plan.trainerLimit && (
                     <div className="text-sm font-medium text-muted-foreground">

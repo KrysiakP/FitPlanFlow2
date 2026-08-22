@@ -220,7 +220,7 @@ export function TrainerSection() {
                   <CardHeader>
                     <Badge variant="outline" className="mx-auto mb-2">START</Badge>
                     <CardTitle className="font-heading text-2xl">0 zł/mies</CardTitle>
-                    <CardDescription>Do 3 podopiecznych</CardDescription>
+                    <CardDescription>Do 1 podopiecznego</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <CheckCircle className="w-6 h-6 text-primary mx-auto" />
@@ -230,8 +230,8 @@ export function TrainerSection() {
                 <Card className="text-center border-primary">
                   <CardHeader>
                     <Badge className="mx-auto mb-2">SOLO</Badge>
-                    <CardTitle className="font-heading text-2xl">99 zł/mies</CardTitle>
-                    <CardDescription>Do 10 podopiecznych</CardDescription>
+                    <CardTitle className="font-heading text-2xl">29 zł/mies</CardTitle>
+                    <CardDescription>Do 3 podopiecznych · 71% taniej</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <CheckCircle className="w-6 h-6 text-primary mx-auto" />
@@ -241,8 +241,8 @@ export function TrainerSection() {
                 <Card className="text-center">
                   <CardHeader>
                     <Badge variant="outline" className="mx-auto mb-2">PRO</Badge>
-                    <CardTitle className="font-heading text-2xl">189 zł/mies</CardTitle>
-                    <CardDescription>Do 20 podopiecznych</CardDescription>
+                    <CardTitle className="font-heading text-2xl">49 zł/mies</CardTitle>
+                    <CardDescription>Do 5 podopiecznych · 74% taniej</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <CheckCircle className="w-6 h-6 text-primary mx-auto" />

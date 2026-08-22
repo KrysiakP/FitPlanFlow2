@@ -26,7 +26,7 @@ const FAQS: FAQ[] = [
   },
   {
     q: "Jak dziala subskrypcja i ile kosztuje?",
-    a: "Panel Trenera oferuje plan darmowy (do 3 klientow) oraz plany platne: Solo (99 zl/mies.), Pro (189 zl/mies.), Elite (279 zl/mies.), Max (349 zl/mies.) i Studio (wycena indywidualna). Zakup i zmiana planu odbywa sie przez paneltrenera.pl/cennik.",
+    a: "Panel Trenera oferuje plan darmowy (do 1 podopiecznego) oraz plany platne: Solo (29 zl/mies. do 3 podopiecznych), Pro (49 zl/mies. do 5 podopiecznych), Elite (89 zl/mies. do 10 podopiecznych), Max (149 zl/mies. do 20 podopiecznych) i Studio (wycena indywidualna powyzej 20 podopiecznych). Zakup i zmiana planu odbywa sie przez paneltrenera.pl/cennik.",
   },
   {
     q: "Klient nie moze sie zalogowac - co zrobic?",
