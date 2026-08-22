@@ -34,7 +34,7 @@ export default function LegalRegulamin() {
               Regulamin
             </CardTitle>
             <p className="text-muted-foreground text-sm" data-testid="text-last-updated">
-              Ostatnia aktualizacja: 22 grudnia 2024
+              Ostatnia aktualizacja: 25 lipca 2026
             </p>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none" data-testid="content-regulamin">
@@ -42,8 +42,15 @@ export default function LegalRegulamin() {
               <h2>§1. Postanowienia ogólne</h2>
               <ol>
                 <li>Niniejszy Regulamin określa zasady korzystania z serwisu internetowego Panel Trenera, dostępnego pod adresem paneltrenera.pl (dalej: „Serwis").</li>
-                <li>Operatorem Serwisu jest Panel Trenera (dalej: „Operator").</li>
-                <li>Kontakt z Operatorem możliwy jest pod adresem e-mail: kontakt@paneltrenera.pl.</li>
+                <li>
+                  Operatorem Serwisu jest Fundacja Rozwoju Przedsiębiorczości „Twój StartUp” z siedzibą przy ul. Żurawiej 6/12 lok. 766, 00-503 Warszawa, wpisana do Rejestru Przedsiębiorców Krajowego Rejestru Sądowego pod numerem KRS 0000442857, NIP: 5213641211, REGON: 146433467 (dalej: „Operator”).
+                </li>
+                <li>
+                  Usługi Panelu Trenera są świadczone przez zorganizowaną część przedsiębiorstwa Good Vibes, reprezentowaną przez Przemysława Krysiaka.
+                </li>
+                <li>
+                  Kontakt z Operatorem: tel. <a href="tel:+48790691888">+48 790 691 888</a>, e-mail: <a href="mailto:Media.Krysiak@gmail.com">Media.Krysiak@gmail.com</a>.
+                </li>
                 <li>Korzystanie z Serwisu oznacza akceptację niniejszego Regulaminu oraz Polityki Prywatności.</li>
                 <li>Serwis przeznaczony jest dla osób pełnoletnich. Osoby niepełnoletnie mogą korzystać z Serwisu wyłącznie za zgodą opiekuna prawnego.</li>
               </ol>
@@ -209,7 +216,9 @@ export default function LegalRegulamin() {
               <h2>§10. Prawo odstąpienia od umowy</h2>
               <ol>
                 <li>Użytkownik będący konsumentem ma prawo odstąpić od umowy o świadczenie Usług w terminie 14 dni od dnia jej zawarcia, bez podawania przyczyny.</li>
-                <li>Aby skorzystać z prawa odstąpienia, należy poinformować Operatora o swojej decyzji w drodze jednoznacznego oświadczenia (np. pismo wysłane pocztą elektroniczną na adres: kontakt@paneltrenera.pl).</li>
+                <li>
+                  Aby skorzystać z prawa odstąpienia, należy poinformować Operatora o swojej decyzji w drodze jednoznacznego oświadczenia, wysłanego e-mailem na adres <a href="mailto:Media.Krysiak@gmail.com">Media.Krysiak@gmail.com</a> albo pocztą na adres do doręczeń: Fundacja Rozwoju Przedsiębiorczości „Twój StartUp”, Atlas Tower, Al. Jerozolimskie 123A, 18 piętro, 02-017 Warszawa.
+                </li>
                 <li>W przypadku odstąpienia od umowy, Operator zwraca wszystkie otrzymane płatności niezwłocznie, nie później niż w terminie 14 dni od dnia otrzymania oświadczenia o odstąpieniu.</li>
                 <li>Zwrot płatności następuje przy użyciu takich samych metod płatności, jakie zostały użyte przez Użytkownika w pierwotnej transakcji.</li>
                 <li>Jeżeli Użytkownik zażądał rozpoczęcia świadczenia usług przed upływem terminu do odstąpienia od umowy, zobowiązany jest do zapłaty za usługi spełnione do chwili poinformowania o odstąpieniu.</li>
@@ -220,7 +229,9 @@ export default function LegalRegulamin() {
               <h2>§11. Reklamacje</h2>
               <ol>
                 <li>Użytkownik ma prawo składać reklamacje dotyczące funkcjonowania Serwisu.</li>
-                <li>Reklamacje należy składać drogą elektroniczną na adres: kontakt@paneltrenera.pl lub pisemnie na adres siedziby Operatora.</li>
+                <li>
+                  Reklamacje należy składać drogą elektroniczną na adres <a href="mailto:Media.Krysiak@gmail.com">Media.Krysiak@gmail.com</a> lub pisemnie na adres do doręczeń: Fundacja Rozwoju Przedsiębiorczości „Twój StartUp”, Atlas Tower, Al. Jerozolimskie 123A, 18 piętro, 02-017 Warszawa.
+                </li>
                 <li>Reklamacja powinna zawierać:
                   <ul>
                     <li>dane identyfikacyjne Użytkownika (imię, nazwisko, adres e-mail),</li>

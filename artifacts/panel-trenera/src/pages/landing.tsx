@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dumbbell, Users, ClipboardList, TrendingUp, MapPin, Heart, Mail, Sparkles } from "lucide-react";
+import { Dumbbell, Users, ClipboardList, TrendingUp, MapPin, Heart, Mail, Phone, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 import { PublicHeader } from "@/components/public-header";
 import { TrainerSection } from "@/components/landing/TrainerSection";
@@ -192,17 +192,32 @@ export default function Landing() {
 
             <div className="space-y-4">
               <h3 className="font-heading font-semibold">Kontakt</h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                Masz pytania? Skontaktuj się z nami i dowiedz się więcej o możliwościach platformy.
-              </p>
-              <a 
-                href="mailto:kontakt@paneltrenera.pl" 
-                className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
-                data-testid="link-contact-email"
-              >
-                <Mail className="w-4 h-4" />
-                kontakt@paneltrenera.pl
-              </a>
+              <address className="not-italic space-y-2 text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">
+                  Fundacja Rozwoju Przedsiębiorczości „Twój StartUp”
+                </p>
+                <p>NIP: 5213641211</p>
+                <p>
+                  ul. Żurawia 6/12 lok. 766<br />
+                  00-503 Warszawa
+                </p>
+                <a
+                  href="tel:+48790691888"
+                  className="inline-flex items-center gap-2 text-primary hover:underline"
+                  data-testid="link-contact-phone"
+                >
+                  <Phone className="w-4 h-4" />
+                  +48 790 691 888
+                </a>
+                <a
+                  href="mailto:Media.Krysiak@gmail.com"
+                  className="flex items-center gap-2 text-primary hover:underline break-all"
+                  data-testid="link-contact-email"
+                >
+                  <Mail className="w-4 h-4 shrink-0" />
+                  Media.Krysiak@gmail.com
+                </a>
+              </address>
             </div>
           </div>
 

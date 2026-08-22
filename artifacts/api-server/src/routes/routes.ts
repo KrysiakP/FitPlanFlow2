@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "../storage";
 import { db } from "../db";
@@ -65,6 +65,42 @@ import { getDemoClient, getDemoTrainingPlans, getDemoWeeklyReports, getDemoDietP
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { 
   apiVersion: '2024-11-20.acacia' as any 
 });
+
+function isTrustedCheckoutOrigin(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      /^https:\/\/([a-z0-9-]+\.)?replit\.(dev|app)$/i.test(url.origin) ||
+      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(url.origin) ||
+      url.origin === "https://paneltrenera.pl" ||
+      url.origin === "https://www.paneltrenera.pl"
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getCheckoutReturnOrigin(req: Request): string {
+  const requestOrigin = req.get("origin");
+  if (requestOrigin && isTrustedCheckoutOrigin(requestOrigin)) {
+    return requestOrigin;
+  }
+
+  const referer = req.get("referer");
+  if (referer) {
+    try {
+      const refererOrigin = new URL(referer).origin;
+      if (isTrustedCheckoutOrigin(refererOrigin)) {
+        return refererOrigin;
+      }
+    } catch {
+      // Fall through to the configured development origin.
+    }
+  }
+
+  const configuredDomain = process.env.REPLIT_DOMAINS?.split(",")[0];
+  return configuredDomain ? `https://${configuredDomain}` : "http://localhost:5000";
+}
 
 async function sendExpoPush(tokens: string[], title: string, body: string, data?: Record<string, string>) {
   if (tokens.length === 0) return;
@@ -1602,10 +1638,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const priceId = priceIdMap[tier];
       
-      // Determine the base URL for redirects
-      const baseUrl = process.env.REPLIT_DOMAINS 
-        ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
-        : 'http://localhost:5000';
+      // Return the buyer to the exact trusted domain from which checkout began.
+      const baseUrl = getCheckoutReturnOrigin(req);
 
       // Create Checkout Session
       const session = await stripe.checkout.sessions.create({
@@ -1656,10 +1690,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Brak konta Stripe" });
       }
 
-      // Determine the base URL for redirects
-      const baseUrl = process.env.REPLIT_DOMAINS 
-        ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
-        : 'http://localhost:5000';
+      // Keep the billing portal return URL on the same trusted domain.
+      const baseUrl = getCheckoutReturnOrigin(req);
 
       // Create Billing Portal Session
       const session = await stripe.billingPortal.sessions.create({
