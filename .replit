@@ -52,4 +52,8 @@ packages = ["undollar"]
 [userenv.development]
 
 [userenv.shared]
+STRIPE_ELITE_PRICE_ID = "price_1U8i2ECakh2gYwZrCGaKK3DX"
+STRIPE_MAX_PRICE_ID = "price_1U8i2ECakh2gYwZrdR1RZHVn"
+STRIPE_PRO_PRICE_ID = "price_1U8i2ECakh2gYwZriIGeu2jr"
+STRIPE_SOLO_PRICE_ID = "price_1U8i2DCakh2gYwZrvPzrOGF5"
 # DEMO_SEED_SECRET moved to Replit Secrets vault (was hardcoded and publicly exposed in git history)
