@@ -1553,7 +1553,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { tier, referralCode: referralCodeInput } = req.body;
       
       // Validate tier
-      const validTiers = ['solo', 'pro', 'elite', 'max', 'studio'];
+      const validTiers = ['solo', 'pro', 'elite', 'max'];
       if (!tier || !validTiers.includes(tier)) {
         return res.status(400).json({ message: "Nieprawidłowy plan subskrypcji" });
       }
@@ -1628,15 +1628,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Map tier to Stripe price ID
-      const priceIdMap: Record<string, string> = {
-        solo: process.env.STRIPE_SOLO_PRICE_ID || 'price_test_solo',
-        pro: process.env.STRIPE_PRO_PRICE_ID || 'price_test_pro',
-        elite: process.env.STRIPE_ELITE_PRICE_ID || 'price_test_elite',
-        max: process.env.STRIPE_MAX_PRICE_ID || 'price_test_max',
-        studio: process.env.STRIPE_STUDIO_PRICE_ID || 'price_test_studio',
+      const priceIdMap: Record<string, string | undefined> = {
+        solo: process.env.STRIPE_SOLO_PRICE_ID,
+        pro: process.env.STRIPE_PRO_PRICE_ID,
+        elite: process.env.STRIPE_ELITE_PRICE_ID,
+        max: process.env.STRIPE_MAX_PRICE_ID,
       };
 
       const priceId = priceIdMap[tier];
+      if (!priceId) {
+        console.error(`Missing Stripe price configuration for tier: ${tier}`);
+        return res.status(503).json({ message: "Ten plan nie jest jeszcze skonfigurowany w płatnościach" });
+      }
       
       // Return the buyer to the exact trusted domain from which checkout began.
       const baseUrl = getCheckoutReturnOrigin(req);

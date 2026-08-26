@@ -228,6 +228,16 @@ export function PricingSection() {
   const isActive = user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing';
 
   const getButtonConfig = (plan: PlanConfig) => {
+    if (plan.customPricing) {
+      return {
+        text: 'Zapytaj o wycenę',
+        disabled: false,
+        variant: 'outline' as const,
+        asChild: true,
+        href: 'mailto:Media.Krysiak@gmail.com?subject=Zapytanie%20o%20plan%20STUDIO%2FKLUB',
+      };
+    }
+
     if (!user) {
       return {
         text: plan.id === 'start' ? 'Zacznij za darmo' : 'Rozpocznij',
