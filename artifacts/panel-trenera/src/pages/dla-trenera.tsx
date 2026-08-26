@@ -233,7 +233,7 @@ export default function DlaTrenera() {
                   <CardHeader>
                     <Badge className="mx-auto mb-2">SOLO</Badge>
                     <CardTitle className="font-heading text-2xl">29 zł/mies</CardTitle>
-                    <CardDescription>Do 3 podopiecznych</CardDescription>
+                    <CardDescription>Do 1 podopiecznego</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <CheckCircle className="w-6 h-6 text-primary mx-auto" />

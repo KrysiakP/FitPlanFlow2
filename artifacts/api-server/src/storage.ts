@@ -464,14 +464,14 @@ export class DatabaseStorage implements IStorage {
   getEffectiveClientLimit(user: User): number {
     // Map tier to client limit
     const tierLimits: Record<string, number> = {
-      start: 3,
+      start: 1,
       solo: 3,
       pro: 5,
       elite: 10,
       max: 20,
       studio: 9999,
       // Legacy support
-      free: 3,
+      free: 1,
       premium: 50,
     };
     
@@ -493,7 +493,7 @@ export class DatabaseStorage implements IStorage {
     }
     
     // If no trial and no active subscription, return START limit (1)
-    return 3;
+    return 1;
   }
   
   async checkTrainerClientLimit(trainerId: string): Promise<{ withinLimit: boolean; currentCount: number; maxCount: number }> {
