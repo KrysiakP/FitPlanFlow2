@@ -1,7 +1,6 @@
 import {
   ActivityIndicator,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
@@ -16,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useKeyboardVisible } from "@/hooks/useKeyboardVisible";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import {
   useConversations,
   useMessages,
