@@ -32,6 +32,8 @@ interface SessionSnapshot {
   setLogs: SetLogs;
 }
 
+let memorySnapshot: SessionSnapshot | null = null;
+
 function serializeCompletedSets(sets: CompletedSets): Record<string, number[]> {
   const out: Record<string, number[]> = {};
   for (const [exerciseId, setNumbers] of Object.entries(sets)) {
@@ -508,31 +510,47 @@ export default function TrainingScreen() {
 
   // Rehydrate an in-progress session that survived an app kill (crash/OS reclaim),
   // so already-logged sets aren't shown as unchecked and re-logged by accident.
+  // The module-level `memorySnapshot` also survives this screen being unmounted and
+  // remounted while the app stays alive (e.g. after visiting other tabs).
   const rehydratedRef = useRef(false);
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     if (rehydratedRef.current) return;
     rehydratedRef.current = true;
+
+    const apply = (snapshot: SessionSnapshot) => {
+      setActiveWorkout(snapshot.workoutId);
+      setSessionActive(true);
+      setSessionStartTime(snapshot.sessionStartTime);
+      setCompletedSets(deserializeCompletedSets(snapshot.completedSets));
+      setSetLogs(snapshot.setLogs);
+      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - snapshot.sessionStartTime) / 1000)));
+      if (elapsedIntervalRef.current) clearInterval(elapsedIntervalRef.current);
+      elapsedIntervalRef.current = setInterval(() => {
+        setElapsedSeconds(Math.floor((Date.now() - snapshot.sessionStartTime) / 1000));
+      }, 1000);
+    };
+
+    if (memorySnapshot) {
+      apply(memorySnapshot);
+      setHydrated(true);
+      return;
+    }
     AsyncStorage.getItem(SESSION_SNAPSHOT_KEY)
       .then((raw) => {
-        if (!raw) return;
-        const snapshot: SessionSnapshot = JSON.parse(raw);
-        setActiveWorkout(snapshot.workoutId);
-        setSessionActive(true);
-        setSessionStartTime(snapshot.sessionStartTime);
-        setCompletedSets(deserializeCompletedSets(snapshot.completedSets));
-        setSetLogs(snapshot.setLogs);
-        setElapsedSeconds(Math.max(0, Math.floor((Date.now() - snapshot.sessionStartTime) / 1000)));
-        if (elapsedIntervalRef.current) clearInterval(elapsedIntervalRef.current);
-        elapsedIntervalRef.current = setInterval(() => {
-          setElapsedSeconds(Math.floor((Date.now() - snapshot.sessionStartTime) / 1000));
-        }, 1000);
+        if (raw) apply(JSON.parse(raw) as SessionSnapshot);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setHydrated(true));
   }, []);
 
   // Persist the in-progress session on every change so it survives an app kill.
+  // Skipped until hydration finishes: otherwise the initial empty state would wipe
+  // the stored snapshot before it could be restored.
   useEffect(() => {
+    if (!hydrated) return;
     if (!sessionActive || !activeWorkout || !sessionStartTime) {
+      memorySnapshot = null;
       AsyncStorage.removeItem(SESSION_SNAPSHOT_KEY).catch(() => {});
       return;
     }
@@ -542,8 +560,9 @@ export default function TrainingScreen() {
       completedSets: serializeCompletedSets(completedSets),
       setLogs,
     };
+    memorySnapshot = snapshot;
     AsyncStorage.setItem(SESSION_SNAPSHOT_KEY, JSON.stringify(snapshot)).catch(() => {});
-  }, [sessionActive, activeWorkout, sessionStartTime, completedSets, setLogs]);
+  }, [hydrated, sessionActive, activeWorkout, sessionStartTime, completedSets, setLogs]);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -1125,25 +1144,20 @@ export default function TrainingScreen() {
                     key={w.id}
                     onPress={() => {
                       if (active) return;
-                      const switchWorkout = () => {
-                        setActiveWorkout(w.id);
-                        setCompletedSets({});
-                        setSetLogs({});
-                        setLoggingTarget(null);
-                        stopRestTimer();
-                      };
+                      // Never wipe progress by accident: switching is only allowed
+                      // when no session is running.
                       if (sessionActive) {
                         Alert.alert(
-                          "Zmienić trening?",
-                          "Trwa aktywna sesja. Zmiana treningu przerwie ją i wyczyści widoczny postęp (zalogowane serie pozostają zapisane).",
-                          [
-                            { text: "Anuluj", style: "cancel" },
-                            { text: "Zmień trening", style: "destructive", onPress: () => { resetSessionState(); switchWorkout(); } },
-                          ]
+                          "Trwa trening",
+                          "Zakończ lub przerwij bieżący trening (przycisk „Przerwij”), zanim wybierzesz inny."
                         );
-                      } else {
-                        switchWorkout();
+                        return;
                       }
+                      setActiveWorkout(w.id);
+                      setCompletedSets({});
+                      setSetLogs({});
+                      setLoggingTarget(null);
+                      stopRestTimer();
                     }}
                     style={[
                       styles.tab,
