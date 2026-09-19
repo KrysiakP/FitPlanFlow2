@@ -1,2 +1,3 @@
 - [Dependency scan scope](dependency-scan-scope.md) — dependency scans include inactive lockfiles in backup directories, not only the active workspace lockfile.
+- [Nested pnpm hoist settings](nested-pnpm-hoist-settings.md) — workspace installs and package-local adds must use the same hoist configuration or pnpm rejects dependency updates.
 - [Security overrides and build tools](security-overrides-build-tools.md) — validate real Expo bundles after transitive security overrides; API-compatible versions can still break build-tool contracts.
