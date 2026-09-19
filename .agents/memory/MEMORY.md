@@ -1,0 +1,1 @@
+- [Dependency scan scope](dependency-scan-scope.md) — dependency scans include inactive lockfiles in backup directories, not only the active workspace lockfile.

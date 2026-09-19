@@ -24,12 +24,12 @@
     "express-rate-limit": "^8.5.0",
     "express-session": "^1.19.0",
     "helmet": "^8.1.0",
-    "multer": "^2.1.1",
+    "multer": "^2.4.0",
     "pino": "^9",
     "pino-http": "^10",
     "resend": "^6.12.2",
     "stripe": "^22.0.2",
-    "ws": "^8.20.0",
+    "ws": "^8.21.3",
     "zod": "catalog:"
   },
   "devDependencies": {
