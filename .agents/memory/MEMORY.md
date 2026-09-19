@@ -1,1 +1,2 @@
 - [Dependency scan scope](dependency-scan-scope.md) — dependency scans include inactive lockfiles in backup directories, not only the active workspace lockfile.
+- [Security overrides and build tools](security-overrides-build-tools.md) — validate real Expo bundles after transitive security overrides; API-compatible versions can still break build-tool contracts.
