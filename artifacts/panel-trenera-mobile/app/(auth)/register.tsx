@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -111,8 +112,16 @@ export default function RegisterScreen() {
       const firstName = parts[0] ?? "";
       const lastName = parts.slice(1).join(" ");
       const refCode = role === "trainer" ? (referralCode.trim().toUpperCase() || undefined) : undefined;
-      await register(firstName, email.trim().toLowerCase(), password, role, lastName, undefined, refCode);
+      const result = await register(firstName, email.trim().toLowerCase(), password, role, lastName, undefined, refCode);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (result.requiresEmailVerification) {
+        Alert.alert(
+          "Sprawdź swoją skrzynkę",
+          "Wysłaliśmy link aktywacyjny na podany adres e-mail. Po potwierdzeniu adresu zaloguj się w aplikacji.",
+          [{ text: "Przejdź do logowania", onPress: () => router.replace("/(auth)/login") }],
+        );
+        return;
+      }
       router.replace(role === "trainer" ? "/(trainer)" : "/(auth)/onboarding");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Wystąpił błąd. Spróbuj ponownie.";

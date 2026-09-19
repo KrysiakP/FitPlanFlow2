@@ -1573,6 +1573,23 @@ export class DatabaseStorage implements IStorage {
       if (!client || client.email.toLowerCase() !== invitation.clientEmail.toLowerCase()) {
         throw new Error("Nie masz uprawnień do akceptacji tego zaproszenia");
       }
+
+      // Atomically claim the invitation before applying relationship or plan side effects.
+      // The transaction rolls this update back if any later operation fails.
+      const [claimedInvitation] = await tx
+        .update(planInvitations)
+        .set({ status: "accepted", updatedAt: new Date() })
+        .where(
+          and(
+            eq(planInvitations.id, invitationId),
+            eq(planInvitations.status, "pending")
+          )
+        )
+        .returning({ id: planInvitations.id });
+
+      if (!claimedInvitation) {
+        throw new Error("Zaproszenie nie jest już oczekujące");
+      }
       
       // 1. Utwórz lub aktywuj relację trener-podopieczny
       const [existingRelationship] = await tx
@@ -1637,13 +1654,7 @@ export class DatabaseStorage implements IStorage {
         }
       }
       
-      // 3. Zaktualizuj status zaproszenia
-      await tx
-        .update(planInvitations)
-        .set({ status: "accepted", updatedAt: new Date() })
-        .where(eq(planInvitations.id, invitationId));
-      
-      // 4. Odrzuć wszystkie inne pending zaproszenia dla tego klienta od tego trenera
+      // 3. Odrzuć wszystkie inne pending zaproszenia dla tego klienta od tego trenera
       await tx
         .update(planInvitations)
         .set({ status: "rejected", updatedAt: new Date() })
@@ -1702,10 +1713,20 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Nie masz uprawnień do odrzucenia tego zaproszenia");
     }
     
-    await db
+    const [rejectedInvitation] = await db
       .update(planInvitations)
       .set({ status: "rejected", updatedAt: new Date() })
-      .where(eq(planInvitations.id, invitationId));
+      .where(
+        and(
+          eq(planInvitations.id, invitationId),
+          eq(planInvitations.status, "pending")
+        )
+      )
+      .returning({ id: planInvitations.id });
+
+    if (!rejectedInvitation) {
+      throw new Error("Zaproszenie nie jest już oczekujące");
+    }
   }
   
   async getTrainerInvitations(trainerId: string): Promise<PlanInvitation[]> {

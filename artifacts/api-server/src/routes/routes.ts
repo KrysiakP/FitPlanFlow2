@@ -835,7 +835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Mobile-specific registration endpoint: skips email verification, auto-logs in
+  // Mobile registration uses the same email ownership proof as web registration.
   app.post("/api/auth/register", authRateLimit, async (req, res) => {
     try {
       const mobileRegisterSchema = z.object({
@@ -903,16 +903,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         referralBonusDays: 0,
         hasFreeAccess: false,
         subscriptionCancelledAt: null,
-        emailVerified: true,
+        emailVerified: false,
         emailVerificationToken: null,
         emailVerificationTokenExpiresAt: null,
       });
-
-      // Auto-login: create session
-      req.session.userId = user.id;
-      await new Promise<void>((resolve, reject) =>
-        req.session.save((err) => (err ? reject(err) : resolve()))
-      );
 
       // Process referral event if a valid referral code was used
       if (resolvedReferralCode) {
@@ -950,68 +944,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Auto-accept any pending invitations for this email
-      try {
-        const pendingInvitations = await storage.getClientInvitations(email);
-        for (const inv of pendingInvitations) {
-          try {
-            await storage.acceptInvitation(inv.id, user.id);
-            const clientName = `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email;
-            // Notify trainer via push
-            void sendPushToUserAndRecord(
-              inv.trainerId,
-              "Nowy podopieczny!",
-              `${user.firstName} zaakceptował(a) Twoje zaproszenie i dołączył(a) do aplikacji.`,
-              { type: "invitation_accepted", clientId: user.id },
-              "invitation_accepted"
-            );
-            // Send welcome email to client and notification to trainer
-            const trainer = await storage.getUser(inv.trainerId).catch(() => null);
-            const trainerName = trainer
-              ? `${trainer.firstName ?? ""} ${trainer.lastName ?? ""}`.trim() || trainer.email
-              : "Twój trener";
-            if (user.email && user.firstName) {
-              void sendWelcomeEmail({
-                email: user.email,
-                firstName: user.firstName,
-                trainerName,
-              });
-            }
-            if (trainer?.email && trainer?.firstName) {
-              void sendTrainerNotificationEmail({
-                email: trainer.email,
-                trainerFirstName: trainer.firstName,
-                clientName,
-              });
-            }
-          } catch (invErr) {
-            console.warn("[MOBILE-REGISTER] Could not auto-accept invitation:", inv.id, invErr);
-          }
-        }
-      } catch (invLookupErr) {
-        console.warn("[MOBILE-REGISTER] Could not look up invitations:", invLookupErr);
-      }
+      const verificationToken = generateVerificationToken();
+      const tokenExpiry = getTokenExpiry();
+      await storage.setEmailVerificationToken(user.id, verificationToken, tokenExpiry);
 
-      // Send welcome email to newly registered trainers
-      if (role === "trainer" && user.email && user.firstName) {
-        void sendTrainerWelcomeEmail({
-          email: user.email,
-          firstName: user.firstName,
-        });
+      const emailSent = await sendVerificationEmail({
+        email: user.email,
+        firstName: user.firstName,
+        token: verificationToken,
+      });
+      if (!emailSent) {
+        console.warn("[MOBILE-REGISTER] Failed to send verification email to:", user.email);
       }
 
       const { password: _, ...userWithoutPassword } = user;
-      console.log("[MOBILE-REGISTER] User registered and logged in:", user.id);
-      // Generate a Bearer token for mobile clients (avoids cross-site cookie issues)
-      try {
-        const tokenValue = randomUUID();
-        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-        await storage.createMobileToken(user.id, tokenValue, expiresAt);
-        return res.status(201).json({ ...userWithoutPassword, mobileToken: tokenValue });
-      } catch (tokenErr) {
-        console.error("[MOBILE-REGISTER] Failed to create mobile token:", tokenErr);
-        return res.status(201).json(userWithoutPassword);
-      }
+      console.log("[MOBILE-REGISTER] User registered, verification email sent:", user.id);
+      return res.status(201).json({
+        ...userWithoutPassword,
+        requiresEmailVerification: true,
+        message: "Konto zostało utworzone. Sprawdź swoją skrzynkę email, aby aktywować konto.",
+      });
     } catch (error) {
       console.error("Error in mobile register:", error);
       return res.status(500).json({ message: "Nie udało się zarejestrować użytkownika" });
@@ -1218,7 +1170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Resend verification email endpoint
-  app.post("/api/auth/resend-verification", async (req, res) => {
+  app.post("/api/auth/resend-verification", authRateLimit, async (req, res) => {
     try {
       const { email } = req.body;
       
@@ -1415,6 +1367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Invalidate all existing sessions for this user for enhanced security
       await db.delete(sessions).where(sql`sess->>'userId' = ${user.id}`);
+      await storage.deleteAllMobileTokensForUser(user.id);
 
       console.log("[RESET_PASSWORD] Password reset successfully for user:", user.id);
       res.json({ message: "Hasło zostało zmienione. Możesz się teraz zalogować." });
@@ -3488,6 +3441,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       try {
         const invitationBefore = await storage.getInvitation(id);
+        if (!invitationBefore) {
+          return res.status(404).json({ message: "Zaproszenie nie zostało znalezione" });
+        }
+        if (invitationBefore.status !== "pending") {
+          return res.status(409).json({ message: "Zaproszenie nie jest już oczekujące" });
+        }
         await storage.acceptInvitation(id, userId);
         res.status(200).json({ message: "Zaproszenie zaakceptowane" });
         // Fire-and-forget push and emails
@@ -3523,8 +3482,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       } catch (error) {
-        if (error instanceof Error && error.message.includes("not found")) {
+        if (error instanceof Error && error.message.includes("nie istnieje")) {
           return res.status(404).json({ message: "Zaproszenie nie zostało znalezione" });
+        }
+        if (error instanceof Error && error.message.includes("nie jest już oczekujące")) {
+          return res.status(409).json({ message: "Zaproszenie nie jest już oczekujące" });
         }
         throw error;
       }
@@ -3546,11 +3508,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       
       try {
+        const invitation = await storage.getInvitation(id);
+        if (!invitation) {
+          return res.status(404).json({ message: "Zaproszenie nie zostało znalezione" });
+        }
+        if (invitation.status !== "pending") {
+          return res.status(409).json({ message: "Zaproszenie nie jest już oczekujące" });
+        }
         await storage.rejectInvitation(id, userId);
         res.status(200).json({ message: "Zaproszenie odrzucone" });
       } catch (error) {
-        if (error instanceof Error && error.message.includes("not found")) {
+        if (error instanceof Error && error.message.includes("nie istnieje")) {
           return res.status(404).json({ message: "Zaproszenie nie zostało znalezione" });
+        }
+        if (error instanceof Error && error.message.includes("nie jest już oczekujące")) {
+          return res.status(409).json({ message: "Zaproszenie nie jest już oczekujące" });
         }
         throw error;
       }

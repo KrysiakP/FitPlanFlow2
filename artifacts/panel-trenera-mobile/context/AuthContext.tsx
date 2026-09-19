@@ -22,7 +22,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (firstName: string, email: string, password: string, role?: "client" | "trainer", lastName?: string, invitationCode?: string, referralCode?: string) => Promise<void>;
+  register: (firstName: string, email: string, password: string, role?: "client" | "trainer", lastName?: string, invitationCode?: string, referralCode?: string) => Promise<{ requiresEmailVerification: boolean }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -189,12 +189,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const err = await res.json().catch(() => ({})) as { message?: string };
       throw new Error(err.message ?? "Nie udało się zarejestrować konta");
     }
-    const data: User & { mobileToken?: string } = await res.json();
+    const data: User & { mobileToken?: string; requiresEmailVerification?: boolean } = await res.json();
+    if (data.requiresEmailVerification) {
+      return { requiresEmailVerification: true };
+    }
     if (data.mobileToken) await storeMobileToken(data.mobileToken);
     const { mobileToken: _mt, ...userData } = data;
     setUser(userData as User);
     await setStoredSession(true);
     void registerPushToken();
+    return { requiresEmailVerification: false };
   }, []);
 
   const logout = useCallback(async () => {
