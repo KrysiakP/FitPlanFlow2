@@ -1080,7 +1080,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!trainerClients.some((c) => c.id === clientId)) {
         return res.status(403).json({ message: "Możesz wysyłać przypomnienia tylko do własnych podopiecznych" });
       }
-      const assignment = await storage.getClientAssignment(clientId);
+      const assignment = await storage.getClientAssignment(clientId, userId);
       let planName = "swój plan treningowy";
       if (assignment?.planId) {
         const plan = await storage.getTrainingPlan(assignment.planId);
@@ -3023,11 +3023,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only assign your own plans" });
       }
 
-      const assignments = await storage.createBulkAssignments(planId, clientIds);
+      const uniqueClientIds = [...new Set(clientIds)];
+      const authorizationChecks = await Promise.all(
+        uniqueClientIds.map((clientId) => storage.hasActiveClientRelationship(userId, clientId))
+      );
+      if (authorizationChecks.some((isAuthorized) => !isAuthorized)) {
+        return res.status(403).json({ message: "You can only assign plans to your active clients" });
+      }
+
+      const assignments = await storage.createBulkAssignments(planId, uniqueClientIds, userId);
       res.json(assignments);
       // Fire-and-forget push to each assigned client
       void Promise.all(
-        clientIds.map((clientId) =>
+        uniqueClientIds.map((clientId) =>
           sendPushToUserAndRecord(
             clientId,
             "Nowy plan treningowy!",
@@ -3067,7 +3075,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only remove assignments from your own clients" });
       }
 
-      await storage.deleteClientAssignment(clientId);
+      const deleted = await storage.deleteClientAssignment(clientId, userId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Assignment not found" });
+      }
       res.json({ success: true });
     } catch (error) {
       console.error("Error removing assignment:", error);
@@ -3106,7 +3117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { password: _, ...clientWithoutPassword } = client;
       
-      const assignment = await storage.getClientAssignment(client.id);
+      const assignment = await storage.getClientAssignment(client.id, userId);
       let assignmentWithPlan = undefined;
       
       if (assignment) {
@@ -3157,7 +3168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const clientsWithAssignments = await Promise.all(
         clients.map(async (client) => {
-          const assignment = await storage.getClientAssignment(client.id);
+          const assignment = await storage.getClientAssignment(client.id, userId);
           if (assignment) {
             const plan = await storage.getTrainingPlan(assignment.planId);
             return {
@@ -3628,7 +3639,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify client has access to this exercise
-      const assignment = await storage.getClientAssignment(clientId);
+      const assignment = await storage.getClientAssignment(
+        clientId,
+        user?.role === "trainer" ? userId : undefined
+      );
       if (!assignment) {
         console.error(`Client ${clientId} has no plan assignment`);
         return res.status(403).json({ message: "Podopieczny nie ma przypisanego planu treningowego" });
@@ -3860,7 +3874,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify the client has an active assignment to the given planId
-      const assignment = await storage.getClientAssignment(clientId);
+      const assignment = await storage.getClientAssignment(
+        clientId,
+        isTrainer ? userId : undefined
+      );
       if (!assignment || assignment.planId !== planId) {
         return res.status(403).json({ message: "Plan treningowy nie należy do tego podopiecznego" });
       }
@@ -5175,7 +5192,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko trener może oznaczyć płatność jako zapłaconą" });
       }
 
-      await storage.markPaymentAsPaid(id);
+      const updated = await storage.markPaymentAsPaid(id, userId);
+      if (!updated) {
+        return res.status(404).json({ message: "Płatność nie została znaleziona" });
+      }
       res.json({ message: "Płatność została oznaczona jako zapłacona" });
     } catch (error) {
       console.error("Error marking payment as paid:", error);
@@ -5193,7 +5213,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko trenerzy mogą usuwać płatności" });
       }
 
-      await storage.deletePayment(id);
+      const deleted = await storage.deletePayment(id, userId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Płatność nie została znaleziona" });
+      }
       res.json({ message: "Płatność została usunięta" });
     } catch (error) {
       console.error("Error deleting payment:", error);
@@ -6036,21 +6059,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(1);
       if (existing.length > 0) return res.status(409).json({ message: "Ten trener jest już zaproszony lub aktywny" });
 
-      // Check if user with this email exists as trainer
-      const [existingUser] = await db
-        .select()
-        .from(users)
-        .where(and(eq(users.email, parsed.data.email.toLowerCase()), eq(users.role, "trainer")))
-        .limit(1);
-
       const inviteCode = randomUUID().replace(/-/g, "").substring(0, 8).toUpperCase();
       const [entry] = await db.insert(gymTrainers).values({
         gymId: gym.id,
-        trainerId: existingUser?.id ?? null,
-        status: existingUser ? "active" : "invited",
+        trainerId: null,
+        status: "invited",
         inviteEmail: parsed.data.email.toLowerCase(),
         inviteCode,
-        joinedAt: existingUser ? new Date() : null,
+        joinedAt: null,
       }).returning();
 
       res.status(201).json(entry);
@@ -6071,12 +6087,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gym = await getOwnerGym(user.id);
       if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
 
+      const [membership] = await db
+        .select({ trainerId: gymTrainers.trainerId })
+        .from(gymTrainers)
+        .where(and(eq(gymTrainers.id, req.params.id), eq(gymTrainers.gymId, gym.id)))
+        .limit(1);
+      if (!membership) return res.status(404).json({ message: "Trener nie znaleziony" });
+      if (!membership.trainerId) {
+        return res.status(409).json({ message: "Zaproszony trener musi najpierw zaakceptować zaproszenie" });
+      }
+
       const [updated] = await db
         .update(gymTrainers)
         .set({ status: parsed.data.status })
         .where(and(eq(gymTrainers.id, req.params.id), eq(gymTrainers.gymId, gym.id)))
         .returning();
-      if (!updated) return res.status(404).json({ message: "Trener nie znaleziony" });
       res.json(updated);
     } catch (error) {
       console.error("Error updating trainer status:", error);
@@ -6114,7 +6139,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [membership] = await db
         .select()
         .from(gymTrainers)
-        .where(and(eq(gymTrainers.gymId, gym.id), eq(gymTrainers.trainerId, req.params.trainerId)))
+        .where(and(
+          eq(gymTrainers.gymId, gym.id),
+          eq(gymTrainers.trainerId, req.params.trainerId),
+          eq(gymTrainers.status, "active")
+        ))
         .limit(1);
       if (!membership) return res.status(404).json({ message: "Trener nie należy do tej siłowni" });
 
@@ -6410,7 +6439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // ── 5. Assign plan to client (also creates client relationship) ───────
-      const existingAssignment = await storage.getClientAssignment(client.id);
+      const existingAssignment = await storage.getClientAssignment(client.id, trainer.id);
       if (!existingAssignment) {
         await storage.createAssignment({ planId: plan.id, clientId: client.id });
       }

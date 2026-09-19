@@ -131,10 +131,10 @@ export interface IStorage {
   
   // Assignment operations
   createAssignment(assignment: InsertPlanAssignment): Promise<PlanAssignment>;
-  createBulkAssignments(planId: string, clientIds: string[]): Promise<PlanAssignment[]>;
-  getClientAssignment(clientId: string): Promise<PlanAssignment | undefined>;
+  createBulkAssignments(planId: string, clientIds: string[], trainerId: string): Promise<PlanAssignment[]>;
+  getClientAssignment(clientId: string, trainerId?: string): Promise<PlanAssignment | undefined>;
   getAssignmentsByPlan(planId: string): Promise<PlanAssignment[]>;
-  deleteClientAssignment(clientId: string): Promise<void>;
+  deleteClientAssignment(clientId: string, trainerId: string): Promise<boolean>;
   getTrainerClients(trainerId: string): Promise<User[]>;
   
   // Stats
@@ -255,8 +255,8 @@ export interface IStorage {
   // Client Payments
   getClientPayments(userId: string, role: string): Promise<ClientPayment[]>;
   createPayment(data: InsertClientPayment): Promise<ClientPayment>;
-  markPaymentAsPaid(paymentId: string): Promise<void>;
-  deletePayment(paymentId: string): Promise<void>;
+  markPaymentAsPaid(paymentId: string, trainerId: string): Promise<boolean>;
+  deletePayment(paymentId: string, trainerId: string): Promise<boolean>;
   getUpcomingPayments(userId: string, role: string): Promise<ClientPayment[]>;
 
   // Chat Messages
@@ -839,56 +839,48 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async createBulkAssignments(planId: string, clientIds: string[]): Promise<PlanAssignment[]> {
+  async createBulkAssignments(planId: string, clientIds: string[], trainerId: string): Promise<PlanAssignment[]> {
     if (clientIds.length === 0) return [];
     
     return await db.transaction(async (tx) => {
       const [plan] = await tx
         .select()
         .from(trainingPlans)
-        .where(eq(trainingPlans.id, planId))
+        .where(and(eq(trainingPlans.id, planId), eq(trainingPlans.trainerId, trainerId)))
         .limit(1);
       
       if (!plan) {
         throw new Error("Plan nie istnieje");
       }
-      
-      for (const clientId of clientIds) {
-        const [existingRelationship] = await tx
-          .select()
-          .from(clientRelationships)
-          .where(
-            and(
-              eq(clientRelationships.trainerId, plan.trainerId),
-              eq(clientRelationships.clientId, clientId)
-            )
-          )
-          .limit(1);
-        
-        if (existingRelationship) {
-          if (existingRelationship.status === 'archived') {
-            await tx
-              .update(clientRelationships)
-              .set({ status: 'active', archivedAt: null })
-              .where(eq(clientRelationships.id, existingRelationship.id));
-          }
-        } else {
-          await tx
-            .insert(clientRelationships)
-            .values({
-              trainerId: plan.trainerId,
-              clientId: clientId,
-              status: 'active',
-            });
-        }
-        
-        // Delete any existing assignments for this client before creating new one
-        await tx
-          .delete(planAssignments)
-          .where(eq(planAssignments.clientId, clientId));
+
+      const uniqueClientIds = [...new Set(clientIds)];
+      const authorizedRelationships = await tx
+        .select({ clientId: clientRelationships.clientId })
+        .from(clientRelationships)
+        .where(and(
+          eq(clientRelationships.trainerId, trainerId),
+          eq(clientRelationships.status, "active"),
+          inArray(clientRelationships.clientId, uniqueClientIds)
+        ));
+
+      const authorizedClientIds = new Set(authorizedRelationships.map(({ clientId }) => clientId));
+      if (uniqueClientIds.some((clientId) => !authorizedClientIds.has(clientId))) {
+        throw new Error("Unauthorized client assignment");
       }
-      
-      const assignments = clientIds.map((clientId) => ({
+
+      const trainerPlanIds = tx
+        .select({ id: trainingPlans.id })
+        .from(trainingPlans)
+        .where(eq(trainingPlans.trainerId, trainerId));
+
+      await tx
+        .delete(planAssignments)
+        .where(and(
+          inArray(planAssignments.clientId, uniqueClientIds),
+          inArray(planAssignments.planId, trainerPlanIds)
+        ));
+
+      const assignments = uniqueClientIds.map((clientId) => ({
         planId,
         clientId,
       }));
@@ -897,14 +889,18 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async getClientAssignment(clientId: string): Promise<PlanAssignment | undefined> {
+  async getClientAssignment(clientId: string, trainerId?: string): Promise<PlanAssignment | undefined> {
     const [assignment] = await db
-      .select()
+      .select({ assignment: planAssignments })
       .from(planAssignments)
-      .where(eq(planAssignments.clientId, clientId))
-      .orderBy(planAssignments.assignedAt)
+      .innerJoin(trainingPlans, eq(planAssignments.planId, trainingPlans.id))
+      .where(and(
+        eq(planAssignments.clientId, clientId),
+        trainerId ? eq(trainingPlans.trainerId, trainerId) : undefined
+      ))
+      .orderBy(desc(planAssignments.assignedAt))
       .limit(1);
-    return assignment;
+    return assignment?.assignment;
   }
 
   async getAssignmentsByPlan(planId: string): Promise<PlanAssignment[]> {
@@ -914,10 +910,20 @@ export class DatabaseStorage implements IStorage {
       .where(eq(planAssignments.planId, planId));
   }
 
-  async deleteClientAssignment(clientId: string): Promise<void> {
-    await db
+  async deleteClientAssignment(clientId: string, trainerId: string): Promise<boolean> {
+    const trainerPlanIds = db
+      .select({ id: trainingPlans.id })
+      .from(trainingPlans)
+      .where(eq(trainingPlans.trainerId, trainerId));
+
+    const deleted = await db
       .delete(planAssignments)
-      .where(eq(planAssignments.clientId, clientId));
+      .where(and(
+        eq(planAssignments.clientId, clientId),
+        inArray(planAssignments.planId, trainerPlanIds)
+      ))
+      .returning({ id: planAssignments.id });
+    return deleted.length > 0;
   }
 
   async getTrainerClients(trainerId: string): Promise<User[]> {
@@ -1628,20 +1634,24 @@ export class DatabaseStorage implements IStorage {
       // 2. Jeśli zaproszenie zawiera planId, przypisz plan
       if (invitation.planId) {
         const [existingAssignment] = await tx
-          .select()
+          .select({ assignment: planAssignments })
           .from(planAssignments)
-          .where(eq(planAssignments.clientId, clientId))
+          .innerJoin(trainingPlans, eq(planAssignments.planId, trainingPlans.id))
+          .where(and(
+            eq(planAssignments.clientId, clientId),
+            eq(trainingPlans.trainerId, invitation.trainerId)
+          ))
           .limit(1);
         
         // Jeśli klient ma już przypisany ten sam plan, pomiń
-        if (existingAssignment && existingAssignment.planId === invitation.planId) {
+        if (existingAssignment && existingAssignment.assignment.planId === invitation.planId) {
           // Plan już przypisany, nic nie rób
         } else {
           // Usuń stare przypisanie jeśli istnieje
           if (existingAssignment) {
             await tx
               .delete(planAssignments)
-              .where(eq(planAssignments.clientId, clientId));
+              .where(eq(planAssignments.id, existingAssignment.assignment.id));
           }
           
           // Dodaj nowe przypisanie
@@ -1829,9 +1839,17 @@ export class DatabaseStorage implements IStorage {
         .where(eq(clientRelationships.id, relationship.id));
       
       // 3. Usuń przypisanie planu (jeśli istnieje)
+      const trainerPlanIds = tx
+        .select({ id: trainingPlans.id })
+        .from(trainingPlans)
+        .where(eq(trainingPlans.trainerId, trainerId));
+
       await tx
         .delete(planAssignments)
-        .where(eq(planAssignments.clientId, clientId));
+        .where(and(
+          eq(planAssignments.clientId, clientId),
+          inArray(planAssignments.planId, trainerPlanIds)
+        ));
     });
   }
   
@@ -2217,75 +2235,80 @@ export class DatabaseStorage implements IStorage {
     return payment;
   }
   
-  async markPaymentAsPaid(paymentId: string): Promise<void> {
-    // Get the payment to check if it's recurring
-    const [payment] = await db
-      .select()
-      .from(clientPayments)
-      .where(eq(clientPayments.id, paymentId))
-      .limit(1);
-
-    if (!payment) {
-      throw new Error("Payment not found");
-    }
-
-    // Mark current payment as paid
-    await db
-      .update(clientPayments)
-      .set({ 
-        isPaid: true, 
-        paidAt: new Date(),
-        lastRecurringCreatedAt: payment.isRecurring ? new Date() : null,
-      })
-      .where(eq(clientPayments.id, paymentId));
-
-    // If recurring, create next month's payment based on the current payment's due date
-    if (payment.isRecurring && payment.recurringAmount && payment.recurringDayOfMonth) {
-      // Calculate next due date based on the CURRENT payment's due date, not today
-      // Reset to first of month before adding month to avoid day overflow (e.g., Jan 31 + 1 month = Mar 3)
-      const currentDueDate = new Date(payment.dueDate);
-      const nextDueDate = new Date(currentDueDate.getFullYear(), currentDueDate.getMonth() + 1, payment.recurringDayOfMonth, 0, 0, 0, 0);
-
-      // Check if there's already an unpaid recurring payment for this client with the EXACT same due date
-      // This prevents duplicates while allowing multiple different payment schedules
-      const existingNextPayment = await db
+  async markPaymentAsPaid(paymentId: string, trainerId: string): Promise<boolean> {
+    return await db.transaction(async (tx) => {
+      // Get the payment to check if it's recurring
+      const [payment] = await tx
         .select()
         .from(clientPayments)
-        .where(
-          and(
-            eq(clientPayments.clientId, payment.clientId),
-            eq(clientPayments.trainerId, payment.trainerId),
-            eq(clientPayments.isRecurring, true),
-            eq(clientPayments.isPaid, false),
-            eq(clientPayments.dueDate, nextDueDate),
-            eq(clientPayments.recurringAmount, payment.recurringAmount)
-          )
-        )
+        .where(and(eq(clientPayments.id, paymentId), eq(clientPayments.trainerId, trainerId)))
         .limit(1);
 
-      // Only create new payment if there's no pending recurring payment with same date and amount
-      if (existingNextPayment.length === 0) {
-        await db
-          .insert(clientPayments)
-          .values({
-            clientId: payment.clientId,
-            trainerId: payment.trainerId,
-            amount: payment.recurringAmount,
-            dueDate: nextDueDate,
-            isPaid: false,
-            notes: null,
-            isRecurring: true,
-            recurringAmount: payment.recurringAmount,
-            recurringDayOfMonth: payment.recurringDayOfMonth,
-          });
+      if (!payment) {
+        return false;
       }
-    }
+
+      // Mark current payment as paid
+      await tx
+        .update(clientPayments)
+        .set({
+          isPaid: true,
+          paidAt: new Date(),
+          lastRecurringCreatedAt: payment.isRecurring ? new Date() : null,
+        })
+        .where(and(eq(clientPayments.id, paymentId), eq(clientPayments.trainerId, trainerId)));
+
+      // If recurring, create next month's payment based on the current payment's due date
+      if (payment.isRecurring && payment.recurringAmount && payment.recurringDayOfMonth) {
+        // Calculate next due date based on the CURRENT payment's due date, not today
+        // Reset to first of month before adding month to avoid day overflow (e.g., Jan 31 + 1 month = Mar 3)
+        const currentDueDate = new Date(payment.dueDate);
+        const nextDueDate = new Date(currentDueDate.getFullYear(), currentDueDate.getMonth() + 1, payment.recurringDayOfMonth, 0, 0, 0, 0);
+
+        // Check if there's already an unpaid recurring payment for this client with the EXACT same due date
+        // This prevents duplicates while allowing multiple different payment schedules
+        const existingNextPayment = await tx
+          .select()
+          .from(clientPayments)
+          .where(
+            and(
+              eq(clientPayments.clientId, payment.clientId),
+              eq(clientPayments.trainerId, payment.trainerId),
+              eq(clientPayments.isRecurring, true),
+              eq(clientPayments.isPaid, false),
+              eq(clientPayments.dueDate, nextDueDate),
+              eq(clientPayments.recurringAmount, payment.recurringAmount)
+            )
+          )
+          .limit(1);
+
+        // Only create new payment if there's no pending recurring payment with same date and amount
+        if (existingNextPayment.length === 0) {
+          await tx
+            .insert(clientPayments)
+            .values({
+              clientId: payment.clientId,
+              trainerId: payment.trainerId,
+              amount: payment.recurringAmount,
+              dueDate: nextDueDate,
+              isPaid: false,
+              notes: null,
+              isRecurring: true,
+              recurringAmount: payment.recurringAmount,
+              recurringDayOfMonth: payment.recurringDayOfMonth,
+            });
+        }
+      }
+      return true;
+    });
   }
   
-  async deletePayment(paymentId: string): Promise<void> {
-    await db
+  async deletePayment(paymentId: string, trainerId: string): Promise<boolean> {
+    const deleted = await db
       .delete(clientPayments)
-      .where(eq(clientPayments.id, paymentId));
+      .where(and(eq(clientPayments.id, paymentId), eq(clientPayments.trainerId, trainerId)))
+      .returning({ id: clientPayments.id });
+    return deleted.length > 0;
   }
   
   async getUpcomingPayments(userId: string, role: string): Promise<ClientPayment[]> {
