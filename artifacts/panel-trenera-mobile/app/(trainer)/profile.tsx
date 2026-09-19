@@ -54,7 +54,7 @@ const PRICING_PLANS: PricingPlan[] = [
     name: "START",
     price: 0,
     description: "Idealny na start, wypróbuj za darmo",
-    clientLimit: 3,
+    clientLimit: 1,
     features: [
       "Do 1 podopiecznego",
       "Plany treningowe",
@@ -65,9 +65,9 @@ const PRICING_PLANS: PricingPlan[] = [
   {
     id: "solo",
     name: "SOLO",
-    price: 99,
+    price: 29,
     description: "Dla początkujących trenerów personalnych",
-    clientLimit: 10,
+    clientLimit: 3,
     features: [
       "Do 3 podopiecznych",
       "Plany treningowe",
@@ -79,9 +79,9 @@ const PRICING_PLANS: PricingPlan[] = [
   {
     id: "pro",
     name: "PRO",
-    price: 189,
+    price: 49,
     description: "Dla rozwijających się trenerów",
-    clientLimit: 20,
+    clientLimit: 5,
     highlighted: true,
     features: [
       "Do 5 podopiecznych",
@@ -95,9 +95,9 @@ const PRICING_PLANS: PricingPlan[] = [
   {
     id: "elite",
     name: "ELITE",
-    price: 279,
+    price: 89,
     description: "Dla profesjonalnych trenerów",
-    clientLimit: 35,
+    clientLimit: 10,
     features: [
       "Do 10 podopiecznych",
       "Plany treningowe",
@@ -110,9 +110,9 @@ const PRICING_PLANS: PricingPlan[] = [
   {
     id: "max",
     name: "MAX",
-    price: 349,
+    price: 149,
     description: "Dla ekspertów z dużą bazą klientów",
-    clientLimit: 50,
+    clientLimit: 20,
     features: [
       "Do 20 podopiecznych",
       "Plany treningowe",
