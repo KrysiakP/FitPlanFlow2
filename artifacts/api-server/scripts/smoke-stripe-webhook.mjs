@@ -67,6 +67,22 @@ test("a paid checkout activates the chosen plan", async () => {
   assert.equal(user.subscriptionStatus, "active");
 });
 
+test("a second checkout is refused while a subscription is active", async () => {
+  const res = await fetch(`${API_URL}/api/subscription/create-checkout`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${trainer.token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ tier: "solo" }),
+  });
+  assert.equal(res.status, 409);
+  assert.equal((await res.json()).useBillingPortal, true);
+  const invalid = await fetch(`${API_URL}/api/subscription/create-checkout`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${trainer.token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ tier: "studio" }),
+  });
+  assert.equal(invalid.status, 400, "unknown or unlisted tiers are rejected");
+});
+
 test("a failed payment marks the subscription and keeps the grace-period date", async () => {
   const res = await send(event("customer.subscription.updated", {
     id: "sub_smoke", status: "past_due", metadata: { userId: trainer.id, tier: "pro" }, canceled_at: null,

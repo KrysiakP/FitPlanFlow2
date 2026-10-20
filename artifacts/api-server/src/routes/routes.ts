@@ -1512,6 +1512,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Nieprawidłowy plan subskrypcji" });
       }
 
+      // A second checkout would create a second, parallel subscription and charge twice
+      if (user.stripeSubscriptionId && ["active", "trialing", "past_due"].includes(user.subscriptionStatus ?? "")) {
+        return res.status(409).json({
+          message: "Masz już aktywną subskrypcję. Zmień plan lub dane płatności w portalu rozliczeń.",
+          useBillingPortal: true,
+        });
+      }
+
       // Process optional referral code
       if (referralCodeInput && typeof referralCodeInput === 'string') {
         const normalizedCode = referralCodeInput.trim().toUpperCase();
