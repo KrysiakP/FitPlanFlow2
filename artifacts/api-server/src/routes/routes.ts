@@ -3246,6 +3246,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(200).json({ message: "Współpraca została zakończona" });
     } catch (error) {
+      if (error instanceof Error && error.message.includes("Nie znaleziono aktywnej relacji")) {
+        return res.status(404).json({ message: error.message });
+      }
       console.error("Error archiving client relationship:", error);
       res.status(500).json({ message: error instanceof Error ? error.message : "Nie udało się zakończyć współpracy" });
     }
@@ -3932,6 +3935,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
       }
       const { clientId } = req.params;
+      if (!isDemoId(clientId) && !(await storage.hasActiveClientRelationship(userId, clientId))) {
+        return res.status(403).json({ message: "To nie jest Twój podopieczny" });
+      }
       const notes = await storage.getTrainerNotes(userId, clientId);
       res.json({ notes });
     } catch (error) {
@@ -3951,6 +3957,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { notes } = req.body;
       if (typeof notes !== "string") {
         return res.status(400).json({ message: "Pole notes musi być tekstem" });
+      }
+      if (isDemoId(clientId)) {
+        return res.status(400).json({ message: "Nie można modyfikować danych demonstracyjnych" });
+      }
+      if (!(await storage.hasActiveClientRelationship(userId, clientId))) {
+        return res.status(403).json({ message: "To nie jest Twój podopieczny" });
       }
       await storage.updateTrainerNotes(userId, clientId, notes);
       res.json({ success: true });
@@ -3973,8 +3985,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { clientId } = req.params;
 
       // Verify the client belongs to this trainer
-      const clients = await storage.getClientsByTrainerId(userId);
-      const isOwnClient = clients.some((c) => c.id === clientId);
+      const isOwnClient = await storage.hasActiveClientRelationship(userId, clientId);
       if (!isOwnClient) {
         return res.status(403).json({ message: "Brak dostępu do tego podopiecznego" });
       }
@@ -4164,6 +4175,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(reportsWithUrls);
     } catch (error) {
+      if (error instanceof Error && error.message.includes("Brak aktywnej relacji")) {
+        return res.status(403).json({ message: "To nie jest Twój podopieczny" });
+      }
       console.error("Error fetching client weekly reports:", error);
       res.status(500).json({ message: "Nie udało się pobrać raportów podopiecznego" });
     }
@@ -4890,6 +4904,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (activePlan && activePlan.trainerId !== userId) {
         return res.status(403).json({ message: "Nie masz uprawnień do tego planu" });
+      }
+      if (!activePlan && !(await storage.hasActiveClientRelationship(userId, clientId))) {
+        return res.status(403).json({ message: "To nie jest Twój podopieczny" });
       }
 
       res.json(activePlan);
