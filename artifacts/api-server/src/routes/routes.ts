@@ -5761,12 +5761,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GYM (SIŁOWNIA) SYSTEM
   // ─────────────────────────────────────────────────────────────────────────
 
-  function requireGymOwner(req: any, res: any, next: any) {
-    const user = req.user as any;
-    if (!user || user.role !== "gym_owner") {
-      return res.status(403).json({ message: "Dostęp tylko dla właścicieli siłowni" });
+  // The app authenticates through req.session.userId (never populates req.user),
+  // so load the user here and expose it to the gym handlers below as req.user.
+  async function requireGymOwner(req: any, res: any, next: any) {
+    try {
+      const userId = req.session?.userId;
+      const user = userId ? await storage.getUser(userId) : undefined;
+      if (!user || user.role !== "gym_owner") {
+        return res.status(403).json({ message: "Dostęp tylko dla właścicieli siłowni" });
+      }
+      req.user = user;
+      next();
+    } catch (error) {
+      console.error("Error checking gym owner:", error);
+      res.status(500).json({ message: "Błąd sprawdzania uprawnień" });
     }
-    next();
   }
 
   // ── ADMIN: Manage gyms ────────────────────────────────────────────────────
@@ -6284,7 +6293,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public lookup: GET /api/gym/join/:code — trainer joins gym via invite code
   app.post("/api/gym/join/:code", isAuthenticated, async (req, res) => {
     try {
-      const user = req.user as any;
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
       if (user.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy mogą dołączyć do siłowni" });
 
       const [invite] = await db
