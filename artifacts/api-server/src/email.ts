@@ -86,7 +86,6 @@ export async function sendVerificationEmail({ email, firstName, token }: SendVer
     const baseUrl = getBaseUrl();
     
     const verificationUrl = `${baseUrl}/verify-email?token=${token}`;
-    console.log('[EMAIL] Verification URL:', verificationUrl);
     
     const result = await client.emails.send({
       from: fromEmail,
@@ -576,7 +575,6 @@ export async function sendPasswordResetEmail({ email, firstName, token }: SendPa
     const baseUrl = getBaseUrl();
     
     const resetUrl = `${baseUrl}/reset-password?token=${token}`;
-    console.log('[EMAIL] Password reset URL:', resetUrl);
     
     const result = await client.emails.send({
       from: fromEmail,

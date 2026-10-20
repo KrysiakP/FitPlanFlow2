@@ -197,7 +197,7 @@ export default function ClientProfileScreen() {
           label="Ustawienia powiadomień"
           desc="Zarządzaj powiadomieniami push"
           colors={colors}
-          onPress={() => router.push("/notifications")}
+          onPress={() => router.push("/(client)/notifications")}
           testID="button-notifications"
         />
         <MenuRow

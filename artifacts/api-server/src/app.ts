@@ -50,15 +50,23 @@ app.use(
       // No origin header: native mobile apps and server-to-server calls — allow.
       if (!origin) return callback(null, true);
 
-      // Allow Replit dev/prod/preview domains and localhost.
+      // Credentialed CORS: only exact, known origins (no wildcard hosting domains —
+      // any app hosted on *.replit.app could otherwise call this API with the user's cookie).
+      const exactOrigins = new Set<string>([
+        "https://paneltrenera.pl",
+        "https://www.paneltrenera.pl",
+        ...(process.env.REPLIT_DOMAINS ?? "")
+          .split(",")
+          .map((d) => d.trim())
+          .filter(Boolean)
+          .map((d) => `https://${d}`),
+      ]);
+      if (process.env.REPLIT_DEV_DOMAIN) exactOrigins.add(`https://${process.env.REPLIT_DEV_DOMAIN}`);
+
+      const isDev = process.env.NODE_ENV !== "production";
       const trusted =
-        /\.replit\.dev$/.test(origin) ||
-        /\.replit\.app$/.test(origin) ||
-        /\.repl\.co$/.test(origin) ||
-        /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
-        /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
-        origin === "https://paneltrenera.pl" ||
-        origin === "https://www.paneltrenera.pl";
+        exactOrigins.has(origin) ||
+        (isDev && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin));
 
       if (trusted) return callback(null, true);
       return callback(new Error("CORS: origin not allowed"));

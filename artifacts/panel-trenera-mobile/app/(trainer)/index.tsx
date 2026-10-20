@@ -127,7 +127,7 @@ export default function TrainerPanelScreen() {
         <QuickCard icon="mail-outline" label="Zaproszenia" colors={colors} onPress={() => router.push("/invitations")} />
         <QuickCard icon="barbell-outline" label="Biblioteka ćwiczeń" colors={colors} onPress={() => router.push("/exercise-library")} />
         <QuickCard icon="timer-outline" label="Timer przerwy" colors={colors} onPress={() => router.push("/rest-timer")} />
-        <QuickCard icon="notifications-outline" label="Powiadomienia" colors={colors} onPress={() => router.push("/notifications")} />
+        <QuickCard icon="notifications-outline" label="Powiadomienia" colors={colors} onPress={() => router.push("/(trainer)/notifications")} />
         {user?.isAdmin && (
           <QuickCard icon="business-outline" label="Siłownie" colors={colors} onPress={() => router.push("/admin-gyms")} />
         )}
@@ -138,7 +138,7 @@ export default function TrainerPanelScreen() {
         label="Polecenia"
         desc="Program poleceń i Twój unikalny kod"
         colors={colors}
-        onPress={() => router.push("/referrals")}
+        onPress={() => router.push("/(trainer)/referrals")}
         testID="button-panel-referrals"
       />
       <MenuRow

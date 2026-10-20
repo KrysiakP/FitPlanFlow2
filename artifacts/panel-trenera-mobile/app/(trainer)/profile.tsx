@@ -352,7 +352,7 @@ export default function TrainerProfileScreen() {
         label="Powiadomienia"
         desc="Zarządzaj powiadomieniami push"
         colors={colors}
-        onPress={() => router.push("/notifications")}
+        onPress={() => router.push("/(trainer)/notifications")}
         testID="button-notifications"
       />
       {Platform.OS !== "ios" ? (
