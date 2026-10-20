@@ -62,3 +62,11 @@ attached_assets/massive-acrobat-*.json
 *.jks
 *.keystore
 *keystore*.zip
+
+# Local secrets / credentials - never commit
+Nie hasla panel trenera/
+upload_certificate.pem
+*.pem
+*.p12
+*.jks
+google-services-key.json
