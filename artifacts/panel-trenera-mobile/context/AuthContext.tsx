@@ -47,6 +47,60 @@ async function getMobileToken(): Promise<string | null> {
   }
 }
 
+// Last known profile, so the app can open without a connection instead of
+// dropping a signed-in user on the login screen.
+const CACHED_USER_KEY = "pt_cached_user";
+
+async function getCachedUser(): Promise<User | null> {
+  try {
+    const raw = Platform.OS === "web" ? localStorage.getItem(CACHED_USER_KEY) : await SecureStore.getItemAsync(CACHED_USER_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function setCachedUser(user: User | null): Promise<void> {
+  try {
+    if (!user) {
+      if (Platform.OS === "web") localStorage.removeItem(CACHED_USER_KEY);
+      else await SecureStore.deleteItemAsync(CACHED_USER_KEY);
+      return;
+    }
+    const raw = JSON.stringify({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      profileImageUrl: user.profileImageUrl ?? null,
+    });
+    if (Platform.OS === "web") localStorage.setItem(CACHED_USER_KEY, raw);
+    else await SecureStore.setItemAsync(CACHED_USER_KEY, raw);
+  } catch {
+    // best effort
+  }
+}
+
+// Connectivity as seen by our own requests: a failed fetch means offline,
+// the next successful one clears it. Avoids a native NetInfo dependency.
+let offline = false;
+const offlineListeners = new Set<(value: boolean) => void>();
+
+function setOffline(value: boolean) {
+  if (offline === value) return;
+  offline = value;
+  offlineListeners.forEach((listener) => listener(value));
+}
+
+export function subscribeOffline(listener: (value: boolean) => void): () => void {
+  offlineListeners.add(listener);
+  listener(offline);
+  return () => {
+    offlineListeners.delete(listener);
+  };
+}
+
 async function storeMobileToken(token: string): Promise<void> {
   if (Platform.OS === "web") { localStorage.setItem(MOBILE_TOKEN_KEY, token); return; }
   await SecureStore.setItemAsync(MOBILE_TOKEN_KEY, token);
@@ -103,11 +157,18 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
     ...(options.headers as Record<string, string>),
     ...(mobileToken ? { Authorization: `Bearer ${mobileToken}` } : {}),
   };
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers,
-    credentials: "include",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      ...options,
+      headers,
+      credentials: "include",
+    });
+  } catch (error) {
+    setOffline(true);
+    throw error;
+  }
+  setOffline(false);
   // An expired session or revoked token: sign the user out instead of leaving
   // every screen on a failing request. Login/user-check calls handle 401 themselves.
   if (response.status === 401 && onUnauthorized && !AUTH_PATHS.has(path)) {
@@ -149,12 +210,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const data: User = await res.json();
         setUser(data);
-      } else {
+        void setCachedUser(data);
+      } else if (res.status === 401) {
         setUser(null);
         await setStoredSession(false);
+        await setCachedUser(null);
+      } else {
+        // Server trouble, not a sign-out: keep the last known user
+        const cached = await getCachedUser();
+        if (cached && (await hasStoredSession())) setUser((current) => current ?? cached);
       }
     } catch {
-      setUser(null);
+      // No connection: stay signed in with the last known profile
+      const cached = await getCachedUser();
+      setUser((await hasStoredSession()) && cached ? cached : null);
     }
   }, []);
 
@@ -178,6 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (data.mobileToken) await storeMobileToken(data.mobileToken);
     const { mobileToken: _mt, ...userData } = data;
     setUser(userData as User);
+    void setCachedUser(userData as User);
     await setStoredSession(true);
     void registerPushToken();
   }, []);
@@ -206,6 +276,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (data.mobileToken) await storeMobileToken(data.mobileToken);
     const { mobileToken: _mt, ...userData } = data;
     setUser(userData as User);
+    void setCachedUser(userData as User);
     await setStoredSession(true);
     void registerPushToken();
     return { requiresEmailVerification: false };
@@ -215,6 +286,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     onUnauthorized = () => {
       setUser(null);
       void setStoredSession(false);
+      void setCachedUser(null);
       void removeMobileToken();
     };
     return () => {
@@ -228,6 +300,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch { /* ignore */ }
     setUser(null);
     await setStoredSession(false);
+    await setCachedUser(null);
     await removeMobileToken();
   }, []);
 
