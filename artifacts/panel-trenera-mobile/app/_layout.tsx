@@ -5,17 +5,17 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import * as Notifications from "expo-notifications";
-import { Stack } from "expo-router";
+import { Stack, router, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 
 SplashScreen.preventAutoHideAsync();
@@ -40,6 +40,29 @@ const queryClient = new QueryClient({
 });
 
 function RootLayoutNav() {
+  const { user, isLoading } = useAuth();
+  const queryClient = useQueryClient();
+  const segments = useSegments();
+  const previousUserId = useRef<string | null>(null);
+
+  // Never show one account's cached data to the next one on the same device
+  useEffect(() => {
+    const currentId = user?.id ?? null;
+    if (previousUserId.current !== currentId) {
+      if (previousUserId.current !== null) queryClient.clear();
+      previousUserId.current = currentId;
+    }
+  }, [user?.id, queryClient]);
+
+  // Session expired or user signed out while on a protected screen: back to welcome
+  useEffect(() => {
+    if (isLoading || user) return;
+    const group = segments[0] as string | undefined;
+    if (group === "(client)" || group === "(trainer)" || group === "(gym)") {
+      router.replace("/(auth)/welcome");
+    }
+  }, [user, isLoading, segments]);
+
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />

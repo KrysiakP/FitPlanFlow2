@@ -103,12 +103,21 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
     ...(options.headers as Record<string, string>),
     ...(mobileToken ? { Authorization: `Bearer ${mobileToken}` } : {}),
   };
-  return fetch(`${BASE_URL}${path}`, {
+  const response = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers,
     credentials: "include",
   });
+  // An expired session or revoked token: sign the user out instead of leaving
+  // every screen on a failing request. Login/user-check calls handle 401 themselves.
+  if (response.status === 401 && onUnauthorized && !AUTH_PATHS.has(path)) {
+    onUnauthorized();
+  }
+  return response;
 }
+
+const AUTH_PATHS = new Set(["/api/login", "/api/auth/register", "/api/auth/user", "/api/logout"]);
+let onUnauthorized: (() => void) | null = null;
 
 async function registerPushToken(): Promise<void> {
   if (Platform.OS === "web") return;
@@ -200,6 +209,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await setStoredSession(true);
     void registerPushToken();
     return { requiresEmailVerification: false };
+  }, []);
+
+  useEffect(() => {
+    onUnauthorized = () => {
+      setUser(null);
+      void setStoredSession(false);
+      void removeMobileToken();
+    };
+    return () => {
+      onUnauthorized = null;
+    };
   }, []);
 
   const logout = useCallback(async () => {
