@@ -59,8 +59,14 @@ test("only trainers create plans, workouts and exercises", async () => {
   // The endpoint takes a list of exercises
   const notAList = await call(trainer, "POST", `/api/workouts/${state.workoutId}/exercises`, { name: "Przysiad" });
   assert.equal(notAList.status, 400, "invalid payload is a 400, not a 500");
+  for (const bad of ["javascript:alert(1)", "tel:+48600600600", "intent://x#Intent;end"]) {
+    const rejected = await call(trainer, "POST", `/api/workouts/${state.workoutId}/exercises`, [
+      { name: "Zły link", sets: 3, reps: 8, load: "60", restTime: 90, orderIndex: 9, videoUrl: bad },
+    ]);
+    assert.equal(rejected.status, 400, `video link ${bad} must be refused`);
+  }
   const exercise = await call(trainer, "POST", `/api/workouts/${state.workoutId}/exercises`, [
-    { name: "Przysiad", sets: 3, reps: 8, load: "60", restTime: 90, orderIndex: 0 },
+    { name: "Przysiad", sets: 3, reps: 8, load: "60", restTime: 90, orderIndex: 0, videoUrl: "https://www.youtube.com/watch?v=abc" },
   ]);
   assert.equal(exercise.status, 201);
   state.exerciseId = (await exercise.json())[0].id;

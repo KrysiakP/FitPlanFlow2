@@ -924,9 +924,22 @@ export const insertWorkoutSchema = createInsertSchema(workouts).omit({
   updatedAt: true,
 });
 
+// Exercise videos are opened by clients straight from the app: only web links and our own uploads are allowed
+// (no tel:, sms:, intent: or other custom schemes)
+const safeVideoUrl = z
+  .string()
+  .max(2000)
+  .refine(
+    (value) => value === "" || /^https?:\/\//i.test(value) || value.startsWith("/objects/") || value.startsWith("/attached_assets/uploads/"),
+    "Link do filmu musi zaczynać się od http:// lub https://",
+  )
+  .nullish();
+
 export const insertExerciseSchema = createInsertSchema(exercises).omit({
   id: true,
   workoutId: true,
+}).extend({
+  videoUrl: safeVideoUrl,
 });
 
 export const insertPlanWithWorkoutsSchema = insertTrainingPlanSchema.extend({
@@ -945,6 +958,8 @@ export const insertExerciseLibrarySchema = createInsertSchema(exerciseLibrary).o
   trainerId: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  videoUrl: safeVideoUrl,
 });
 
 export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({
