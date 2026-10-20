@@ -321,7 +321,7 @@ export default function TrainerDietsScreen() {
               testID="input-diet-plan-name"
             />
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Klient (opcjonalnie)</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Podopieczny (opcjonalnie)</Text>
             <Pressable
               onPress={() => setShowClientPicker(true)}
               style={[styles.clientPickerBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
@@ -329,7 +329,7 @@ export default function TrainerDietsScreen() {
             >
               <Ionicons name="person-outline" size={16} color={colors.mutedForeground} />
               <Text style={[styles.clientPickerText, { color: selectedClient ? colors.foreground : colors.mutedForeground }]}>
-                {selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName}` : "Wybierz klienta"}
+                {selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName}` : "Wybierz podopiecznego"}
               </Text>
               {selectedClient && (
                 <Pressable
@@ -412,7 +412,7 @@ export default function TrainerDietsScreen() {
         <Pressable style={styles.modalOverlay} onPress={() => setShowClientPicker(false)}>
           <Pressable style={[styles.modalSheet, { backgroundColor: colors.card }]} onPress={() => {}}>
             <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Wybierz klienta</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Wybierz podopiecznego</Text>
             <TextInput
               value={clientSearch}
               onChangeText={setClientSearch}
@@ -427,7 +427,7 @@ export default function TrainerDietsScreen() {
                 style={[styles.clientItem, { borderBottomColor: colors.border }]}
                 testID="option-client-none"
               >
-                <Text style={[styles.clientItemText, { color: colors.mutedForeground }]}>Bez klienta</Text>
+                <Text style={[styles.clientItemText, { color: colors.mutedForeground }]}>Bez podopiecznego</Text>
               </Pressable>
               {filteredClients.map((c) => (
                 <Pressable

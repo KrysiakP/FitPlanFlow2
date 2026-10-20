@@ -115,7 +115,7 @@ const PRICING_PLANS: PricingPlan[] = [
     id: "max",
     name: "MAX",
     price: 149,
-    description: "Dla ekspertów z dużą bazą klientów",
+    description: "Dla ekspertów z dużą bazą podopiecznych",
     clientLimit: 20,
     features: [
       "Do 20 podopiecznych",
@@ -349,7 +349,7 @@ export default function TrainerProfileScreen() {
       <MenuRow
         icon="share-social-outline"
         label="Udostępnij profil"
-        desc="Wyślij klientom link do publicznego profilu i opinii"
+        desc="Wyślij podopiecznym link do publicznego profilu i opinii"
         colors={colors}
         onPress={handleShareProfile}
         testID="button-share-profile"

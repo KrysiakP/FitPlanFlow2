@@ -159,8 +159,8 @@ export default function TrainerPanelScreen() {
       />
       <MenuRow
         icon="people-outline"
-        label="Zaproś klienta"
-        desc="Wyślij zaproszenie nowemu klientowi"
+        label="Zaproś podopiecznego"
+        desc="Wyślij zaproszenie nowemu podopiecznemu"
         colors={colors}
         onPress={() => router.push({ pathname: "/clients", params: { invite: Date.now().toString() } })}
         testID="button-panel-invite"

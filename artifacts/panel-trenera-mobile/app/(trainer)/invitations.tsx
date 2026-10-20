@@ -138,7 +138,7 @@ export default function TrainerInvitationsScreen() {
         <View style={[styles.infoCard, { backgroundColor: colors.primary + "12", borderColor: colors.primary + "30" }]}>
           <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
           <Text style={[styles.infoText, { color: colors.foreground }]}>
-            Zaproś klientów podając ich e-mail. Klient otrzyma link i automatycznie zostanie przypisany do Ciebie.
+            Zaproś podopiecznych podając ich e-mail. Podopieczny otrzyma link i automatycznie zostanie przypisany do Ciebie.
           </Text>
         </View>
 
@@ -210,7 +210,7 @@ export default function TrainerInvitationsScreen() {
                 <Ionicons name="mail-outline" size={36} color={colors.mutedForeground} />
                 <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Brak zaproszeń</Text>
                 <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
-                  Wyślij zaproszenie do klienta, podając jego adres e-mail.
+                  Wyślij zaproszenie do podopiecznego, podając jego adres e-mail.
                 </Text>
               </View>
             )}
@@ -231,7 +231,7 @@ export default function TrainerInvitationsScreen() {
           <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nowe zaproszenie</Text>
             <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>
-              Adres e-mail klienta
+              Adres e-mail podopiecznego
             </Text>
             <TextInput
               style={[styles.emailInput, { backgroundColor: colors.background, color: colors.foreground, borderColor: colors.border }]}

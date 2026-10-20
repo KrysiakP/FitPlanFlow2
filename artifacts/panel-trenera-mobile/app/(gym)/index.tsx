@@ -55,7 +55,7 @@ export default function GymDashboard() {
     },
     {
       icon: "body" as const,
-      label: "Klientów w siłowni",
+      label: "Podopiecznych w siłowni",
       value: gym?.stats.totalClients ?? 0,
       color: "#10b981",
       onPress: () => router.push("/(gym)/analytics"),

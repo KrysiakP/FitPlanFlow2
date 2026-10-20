@@ -90,8 +90,8 @@ export default function TrainerDetailScreen() {
   const maxSessions = Math.max(...weeklySessionChart.map((w) => w.sessions), 1);
 
   const statBoxes = [
-    { icon: "people" as const, label: "Aktywnych klientów", value: stats.activeClients, color: "#10b981" },
-    { icon: "people-outline" as const, label: "Wszystkich klientów", value: stats.totalClients, color: colors.primary },
+    { icon: "people" as const, label: "Aktywnych podopiecznych", value: stats.activeClients, color: "#10b981" },
+    { icon: "people-outline" as const, label: "Wszystkich podopiecznych", value: stats.totalClients, color: colors.primary },
     { icon: "barbell-outline" as const, label: "Sesji (30 dni)", value: stats.sessionsLast30, color: "#6366f1" },
     { icon: "clipboard-outline" as const, label: "Planów treningowych", value: stats.plansCount, color: "#f59e0b" },
   ];
@@ -217,7 +217,7 @@ export default function TrainerDetailScreen() {
           ))}
           {clients.length > 10 && (
             <Text style={[styles.moreClients, { color: colors.mutedForeground }]}>
-              + {clients.length - 10} więcej klientów
+              + {clients.length - 10} więcej podopiecznych
             </Text>
           )}
         </>

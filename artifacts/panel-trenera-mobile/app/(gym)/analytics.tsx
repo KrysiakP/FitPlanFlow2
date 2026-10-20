@@ -107,7 +107,7 @@ export default function GymAnalytics() {
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Aktywność trenerów</Text>
 
           {/* Clients ranking */}
-          <Text style={[styles.subTitle, { color: colors.mutedForeground }]}>Klienci</Text>
+          <Text style={[styles.subTitle, { color: colors.mutedForeground }]}>Podopieczni</Text>
           {data.trainerBreakdown
             .sort((a, b) => b.activeClients - a.activeClients)
             .map((t, i) => (

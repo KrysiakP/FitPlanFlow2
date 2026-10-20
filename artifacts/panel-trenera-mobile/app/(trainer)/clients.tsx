@@ -125,7 +125,7 @@ export default function TrainerClientsScreen() {
       if (msg.includes("401") || msg.toLowerCase().includes("unauthorized")) {
         setInviteError("Sesja wygasła. Zaloguj się ponownie.");
       } else if (msg.toLowerCase().includes("already") || msg.toLowerCase().includes("już")) {
-        setInviteError("Ten klient już otrzymał zaproszenie lub jest Twoim podopiecznym.");
+        setInviteError("Ten podopieczny już otrzymał zaproszenie lub jest Twoim podopiecznym.");
       } else {
         setInviteError("Nie udało się wysłać zaproszenia. Spróbuj ponownie.");
       }
@@ -142,7 +142,7 @@ export default function TrainerClientsScreen() {
   function handleInviteSend() {
     const trimmed = inviteEmail.trim();
     if (!trimmed) {
-      setInviteError("Podaj adres e-mail klienta.");
+      setInviteError("Podaj adres e-mail podopiecznego.");
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -176,7 +176,7 @@ export default function TrainerClientsScreen() {
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <View style={[styles.headerSection, { paddingTop: topPad + 16, backgroundColor: colors.background }]}>
           <View style={styles.titleRow}>
-            <Text style={[styles.pageTitle, { color: colors.foreground }]}>Klienci</Text>
+            <Text style={[styles.pageTitle, { color: colors.foreground }]}>Podopieczni</Text>
             <View style={[styles.countBadge, { backgroundColor: colors.primary + "1a" }]}>
               <Text style={[styles.countText, { color: colors.primary }]}>{totalCount}</Text>
             </View>
@@ -227,7 +227,7 @@ export default function TrainerClientsScreen() {
             <Ionicons name="search-outline" size={18} color={colors.mutedForeground} />
             <TextInput
               style={[styles.searchInput, { color: colors.foreground }]}
-              placeholder="Szukaj klientów..."
+              placeholder="Szukaj podopiecznych..."
               placeholderTextColor={colors.mutedForeground}
               value={search}
               onChangeText={setSearch}
@@ -266,12 +266,12 @@ export default function TrainerClientsScreen() {
             <View style={[styles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Ionicons name="people-outline" size={36} color={colors.mutedForeground} />
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                {search ? "Brak wyników" : "Brak klientów"}
+                {search ? "Brak wyników" : "Brak podopiecznych"}
               </Text>
               <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
                 {search
-                  ? `Nie znaleziono klientów dla "${search}"`
-                  : "Zaproś pierwszego klienta podając jego adres e-mail."}
+                  ? `Nie znaleziono podopiecznych dla "${search}"`
+                  : "Zaproś pierwszego podopiecznego podając jego adres e-mail."}
               </Text>
               {!search && (
                 <Pressable
@@ -283,7 +283,7 @@ export default function TrainerClientsScreen() {
                   testID="button-invite-first-client"
                 >
                   <Ionicons name="person-add-outline" size={18} color="#fff" />
-                  <Text style={styles.emptyInviteBtnText}>Zaproś klienta</Text>
+                  <Text style={styles.emptyInviteBtnText}>Zaproś podopiecznego</Text>
                 </Pressable>
               )}
             </View>
@@ -347,7 +347,7 @@ export default function TrainerClientsScreen() {
         >
           <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.modalTitleRow}>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Zaproś klienta</Text>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Zaproś podopiecznego</Text>
               <Pressable
                 onPress={() => {
                   if (!inviteMutation.isPending) {
@@ -363,7 +363,7 @@ export default function TrainerClientsScreen() {
             </View>
 
             <Text style={[styles.inviteHint, { color: colors.mutedForeground }]}>
-              Podaj adres e-mail klienta. Otrzyma link i zostanie automatycznie przypisany do Ciebie.
+              Podaj adres e-mail podopiecznego. Otrzyma link i zostanie automatycznie przypisany do Ciebie.
             </Text>
 
             <TextInput

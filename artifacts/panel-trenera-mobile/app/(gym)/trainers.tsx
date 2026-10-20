@@ -305,7 +305,7 @@ function TrainerCard({
           <View style={styles.trainerStats}>
             <View style={styles.trainerStat}>
               <Ionicons name="people-outline" size={13} color={colors.mutedForeground} />
-              <Text style={[styles.trainerStatText, { color: colors.mutedForeground }]}>{row.trainerClientCount} klientów</Text>
+              <Text style={[styles.trainerStatText, { color: colors.mutedForeground }]}>{row.trainerClientCount} podopiecznych</Text>
             </View>
             <View style={styles.trainerStat}>
               <Ionicons name="barbell-outline" size={13} color={colors.mutedForeground} />

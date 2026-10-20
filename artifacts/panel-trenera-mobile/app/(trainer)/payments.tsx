@@ -268,12 +268,12 @@ export default function TrainerPaymentsScreen() {
 
   function getClientName(clientId: string) {
     const c = clients.find((c) => c.id === clientId);
-    return c ? `${c.firstName} ${c.lastName}` : "Nieznany klient";
+    return c ? `${c.firstName} ${c.lastName}` : "Nieznany podopieczny";
   }
 
   function handleCreate() {
     if (!form.clientId) {
-      Alert.alert("Błąd", "Wybierz klienta.");
+      Alert.alert("Błąd", "Wybierz podopiecznego.");
       return;
     }
     const amountNum = parseFloat(form.amount.replace(",", "."));
@@ -401,7 +401,7 @@ export default function TrainerPaymentsScreen() {
                 <Ionicons name="wallet-outline" size={36} color={colors.mutedForeground} />
                 <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Brak płatności</Text>
                 <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
-                  Dodaj pierwszą płatność dla swojego klienta.
+                  Dodaj pierwszą płatność dla swojego podopiecznego.
                 </Text>
               </View>
             )}
@@ -441,14 +441,14 @@ export default function TrainerPaymentsScreen() {
               <>
 
             <View style={styles.fieldGroup}>
-              <Text style={[styles.label, { color: colors.mutedForeground }]}>Klient</Text>
+              <Text style={[styles.label, { color: colors.mutedForeground }]}>Podopieczny</Text>
               <Pressable
                 onPress={() => setClientPickerVisible(true)}
                 style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border }]}
                 testID="button-pick-client"
               >
                 <Text style={[{ color: selectedClient ? colors.foreground : colors.mutedForeground, fontSize: 15, fontFamily: "Inter_400Regular" }]}>
-                  {selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName}` : "Wybierz klienta"}
+                  {selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName}` : "Wybierz podopiecznego"}
                 </Text>
                 <Ionicons name="chevron-down" size={16} color={colors.mutedForeground} />
               </Pressable>
@@ -549,7 +549,7 @@ export default function TrainerPaymentsScreen() {
       >
         <Pressable style={styles.modalOverlay} onPress={() => setClientPickerVisible(false)}>
           <View style={[styles.pickerBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground, marginBottom: 8 }]}>Wybierz klienta</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground, marginBottom: 8 }]}>Wybierz podopiecznego</Text>
             <ScrollView showsVerticalScrollIndicator={false}>
               {clients.map((c) => (
                 <Pressable
@@ -572,7 +572,7 @@ export default function TrainerPaymentsScreen() {
               ))}
               {clients.length === 0 && (
                 <Text style={[styles.emptyDesc, { color: colors.mutedForeground, textAlign: "center", paddingVertical: 16 }]}>
-                  Brak klientów
+                  Brak podopiecznych
                 </Text>
               )}
             </ScrollView>
