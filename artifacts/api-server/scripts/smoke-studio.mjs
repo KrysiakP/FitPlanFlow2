@@ -5,6 +5,8 @@
 //   CLIENT_EMAIL=klient.test@local.test node scripts/smoke-studio.mjs
 //
 // The three accounts must already exist with verified e-mail addresses.
+// Start the API with NODE_ENV=test: the auth rate limiter (20 requests / 15 min) is skipped there,
+// otherwise a few runs in a row end with 429.
 import assert from "node:assert/strict";
 import test from "node:test";
 
