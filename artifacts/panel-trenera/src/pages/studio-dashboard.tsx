@@ -299,7 +299,9 @@ export default function StudioDashboard() {
                           {STATUS_LABELS[t.status]}
                         </Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground truncate">{t.trainerEmail ?? t.inviteEmail}</p>
+                      {name !== (t.trainerEmail ?? t.inviteEmail) && (
+                        <p className="text-sm text-muted-foreground truncate">{t.trainerEmail ?? t.inviteEmail}</p>
+                      )}
                       {t.status !== "invited" && (
                         <p className="text-xs text-muted-foreground mt-1">
                           {t.trainerClientCount ?? 0} podopiecznych · {t.sessionsLast30Days} treningów w ostatnich 30 dniach
