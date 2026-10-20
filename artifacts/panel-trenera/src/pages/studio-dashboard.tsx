@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AlertCircle, Copy, Mail, Trash2, UserCheck, UserX, Users, Activity, Dumbbell } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -361,6 +362,23 @@ export default function StudioDashboard() {
       </Card>
 
       {gymQuery.data && <StudioDetailsCard gym={gymQuery.data} />}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-heading flex items-center gap-2 text-destructive">
+            <Trash2 className="w-5 h-5" />
+            Usuń konto
+          </CardTitle>
+          <CardDescription>
+            Trwale usuwa konto właściciela, studio i zaproszenia. Trenerzy, ich podopieczni i plany pozostają bez zmian.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="destructive" size="sm" data-testid="link-delete-account">
+            <Link href="/delete-account">Usuń konto i dane</Link>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
