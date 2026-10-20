@@ -1,4 +1,5 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { useEffect } from "react";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -50,6 +51,27 @@ import DeleteAccount from "@/pages/delete-account";
 import TrainerPublicProfile from "@/pages/trainer-public-profile";
 import NotFound from "@/pages/not-found";
 
+// Short Polish link used by the mobile app and e-mails: show the pricing section of the landing page
+function CennikRedirect() {
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    setLocation("/");
+    let attempts = 0;
+    const timer = window.setInterval(() => {
+      const section = document.getElementById("pricing");
+      attempts += 1;
+      if (section) {
+        section.scrollIntoView();
+        window.clearInterval(timer);
+      } else if (attempts > 20) {
+        window.clearInterval(timer);
+      }
+    }, 150);
+    // no cleanup on purpose: setLocation('/') unmounts this component, the interval ends itself
+  }, [setLocation]);
+  return null;
+}
+
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
 
@@ -66,6 +88,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Landing} />
         <Route path="/login" component={Login} />
+        <Route path="/cennik" component={CennikRedirect} />
         <Route path="/register" component={Register} />
         <Route path="/studio/register" component={StudioRegister} />
         <Route path="/verify-email" component={VerifyEmail} />
@@ -132,6 +155,7 @@ function Router() {
             )}
             <Route path="/pomagamy" component={Pomagamy} />
             <Route path="/pricing" component={Pricing} />
+            <Route path="/cennik" component={Pricing} />
             <Route path="/referrals" component={Referrals} />
             <Route path="/legal/regulamin" component={LegalRegulamin} />
             <Route path="/legal/polityka-prywatnosci" component={LegalPolitykaPrivatnosci} />
@@ -152,6 +176,7 @@ function Router() {
             <Route path="/payment-schedule" component={PaymentSchedule} />
             <Route path="/pomagamy" component={Pomagamy} />
             <Route path="/pricing" component={Pricing} />
+            <Route path="/cennik" component={Pricing} />
             <Route path="/legal/regulamin" component={LegalRegulamin} />
             <Route path="/legal/polityka-prywatnosci" component={LegalPolitykaPrivatnosci} />
             <Route path="/legal/polityka-cookies" component={LegalPolitykaCookies} />
