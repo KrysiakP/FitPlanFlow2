@@ -634,7 +634,7 @@ export default function ClientDetailScreen() {
         )}
 
         <View style={[styles.sessionsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: clientSessions.length > 0 ? 10 : 0 }}>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: clientSessions.length > 0 ? 10 : 0 }}>
             <Text style={[styles.sessionsSectionTitle, { color: colors.foreground }]}>Nadchodzące sesje</Text>
             <View style={{ flexDirection: "row", gap: 8 }}>
               <Pressable

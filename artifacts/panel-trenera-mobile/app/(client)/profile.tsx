@@ -1,3 +1,4 @@
+import Constants from "expo-constants";
 import type { ComponentProps } from "react";
 import {
   ActivityIndicator,
@@ -25,6 +26,8 @@ import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPost } from "@/lib/api";
 import { apiFetch } from "@/context/AuthContext";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
+
+const APP_VERSION = Constants.expoConfig?.version ?? "";
 
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
 
@@ -226,7 +229,7 @@ export default function ClientProfileScreen() {
         </Pressable>
 
         <Text style={[styles.footer, { color: colors.mutedForeground }]}>
-          Panel Trenera v1.0{"\n"}paneltrenera.pl
+          Panel Trenera v{APP_VERSION}{"\n"}paneltrenera.pl
         </Text>
       </ScrollView>
 

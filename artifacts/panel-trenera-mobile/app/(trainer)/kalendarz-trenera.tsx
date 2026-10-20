@@ -15,10 +15,24 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { Calendar, type DateData } from "react-native-calendars";
+import { Calendar, LocaleConfig, type DateData } from "react-native-calendars";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPost } from "@/lib/api";
+
+LocaleConfig.locales.pl = {
+  monthNames: ["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"],
+  monthNamesShort: ["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru"],
+  dayNames: ["Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota"],
+  dayNamesShort: ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"],
+  today: "Dzisiaj",
+};
+LocaleConfig.defaultLocale = "pl";
+
+function formatDayHeading(dayKey: string): string {
+  const [y, m, d] = dayKey.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" });
+}
 
 interface SessionBooking {
   id: string;
@@ -188,6 +202,7 @@ export default function TrainerCalendarScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Calendar
+            firstDay={1}
             current={selectedDay}
             onDayPress={(day: DateData) => setSelectedDay(day.dateString)}
             markedDates={markedDates}
@@ -208,7 +223,7 @@ export default function TrainerCalendarScreen() {
           />
 
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Sesje — {selectedDay}
+            Sesje — {formatDayHeading(selectedDay)}
           </Text>
 
           {dayBookings.length === 0 ? (

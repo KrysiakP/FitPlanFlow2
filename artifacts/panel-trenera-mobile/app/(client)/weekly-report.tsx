@@ -800,6 +800,7 @@ const styles = StyleSheet.create({
   backText: { fontSize: 15, fontFamily: "Inter_500Medium" },
   pageHeader: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "flex-start",
     justifyContent: "space-between",
     marginBottom: 24,

@@ -68,7 +68,8 @@ function buildBaseUrl(): string {
       `[AuthContext] EXPO_PUBLIC_DOMAIN should be a bare domain (e.g. "paneltrenera.pl"), not a full URL. Stripped protocol automatically.`
     );
   }
-  return `https://${bare}`;
+  const isLocal = /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(bare);
+  return `${isLocal ? "http" : "https"}://${bare}`;
 }
 
 const BASE_URL = buildBaseUrl();

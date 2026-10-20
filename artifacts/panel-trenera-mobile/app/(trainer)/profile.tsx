@@ -1,3 +1,4 @@
+import Constants from "expo-constants";
 import type { ComponentProps } from "react";
 import { useEffect, useState } from "react";
 import {
@@ -22,6 +23,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
+
+const APP_VERSION = Constants.expoConfig?.version ?? "";
 
 interface TrainerProfileDetails {
   bio: string | null;
@@ -389,7 +392,7 @@ export default function TrainerProfileScreen() {
       </Pressable>
 
       <Text style={[styles.footer, { color: colors.mutedForeground }]}>
-        Panel Trenera v1.0{"\n"}paneltrenera.pl
+        Panel Trenera v{APP_VERSION}{"\n"}paneltrenera.pl
       </Text>
     </ScrollView>
     </View>

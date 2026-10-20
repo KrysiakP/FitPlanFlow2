@@ -1726,9 +1726,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      
+
+      if (isDemoId(id)) {
+        const demoPlan = user?.role === "trainer" ? getDemoTrainingPlans(userId).find((p) => p.id === id) : undefined;
+        if (!demoPlan) {
+          return res.status(404).json({ message: "Plan not found" });
+        }
+        return res.json(demoPlan);
+      }
+
       const plan = await storage.getTrainingPlan(id);
-      
+
       if (!plan) {
         return res.status(404).json({ message: "Plan not found" });
       }

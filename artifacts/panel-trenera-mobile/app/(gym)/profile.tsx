@@ -1,3 +1,4 @@
+import Constants from "expo-constants";
 import {
   ScrollView,
   StyleSheet,
@@ -18,6 +19,8 @@ import { useAuth } from "@/context/AuthContext";
 import { apiGet } from "@/lib/api";
 import * as Haptics from "expo-haptics";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
+
+const APP_VERSION = Constants.expoConfig?.version ?? "";
 
 type GymMe = {
   id: string;
@@ -201,7 +204,7 @@ export default function GymProfile() {
       </Pressable>
 
       <Text style={[styles.footer, { color: colors.mutedForeground }]}>
-        Panel Trenera — Siłownia v1.0{"\n"}paneltrenera.pl
+        Panel Trenera — Siłownia v{APP_VERSION}{"\n"}paneltrenera.pl
       </Text>
     </ScrollView>
   );
