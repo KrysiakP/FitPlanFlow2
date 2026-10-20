@@ -86,3 +86,14 @@ test("trainer can leave the studio", async () => {
   const data = await (await call(studio, "GET", "/api/gym/analytics")).json();
   assert.equal(data.activeTrainers, 0);
 });
+
+test("owner edits studio details; others cannot; bad input is rejected", async () => {
+  const before = await (await call(studio, "GET", "/api/gym/me")).json();
+  const edited = await call(studio, "PATCH", "/api/gym/me", { phone: "500600700", address: "ul. Testowa 1" });
+  assert.equal(edited.status, 200);
+  assert.equal((await edited.json()).phone, "500600700");
+  assert.equal((await call(studio, "PATCH", "/api/gym/me", { contactEmail: "to-nie-email" })).status, 400);
+  assert.equal((await call(trainer, "PATCH", "/api/gym/me", { name: "Przejęcie" })).status, 403);
+  // restore
+  await call(studio, "PATCH", "/api/gym/me", { phone: before.phone, address: before.address });
+});

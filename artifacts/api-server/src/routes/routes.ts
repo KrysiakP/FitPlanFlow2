@@ -5988,6 +5988,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return gym ?? null;
   }
 
+  // PATCH /api/gym/me — owner edits studio details (plan and limits stay under our control)
+  app.patch("/api/gym/me", isAuthenticated, requireGymOwner, async (req, res) => {
+    const schema = z.object({
+      name: z.string().trim().min(2).max(255).optional(),
+      contactEmail: z.string().trim().email().max(255).nullable().optional(),
+      phone: z.string().trim().max(50).nullable().optional(),
+      address: z.string().trim().max(500).nullable().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Nieprawidłowe dane studia" });
+
+    try {
+      const user = (req as any).user;
+      const gym = await getOwnerGym(user.id);
+      if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+
+      const emptyToNull = (value: string | null | undefined) => (value === undefined ? undefined : value || null);
+      const [updated] = await db
+        .update(gyms)
+        .set({
+          ...(parsed.data.name !== undefined ? { name: parsed.data.name } : {}),
+          ...(parsed.data.contactEmail !== undefined ? { contactEmail: emptyToNull(parsed.data.contactEmail) } : {}),
+          ...(parsed.data.phone !== undefined ? { phone: emptyToNull(parsed.data.phone) } : {}),
+          ...(parsed.data.address !== undefined ? { address: emptyToNull(parsed.data.address) } : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(gyms.id, gym.id))
+        .returning();
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating gym:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
   // GET /api/gym/me — gym info + summary stats
   app.get("/api/gym/me", isAuthenticated, requireGymOwner, async (req, res) => {
     try {

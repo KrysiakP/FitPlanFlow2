@@ -9,14 +9,17 @@ import {
   ActivityIndicator,
   Linking,
   Platform,
+  Alert,
+  TextInput,
 } from "react-native";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
-import { apiGet } from "@/lib/api";
+import { apiGet, apiPatch } from "@/lib/api";
 import * as Haptics from "expo-haptics";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 
@@ -50,9 +53,38 @@ export default function GymProfile() {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
 
+  const queryClient = useQueryClient();
   const { data: gym, isLoading, refetch, isRefetching } = useQuery<GymMe>({
     queryKey: ["gym-me"],
     queryFn: () => apiGet("/api/gym/me"),
+  });
+
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ name: "", contactEmail: "", phone: "", address: "" });
+
+  function startEditing() {
+    setForm({
+      name: gym?.name ?? "",
+      contactEmail: gym?.contactEmail ?? "",
+      phone: gym?.phone ?? "",
+      address: gym?.address ?? "",
+    });
+    setEditing(true);
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      apiPatch("/api/gym/me", {
+        name: form.name.trim(),
+        contactEmail: form.contactEmail.trim() || null,
+        phone: form.phone.trim() || null,
+        address: form.address.trim() || null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["gym-me"] });
+      setEditing(false);
+    },
+    onError: () => Alert.alert("Nie udało się zapisać", "Sprawdź nazwę studia i adres e-mail, a potem spróbuj ponownie."),
   });
 
   async function handleLogout() {
@@ -97,8 +129,54 @@ export default function GymProfile() {
       </View>
 
       {/* Gym info */}
-      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Dane siłowni</Text>
-      {[
+      <View style={styles.sectionHeaderRow}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>Dane siłowni</Text>
+        {!editing && (
+          <Pressable onPress={startEditing} hitSlop={10} testID="button-edit-gym">
+            <Text style={[styles.editLink, { color: colors.primary }]}>Edytuj</Text>
+          </Pressable>
+        )}
+      </View>
+      {editing ? (
+        <View style={styles.editForm}>
+          {([
+            ["Nazwa studia", "name", "default"],
+            ["E-mail kontaktowy", "contactEmail", "email-address"],
+            ["Telefon", "phone", "phone-pad"],
+            ["Adres", "address", "default"],
+          ] as const).map(([label, key, keyboardType]) => (
+            <View key={key}>
+              <Text style={[styles.infoLabel, { color: colors.mutedForeground, marginBottom: 4 }]}>{label}</Text>
+              <TextInput
+                value={form[key]}
+                onChangeText={(value) => setForm((prev) => ({ ...prev, [key]: value }))}
+                keyboardType={keyboardType}
+                autoCapitalize={key === "contactEmail" ? "none" : "sentences"}
+                style={[styles.editInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]}
+                testID={`input-gym-${key}`}
+              />
+            </View>
+          ))}
+          <View style={styles.editActions}>
+            <Pressable
+              onPress={() => setEditing(false)}
+              style={[styles.editBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
+              testID="button-cancel-gym-edit"
+            >
+              <Text style={[styles.editBtnText, { color: colors.foreground }]}>Anuluj</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending || form.name.trim().length < 2}
+              style={[styles.editBtn, { backgroundColor: colors.primary, borderColor: colors.primary, opacity: saveMutation.isPending || form.name.trim().length < 2 ? 0.6 : 1 }]}
+              testID="button-save-gym"
+            >
+              <Text style={[styles.editBtnText, { color: "#fff" }]}>{saveMutation.isPending ? "Zapisywanie..." : "Zapisz"}</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+      {!editing && [
         { icon: "mail-outline" as const, label: "E-mail kontaktowy", value: gym?.contactEmail },
         { icon: "call-outline" as const, label: "Telefon", value: gym?.phone },
         { icon: "location-outline" as const, label: "Adres", value: gym?.address },
@@ -245,6 +323,13 @@ function MenuRow({
 
 
 const styles = StyleSheet.create({
+  sectionHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 },
+  editLink: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  editForm: { gap: 12 },
+  editInput: { height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, fontSize: 15, fontFamily: "Inter_400Regular" },
+  editActions: { flexDirection: "row", gap: 10 },
+  editBtn: { flex: 1, height: 46, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  editBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   content: { padding: 16 },
   gymCard: { borderRadius: 18, padding: 20, flexDirection: "row", gap: 16, alignItems: "center", marginBottom: 24 },
