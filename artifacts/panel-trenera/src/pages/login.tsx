@@ -205,6 +205,12 @@ export default function Login() {
             <Link href="/register" className="text-primary hover:underline font-medium" data-testid="link-register">
               Zarejestruj się
             </Link>
+            <div className="mt-2">
+              <span className="text-muted-foreground">Prowadzisz studio lub klub? </span>
+              <Link href="/studio/register" className="text-primary hover:underline font-medium" data-testid="link-studio-register">
+                Załóż studio
+              </Link>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -479,6 +479,9 @@ export function PricingSection() {
                     kontakt@paneltrenera.pl
                   </a>
                 </Button>
+                <Button size="sm" asChild data-testid="button-register-studio">
+                  <Link href="/studio/register">Załóż studio</Link>
+                </Button>
               </CardContent>
             </Card>
           </div>

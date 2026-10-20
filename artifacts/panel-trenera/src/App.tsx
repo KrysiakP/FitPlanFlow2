@@ -7,6 +7,9 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { CookieConsentBanner } from "@/components/cookie-consent";
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/app-layout";
+import { StudioLayout } from "@/components/studio-layout";
+import StudioRegister from "@/pages/studio-register";
+import StudioDashboard from "@/pages/studio-dashboard";
 import Landing from "@/pages/landing";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
@@ -64,6 +67,7 @@ function Router() {
         <Route path="/" component={Landing} />
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
+        <Route path="/studio/register" component={StudioRegister} />
         <Route path="/verify-email" component={VerifyEmail} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password" component={ResetPassword} />
@@ -83,6 +87,21 @@ function Router() {
         <Route path="/role-selection" component={RoleSelection} />
         <Route component={RoleSelection} />
       </Switch>
+    );
+  }
+
+  if (user.role === "gym_owner") {
+    return (
+      <StudioLayout>
+        <Switch>
+          <Route path="/" component={StudioDashboard} />
+          <Route path="/legal/regulamin" component={LegalRegulamin} />
+          <Route path="/legal/polityka-prywatnosci" component={LegalPolitykaPrivatnosci} />
+          <Route path="/legal/polityka-cookies" component={LegalPolitykaCookies} />
+          <Route path="/delete-account" component={DeleteAccount} />
+          <Route component={StudioDashboard} />
+        </Switch>
+      </StudioLayout>
     );
   }
 

@@ -501,8 +501,8 @@ export default function Pricing() {
               <p className="text-sm text-muted-foreground">
                 Plan STUDIO/KLUB jest dedykowany dla większych organizacji. Skontaktuj się z nami, aby omówić szczegóły i dopasować rozwiązanie do Twoich potrzeb.
               </p>
-              <Button variant="outline" size="sm" data-testid="button-contact-studio">
-                Skontaktuj się
+              <Button variant="outline" size="sm" asChild data-testid="button-contact-studio">
+                <Link href="/studio/register">Załóż studio</Link>
               </Button>
             </CardContent>
           </Card>
