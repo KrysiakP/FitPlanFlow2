@@ -6479,6 +6479,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/trainer/gym/invitations — pending studio invitations addressed to this trainer's e-mail
+  app.get("/api/trainer/gym/invitations", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy" });
+      const rows = await db
+        .select({ id: gymTrainers.id, inviteCode: gymTrainers.inviteCode, gymName: gyms.name })
+        .from(gymTrainers)
+        .innerJoin(gyms, eq(gyms.id, gymTrainers.gymId))
+        .where(and(eq(gymTrainers.status, "invited"), eq(sql`lower(${gymTrainers.inviteEmail})`, user.email.toLowerCase())));
+      res.json(rows);
+    } catch (error) {
+      console.error("Error fetching studio invitations:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
   // DELETE /api/trainer/gym — trainer leaves their studio (clients and plans stay with the trainer)
   app.delete("/api/trainer/gym", isAuthenticated, async (req, res) => {
     try {

@@ -38,16 +38,28 @@ function messageFrom(error: unknown, fallback: string) {
   return fallback;
 }
 
+interface StudioInvitation {
+  id: string;
+  gymName: string;
+  inviteCode: string;
+}
+
 export function StudioMembershipCard() {
   const { toast } = useToast();
   const [code, setCode] = useState("");
   const { data, isLoading, isError } = useQuery<TrainerGym>({ queryKey: ["/api/trainer/gym"] });
 
+  const invitationsQuery = useQuery<StudioInvitation[]>({
+    queryKey: ["/api/trainer/gym/invitations"],
+    enabled: !!data && !data.gym,
+  });
+
   const joinMutation = useMutation({
-    mutationFn: async () => apiRequest("POST", `/api/gym/join/${encodeURIComponent(code.trim().toUpperCase())}`, {}),
+    mutationFn: async (inviteCode: string) => apiRequest("POST", `/api/gym/join/${encodeURIComponent(inviteCode.trim().toUpperCase())}`, {}),
     onSuccess: () => {
       setCode("");
       queryClient.invalidateQueries({ queryKey: ["/api/trainer/gym"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/gym/invitations"] });
       toast({ title: "Dołączyłeś do studia" });
     },
     onError: (error) =>
@@ -104,11 +116,32 @@ export function StudioMembershipCard() {
             </AlertDialog>
           </>
         ) : (
+          <>
+          {(invitationsQuery.data ?? []).map((invitation) => (
+            <div
+              key={invitation.id}
+              className="flex items-center justify-between gap-3 rounded-md border p-3"
+              data-testid={`studio-invitation-${invitation.id}`}
+            >
+              <div>
+                <p className="font-medium">{invitation.gymName}</p>
+                <p className="text-sm text-muted-foreground">Zaprasza Cię do swojego studia</p>
+              </div>
+              <Button
+                size="sm"
+                disabled={joinMutation.isPending}
+                onClick={() => joinMutation.mutate(invitation.inviteCode)}
+                data-testid={`button-accept-invitation-${invitation.id}`}
+              >
+                Dołącz
+              </Button>
+            </div>
+          ))}
           <form
             className="flex flex-col sm:flex-row gap-3"
             onSubmit={(e) => {
               e.preventDefault();
-              if (code.trim().length === 8) joinMutation.mutate();
+              if (code.trim().length === 8) joinMutation.mutate(code);
             }}
           >
             <Input
@@ -122,6 +155,7 @@ export function StudioMembershipCard() {
               {joinMutation.isPending ? "Dołączanie..." : "Dołącz"}
             </Button>
           </form>
+          </>
         )}
       </CardContent>
     </Card>

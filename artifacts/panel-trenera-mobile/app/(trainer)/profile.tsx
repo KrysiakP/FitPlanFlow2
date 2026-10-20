@@ -407,11 +407,18 @@ function StudioMembershipSection({ colors }: { colors: ReturnType<typeof useColo
     queryFn: () => apiGet("/api/trainer/gym"),
   });
 
+  const invitationsQuery = useQuery<{ id: string; gymName: string; inviteCode: string }[]>({
+    queryKey: ["trainer-gym-invitations"],
+    queryFn: () => apiGet("/api/trainer/gym/invitations"),
+    enabled: !!data && !data.gym,
+  });
+
   const joinMutation = useMutation({
-    mutationFn: () => apiPost(`/api/gym/join/${encodeURIComponent(code.trim().toUpperCase())}`, {}),
+    mutationFn: (inviteCode: string) => apiPost(`/api/gym/join/${encodeURIComponent(inviteCode.trim().toUpperCase())}`, {}),
     onSuccess: () => {
       setCode("");
       qc.invalidateQueries({ queryKey: ["trainer-gym"] });
+      qc.invalidateQueries({ queryKey: ["trainer-gym-invitations"] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert("Gotowe", "Dołączyłeś do studia.");
     },
@@ -456,6 +463,22 @@ function StudioMembershipSection({ colors }: { colors: ReturnType<typeof useColo
         </>
       ) : (
         <>
+          {(invitationsQuery.data ?? []).map((invitation) => (
+            <View key={invitation.id} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_600SemiBold" }}>{invitation.gymName}</Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 12.5 }}>Zaprasza Cię do swojego studia</Text>
+              </View>
+              <Pressable
+                onPress={() => joinMutation.mutate(invitation.inviteCode)}
+                disabled={joinMutation.isPending}
+                style={({ pressed }) => [{ backgroundColor: colors.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10, opacity: joinMutation.isPending || pressed ? 0.6 : 1 }]}
+                testID={`button-accept-invitation-${invitation.id}`}
+              >
+                <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold" }}>Dołącz</Text>
+              </Pressable>
+            </View>
+          ))}
           <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Kod zaproszenia do studia</Text>
           <TextInput
             value={code}
@@ -469,7 +492,7 @@ function StudioMembershipSection({ colors }: { colors: ReturnType<typeof useColo
             testID="input-studio-code"
           />
           <Pressable
-            onPress={() => joinMutation.mutate()}
+            onPress={() => joinMutation.mutate(code)}
             disabled={code.trim().length !== 8 || joinMutation.isPending}
             style={({ pressed }) => [
               styles.saveDetailsBtn,

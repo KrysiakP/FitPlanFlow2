@@ -62,6 +62,12 @@ test("owner invites a trainer, duplicates are rejected", async () => {
   test.inviteCode = invite.inviteCode;
 });
 
+test("the invited trainer sees the pending invitation without typing a code", async () => {
+  const list = await (await call(trainer, "GET", "/api/trainer/gym/invitations")).json();
+  assert.ok(list.some((item) => item.inviteCode === test.inviteCode));
+  assert.equal((await call(client, "GET", "/api/trainer/gym/invitations")).status, 403);
+});
+
 test("only the invited trainer can use the code", async () => {
   assert.equal((await call(client, "POST", `/api/gym/join/${test.inviteCode}`)).status, 403);
   assert.equal((await call(trainer, "POST", "/api/gym/join/ZZZZZZZZ")).status, 404);
