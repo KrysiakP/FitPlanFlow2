@@ -55,10 +55,10 @@ import { z } from "zod";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { randomUUID } from "crypto";
+import { randomUUID, timingSafeEqual } from "crypto";
 import Stripe from "stripe";
 import express from "express";
-import { authRateLimit } from "../app";
+import { authRateLimit, lookupRateLimit } from "../app";
 import { checkPaymentNotifications } from "../services/paymentNotifications";
 import { deleteTestClient } from "../testClientService";
 import { getDemoClient, getDemoTrainingPlans, getDemoWeeklyReports, getDemoDietPlan, getDemoPayments, isDemoId, DEMO_CLIENT_ID } from "../demoDataService";
@@ -3312,7 +3312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Public endpoint: lookup invitation by code (no auth required)
-  app.get("/api/invitations/lookup/:code", async (req, res) => {
+  app.get("/api/invitations/lookup/:code", lookupRateLimit, async (req, res) => {
     try {
       const code = (req.params.code ?? "").toUpperCase().trim();
       if (!code || code.length !== 8) {
@@ -5469,7 +5469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Referral system routes
   // Public: validate a referral code (used during registration)
-  app.get("/api/referrals/lookup/:code", async (req, res) => {
+  app.get("/api/referrals/lookup/:code", lookupRateLimit, async (req, res) => {
     try {
       const code = (req.params.code ?? "").trim().toUpperCase();
       if (!code) return res.status(400).json({ message: "Podaj kod polecający" });
@@ -5662,7 +5662,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const token = authHeader.substring(7); // Remove "Bearer " prefix
       
-      if (token !== expectedToken) {
+      const tokenBuffer = Buffer.from(token);
+      const expectedBuffer = Buffer.from(expectedToken);
+      if (tokenBuffer.length !== expectedBuffer.length || !timingSafeEqual(tokenBuffer, expectedBuffer)) {
         console.warn("[CRON] Invalid cron job token attempt");
         return res.status(401).json({ 
           error: "Invalid cron job token" 

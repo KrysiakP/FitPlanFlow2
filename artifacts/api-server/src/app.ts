@@ -15,6 +15,16 @@ app.use(
   })
 );
 
+// Public code lookups (invitation / referral codes): generous for people, hostile to code guessing
+export const lookupRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Zbyt wiele prób. Spróbuj ponownie za 15 minut." },
+  skip: (req) => process.env.NODE_ENV === "test",
+});
+
 export const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
