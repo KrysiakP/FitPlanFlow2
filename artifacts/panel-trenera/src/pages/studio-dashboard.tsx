@@ -285,6 +285,7 @@ export default function StudioDashboard() {
           ) : (
             <div className="space-y-3">
               {trainers.map((t) => {
+                const maxSessions = Math.max(1, ...trainers.map((other) => other.sessionsLast30Days ?? 0));
                 const name = [t.trainerFirstName, t.trainerLastName].filter(Boolean).join(" ") || t.inviteEmail;
                 return (
                   <div
@@ -306,6 +307,19 @@ export default function StudioDashboard() {
                         <p className="text-xs text-muted-foreground mt-1">
                           {t.trainerClientCount ?? 0} podopiecznych · {t.sessionsLast30Days} treningów w ostatnich 30 dniach
                         </p>
+                      )}
+                      {t.status === "active" && (
+                        <div
+                          className="mt-2 h-1.5 w-full max-w-xs rounded-full bg-muted overflow-hidden"
+                          role="img"
+                          aria-label={`Aktywność: ${t.sessionsLast30Days} z ${maxSessions} treningów najaktywniejszego trenera`}
+                          data-testid={`bar-activity-${t.id}`}
+                        >
+                          <div
+                            className="h-full rounded-full bg-primary"
+                            style={{ width: `${Math.round(((t.sessionsLast30Days ?? 0) / maxSessions) * 100)}%` }}
+                          />
+                        </div>
                       )}
                       {t.status === "invited" && t.inviteCode && (
                         <button
