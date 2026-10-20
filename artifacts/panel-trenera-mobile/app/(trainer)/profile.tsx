@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Linking,
   Platform,
@@ -20,7 +21,7 @@ import * as Haptics from "expo-haptics";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
-import { apiGet, apiPut } from "@/lib/api";
+import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
 
 interface TrainerProfileDetails {
   bio: string | null;
@@ -207,6 +208,9 @@ export default function TrainerProfileScreen() {
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Dane profilowe</Text>
       <ProfileDetailsSection colors={colors} />
 
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Studio</Text>
+      <StudioMembershipSection colors={colors} />
+
       {Platform.OS !== "ios" && (
       <>
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Subskrypcja</Text>
@@ -388,6 +392,94 @@ export default function TrainerProfileScreen() {
         Panel Trenera v1.0{"\n"}paneltrenera.pl
       </Text>
     </ScrollView>
+    </View>
+  );
+}
+
+function StudioMembershipSection({ colors }: { colors: ReturnType<typeof useColors> }) {
+  const qc = useQueryClient();
+  const [code, setCode] = useState("");
+  const { data, isLoading, isError, refetch } = useQuery<{ gym: { id: string; name: string } | null; status?: string }>({
+    queryKey: ["trainer-gym"],
+    queryFn: () => apiGet("/api/trainer/gym"),
+  });
+
+  const joinMutation = useMutation({
+    mutationFn: () => apiPost(`/api/gym/join/${encodeURIComponent(code.trim().toUpperCase())}`, {}),
+    onSuccess: () => {
+      setCode("");
+      qc.invalidateQueries({ queryKey: ["trainer-gym"] });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Gotowe", "Dołączyłeś do studia.");
+    },
+    onError: (e) => Alert.alert("Nie udało się dołączyć", e instanceof Error ? e.message : "Sprawdź kod i spróbuj ponownie."),
+  });
+
+  const leaveMutation = useMutation({
+    mutationFn: () => apiDelete("/api/trainer/gym"),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["trainer-gym"] }),
+    onError: () => Alert.alert("Błąd", "Nie udało się opuścić studia. Spróbuj ponownie."),
+  });
+
+  function confirmLeave(name: string) {
+    Alert.alert("Opuścić studio?", `Przestaniesz należeć do „${name}”. Twoi podopieczni i plany zostają u Ciebie.`, [
+      { text: "Anuluj", style: "cancel" },
+      { text: "Opuść", style: "destructive", onPress: () => leaveMutation.mutate() },
+    ]);
+  }
+
+  return (
+    <View style={[styles.profileDetailsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      {isLoading ? (
+        <ActivityIndicator color={colors.primary} />
+      ) : isError ? (
+        <Pressable onPress={() => refetch()} testID="button-retry-studio">
+          <Text style={{ color: colors.destructive }}>Nie udało się wczytać danych studia. Dotknij, aby spróbować ponownie.</Text>
+        </Pressable>
+      ) : data?.gym ? (
+        <>
+          <Text style={{ color: colors.foreground, fontSize: 15, fontFamily: "Inter_600SemiBold" }}>{data.gym.name}</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 12.5 }}>
+            {data.status === "suspended" ? "Członkostwo zawieszone przez właściciela studia" : "Jesteś członkiem tego studia"}
+          </Text>
+          <Pressable
+            onPress={() => confirmLeave(data.gym!.name)}
+            disabled={leaveMutation.isPending}
+            style={({ pressed }) => [styles.saveDetailsBtn, { backgroundColor: colors.destructive + "18", opacity: pressed ? 0.7 : 1 }]}
+            testID="button-leave-studio"
+          >
+            <Text style={{ color: colors.destructive, fontFamily: "Inter_600SemiBold" }}>Opuść studio</Text>
+          </Pressable>
+        </>
+      ) : (
+        <>
+          <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Kod zaproszenia do studia</Text>
+          <TextInput
+            value={code}
+            onChangeText={setCode}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            maxLength={8}
+            placeholder="np. A1B2C3D4"
+            placeholderTextColor={colors.mutedForeground}
+            style={[styles.textInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
+            testID="input-studio-code"
+          />
+          <Pressable
+            onPress={() => joinMutation.mutate()}
+            disabled={code.trim().length !== 8 || joinMutation.isPending}
+            style={({ pressed }) => [
+              styles.saveDetailsBtn,
+              { backgroundColor: colors.primary, opacity: code.trim().length !== 8 || joinMutation.isPending || pressed ? 0.6 : 1 },
+            ]}
+            testID="button-join-studio"
+          >
+            <Text style={{ color: colors.primaryForeground, fontFamily: "Inter_600SemiBold" }}>
+              {joinMutation.isPending ? "Dołączanie..." : "Dołącz do studia"}
+            </Text>
+          </Pressable>
+        </>
+      )}
     </View>
   );
 }

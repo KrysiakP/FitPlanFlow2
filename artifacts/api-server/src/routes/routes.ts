@@ -5983,7 +5983,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/gym/me — gym info + summary stats
   app.get("/api/gym/me", isAuthenticated, requireGymOwner, async (req, res) => {
     try {
-      const user = req.user as any;
+      const user = (req as any).user;
       const gym = await getOwnerGym(user.id);
       if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
 
@@ -6030,7 +6030,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/gym/trainers — list trainers with per-trainer stats
   app.get("/api/gym/trainers", isAuthenticated, requireGymOwner, async (req, res) => {
     try {
-      const user = req.user as any;
+      const user = (req as any).user;
       const gym = await getOwnerGym(user.id);
       if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
 
@@ -6113,7 +6113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!parsed.success) return res.status(400).json({ message: "Nieprawidłowy adres e-mail" });
 
     try {
-      const user = req.user as any;
+      const user = (req as any).user;
       const gym = await getOwnerGym(user.id);
       if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
 
@@ -6158,7 +6158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!parsed.success) return res.status(400).json({ message: "Nieprawidłowy status" });
 
     try {
-      const user = req.user as any;
+      const user = (req as any).user;
       const gym = await getOwnerGym(user.id);
       if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
 
@@ -6187,7 +6187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // DELETE /api/gym/trainers/:id — remove trainer from gym
   app.delete("/api/gym/trainers/:id", isAuthenticated, requireGymOwner, async (req, res) => {
     try {
-      const user = req.user as any;
+      const user = (req as any).user;
       const gym = await getOwnerGym(user.id);
       if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
 
@@ -6206,7 +6206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/gym/trainer/:trainerId/detail — detailed trainer analytics
   app.get("/api/gym/trainer/:trainerId/detail", isAuthenticated, requireGymOwner, async (req, res) => {
     try {
-      const user = req.user as any;
+      const user = (req as any).user;
       const gym = await getOwnerGym(user.id);
       if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
 
@@ -6305,7 +6305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/gym/analytics — overall gym analytics
   app.get("/api/gym/analytics", isAuthenticated, requireGymOwner, async (req, res) => {
     try {
-      const user = req.user as any;
+      const user = (req as any).user;
       const gym = await getOwnerGym(user.id);
       if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
 
@@ -6366,10 +6366,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [invite] = await db
         .select()
         .from(gymTrainers)
-        .where(and(eq(gymTrainers.inviteCode, req.params.code.toUpperCase()), eq(gymTrainers.status, "invited")))
+        .where(and(eq(gymTrainers.inviteCode, String(req.params.code).toUpperCase()), eq(gymTrainers.status, "invited")))
         .limit(1);
       if (!invite) return res.status(404).json({ message: "Kod zaproszenia nieaktywny lub nieprawidłowy" });
-      if (invite.inviteEmail !== user.email) return res.status(403).json({ message: "Ten kod zaproszenia jest przeznaczony dla innego adresu e-mail" });
+      if (invite.inviteEmail.toLowerCase() !== user.email.toLowerCase()) return res.status(403).json({ message: "Ten kod zaproszenia jest przeznaczony dla innego adresu e-mail" });
+
+      const [already] = await db
+        .select({ id: gymTrainers.id })
+        .from(gymTrainers)
+        .where(and(eq(gymTrainers.trainerId, user.id), inArray(gymTrainers.status, ["active", "suspended"])))
+        .limit(1);
+      if (already) return res.status(409).json({ message: "Należysz już do studia. Najpierw z niego wyjdź." });
 
       const [updated] = await db
         .update(gymTrainers)
@@ -6379,6 +6386,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updated);
     } catch (error) {
       console.error("Error joining gym:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // GET /api/trainer/gym — which studio (if any) the logged-in trainer belongs to
+  app.get("/api/trainer/gym", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy" });
+      const [row] = await db
+        .select({ membershipId: gymTrainers.id, status: gymTrainers.status, gymId: gyms.id, gymName: gyms.name })
+        .from(gymTrainers)
+        .innerJoin(gyms, eq(gyms.id, gymTrainers.gymId))
+        .where(and(eq(gymTrainers.trainerId, user.id), inArray(gymTrainers.status, ["active", "suspended"])))
+        .limit(1);
+      res.json(row ? { gym: { id: row.gymId, name: row.gymName }, status: row.status } : { gym: null });
+    } catch (error) {
+      console.error("Error fetching trainer gym:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // DELETE /api/trainer/gym — trainer leaves their studio (clients and plans stay with the trainer)
+  app.delete("/api/trainer/gym", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy" });
+      await db.delete(gymTrainers).where(eq(gymTrainers.trainerId, user.id));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error leaving gym:", error);
       res.status(500).json({ message: "Błąd serwera" });
     }
   });
