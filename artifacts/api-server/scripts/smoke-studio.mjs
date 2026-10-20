@@ -113,3 +113,15 @@ test("owner edits studio details; others cannot; bad input is rejected", async (
   // restore
   await call(studio, "PATCH", "/api/gym/me", { phone: before.phone, address: before.address });
 });
+
+test("studio registration validates input and rejects an e-mail that already has an account", async () => {
+  const post = (body) =>
+    fetch(`${API_URL}/api/gym/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const valid = { gymName: "Klub Testowy", firstName: "Ola", lastName: "Test", email: STUDIO_EMAIL, password: PASSWORD };
+  assert.equal((await post({ ...valid, password: "krotki" })).status, 400);
+  assert.equal((await post({ ...valid, email: "to-nie-email" })).status, 400);
+  assert.equal((await post({ ...valid, gymName: "" })).status, 400);
+  const duplicate = await post(valid);
+  assert.equal(duplicate.status, 400);
+  assert.match((await duplicate.json()).message, /już istnieje/);
+});
