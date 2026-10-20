@@ -242,12 +242,12 @@ export default function GymProfile() {
           {gym?.stats.activeTrainers ?? 0} / {gym?.maxTrainers ?? "?"} aktywnych trenerów
         </Text>
         <Pressable
-          onPress={() => Linking.openURL("https://paneltrenera.pl/cennik")}
+          onPress={() => Linking.openURL("mailto:kontakt@paneltrenera.pl?subject=Pakiet%20dla%20studia")}
           style={({ pressed }) => [styles.upgradeBtn, { borderColor: tier.color + "60", opacity: pressed ? 0.8 : 1 }]}
           testID="button-upgrade-package"
         >
           <Ionicons name="arrow-up-circle-outline" size={16} color={tier.color} />
-          <Text style={[styles.upgradeBtnText, { color: tier.color }]}>Zmień pakiet na paneltrenera.pl</Text>
+          <Text style={[styles.upgradeBtnText, { color: tier.color }]}>Zapytaj o większy pakiet</Text>
         </Pressable>
       </View>
       </>
@@ -325,7 +325,7 @@ function MenuRow({
 const styles = StyleSheet.create({
   sectionHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 },
   editLink: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  editForm: { gap: 12 },
+  editForm: { gap: 12, marginTop: 12, marginBottom: 16 },
   editInput: { height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, fontSize: 15, fontFamily: "Inter_400Regular" },
   editActions: { flexDirection: "row", gap: 10 },
   editBtn: { flex: 1, height: 46, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center" },
