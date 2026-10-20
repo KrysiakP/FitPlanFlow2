@@ -62,6 +62,16 @@ test("owner invites a trainer, duplicates are rejected", async () => {
   test.inviteCode = invite.inviteCode;
 });
 
+test("owner can resend an invitation; trainers cannot", async () => {
+  const rows = await (await call(studio, "GET", "/api/gym/trainers")).json();
+  const pending = rows.find((row) => row.status === "invited");
+  assert.ok(pending);
+  const resent = await call(studio, "POST", `/api/gym/trainers/${pending.id}/resend`);
+  assert.equal(resent.status, 200);
+  assert.equal(typeof (await resent.json()).emailSent, "boolean");
+  assert.equal((await call(trainer, "POST", `/api/gym/trainers/${pending.id}/resend`)).status, 403);
+});
+
 test("the invited trainer sees the pending invitation without typing a code", async () => {
   const list = await (await call(trainer, "GET", "/api/trainer/gym/invitations")).json();
   assert.ok(list.some((item) => item.inviteCode === test.inviteCode));

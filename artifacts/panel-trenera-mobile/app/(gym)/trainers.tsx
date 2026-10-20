@@ -78,6 +78,16 @@ export default function GymTrainers() {
     onError: (e: any) => Alert.alert("Błąd", e?.message ?? "Nie udało się zmienić statusu"),
   });
 
+  const resendMutation = useMutation({
+    mutationFn: (id: string) => apiPost<{ emailSent: boolean }>(`/api/gym/trainers/${id}/resend`, {}),
+    onSuccess: (result) =>
+      Alert.alert(
+        result?.emailSent ? "Wysłano ponownie" : "Nie udało się wysłać e-maila",
+        result?.emailSent ? "Trener dostał e-mail z kodem." : "Przekaż trenerowi kod z listy.",
+      ),
+    onError: (e: any) => Alert.alert("Błąd", e?.message ?? "Nie udało się wysłać zaproszenia"),
+  });
+
   const removeMutation = useMutation({
     mutationFn: (id: string) => apiDelete(`/api/gym/trainers/${id}`),
     onSuccess: () => {
@@ -174,6 +184,7 @@ export default function GymTrainers() {
                     colors={colors}
                     onPress={undefined}
                     onStatusChange={undefined}
+                    onResend={() => resendMutation.mutate(t.id)}
                     onRemove={() => handleRemove(t)}
                   />
                 ))}
@@ -262,12 +273,14 @@ function TrainerCard({
   colors,
   onPress,
   onStatusChange,
+  onResend,
   onRemove,
 }: {
   row: GymTrainerRow;
   colors: ReturnType<typeof useColors>;
   onPress?: () => void;
   onStatusChange?: () => void;
+  onResend?: () => void;
   onRemove: () => void;
 }) {
   const st = STATUS_LABELS[row.status] ?? STATUS_LABELS.invited;
@@ -331,6 +344,16 @@ function TrainerCard({
               size={22}
               color={row.status === "active" ? "#f59e0b" : "#10b981"}
             />
+          </Pressable>
+        )}
+        {onResend && (
+          <Pressable
+            onPress={onResend}
+            style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.6 : 1 }]}
+            accessibilityLabel="Wyślij zaproszenie ponownie"
+            testID={`button-resend-trainer-${row.id}`}
+          >
+            <Ionicons name="mail-outline" size={22} color={colors.primary} />
           </Pressable>
         )}
         <Pressable

@@ -111,6 +111,18 @@ export default function StudioDashboard() {
       toast({ title: "Błąd", description: errorMessage(error, "Nie udało się zmienić statusu"), variant: "destructive" }),
   });
 
+  const resendMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest("POST", `/api/gym/trainers/${id}/resend`, {}),
+    onSuccess: (result) =>
+      toast({
+        title: result?.emailSent ? "Wysłano ponownie" : "Nie udało się wysłać e-maila",
+        description: result?.emailSent ? "Trener dostał e-mail z kodem." : "Przekaż trenerowi kod z listy.",
+        variant: result?.emailSent ? "default" : "destructive",
+      }),
+    onError: (error) =>
+      toast({ title: "Błąd", description: errorMessage(error, "Nie udało się wysłać zaproszenia"), variant: "destructive" }),
+  });
+
   const removeMutation = useMutation({
     mutationFn: async (id: string) => apiRequest("DELETE", `/api/gym/trainers/${id}`),
     onSuccess: () => {
@@ -316,6 +328,18 @@ export default function StudioDashboard() {
                         >
                           <UserX className="w-4 h-4 mr-1" />
                           Zawieś
+                        </Button>
+                      )}
+                      {t.status === "invited" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={resendMutation.isPending}
+                          onClick={() => resendMutation.mutate(t.id)}
+                          data-testid={`button-resend-${t.id}`}
+                        >
+                          <Mail className="w-4 h-4 mr-1" />
+                          Wyślij ponownie
                         </Button>
                       )}
                       {t.status === "suspended" && (

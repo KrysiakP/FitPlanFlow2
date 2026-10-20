@@ -6201,6 +6201,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/gym/trainers/:id/resend — send the invitation e-mail again
+  app.post("/api/gym/trainers/:id/resend", isAuthenticated, requireGymOwner, authRateLimit, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const gym = await getOwnerGym(user.id);
+      if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+
+      const [invite] = await db
+        .select()
+        .from(gymTrainers)
+        .where(and(eq(gymTrainers.id, String(req.params.id)), eq(gymTrainers.gymId, gym.id), eq(gymTrainers.status, "invited")))
+        .limit(1);
+      if (!invite || !invite.inviteCode) return res.status(404).json({ message: "Zaproszenie nie istnieje lub zostało już przyjęte" });
+
+      const emailSent = await sendStudioInvitationEmail({ email: invite.inviteEmail, studioName: gym.name, inviteCode: invite.inviteCode });
+      res.json({ emailSent });
+    } catch (error) {
+      console.error("Error resending studio invitation:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
   // PATCH /api/gym/trainers/:id/status — activate/suspend
   app.patch("/api/gym/trainers/:id/status", isAuthenticated, requireGymOwner, async (req, res) => {
     const schema = z.object({ status: z.enum(["active", "suspended"]) });
