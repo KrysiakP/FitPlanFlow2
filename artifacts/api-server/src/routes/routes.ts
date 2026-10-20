@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "../storage";
 import { db } from "../db";
 import { setupAuth, isAuthenticated, hashPassword, comparePassword, getSessionFromStore, unsignSessionCookie } from "../auth";
-import { generateVerificationToken, getTokenExpiry, sendVerificationEmail, sendPasswordResetEmail, getPasswordResetTokenExpiry, sendWelcomeEmail, sendTrainerNotificationEmail, sendTrainerWelcomeEmail, sendClientInvitationEmail, getResendClient } from "../email";
+import { generateVerificationToken, getTokenExpiry, sendVerificationEmail, sendPasswordResetEmail, getPasswordResetTokenExpiry, sendWelcomeEmail, sendTrainerNotificationEmail, sendTrainerWelcomeEmail, sendClientInvitationEmail, sendStudioInvitationEmail, getResendClient } from "../email";
 // Object Storage - code adapted from javascript_object_storage blueprint
 import { ObjectStorageService, ObjectNotFoundError } from "../objectStorage";
 import { ObjectPermission } from "../objectAcl";
@@ -972,11 +972,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/login", authRateLimit, async (req, res) => {
-    console.log("[LOGIN] Received login request:", { email: req.body?.email });
     try {
       const validationResult = loginSchema.safeParse(req.body);
       if (!validationResult.success) {
-        console.log("[LOGIN] Validation failed:", validationResult.error.errors);
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
           errors: validationResult.error.errors 
@@ -997,7 +995,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if email is verified
       if (!user.emailVerified) {
-        console.log("[LOGIN] Email not verified for user:", user.id);
         return res.status(403).json({ 
           message: "Twój adres email nie został jeszcze potwierdzony. Sprawdź skrzynkę pocztową lub poproś o ponowne wysłanie linku.",
           requiresEmailVerification: true,
@@ -1005,26 +1002,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      req.session.userId = user.id;
-      
-      // Explicitly save session before responding to ensure cookie is set
-      req.session.save(async (err) => {
-        if (err) {
-          console.error("Error saving session:", err);
+      // Regenerate the session id on login to prevent session fixation
+      req.session.regenerate((regenErr) => {
+        if (regenErr) {
+          console.error("Error regenerating session:", regenErr);
           return res.status(500).json({ message: "Nie udało się zapisać sesji" });
         }
-        const { password: _, ...userWithoutPassword } = user;
-        console.log("[LOGIN] Session saved successfully for user:", user.id);
-        // Generate a Bearer token for mobile clients (avoids cross-site cookie issues)
-        try {
-          const tokenValue = randomUUID();
-          const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-          await storage.createMobileToken(user.id, tokenValue, expiresAt);
-          return res.json({ ...userWithoutPassword, mobileToken: tokenValue });
-        } catch (tokenErr) {
-          console.error("[LOGIN] Failed to create mobile token:", tokenErr);
-          return res.json(userWithoutPassword);
-        }
+        req.session.userId = user.id;
+
+        // Explicitly save session before responding to ensure cookie is set
+        req.session.save(async (err) => {
+          if (err) {
+            console.error("Error saving session:", err);
+            return res.status(500).json({ message: "Nie udało się zapisać sesji" });
+          }
+          const { password: _, ...userWithoutPassword } = user;
+          // Generate a Bearer token for mobile clients (avoids cross-site cookie issues)
+          try {
+            const tokenValue = randomUUID();
+            const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+            await storage.createMobileToken(user.id, tokenValue, expiresAt);
+            return res.json({ ...userWithoutPassword, mobileToken: tokenValue });
+          } catch (tokenErr) {
+            console.error("[LOGIN] Failed to create mobile token:", tokenErr);
+            return res.json(userWithoutPassword);
+          }
+        });
       });
     } catch (error) {
       console.error("Error logging in:", error);
@@ -1207,7 +1210,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Nie udało się wysłać emaila weryfikacyjnego." });
       }
 
-      console.log("[RESEND] Verification email resent to:", user.email);
       res.json({ message: "Email weryfikacyjny został wysłany. Sprawdź swoją skrzynkę pocztową." });
     } catch (error) {
       console.error("Error resending verification email:", error);
@@ -1241,7 +1243,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Always return success to prevent user enumeration
       if (!user) {
-        console.log("[FORGOT_PASSWORD] No user found for email:", email);
         return res.json({ message: "Jeśli konto istnieje, email z linkiem do resetowania hasła został wysłany." });
       }
 
@@ -1264,7 +1265,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Only save token to DB AFTER email is successfully sent
       await storage.setPasswordResetToken(user.id, resetToken, tokenExpiry);
 
-      console.log("[FORGOT_PASSWORD] Password reset email sent to:", user.email);
       res.json({ message: "Jeśli konto istnieje, email z linkiem do resetowania hasła został wysłany." });
     } catch (error) {
       console.error("Error in forgot password:", error);
@@ -6152,7 +6152,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         joinedAt: null,
       }).returning();
 
-      res.status(201).json(entry);
+      // Best effort: the owner can still hand the code over manually if mail fails
+      const emailSent = await sendStudioInvitationEmail({
+        email: parsed.data.email.toLowerCase(),
+        studioName: gym.name,
+        inviteCode,
+      });
+
+      res.status(201).json({ ...entry, emailSent });
     } catch (error) {
       console.error("Error inviting trainer:", error);
       res.status(500).json({ message: "Błąd serwera" });

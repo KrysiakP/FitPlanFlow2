@@ -657,3 +657,62 @@ Panel Trenera - Polska marka
     return false;
   }
 }
+
+interface SendStudioInvitationEmailParams {
+  email: string;
+  studioName: string;
+  inviteCode: string;
+}
+
+export async function sendStudioInvitationEmail({ email, studioName, inviteCode }: SendStudioInvitationEmailParams): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    const baseUrl = getBaseUrl();
+    const safeStudio = escapeHtml(studioName);
+    const safeCode = escapeHtml(inviteCode);
+
+    await client.emails.send({
+      from: fromEmail,
+      to: email,
+      subject: `${studioName} zaprasza Cię do studia w Panelu Trenera`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Zaproszenie do studia</title>
+        </head>
+        <body style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #0d9488; margin: 0; font-size: 28px;">Panel Trenera</h1>
+          </div>
+          <div style="background-color: #f8fafc; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
+            <h2 style="color: #1e293b; margin-top: 0;">Zaproszenie do studia</h2>
+            <p><strong>${safeStudio}</strong> zaprasza Cię do swojego studia w Panelu Trenera.</p>
+            <p>Zaloguj się na konto trenera (to z tym adresem e-mail), otwórz <strong>Profil &rarr; Studio</strong> i wpisz kod:</p>
+            <div style="text-align: center; margin: 24px 0;">
+              <span style="display: inline-block; background-color: #fff; border: 1px dashed #0d9488; border-radius: 8px; padding: 12px 24px; font-family: monospace; font-size: 24px; letter-spacing: 4px; color: #0d9488;">${safeCode}</span>
+            </div>
+            <p style="color: #64748b; font-size: 14px;">
+              Dołączenie do studia nie zmienia Twoich podopiecznych ani planów — studio widzi tylko zbiorcze liczby.
+              Nie masz jeszcze konta trenera? <a href="${baseUrl}/register" style="color: #0d9488;">Załóż je tutaj</a>.
+            </p>
+          </div>
+          <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+            <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+              Panel Trenera - Polska marka<br>
+              © ${new Date().getFullYear()} Wszelkie prawa zastrzeżone
+            </p>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `${studioName} zaprasza Cię do swojego studia w Panelu Trenera.\n\nZaloguj się na konto trenera (z tym adresem e-mail), otwórz Profil > Studio i wpisz kod: ${inviteCode}\n\nDołączenie do studia nie zmienia Twoich podopiecznych ani planów.`,
+    });
+    return true;
+  } catch (error) {
+    console.error('[EMAIL] Failed to send studio invitation email:', error);
+    return false;
+  }
+}

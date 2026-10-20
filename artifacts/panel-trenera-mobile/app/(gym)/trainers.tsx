@@ -56,11 +56,17 @@ export default function GymTrainers() {
 
   const inviteMutation = useMutation({
     mutationFn: (email: string) => apiPost("/api/gym/trainers/invite", { email }),
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       qc.invalidateQueries({ queryKey: ["gym-trainers"] });
       qc.invalidateQueries({ queryKey: ["gym-me"] });
       setModalVisible(false);
       setInviteEmail("");
+      Alert.alert(
+        "Zaproszenie utworzone",
+        result?.emailSent
+          ? "Wysłaliśmy trenerowi e-mail z kodem. Kod widać też na liście."
+          : "Nie udało się wysłać e-maila — przekaż trenerowi kod z listy.",
+      );
     },
     onError: (e: any) => Alert.alert("Błąd", e?.message ?? "Nie udało się zaprosić trenera"),
   });

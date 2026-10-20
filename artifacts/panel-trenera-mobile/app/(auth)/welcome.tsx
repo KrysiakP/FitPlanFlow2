@@ -73,6 +73,14 @@ export default function WelcomeScreen() {
           <Text style={[styles.secondaryBtnText, { color: colors.foreground }]}>Zarejestruj się</Text>
         </Pressable>
 
+        <Pressable
+          onPress={() => router.push("/(auth)/studio-register")}
+          style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, paddingVertical: 6 }]}
+          testID="button-go-studio-register"
+        >
+          <Text style={[styles.registerNote, { color: colors.primary }]}>Prowadzisz studio lub klub? Załóż studio</Text>
+        </Pressable>
+
       </View>
     </View>
   );

@@ -87,8 +87,13 @@ export default function StudioDashboard() {
 
   const inviteMutation = useMutation({
     mutationFn: async (email: string) => apiRequest("POST", "/api/gym/trainers/invite", { email }),
-    onSuccess: () => {
-      toast({ title: "Zaproszenie utworzone", description: "Przekaż trenerowi kod z listy poniżej." });
+    onSuccess: (result) => {
+      toast({
+        title: "Zaproszenie utworzone",
+        description: result?.emailSent
+          ? "Wysłaliśmy trenerowi e-mail z kodem. Kod znajdziesz też na liście poniżej."
+          : "Nie udało się wysłać e-maila — przekaż trenerowi kod z listy poniżej.",
+      });
       setInviteEmail("");
       refreshAll();
     },
