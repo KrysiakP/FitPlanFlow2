@@ -20,7 +20,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "YOUR_DEV_DOMAIN"
+        "EXPO_PUBLIC_DOMAIN": "paneltrenera.pl"
       }
     },
     "production": {
