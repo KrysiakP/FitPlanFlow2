@@ -39,6 +39,7 @@ import {
   insertMessageSchema,
   insertWorkoutSessionSchema,
   sessions,
+  users,
   gyms,
   gymTrainers,
   insertGymSchema,
@@ -5903,6 +5904,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting gym:", error);
       res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // ── STUDIO: public self-registration ──────────────────────────────────────
+  // POST /api/gym/register — a studio/gym owner creates their own account + studio.
+  // Same email-ownership proof as normal registration: no session until verified.
+  app.post("/api/gym/register", authRateLimit, async (req, res) => {
+    const schema = z.object({
+      gymName: z.string().trim().min(2, "Nazwa studia jest wymagana").max(255),
+      firstName: z.string().trim().min(1, "Imię jest wymagane").max(100),
+      lastName: z.string().trim().min(1, "Nazwisko jest wymagane").max(100),
+      email: z.string().trim().email("Nieprawidłowy adres email"),
+      password: z.string().min(8, "Hasło musi mieć co najmniej 8 znaków"),
+      phone: z.string().trim().max(50).optional(),
+      address: z.string().trim().max(500).optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Nieprawidłowe dane", errors: parsed.error.errors });
+    }
+    const { gymName, firstName, lastName, email, password, phone, address } = parsed.data;
+
+    try {
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "Użytkownik z tym adresem email już istnieje" });
+      }
+
+      const hashedPassword = await hashPassword(password);
+      const owner = await db.transaction(async (tx) => {
+        const [ownerUser] = await tx.insert(users).values({
+          email: email.toLowerCase(),
+          password: hashedPassword,
+          firstName,
+          lastName,
+          role: "gym_owner",
+          emailVerified: false,
+        }).returning();
+        await tx.insert(gyms).values({
+          name: gymName,
+          ownerId: ownerUser.id,
+          contactEmail: email.toLowerCase(),
+          phone: phone || null,
+          address: address || null,
+          planTier: "starter",
+          maxTrainers: 5,
+        });
+        return ownerUser;
+      });
+
+      const verificationToken = generateVerificationToken();
+      await storage.setEmailVerificationToken(owner.id, verificationToken, getTokenExpiry());
+      const emailSent = await sendVerificationEmail({ email: owner.email, firstName: owner.firstName, token: verificationToken });
+      if (!emailSent) console.warn("[GYM-REGISTER] Failed to send verification email to:", owner.email);
+
+      return res.status(201).json({
+        id: owner.id,
+        email: owner.email,
+        role: owner.role,
+        requiresEmailVerification: true,
+        message: "Studio zostało utworzone. Sprawdź skrzynkę email, aby aktywować konto.",
+      });
+    } catch (error) {
+      console.error("Error registering gym:", error);
+      return res.status(500).json({ message: "Nie udało się utworzyć studia" });
     }
   });
 
