@@ -9,7 +9,7 @@
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:smoke-studio": "node --test scripts/smoke-studio.mjs",
-    "test:smoke": "node --test --test-concurrency=1 scripts/smoke-studio.mjs scripts/smoke-core.mjs scripts/smoke-idor.mjs scripts/smoke-idor-data.mjs",
+    "test:smoke": "node --test --test-concurrency=1 scripts/smoke-studio.mjs scripts/smoke-core.mjs scripts/smoke-idor.mjs scripts/smoke-idor-data.mjs scripts/smoke-upload.mjs",
     "test:stripe": "node --test scripts/smoke-stripe-webhook.mjs"
   },
   "dependencies": {

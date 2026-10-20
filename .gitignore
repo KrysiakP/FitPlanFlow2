@@ -70,3 +70,6 @@ upload_certificate.pem
 *.p12
 *.jks
 google-services-key.json
+
+# Local uploads written by the API
+artifacts/api-server/attached_assets/

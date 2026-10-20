@@ -172,11 +172,57 @@ const multerStorage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
+    // The extension comes from the (allow-listed) MIME type, never from the client's file name:
+    // a ".html" file claiming to be an image would otherwise be served back as HTML from our origin.
+    const ext = UPLOAD_EXTENSIONS[file.mimetype] ?? "";
     const filename = `${Date.now()}-${randomUUID()}${ext}`;
     cb(null, filename);
   },
 });
+
+const UPLOAD_EXTENSIONS: Record<string, string> = {
+  "video/mp4": ".mp4",
+  "video/quicktime": ".mov",
+  "video/x-msvideo": ".avi",
+  "video/webm": ".webm",
+  "image/jpeg": ".jpg",
+  "image/jpg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "application/pdf": ".pdf",
+};
+
+// Does the file content match what the MIME type claims? (magic bytes)
+function contentMatchesType(filePath: string, mimetype: string): boolean {
+  const fd = fs.openSync(filePath, "r");
+  try {
+    const head = Buffer.alloc(16);
+    fs.readSync(fd, head, 0, 16, 0);
+    const ascii = (start: number, end: number) => head.subarray(start, end).toString("latin1");
+    switch (mimetype) {
+      case "image/jpeg":
+      case "image/jpg":
+        return head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+      case "image/png":
+        return head[0] === 0x89 && ascii(1, 4) === "PNG";
+      case "image/webp":
+        return ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP";
+      case "application/pdf":
+        return ascii(0, 5) === "%PDF-";
+      case "video/mp4":
+      case "video/quicktime":
+        return ascii(4, 8) === "ftyp";
+      case "video/webm":
+        return head[0] === 0x1a && head[1] === 0x45 && head[2] === 0xdf && head[3] === 0xa3;
+      case "video/x-msvideo":
+        return ascii(0, 4) === "RIFF" && ascii(8, 11) === "AVI";
+      default:
+        return false;
+    }
+  } finally {
+    fs.closeSync(fd);
+  }
+}
 
 const fileFilter = (req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/x-msvideo", "video/webm"];
@@ -688,6 +734,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!req.file) {
         return res.status(400).json({ message: "Nie przesłano pliku" });
+      }
+
+      if (!contentMatchesType(req.file.path, req.file.mimetype)) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ message: "Zawartość pliku nie pasuje do jego typu" });
       }
 
       const isVideo = req.file.mimetype.startsWith("video/");
