@@ -90,7 +90,7 @@ import {
 } from "@workspace/db";
 import { db } from "./db";
 import { eq, and, desc, or, isNull, sql, gte, lte, asc, inArray } from "drizzle-orm";
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 
 export interface IStorage {
   // User operations
@@ -3031,18 +3031,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Mobile authentication tokens
+  // Mobile tokens are stored as SHA-256 hashes so a database leak does not expose live sessions.
+  // Tokens issued before hashing were stored in plain text: they are still accepted and
+  // upgraded to a hash the first time they are used.
+  private hashMobileToken(token: string): string {
+    return createHash("sha256").update(token).digest("hex");
+  }
+
   async createMobileToken(userId: string, token: string, expiresAt: Date): Promise<MobileToken> {
-    const [record] = await db.insert(mobileTokens).values({ userId, token, expiresAt }).returning();
+    const [record] = await db
+      .insert(mobileTokens)
+      .values({ userId, token: this.hashMobileToken(token), expiresAt })
+      .returning();
     return record;
   }
 
   async getMobileTokenByToken(token: string): Promise<MobileToken | undefined> {
-    const [record] = await db.select().from(mobileTokens).where(eq(mobileTokens.token, token));
+    const hashed = this.hashMobileToken(token);
+    const [record] = await db
+      .select()
+      .from(mobileTokens)
+      .where(or(eq(mobileTokens.token, hashed), eq(mobileTokens.token, token)));
+    if (record && record.token === token) {
+      await db.update(mobileTokens).set({ token: hashed }).where(eq(mobileTokens.id, record.id));
+    }
     return record;
   }
 
   async deleteMobileToken(token: string): Promise<void> {
-    await db.delete(mobileTokens).where(eq(mobileTokens.token, token));
+    await db
+      .delete(mobileTokens)
+      .where(or(eq(mobileTokens.token, this.hashMobileToken(token)), eq(mobileTokens.token, token)));
   }
 
   async deleteAllMobileTokensForUser(userId: string): Promise<void> {
