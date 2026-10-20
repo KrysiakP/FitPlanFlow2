@@ -3729,14 +3729,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (reps !== undefined) {
         const repsNum = Number(reps);
-        if (!Number.isInteger(repsNum) || repsNum <= 0) {
+        if (!Number.isInteger(repsNum) || repsNum <= 0 || repsNum > 1000) {
           return res.status(400).json({ message: "Nieprawidłowa liczba powtórzeń" });
         }
         updateData.reps = repsNum;
       }
 
       if (load !== undefined) {
-        if (typeof load !== "string") {
+        if (typeof load !== "string" || load.length > 50) {
           return res.status(400).json({ message: "Nieprawidłowe obciążenie" });
         }
         updateData.load = load;
@@ -6336,21 +6336,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const trainerBreakdown: any[] = [];
 
       if (trainerIds.length > 0) {
+        // One grouped query per metric instead of several queries per trainer
+        const [trainerRowsInfo, clientCounts, sessionCounts, planCounts] = await Promise.all([
+          db.select({ id: users.id, firstName: users.firstName, lastName: users.lastName }).from(users).where(inArray(users.id, trainerIds)),
+          db
+            .select({ trainerId: clientRelationships.trainerId, count: sql<number>`count(*)::int` })
+            .from(clientRelationships)
+            .where(and(inArray(clientRelationships.trainerId, trainerIds), eq(clientRelationships.status, "active")))
+            .groupBy(clientRelationships.trainerId),
+          db
+            .select({ trainerId: clientRelationships.trainerId, count: sql<number>`count(${workoutSessions.id})::int` })
+            .from(workoutSessions)
+            .innerJoin(
+              clientRelationships,
+              and(eq(clientRelationships.clientId, workoutSessions.clientId), eq(clientRelationships.status, "active")),
+            )
+            .where(inArray(clientRelationships.trainerId, trainerIds))
+            .groupBy(clientRelationships.trainerId),
+          db
+            .select({ trainerId: trainingPlans.trainerId, count: sql<number>`count(*)::int` })
+            .from(trainingPlans)
+            .where(inArray(trainingPlans.trainerId, trainerIds))
+            .groupBy(trainingPlans.trainerId),
+        ]);
+        const nameById = new Map(trainerRowsInfo.map((t) => [t.id, `${t.firstName} ${t.lastName}`]));
+        const clientsById = new Map(clientCounts.map((r) => [r.trainerId, r.count]));
+        const sessionsById = new Map(sessionCounts.map((r) => [r.trainerId, r.count]));
+        const plansById = new Map(planCounts.map((r) => [r.trainerId, r.count]));
+
         for (const tid of trainerIds) {
-          const [trainer] = await db.select({ firstName: users.firstName, lastName: users.lastName, clientCount: users.clientCount }).from(users).where(eq(users.id, tid)).limit(1);
-          const [rels] = await db.select({ count: sql<number>`count(*)::int` }).from(clientRelationships).where(and(eq(clientRelationships.trainerId, tid), eq(clientRelationships.status, "active")));
-          const clientIds = (await db.select({ clientId: clientRelationships.clientId }).from(clientRelationships).where(and(eq(clientRelationships.trainerId, tid), eq(clientRelationships.status, "active")))).map((r) => r.clientId);
-          let sessionCount = 0;
-          if (clientIds.length > 0) {
-            const [sRow] = await db.select({ count: sql<number>`count(*)::int` }).from(workoutSessions).where(inArray(workoutSessions.clientId, clientIds));
-            sessionCount = sRow?.count ?? 0;
-          }
-          const [plansRow] = await db.select({ count: sql<number>`count(*)::int` }).from(trainingPlans).where(eq(trainingPlans.trainerId, tid));
-          const activeClients = rels?.count ?? 0;
+          const activeClients = clientsById.get(tid) ?? 0;
+          const sessionCount = sessionsById.get(tid) ?? 0;
+          const plansCount = plansById.get(tid) ?? 0;
           totalClients += activeClients;
           totalSessions += sessionCount;
-          totalPlans += plansRow?.count ?? 0;
-          trainerBreakdown.push({ trainerId: tid, name: trainer ? `${trainer.firstName} ${trainer.lastName}` : "—", activeClients, sessionCount, plansCount: plansRow?.count ?? 0 });
+          totalPlans += plansCount;
+          trainerBreakdown.push({ trainerId: tid, name: nameById.get(tid) ?? "—", activeClients, sessionCount, plansCount });
         }
       }
 
