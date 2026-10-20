@@ -713,7 +713,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -853,7 +853,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors,
+          errors: validationResult.error.issues,
         });
       }
 
@@ -977,7 +977,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -1233,7 +1233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const parseResult = forgotPasswordSchema.safeParse(req.body);
       
       if (!parseResult.success) {
-        const errorMessage = parseResult.error.errors[0]?.message || "Nieprawidłowe dane";
+        const errorMessage = parseResult.error.issues[0]?.message || "Nieprawidłowe dane";
         return res.status(400).json({ message: errorMessage });
       }
 
@@ -1342,7 +1342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const parseResult = resetPasswordSchema.safeParse(req.body);
       
       if (!parseResult.success) {
-        const errorMessage = parseResult.error.errors[0]?.message || "Nieprawidłowe dane";
+        const errorMessage = parseResult.error.issues[0]?.message || "Nieprawidłowe dane";
         return res.status(400).json({ message: errorMessage });
       }
 
@@ -1780,7 +1780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
       
@@ -1810,7 +1810,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
       
@@ -1884,7 +1884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
       
@@ -1919,7 +1919,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
       
@@ -1982,7 +1982,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -2046,7 +2046,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -2138,10 +2138,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const exerciseSchema = insertExerciseSchema.array();
       const validationResult = exerciseSchema.safeParse(req.body);
       if (!validationResult.success) {
-        console.error("[addExercises] validation failed:", JSON.stringify(validationResult.error.errors));
+        console.error("[addExercises] validation failed:", JSON.stringify(validationResult.error.issues));
         return res.status(400).json({ 
-          message: "Nieprawidłowe dane wejściowe: " + validationResult.error.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", "),
-          errors: validationResult.error.errors 
+          message: "Nieprawidłowe dane wejściowe: " + validationResult.error.issues.map(e => `${e.path.join(".")}: ${e.message}`).join(", "),
+          errors: validationResult.error.issues 
         });
       }
 
@@ -2182,7 +2182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -2271,7 +2271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -2376,7 +2376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -2558,7 +2558,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -2578,7 +2578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -2801,7 +2801,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -2871,7 +2871,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validationResult = insertSessionBookingSchema.safeParse(req.body);
       if (!validationResult.success) {
-        return res.status(400).json({ message: "Nieprawidłowe dane wejściowe", errors: validationResult.error.errors });
+        return res.status(400).json({ message: "Nieprawidłowe dane wejściowe", errors: validationResult.error.issues });
       }
 
       if (validationResult.data.clientId) {
@@ -3113,7 +3113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -3276,7 +3276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -3672,10 +3672,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (!validationResult.success) {
-        console.error("Exercise log validation error:", validationResult.error.errors);
+        console.error("Exercise log validation error:", validationResult.error.issues);
         return res.status(400).json({
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors
+          errors: validationResult.error.issues
         });
       }
 
@@ -3866,7 +3866,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validation = insertWorkoutSessionSchema.safeParse(req.body);
       if (!validation.success) {
-        return res.status(400).json({ message: "Nieprawidłowe dane sesji", errors: validation.error.errors });
+        return res.status(400).json({ message: "Nieprawidłowe dane sesji", errors: validation.error.issues });
       }
 
       const { workoutId, planId, exercisesCompleted, totalExercises, durationSeconds } = validation.data;
@@ -4010,7 +4010,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -4111,7 +4111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -4237,7 +4237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -4322,7 +4322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -4417,7 +4417,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -4518,7 +4518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -4642,7 +4642,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -4681,7 +4681,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -4780,7 +4780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -5058,7 +5058,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validationResult = insertTrainerReviewSchema.safeParse(req.body);
       if (!validationResult.success) {
-        return res.status(400).json({ message: "Nieprawidłowe dane wejściowe", errors: validationResult.error.errors });
+        return res.status(400).json({ message: "Nieprawidłowe dane wejściowe", errors: validationResult.error.issues });
       }
 
       const review = await storage.upsertTrainerReview(trainerId, userId, validationResult.data);
@@ -5086,7 +5086,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -5150,7 +5150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.issues 
         });
       }
 
@@ -5382,7 +5382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(message);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Nieprawidłowe dane wiadomości", errors: error.errors });
+        return res.status(400).json({ message: "Nieprawidłowe dane wiadomości", errors: error.issues });
       }
       console.error("Error creating message:", error);
       res.status(500).json({ message: "Nie udało się wysłać wiadomości" });
@@ -5930,7 +5930,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Nieprawidłowe dane", errors: parsed.error.errors });
+      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Nieprawidłowe dane", errors: parsed.error.issues });
     }
     const { gymName, firstName, lastName, email, password, phone, address } = parsed.data;
 

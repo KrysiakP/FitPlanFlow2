@@ -8,7 +8,8 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:smoke-studio": "node --test scripts/smoke-studio.mjs"
+    "test:smoke-studio": "node --test scripts/smoke-studio.mjs",
+    "test:smoke": "node --test scripts/smoke-studio.mjs scripts/smoke-core.mjs"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",
