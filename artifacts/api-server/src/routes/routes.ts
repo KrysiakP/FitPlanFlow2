@@ -75,6 +75,7 @@ import { buildAccountExport, exportFileName } from "../lib/accountExport";
 import { deadPushTokens, withPushType } from "../lib/expoPush";
 import { accessFromRequest, ACTION_LABELS } from "../lib/accessAudit";
 import { isQuietNow, QUIET_PRESETS, sanitizeQuietHours } from "../lib/quietHours";
+import { chatPushPreview } from "../lib/chatPush";
 import { CANCELLATION_NOTICE_HOURS, cancellableUntil, canClientCancel } from "../lib/sessionCancellation";
 import { buildIcs, type IcsEvent } from "../lib/ics";
 import { sanitizeLabels } from "../lib/clientLabels";
@@ -5992,7 +5993,7 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
   });
 
   // Declare broadcastMessage function that will be set after WebSocket setup
-  let broadcastMessageFn: ((recipientId: string, message: any) => void) | null = null;
+  let broadcastMessageFn: ((recipientId: string, message: any) => boolean) | null = null;
 
   app.post("/api/chat/messages", isAuthenticated, async (req, res) => {
     try {
@@ -6058,11 +6059,22 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
       const message = await storage.createMessage(messageData);
       
       // Broadcast to recipient via WebSocket if available
-      if (broadcastMessageFn) {
-        broadcastMessageFn(recipientId, message);
-      }
+      const deliveredLive = broadcastMessageFn ? broadcastMessageFn(recipientId, message) : false;
       
       res.json(message);
+
+      // Nobody watching the conversation right now: tell the recipient's phone (a tap opens that conversation)
+      if (!deliveredLive) {
+        const sender = await storage.getUser(senderId).catch(() => undefined);
+        const who = [sender?.firstName, sender?.lastName].filter(Boolean).join(" ") || "Nowa wiadomość";
+        void sendPushToUserAndRecord(
+          recipientId,
+          who,
+          chatPushPreview(body),
+          { type: "new_message", partnerId: senderId },
+          "new_message"
+        ).catch((err) => console.error("Failed to push chat message:", err));
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Nieprawidłowe dane wiadomości", errors: error.issues });
@@ -6492,14 +6504,16 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
   });
 
   // Broadcast new message to recipient
-  function broadcastMessage(recipientId: string, message: any) {
+  function broadcastMessage(recipientId: string, message: any): boolean {
     const recipientWs = clients.get(recipientId);
     if (recipientWs && recipientWs.readyState === WebSocket.OPEN) {
       recipientWs.send(JSON.stringify({
         type: 'new_message',
         data: message
       }));
+      return true;
     }
+    return false;
   }
 
   // Set the broadcast function for use in message endpoint

@@ -435,6 +435,28 @@ test("the client is notified when a session is booked or cancelled", async () =>
   assert.ok(await waitFor("Trening odwołany"), "client got the cancellation notification");
 });
 
+test("a chat message notifies the recipient, with the sender and a preview", async () => {
+  const text = `Pytanie o technikę ${Date.now()}`;
+  assert.equal((await call(client, "POST", "/api/chat/messages", { recipientId: trainer.id, body: text })).status, 200);
+  let found;
+  for (let i = 0; i < 20 && !found; i += 1) {
+    const feed = await (await call(trainer, "GET", "/api/notifications/mine?limit=20")).json();
+    found = feed.notifications.find((item) => item.type === "new_message" && item.body === text);
+    if (!found) await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.ok(found, "the trainer got a notification");
+  assert.ok(found.title && found.title !== "Nowa wiadomość", "titled with the sender's name");
+  const long = "d".repeat(400);
+  assert.equal((await call(trainer, "POST", "/api/chat/messages", { recipientId: client.id, body: long })).status, 200);
+  let preview;
+  for (let i = 0; i < 20 && !preview; i += 1) {
+    const feed = await (await call(client, "GET", "/api/notifications/mine?limit=20")).json();
+    preview = feed.notifications.find((item) => item.type === "new_message" && item.body.startsWith("ddd"));
+    if (!preview) await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.ok(preview && preview.body.length <= 100, "a long message is cut for the lock screen");
+});
+
 test("a client cancels their own session up to 24 hours before it, and the trainer hears about it", async () => {
   const book = async (hoursAhead) => {
     const res = await call(trainer, "POST", "/api/sessions", {

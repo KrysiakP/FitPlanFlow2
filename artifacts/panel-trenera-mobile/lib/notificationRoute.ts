@@ -11,6 +11,7 @@ const ROUTES: Record<NotificationRole, Record<string, string>> = {
     session_reminder: "/(client)",
     report_reminder: "/(client)/weekly-report",
     review_request: "/(client)/profile",
+    new_message: "/(client)/chat",
   },
   trainer: {
     invitation_accepted: "/(trainer)/clients",
@@ -21,6 +22,7 @@ const ROUTES: Record<NotificationRole, Record<string, string>> = {
     weekly_summary: "/(trainer)/business-stats",
     trial_ending: "/(trainer)/profile",
     client_reminder: "/(trainer)/clients",
+    new_message: "/(trainer)/chat",
   },
   gym_owner: {
     weekly_summary: "/(gym)/analytics",
@@ -33,8 +35,16 @@ const FALLBACK: Partial<Record<NotificationRole, string>> = {
 };
 
 /** Screen for a push of the given type, the notification history when the type is unknown, null when there is nowhere to go. */
-export function notificationRoute(type: unknown, role: NotificationRole | null | undefined): string | null {
+export function notificationRoute(type: unknown, role: NotificationRole | null | undefined, data?: { partnerId?: unknown } | null): string | null {
   if (!role) return null;
-  if (typeof type === "string" && ROUTES[role][type]) return ROUTES[role][type];
+  if (typeof type === "string" && ROUTES[role][type]) {
+    const route = ROUTES[role][type];
+    // A trainer's chat has many conversations: open the one the message came from
+    const partnerId = data?.partnerId;
+    if (type === "new_message" && role === "trainer" && typeof partnerId === "string" && /^[A-Za-z0-9-]{1,64}$/.test(partnerId)) {
+      return `${route}?partnerId=${partnerId}`;
+    }
+    return route;
+  }
   return FALLBACK[role] ?? null;
 }

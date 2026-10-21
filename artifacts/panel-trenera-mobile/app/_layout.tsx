@@ -61,8 +61,8 @@ function NotificationTapHandler() {
     if (handledResponse.current === id) return;
     handledResponse.current = id;
     if (lastResponse.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
-    const data = lastResponse.notification.request.content.data as { type?: unknown } | undefined;
-    const target = notificationRoute(data?.type, user.role);
+    const data = lastResponse.notification.request.content.data as { type?: unknown; partnerId?: unknown } | undefined;
+    const target = notificationRoute(data?.type, user.role, data);
     if (target) router.push(target as never);
   }, [lastResponse, user, isLoading, segments]);
 

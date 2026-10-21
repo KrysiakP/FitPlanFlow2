@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { useEffect, useRef, useState } from "react";
+import { useLocalSearchParams } from "expo-router";
 import { lastReadOwnMessageId } from "@/lib/readReceipt";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -154,6 +155,7 @@ export default function TrainerChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { partnerId: openPartnerId } = useLocalSearchParams<{ partnerId?: string }>();
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [inputText, setInputText] = useState("");
   const [composeOpen, setComposeOpen] = useState(false);
@@ -171,6 +173,13 @@ export default function TrainerChatScreen() {
 
   const sendMutation = useSendMessage();
   const markReadMutation = useMarkAsRead();
+
+  // Opened from a push: jump straight into that conversation
+  useEffect(() => {
+    if (!openPartnerId || selected) return;
+    const match = conversations.find((conv) => conv.partnerId === openPartnerId);
+    if (match) setSelected(match);
+  }, [openPartnerId, conversations]);
 
   useEffect(() => {
     if (selected) {

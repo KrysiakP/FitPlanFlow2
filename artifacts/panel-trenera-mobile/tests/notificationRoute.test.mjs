@@ -37,3 +37,15 @@ test("a trainer whose trial is ending is taken to the profile (subscription)", (
 test("the review request opens the profile, where the trainer is rated", () => {
   assert.equal(notificationRoute("review_request", "client"), "/(client)/profile");
 });
+
+test("a chat message opens the chat, and for a trainer the conversation it came from", () => {
+  assert.equal(notificationRoute("new_message", "client", { partnerId: "abc" }), "/(client)/chat");
+  assert.equal(notificationRoute("new_message", "trainer", { partnerId: "9f1c-22" }), "/(trainer)/chat?partnerId=9f1c-22");
+  assert.equal(notificationRoute("new_message", "trainer", {}), "/(trainer)/chat");
+  assert.equal(notificationRoute("new_message", "trainer", null), "/(trainer)/chat");
+});
+
+test("a partner id that is not a plain id is never put into the route", () => {
+  assert.equal(notificationRoute("new_message", "trainer", { partnerId: "x?y=1&z" }), "/(trainer)/chat");
+  assert.equal(notificationRoute("new_message", "trainer", { partnerId: 42 }), "/(trainer)/chat");
+});

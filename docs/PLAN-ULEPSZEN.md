@@ -77,7 +77,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 59. [x] E-mail jako kanał zapasowy: ważne powiadomienia (termin, odwołanie, przypomnienie, nowy plan, zaakceptowane zaproszenie) przychodzą e-mailem, gdy użytkownik nie ma tokenu push i ma zweryfikowany adres; wyłączane w ustawieniach powiadomień („E-mail, gdy nie masz aplikacji"); wymaga działającego Resend (klucz już jest używany do reszty maili)
 60. [x] Dzienne podsumowanie trenera: push „Twój dzień" (sesje dziś + nieotwarte raporty, tylko gdy coś jest, raz na 18 h, można wyciszyć); z crona
 61. [~] Czat: „Przeczytano" pod ostatnią przeczytaną wiadomością (web + aplikacja klienta i trenera, testy); załączniki jeszcze nie
-62. [~] Głębsze linki z powiadomień: web ma mapę rodzaj → strona (testy); aplikacja miała już własną; brakuje przejścia do konkretnego podopiecznego/rozmowy
+62. [x] Głębsze linki z powiadomień: nowa wiadomość na czacie wysyła push (gdy odbiorca nie ma otwartego połączenia na żywo; nadawca + podgląd do 100 znaków), a stuknięcie otwiera czat — u trenera od razu rozmowę z danym podopiecznym; web ma mapę rodzaj → strona
 63. [x] Centrum powiadomień na web: dzwonek klienta z historią, licznikiem, „oznacz wszystkie" i przejściem do właściwej strony (trener miał już własny dzwonek)
 
 ## 7. Bezpieczeństwo i prywatność
