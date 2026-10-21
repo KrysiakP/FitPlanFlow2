@@ -17,6 +17,7 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { nextWorkout } from "@/lib/nextWorkout";
 import { apiGet, apiPost } from "@/lib/api";
 
 type Colors = ReturnType<typeof useColors>;
@@ -26,6 +27,7 @@ interface Assignment {
   plan?: {
     name: string;
     description?: string | null;
+    workouts?: { id: string; name: string; orderIndex?: number | null; exercises?: unknown[] }[];
   } | null;
 }
 
@@ -62,6 +64,15 @@ export default function ClientDashboard() {
     enabled: !!user?.id,
     retry: 1,
   });
+
+  const { data: finishedSessions } = useQuery<{ workoutId: string; completedAt: string }[]>({
+    queryKey: ["workout-sessions", user?.id],
+    queryFn: () => apiGet<{ workoutId: string; completedAt: string }[]>("/api/workout-sessions"),
+    enabled: !!user?.id && !!assignment?.plan,
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const upNext = assignment?.plan?.workouts ? nextWorkout(assignment.plan.workouts, finishedSessions ?? []) : null;
 
   const { data: invitations, refetch: refetchInvitations } = useQuery<PendingInvitation[]>({
     queryKey: ["client-invitations"],
@@ -265,6 +276,27 @@ export default function ClientDashboard() {
             {assignment.plan.description && (
               <Text style={styles.planDesc}>{assignment.plan.description}</Text>
             )}
+            {upNext && (
+              <Pressable
+                onPress={() => router.push("/(client)/training")}
+                style={({ pressed }) => [styles.nextWorkout, { opacity: pressed ? 0.85 : 1 }]}
+                accessibilityRole="button"
+                accessibilityLabel={`${upNext.trainedToday ? "Trenuj ponownie" : "Zacznij trening"}: ${upNext.workout.name}`}
+                testID="button-start-next-workout"
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.nextWorkoutLabel}>{upNext.trainedToday ? "Następny w planie" : "Dziś w planie"}</Text>
+                  <Text style={styles.nextWorkoutName} numberOfLines={1}>{upNext.workout.name}</Text>
+                  {upNext.workout.exercises ? (
+                    <Text style={styles.nextWorkoutMeta}>{upNext.workout.exercises.length} ćwiczeń</Text>
+                  ) : null}
+                </View>
+                <View style={styles.nextWorkoutBtn}>
+                  <Ionicons name="play" size={16} color={colors.primary} />
+                  <Text style={[styles.nextWorkoutBtnText, { color: colors.primary }]}>Zacznij</Text>
+                </View>
+              </Pressable>
+            )}
           </>
         ) : (
           <Text style={styles.planName}>Brak przypisanego planu</Text>
@@ -400,6 +432,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Inter_600SemiBold",
   },
+  nextWorkout: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "rgba(255,255,255,0.16)", borderRadius: 14, padding: 12, marginTop: 14 },
+  nextWorkoutLabel: { color: "rgba(255,255,255,0.8)", fontSize: 12, fontFamily: "Inter_500Medium" },
+  nextWorkoutName: { color: "#fff", fontSize: 16, fontFamily: "Inter_700Bold", marginTop: 2 },
+  nextWorkoutMeta: { color: "rgba(255,255,255,0.8)", fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  nextWorkoutBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#fff", borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
+  nextWorkoutBtnText: { fontSize: 14, fontFamily: "Inter_700Bold" },
   planCard: {
     borderRadius: 16,
     padding: 20,
