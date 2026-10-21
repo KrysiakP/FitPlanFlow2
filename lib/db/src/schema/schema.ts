@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, varchar, text, timestamp, integer, index, uniqueIndex, jsonb, boolean, date, numeric, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, varchar, text, timestamp, integer, index, uniqueIndex, jsonb, boolean, date, numeric, pgEnum, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -27,7 +27,7 @@ export const users = pgTable("users", {
   isAdmin: boolean("is_admin").default(false).notNull(), // Platform administrator flag
   hasFreeAccess: boolean("has_free_access").default(false).notNull(), // Admin-granted free access (bypasses subscription)
   isTestUser: boolean("is_test_user").default(false).notNull(), // Test client created for trainer onboarding demo
-  testUserTrainerId: varchar("test_user_trainer_id").references(() => users.id, { onDelete: "cascade" }), // Trainer who owns this test client
+  testUserTrainerId: varchar("test_user_trainer_id").references((): AnyPgColumn => users.id, { onDelete: "cascade" }), // Trainer who owns this test client
   // Email verification fields
   emailVerified: boolean("email_verified").default(false).notNull(),
   emailVerificationToken: varchar("email_verification_token", { length: 64 }),
@@ -43,7 +43,7 @@ export const users = pgTable("users", {
   subscriptionCancelledAt: timestamp("subscription_cancelled_at"), // Date when subscription was cancelled/became past_due
   trialEndsAt: timestamp("trial_ends_at"), // 30-day trial end date for trainers
   // Referral system fields
-  referredByTrainerId: varchar("referred_by_trainer_id", { length: 255 }).references(() => users.id), // Who referred this user (self-reference)
+  referredByTrainerId: varchar("referred_by_trainer_id", { length: 255 }).references((): AnyPgColumn => users.id), // Who referred this user (self-reference)
   referralBonusDays: integer("referral_bonus_days").default(0).notNull(), // Total bonus days earned from referrals
   // Client count for trainers (denormalized for quick access)
   clientCount: integer("client_count").default(0).notNull(), // Number of active clients for this trainer

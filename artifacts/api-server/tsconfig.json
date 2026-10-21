@@ -3,6 +3,8 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
+    "allowImportingTsExtensions": true, // unit tests run the .ts files with plain node, so a few imports carry the extension
+    "noImplicitReturns": false, // Express handlers end with res.* calls on some paths only
     "types": ["node"]
   },
   "include": ["src"],

@@ -667,7 +667,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // SECURITY FIX: Fetch report and verify authorization BEFORE setting ACL policy
       // This prevents IDOR where attacker could set themselves as photo owner
-      const reportId = req.params.id;
+      const reportId = String(req.params.id);
       const report = await storage.getWeeklyReport(reportId);
       
       if (!report) {
@@ -1157,7 +1157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (user?.role !== "trainer") {
         return res.status(403).json({ message: "Tylko trenerzy mogą wysyłać przypomnienia" });
       }
-      const { clientId } = req.params;
+      const { clientId } = req.params as Record<string, string>;
       if (isDemoId(clientId)) {
         return res.json({ sent: 0, message: "Demo client — no push sent" });
       }
@@ -1898,7 +1898,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/plans/:id", isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
 
@@ -1969,7 +1969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/plans/:id", isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       const userId = req.session.userId!;
       
       const existingPlan = await storage.getTrainingPlan(id);
@@ -1999,7 +1999,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/plans/:id", isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       const userId = req.session.userId!;
       
       const plan = await storage.getTrainingPlan(id);
@@ -2021,7 +2021,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/plans/:id/copy", isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       
@@ -2073,7 +2073,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/plans/:id/bulk", isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       
@@ -2109,7 +2109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Workout routes
   app.get("/api/plans/:planId/workouts", isAuthenticated, async (req, res) => {
     try {
-      const { planId } = req.params;
+      const { planId } = req.params as Record<string, string>;
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       
@@ -2136,7 +2136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/plans/:planId/workouts", isAuthenticated, async (req, res) => {
     try {
-      const { planId } = req.params;
+      const { planId } = req.params as Record<string, string>;
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       
@@ -2171,7 +2171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/workouts/:id", isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       
@@ -2199,7 +2199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/workouts/:id", isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       
@@ -2235,7 +2235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/workouts/:id", isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       
@@ -2264,7 +2264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Exercise routes
   app.get("/api/workouts/:workoutId/exercises", isAuthenticated, async (req, res) => {
     try {
-      const { workoutId } = req.params;
+      const { workoutId } = req.params as Record<string, string>;
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       
@@ -2292,7 +2292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/workouts/:workoutId/exercises", isAuthenticated, async (req, res) => {
     try {
-      const { workoutId } = req.params;
+      const { workoutId } = req.params as Record<string, string>;
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       
@@ -2330,7 +2330,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/exercises/:id", isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       
@@ -2371,7 +2371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/exercises/:id", isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       
@@ -2500,7 +2500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/exercises/library/:id", isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       const userId = req.session.userId!;
       
       const exercise = await storage.getExerciseFromLibrary(id);
@@ -2530,7 +2530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/exercises/library/:id", isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       
@@ -2565,7 +2565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/exercises/library/:id", isAuthenticated, async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       
@@ -2602,7 +2602,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const exerciseId = req.params.id;
+      const exerciseId = String(req.params.id);
       const exercise = await storage.getExerciseFromLibrary(exerciseId);
       
       if (!exercise) {
@@ -2839,7 +2839,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/profile/:userId", isAuthenticated, async (req, res) => {
     try {
       const requesterId = req.session.userId!;
-      const targetUserId = req.params.userId;
+      const targetUserId = String(req.params.userId);
 
       // Can always view own profile
       if (targetUserId === requesterId) {
@@ -2998,7 +2998,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only trainers can view client progress" });
       }
 
-      const { clientId } = req.params;
+      const { clientId } = req.params as Record<string, string>;
       
       // Demo client progress: return empty progress with isDemo flag
       if (isDemoId(clientId)) {
@@ -3104,7 +3104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/sessions/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       const cancelled = await storage.cancelSessionBooking(id, userId);
       if (!cancelled) {
         return res.status(404).json({ message: "Nie znaleziono sesji lub brak uprawnień" });
@@ -3134,7 +3134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only trainers can view client exercise logs" });
       }
 
-      const { clientId } = req.params;
+      const { clientId } = req.params as Record<string, string>;
       
       // Demo client: return empty logs array
       if (isDemoId(clientId)) {
@@ -3189,7 +3189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only trainers can view client profiles" });
       }
 
-      const { clientId } = req.params;
+      const { clientId } = req.params as Record<string, string>;
       
       // Demo client: return demo profile
       if (isDemoId(clientId)) {
@@ -3284,7 +3284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only trainers can remove plan assignments" });
       }
 
-      const { clientId } = req.params;
+      const { clientId } = req.params as Record<string, string>;
       
       // Guard: Cannot modify demo data
       if (isDemoId(clientId)) {
@@ -3494,7 +3494,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko trenerzy mogą archiwizować podopiecznych" });
       }
 
-      const { clientId } = req.params;
+      const { clientId } = req.params as Record<string, string>;
       
       // Guard: Cannot modify demo data
       if (isDemoId(clientId)) {
@@ -3573,7 +3573,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public endpoint: lookup invitation by code (no auth required)
   app.get("/api/invitations/lookup/:code", lookupRateLimit, async (req, res) => {
     try {
-      const code = (req.params.code ?? "").toUpperCase().trim();
+      const code = String(req.params.code ?? "").toUpperCase().trim();
       if (!code || code.length !== 8) {
         return res.status(400).json({ message: "Nieprawidłowy kod zaproszenia" });
       }
@@ -3666,7 +3666,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (user?.role !== "trainer") {
         return res.status(403).json({ message: "Tylko trenerzy mogą anulować zaproszenia" });
       }
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       const cancelled = await storage.cancelInvitation(id, userId);
       if (!cancelled) {
         return res.status(404).json({ message: "Zaproszenie nie zostało znalezione lub nie można go anulować" });
@@ -3686,7 +3686,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko trenerzy mogą ponownie wysyłać zaproszenia" });
       }
 
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       const invitation = await storage.getInvitation(id);
       if (!invitation || invitation.trainerId !== userId) {
         return res.status(404).json({ message: "Zaproszenie nie zostało znalezione" });
@@ -3719,7 +3719,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko podopieczni mogą akceptować zaproszenia" });
       }
 
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       
       try {
         const invitationBefore = await storage.getInvitation(id);
@@ -3787,7 +3787,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko podopieczni mogą odrzucać zaproszenia" });
       }
 
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       
       try {
         const invitation = await storage.getInvitation(id);
@@ -3886,7 +3886,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko klienci i trenerzy mogą logować wykonania ćwiczeń" });
       }
 
-      const { exerciseId } = req.params;
+      const { exerciseId } = req.params as Record<string, string>;
       const isTrainer = user.role === "trainer";
       let clientId = userId;
 
@@ -3969,7 +3969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko klienci mogą aktualizować parametry ćwiczeń" });
       }
 
-      const { exerciseId } = req.params;
+      const { exerciseId } = req.params as Record<string, string>;
 
       const exercise = await storage.getExerciseById(exerciseId);
       if (!exercise) {
@@ -4056,7 +4056,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko klienci i trenerzy mogą pobierać logi ćwiczeń" });
       }
 
-      const { exerciseId } = req.params;
+      const { exerciseId } = req.params as Record<string, string>;
       let clientId = userId;
 
       if (user.role === "trainer") {
@@ -4088,7 +4088,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko klienci mogą pobierać logi ćwiczeń" });
       }
 
-      const { exerciseId } = req.params;
+      const { exerciseId } = req.params as Record<string, string>;
       const latestLog = await storage.getLatestExerciseLog(userId, exerciseId);
       res.json(latestLog || null);
     } catch (error) {
@@ -4106,7 +4106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko klienci mogą pobierać logi ćwiczeń" });
       }
 
-      const { exerciseId } = req.params;
+      const { exerciseId } = req.params as Record<string, string>;
       const logs = await storage.getLatestExerciseLogsBySet(userId, exerciseId);
       res.json(logs);
     } catch (error) {
@@ -4165,13 +4165,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { workoutId, planId, exercisesCompleted, totalExercises, durationSeconds } = validation.data;
 
       // Sanity-check numeric fields
-      if (durationSeconds < 0) {
+      if ((durationSeconds ?? 0) < 0) {
         return res.status(400).json({ message: "Czas trwania sesji nie może być ujemny" });
       }
-      if (totalExercises < 0 || exercisesCompleted < 0) {
+      if ((totalExercises ?? 0) < 0 || (exercisesCompleted ?? 0) < 0) {
         return res.status(400).json({ message: "Liczba ćwiczeń nie może być ujemna" });
       }
-      if (exercisesCompleted > totalExercises) {
+      if ((exercisesCompleted ?? 0) > (totalExercises ?? 0)) {
         return res.status(400).json({ message: "Liczba ukończonych ćwiczeń przekracza łączną liczbę ćwiczeń" });
       }
 
@@ -4224,7 +4224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (user?.role !== "trainer") {
         return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
       }
-      const { clientId } = req.params;
+      const { clientId } = req.params as Record<string, string>;
       if (!isDemoId(clientId) && !(await storage.hasActiveClientRelationship(userId, clientId))) {
         return res.status(403).json({ message: "To nie jest Twój podopieczny" });
       }
@@ -4243,7 +4243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (user?.role !== "trainer") {
         return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
       }
-      const { clientId } = req.params;
+      const { clientId } = req.params as Record<string, string>;
       const { notes } = req.body;
       if (typeof notes !== "string") {
         return res.status(400).json({ message: "Pole notes musi być tekstem" });
@@ -4272,7 +4272,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
       }
 
-      const { clientId } = req.params;
+      const { clientId } = req.params as Record<string, string>;
 
       // The demo client has no workout history
       if (isDemoId(clientId)) {
@@ -4373,7 +4373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko podopieczni mogą pobierać raporty" });
       }
       
-      const reportId = req.params.id;
+      const reportId = String(req.params.id);
       const report = await storage.getWeeklyReportById(reportId);
       
       if (!report) {
@@ -4421,7 +4421,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const report = await storage.updateWeeklyReport(req.params.id, userId, validationResult.data);
+      const report = await storage.updateWeeklyReport(String(req.params.id), userId, validationResult.data);
       res.json(report);
     } catch (error) {
       console.error("Error updating weekly report:", error);
@@ -4441,7 +4441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko trenerzy mogą pobierać raporty podopiecznych" });
       }
 
-      const { clientId } = req.params;
+      const { clientId } = req.params as Record<string, string>;
       
       // Return demo weekly reports for demo client
       if (isDemoId(clientId)) {
@@ -4504,7 +4504,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko trenerzy mogą oznaczać raporty jako przeczytane" });
       }
 
-      const { reportId } = req.params;
+      const { reportId } = req.params as Record<string, string>;
       
       // Demo reports: just return success without modifying anything
       if (isDemoId(reportId)) {
@@ -4583,7 +4583,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       
       const plan = await storage.getDietPlanById(id);
       
@@ -4610,7 +4610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       
       if (user?.role !== "trainer") {
         return res.status(403).json({ message: "Tylko trenerzy mogą aktualizować plany dietetyczne" });
@@ -4647,7 +4647,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       
       if (user?.role !== "trainer") {
         return res.status(403).json({ message: "Tylko trenerzy mogą usuwać plany dietetyczne" });
@@ -4675,7 +4675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
 
       if (user?.role !== "trainer") {
         return res.status(403).json({ message: "Tylko trenerzy mogą kopiować plany dietetyczne" });
@@ -4702,7 +4702,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { planId } = req.params;
+      const { planId } = req.params as Record<string, string>;
       
       if (user?.role !== "trainer") {
         return res.status(403).json({ message: "Tylko trenerzy mogą dodawać posiłki" });
@@ -4742,7 +4742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { planId } = req.params;
+      const { planId } = req.params as Record<string, string>;
       
       const plan = await storage.getDietPlanById(planId);
       
@@ -4771,7 +4771,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { planId, dayOfWeek } = req.params;
+      const { planId, dayOfWeek } = req.params as Record<string, string>;
       const dayNum = parseInt(dayOfWeek);
       
       if (isNaN(dayNum) || dayNum < 1 || dayNum > 7) {
@@ -4804,7 +4804,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       
       if (user?.role !== "trainer") {
         return res.status(403).json({ message: "Tylko trenerzy mogą aktualizować posiłki" });
@@ -4843,7 +4843,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       
       if (user?.role !== "trainer") {
         return res.status(403).json({ message: "Tylko trenerzy mogą usuwać posiłki" });
@@ -4873,7 +4873,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { planId } = req.params;
+      const { planId } = req.params as Record<string, string>;
       
       if (user?.role !== "trainer") {
         return res.status(403).json({ message: "Tylko trenerzy mogą usuwać posiłki" });
@@ -4902,7 +4902,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { planId } = req.params;
+      const { planId } = req.params as Record<string, string>;
       
       const plan = await storage.getDietPlanById(planId);
       
@@ -4931,7 +4931,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { planId } = req.params;
+      const { planId } = req.params as Record<string, string>;
       
       if (user?.role !== "trainer") {
         return res.status(403).json({ message: "Tylko trenerzy mogą dodawać suplementy" });
@@ -4967,7 +4967,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       
       if (user?.role !== "trainer") {
         return res.status(403).json({ message: "Tylko trenerzy mogą edytować suplementy" });
@@ -5006,7 +5006,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       
       if (user?.role !== "trainer") {
         return res.status(403).json({ message: "Tylko trenerzy mogą usuwać suplementy" });
@@ -5187,7 +5187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko trenerzy mogą przeglądać plany podopiecznych" });
       }
 
-      const { clientId } = req.params;
+      const { clientId } = req.params as Record<string, string>;
       
       // Return demo diet plan for demo client
       if (isDemoId(clientId)) {
@@ -5221,7 +5221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko trenerzy mogą przeglądać statystyki podopiecznych" });
       }
 
-      const { clientId } = req.params;
+      const { clientId } = req.params as Record<string, string>;
       const { planId, days = '7' } = req.query;
 
       if (!planId) {
@@ -5316,7 +5316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public trainer profile — no authentication required, safe to share externally
   app.get("/api/public/trainers/:trainerId", async (req, res) => {
     try {
-      const { trainerId } = req.params;
+      const { trainerId } = req.params as Record<string, string>;
       const trainer = await storage.getUser(trainerId);
       if (!trainer || trainer.role !== "trainer") {
         return res.status(404).json({ message: "Nie znaleziono trenera" });
@@ -5357,7 +5357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { trainerId } = req.params;
+      const { trainerId } = req.params as Record<string, string>;
 
       if (user?.role !== "client") {
         return res.status(403).json({ message: "Tylko podopieczni mogą wystawiać opinie" });
@@ -5421,7 +5421,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/admin/charity-donations/:id", isAuthenticated, requireAdmin, async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       await storage.deleteCharityDonation(id);
       res.json({ message: "Darowizna została usunięta" });
     } catch (error) {
@@ -5506,7 +5506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
 
       // Only trainers can mark payment as paid
       if (user?.role !== "trainer") {
@@ -5528,7 +5528,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
 
       if (user?.role !== "trainer") {
         return res.status(403).json({ message: "Tylko trenerzy mogą usuwać płatności" });
@@ -5584,7 +5584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
-      const { trainerId, clientId } = req.params;
+      const { trainerId, clientId } = req.params as Record<string, string>;
       
       if (!user?.role || (user.role !== 'trainer' && user.role !== 'client')) {
         return res.status(400).json({ message: "Użytkownik nie ma przypisanej roli" });
@@ -5766,7 +5766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public: validate a referral code (used during registration)
   app.get("/api/referrals/lookup/:code", lookupRateLimit, async (req, res) => {
     try {
-      const code = (req.params.code ?? "").trim().toUpperCase();
+      const code = String(req.params.code ?? "").trim().toUpperCase();
       if (!code) return res.status(400).json({ message: "Podaj kod polecający" });
 
       const referralCode = await storage.getReferralCodeByCode(code);
@@ -5847,7 +5847,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Tylko trenerzy mają dostęp do powiadomień" });
       }
 
-      const notificationId = parseInt(req.params.id, 10);
+      const notificationId = parseInt(String(req.params.id), 10);
       
       if (isNaN(notificationId)) {
         return res.status(400).json({ message: "Nieprawidłowy ID powiadomienia" });
@@ -5898,7 +5898,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/notifications/mine/:id/read", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const { id } = req.params;
+      const { id } = req.params as Record<string, string>;
       const notification = await storage.markPushNotificationRead(id, userId);
       res.json(notification);
     } catch (error) {
@@ -6225,7 +6225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!parsed.success) return res.status(400).json({ message: "Nieprawidłowe dane" });
     try {
       const [updated] = await db.update(gyms).set({ ...parsed.data, updatedAt: new Date() })
-        .where(eq(gyms.id, req.params.id)).returning();
+        .where(eq(gyms.id, String(req.params.id))).returning();
       if (!updated) return res.status(404).json({ message: "Siłownia nie znaleziona" });
       res.json(updated);
     } catch (error) {
@@ -6237,7 +6237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // DELETE /api/admin/gyms/:id
   app.delete("/api/admin/gyms/:id", isAuthenticated, requireAdmin, async (req, res) => {
     try {
-      const [deleted] = await db.delete(gyms).where(eq(gyms.id, req.params.id)).returning();
+      const [deleted] = await db.delete(gyms).where(eq(gyms.id, String(req.params.id))).returning();
       if (!deleted) return res.status(404).json({ message: "Siłownia nie znaleziona" });
       res.json({ success: true });
     } catch (error) {
@@ -6568,7 +6568,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [membership] = await db
         .select({ trainerId: gymTrainers.trainerId })
         .from(gymTrainers)
-        .where(and(eq(gymTrainers.id, req.params.id), eq(gymTrainers.gymId, gym.id)))
+        .where(and(eq(gymTrainers.id, String(req.params.id)), eq(gymTrainers.gymId, gym.id)))
         .limit(1);
       if (!membership) return res.status(404).json({ message: "Trener nie znaleziony" });
       if (!membership.trainerId) {
@@ -6578,7 +6578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [updated] = await db
         .update(gymTrainers)
         .set({ status: parsed.data.status })
-        .where(and(eq(gymTrainers.id, req.params.id), eq(gymTrainers.gymId, gym.id)))
+        .where(and(eq(gymTrainers.id, String(req.params.id)), eq(gymTrainers.gymId, gym.id)))
         .returning();
       res.json(updated);
     } catch (error) {
@@ -6596,7 +6596,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const [deleted] = await db
         .delete(gymTrainers)
-        .where(and(eq(gymTrainers.id, req.params.id), eq(gymTrainers.gymId, gym.id)))
+        .where(and(eq(gymTrainers.id, String(req.params.id)), eq(gymTrainers.gymId, gym.id)))
         .returning();
       if (!deleted) return res.status(404).json({ message: "Trener nie znaleziony" });
       res.json({ success: true });
@@ -6619,13 +6619,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(gymTrainers)
         .where(and(
           eq(gymTrainers.gymId, gym.id),
-          eq(gymTrainers.trainerId, req.params.trainerId),
+          eq(gymTrainers.trainerId, String(req.params.trainerId)),
           eq(gymTrainers.status, "active")
         ))
         .limit(1);
       if (!membership) return res.status(404).json({ message: "Trener nie należy do tej siłowni" });
 
-      const [trainer] = await db.select().from(users).where(eq(users.id, req.params.trainerId)).limit(1);
+      const [trainer] = await db.select().from(users).where(eq(users.id, String(req.params.trainerId))).limit(1);
       if (!trainer) return res.status(404).json({ message: "Trener nie znaleziony" });
 
       // Get clients
@@ -6641,10 +6641,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .from(clientRelationships)
         .leftJoin(users, eq(users.id, clientRelationships.clientId))
-        .where(eq(clientRelationships.trainerId, req.params.trainerId))
+        .where(eq(clientRelationships.trainerId, String(req.params.trainerId)))
         .orderBy(desc(clientRelationships.createdAt));
 
-      const activeClientIds = clients.filter((c) => c.status === "active").map((c) => c.id);
+      const activeClientIds = clients.flatMap((c) => (c.status === "active" && c.id ? [c.id] : [])); // a left join can yield a null id
 
       // Sessions last 30 days
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -6661,7 +6661,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [plansRow] = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(trainingPlans)
-        .where(eq(trainingPlans.trainerId, req.params.trainerId));
+        .where(eq(trainingPlans.trainerId, String(req.params.trainerId)));
 
       // Sessions per week for last 8 weeks (chart data)
       const weeklyData: { week: string; sessions: number }[] = [];

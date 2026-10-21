@@ -48,3 +48,14 @@ but `localhost`, and they never need production credentials.
 | `smoke-stripe-webhook.mjs`  | webhook signatures, activation, past due, cancellation, double checkout (`STRIPE_WEBHOOK_SECRET` must equal the API's value; run it separately: `pnpm test:stripe`) |
 
 Every suite cleans up after itself, so they can be run repeatedly.
+
+## Type check
+
+esbuild does not check types, so run the compiler before committing API changes (it is clean as of now):
+
+```
+cd ../..            # repo root
+npx tsc --build     # declarations of lib/db and lib/api-zod (gitignored output)
+cd artifacts/api-server
+npx tsc -p tsconfig.json --noEmit
+```

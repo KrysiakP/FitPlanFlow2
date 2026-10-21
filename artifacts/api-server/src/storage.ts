@@ -99,7 +99,7 @@ export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: Omit<User, "id" | "createdAt" | "updatedAt" | "profileImageUrl" | "isAdmin" | "stripeCustomerId" | "stripeSubscriptionId" | "subscriptionStatus" | "subscriptionTier">): Promise<User>;
+  createUser(user: NewUser): Promise<User>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserRole(userId: string, role: "trainer" | "client"): Promise<User>;
   
@@ -354,6 +354,9 @@ export interface IStorage {
   deleteUser(userId: string): Promise<void>;
 }
 
+// Everything a caller may set when creating an account; ids, timestamps, admin and Stripe fields are server-controlled
+type NewUser = Omit<typeof users.$inferInsert, "id" | "createdAt" | "updatedAt" | "profileImageUrl" | "isAdmin" | "stripeCustomerId" | "stripeSubscriptionId" | "subscriptionStatus" | "subscriptionTier">;
+
 export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
@@ -366,7 +369,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createUser(userData: Omit<User, "id" | "createdAt" | "updatedAt" | "profileImageUrl" | "isAdmin" | "stripeCustomerId" | "stripeSubscriptionId" | "subscriptionStatus" | "subscriptionTier">): Promise<User> {
+  async createUser(userData: NewUser): Promise<User> {
     const [user] = await db
       .insert(users)
       .values({
@@ -1393,7 +1396,7 @@ export class DatabaseStorage implements IStorage {
       // With ownership check
       const [report] = await db
         .update(weeklyReports)
-        .set({ ...actualData, updatedAt: new Date() })
+        .set(actualData)
         .where(and(
           eq(weeklyReports.id, reportId),
           eq(weeklyReports.clientId, actualClientId)
@@ -1409,7 +1412,7 @@ export class DatabaseStorage implements IStorage {
       // Without ownership check (for internal use)
       const [report] = await db
         .update(weeklyReports)
-        .set({ ...actualData, updatedAt: new Date() })
+        .set(actualData)
         .where(eq(weeklyReports.id, reportId))
         .returning();
       
