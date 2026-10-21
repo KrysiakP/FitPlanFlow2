@@ -4,7 +4,7 @@ Legenda: `[ ]` do zrobienia, `[x]` zrobione, `[Ty]` wymaga właściciela (konta,
 Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 → 2 → 4 → 5 → 9 → 10.
 
 ## 0. Wdrożenie
-1. [Ty] Publikacja API w Replit (zatwierdzić tabele `gym_announcements`, `notification_preferences`)
+1. [Ty] Publikacja API w Replit z zatwierdzeniem zmian w bazie (9 nowych tabel, 11 kolumn, indeksy) albo uruchomienie `docs/migracje/2026-10-nowe-funkcje.sql` w konsoli bazy
 2. [Ty] Sekret `CRON_JOB_TOKEN` + codzienny harmonogram
 3. [Ty] Nowe buildy EAS iOS/Android
 4. [Ty] Sekrety i ceny Stripe
@@ -67,7 +67,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 ## 5. Studia
 52. [ ] Role w studiu
 53. [x] Wspólna biblioteka ćwiczeń studia (web): właściciel dodaje ćwiczenia (nazwa, kategoria, opis, link do filmu, do 300), trenerzy studia widzą je na stronie biblioteki i kopiują do własnej jednym kliknięciem (kopia, późniejsze zmiany studia jej nie dotyczą). Nowa tabela `gym_exercises` (w pliku migracji). Bez edycji istniejących wpisów (usuń i dodaj od nowa) i bez aplikacji mobilnej
-54. [ ] Porównanie trenerów (bez danych osobowych)
+54. [x] Porównanie trenerów (bez danych osobowych): lista trenerów studia na webie ma liczbę podopiecznych i pasek aktywności względem najaktywniejszego (treningi z ostatnich 30 dni), a aplikacja właściciela ma wykresy słupkowe podopiecznych i treningów; bez imion podopiecznych, tylko zbiorcze liczby
 55. [x] Ogłoszenia studia: przypinanie i „przeczytało X z Y" (API, testy, web, mobile)
 56. [ ] Grafik sal i zasobów
 57. [x] Zaproszenie trenera do studia linkiem: mail ma przycisk „Zobacz zaproszenie" (`/studio/join?code=…`), strona pokazuje bez logowania nazwę studia i zamaskowany adres (j***@domena), a zalogowany trener dołącza jednym kliknięciem; kod nadal można wpisać ręcznie. Zaproszenie jest przypisane do adresu e-mail, więc nie da się go użyć z cudzego konta
@@ -116,3 +116,14 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 90. [~] Zaproszenie linkiem z podglądem: zrobione dla zaproszeń trenerów do studia (patrz 57); zaproszenia podopiecznych (e-mail z kodem) mają już podgląd trenera w `/api/invitations/lookup`, ale bez osobnej strony z przyciskiem
 91. [x] Program poleceń od pierwszego dnia: karta na pulpicie trenera (web) z przyciskiem „Kopiuj link" i licznikiem zdobytych dni bonusu, link do szczegółów; mobile jeszcze nie
 92. [x] Prośba o opinię po 30 dniach współpracy (cron, raz, tylko jeśli nie ma opinii; można wyłączyć w ustawieniach powiadomień; kliknięcie otwiera profil, gdzie jest ocena)
+
+
+## Stan końcowy pętli (22.10.2026)
+Zrobione 52, częściowo 18, do zrobienia 11, wymaga właściciela 11. Pozostałe `[ ]` to pozycje, których nie da się uczciwie dokończyć bez decyzji lub urządzenia:
+- 14, 16, 27 — nowe przepływy (trening poza planem, zamiennik ćwiczenia i posiłku za zgodą trenera): wymagają decyzji o modelu danych i zasadach zatwierdzania;
+- 17 — pełnoekranowy tryb treningu: ekran w aplikacji, trzeba go sprawdzić na urządzeniu;
+- 51 — kody rabatowe i saldo bonusów: dotyka rozliczeń i Stripe;
+- 52, 56 — role w studiu i grafik sal: niedookreślone zasady;
+- 73, 74 — testy przeglądarkowe i na symulatorze: potrzebna infrastruktura (przeglądarka/Playwright, zbudowana aplikacja);
+- 83 — kolejka zapisu offline: ryzykowna bez testów na telefonie;
+- 86 — wersja angielska: duży zakres, najpierw decyzja o języku i zakresie.
