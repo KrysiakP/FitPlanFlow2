@@ -5,6 +5,7 @@ import {
   notificationPreferences,
   dataAccessLog,
   clientLabels,
+  clientGoals,
   trainingPlans,
   workouts,
   exercises,
@@ -344,6 +345,9 @@ export interface IStorage {
   hasPushNotification(userId: string, type: string, body: string, since: Date): Promise<boolean>;
   hasRecentPushOfType(userId: string, type: string, since: Date): Promise<boolean>;
   getClientIdsWithoutRecentReport(since: Date): Promise<string[]>;
+  getClientGoal(clientId: string): Promise<{ startKg: number; targetKg: number; targetDate: Date | null; createdAt: Date } | null>;
+  setClientGoal(clientId: string, goal: { startKg: number; targetKg: number; targetDate: Date | null }): Promise<void>;
+  deleteClientGoal(clientId: string): Promise<void>;
   getTrainerRelationshipRows(trainerId: string): Promise<{ createdAt: Date; archivedAt: Date | null; status: string }[]>;
   getReviewRequestCandidates(createdFrom: Date, createdTo: Date): Promise<{ clientId: string; trainerId: string; trainerFirstName: string | null }[]>;
   getClientLabelsForTrainer(trainerId: string): Promise<Record<string, string[]>>;
@@ -3348,6 +3352,23 @@ export class DatabaseStorage implements IStorage {
       .from(clientRelationships)
       .innerJoin(users, eq(users.id, clientRelationships.clientId))
       .where(and(eq(clientRelationships.trainerId, trainerId), eq(users.isTestUser, false)));
+  }
+
+  async getClientGoal(clientId: string) {
+    const [row] = await db.select().from(clientGoals).where(eq(clientGoals.clientId, clientId));
+    return row ? { startKg: row.startKg, targetKg: row.targetKg, targetDate: row.targetDate, createdAt: row.createdAt } : null;
+  }
+
+  // A new goal starts a new path: the start weight and the start date are reset
+  async setClientGoal(clientId: string, goal: { startKg: number; targetKg: number; targetDate: Date | null }): Promise<void> {
+    await db
+      .insert(clientGoals)
+      .values({ clientId, ...goal })
+      .onConflictDoUpdate({ target: clientGoals.clientId, set: { ...goal, createdAt: new Date() } });
+  }
+
+  async deleteClientGoal(clientId: string): Promise<void> {
+    await db.delete(clientGoals).where(eq(clientGoals.clientId, clientId));
   }
 
   // Clients of an active trainer (not demo accounts) who have not sent a weekly report since `since`

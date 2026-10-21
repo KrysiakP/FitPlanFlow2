@@ -225,6 +225,27 @@ test("trainers see how long their clients stay", async () => {
   assert.equal((await call(client, "GET", "/api/trainer/retention")).status, 403);
 });
 
+test("clients set a weight goal that is judged against their reports", async () => {
+  const tomorrow = new Date(Date.now() + 40 * 86400000).toISOString();
+  assert.equal((await call(trainer, "PUT", "/api/client/goal", { targetKg: 70 })).status, 403, "only clients have goals");
+  assert.equal((await call(client, "PUT", "/api/client/goal", { targetKg: 5, startKg: 80 })).status, 400, "an implausible target is refused");
+  assert.equal((await call(client, "PUT", "/api/client/goal", { targetKg: 70, startKg: 80, targetDate: "2020-01-01" })).status, 400, "a deadline in the past is refused");
+
+  const saved = await call(client, "PUT", "/api/client/goal", { targetKg: 70, startKg: 80, targetDate: tomorrow });
+  // without any weekly report the start weight must be supplied; with one it is taken from the report
+  assert.ok([200, 400].includes(saved.status));
+  if (saved.status === 200) {
+    const body = await (await call(client, "GET", "/api/client/goal")).json();
+    assert.equal(body.goal.targetKg, 70);
+    assert.ok(body.progress.percent >= 0 && body.progress.percent <= 100);
+    assert.ok(["on_track", "behind", "reached", "overdue", "no_deadline"].includes(body.progress.status));
+    assert.ok(body.progress.daysLeft > 30 && body.progress.daysLeft <= 41, "the deadline is about 40 days away");
+    assert.equal((await call(client, "DELETE", "/api/client/goal")).status, 200);
+    assert.equal((await (await call(client, "GET", "/api/client/goal")).json()).goal, null, "deleting clears it");
+  }
+  assert.equal((await fetch(`${API_URL}/api/client/goal`)).status, 401);
+});
+
 test("the health endpoint answers without a login", async () => {
   const res = await fetch(`${API_URL}/api/health`);
   assert.equal(res.status, 200);

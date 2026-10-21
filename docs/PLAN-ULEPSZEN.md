@@ -30,7 +30,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 ## 2. Podopieczny: postępy, dieta, raporty
 21. [x] Porównanie zdjęć przed/po (web: podopieczny i trener; wybór dowolnych dwóch raportów ze zdjęciem; mobile jeszcze nie)
 22. [ ] Wykresy obwodów z trendem
-23. [ ] Cele z terminem i paskiem postępu
+23. [x] Cel wagowy z terminem i paskiem postępu (API + testy, web na stronie progresu; ocena względem prostej linii start→termin; mobile jeszcze nie)
 24. [ ] Raport tygodniowy w kreatorze + szkic
 25. [ ] Wstępne uzupełnianie raportu
 26. [x] Lista zakupów z jadłospisu (web: sumuje składniki z podanymi ilościami z opisów posiłków, odhaczanie i kopiowanie; pozycje bez ilości pomija; mobile jeszcze nie)

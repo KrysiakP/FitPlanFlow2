@@ -13,7 +13,7 @@ Rzeczy, które wymagają Twojej akcji (kod jest już gotowy i wypchnięty na Git
    curl -s -i -X PATCH https://paneltrenera.pl/api/gym/me | head -1                    # oczekiwane: 401 (a nie 404)
    ```
 
-**Uwaga — migracja bazy:** ta wersja dodaje cztery nowe tabele: `gym_announcements` (ogłoszenia studia), `notification_preferences` (które przypomnienia użytkownik wyłączył) `data_access_log` (kto oglądał dane podopiecznego) i `client_labels` (etykiety trenera); tylko dodanie, nic nie jest usuwane. Podczas publikacji Replit pokaże zmiany w bazie produkcyjnej — zatwierdź je. Bez tego endpointy ogłoszeń i ustawień powiadomień zwrócą błąd (reszta aplikacji działa, przypomnienia nadal będą wysyłane).
+**Uwaga — migracja bazy:** ta wersja dodaje pięć nowych tabel: `gym_announcements` (ogłoszenia studia), `notification_preferences` (które przypomnienia użytkownik wyłączył) `data_access_log` (kto oglądał dane podopiecznego) `client_labels` (etykiety trenera) i `client_goals` (cele wagowe podopiecznych); tylko dodanie, nic nie jest usuwane. Podczas publikacji Replit pokaże zmiany w bazie produkcyjnej — zatwierdź je. Bez tego endpointy ogłoszeń i ustawień powiadomień zwrócą błąd (reszta aplikacji działa, przypomnienia nadal będą wysyłane).
 
 W tej publikacji: poprawka luki XSS w wysyłaniu plików, limity prób dla kodów, zabezpieczenia dostępu,
 powiadomienia o terminach, edycja studia, zaproszenia jednym kliknięciem.

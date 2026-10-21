@@ -78,6 +78,7 @@ import { buildIcs, type IcsEvent } from "../lib/ics";
 import { sanitizeLabels } from "../lib/clientLabels";
 import { computeAchievements } from "../lib/achievements";
 import { computeRetention } from "../lib/retention";
+import { goalProgress } from "../lib/goalProgress";
 import { buildExerciseHistory } from "../lib/exerciseHistory";
 import { buildAttentionList } from "../lib/attention";
 import { deleteTestClient } from "../testClientService";
@@ -4191,6 +4192,66 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
     } catch (error) {
       console.error("Error building exercise history:", error);
       res.status(500).json({ message: "Nie udało się pobrać historii ćwiczeń" });
+    }
+  });
+
+  // Body-weight goal: the target, the deadline and how far the latest weekly report has come
+  const parseKg = (value: unknown): number | null => {
+    const kg = parseFloat(String(value ?? "").replace(",", "."));
+    return Number.isFinite(kg) && kg > 0 ? kg : null;
+  };
+
+  app.get("/api/client/goal", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "client") return res.status(403).json({ message: "Tylko podopieczni" });
+      const goal = await storage.getClientGoal(user.id);
+      if (!goal) return res.json({ goal: null });
+      const currentKg = parseKg((await storage.getLatestWeeklyReport(user.id))?.weight) ?? goal.startKg;
+      res.json({ goal, currentKg, progress: goalProgress({ ...goal, currentKg, startedAt: goal.createdAt }) });
+    } catch (error) {
+      console.error("Error loading goal:", error);
+      res.status(500).json({ message: "Nie udało się pobrać celu" });
+    }
+  });
+
+  app.put("/api/client/goal", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "client") return res.status(403).json({ message: "Tylko podopieczni" });
+      const targetKg = parseKg(req.body?.targetKg);
+      if (targetKg === null || targetKg < 30 || targetKg > 250) return res.status(400).json({ message: "Waga docelowa musi mieścić się między 30 a 250 kg" });
+
+      let targetDate: Date | null = null;
+      if (req.body?.targetDate) {
+        targetDate = new Date(req.body.targetDate);
+        const days = (targetDate.getTime() - Date.now()) / 86400000;
+        if (Number.isNaN(targetDate.getTime()) || days < 1 || days > 730) {
+          return res.status(400).json({ message: "Termin musi być w przyszłości, nie dalej niż za dwa lata" });
+        }
+      }
+      // the path starts from the latest reported weight (or the one given when there is no report yet)
+      const startKg = parseKg((await storage.getLatestWeeklyReport(user.id))?.weight) ?? parseKg(req.body?.startKg);
+      if (startKg === null || startKg < 30 || startKg > 250) {
+        return res.status(400).json({ message: "Wyślij najpierw raport z wagą albo podaj wagę początkową" });
+      }
+      await storage.setClientGoal(user.id, { startKg, targetKg, targetDate });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error saving goal:", error);
+      res.status(500).json({ message: "Nie udało się zapisać celu" });
+    }
+  });
+
+  app.delete("/api/client/goal", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "client") return res.status(403).json({ message: "Tylko podopieczni" });
+      await storage.deleteClientGoal(user.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting goal:", error);
+      res.status(500).json({ message: "Nie udało się usunąć celu" });
     }
   });
 

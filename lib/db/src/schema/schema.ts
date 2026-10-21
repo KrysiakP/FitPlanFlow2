@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, varchar, text, timestamp, integer, index, uniqueIndex, jsonb, boolean, date, numeric, pgEnum, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, varchar, text, timestamp, integer, index, uniqueIndex, jsonb, boolean, date, numeric, real, pgEnum, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -1250,6 +1250,15 @@ export const gymAnnouncementReads = pgTable("gym_announcement_reads", {
 }));
 
 export type GymAnnouncement = typeof gymAnnouncements.$inferSelect;
+
+// A client's body-weight goal ("76 kg by June"); progress is judged from the weekly reports
+export const clientGoals = pgTable("client_goals", {
+  clientId: varchar("client_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  startKg: real("start_kg").notNull(),
+  targetKg: real("target_kg").notNull(),
+  targetDate: timestamp("target_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 // Private labels a trainer puts on their clients ("online", "VIP", "zawody"); never visible to the client
 export const clientLabels = pgTable("client_labels", {

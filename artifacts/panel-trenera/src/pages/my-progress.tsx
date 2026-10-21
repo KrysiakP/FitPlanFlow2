@@ -24,6 +24,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { StrengthProgressCard } from "@/components/strength-progress-card";
 import { PhotoCompareCard } from "@/components/photo-compare-card";
 import { AchievementsCard } from "@/components/achievements-card";
+import { GoalCard } from "@/components/goal-card";
 
 function parseNumericValue(value: string | null | undefined): number {
   if (!value) return 0;
@@ -148,6 +149,8 @@ export default function MyProgress() {
           Śledź swoje postępy w treningu i transformacji
         </p>
       </div>
+
+      <GoalCard />
 
       <StrengthProgressCard />
 
