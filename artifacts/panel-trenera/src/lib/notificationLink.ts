@@ -20,6 +20,7 @@ const TRAINER_LINKS: Record<string, string> = {
   daily_summary: "/",
   weekly_summary: "/",
   payment: "/payment-schedule",
+  payment_due: "/payment-schedule",
 };
 
 export function notificationLink(type: string | null | undefined, role: "client" | "trainer"): string | null {

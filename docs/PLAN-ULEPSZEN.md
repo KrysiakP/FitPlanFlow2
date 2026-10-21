@@ -57,7 +57,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 45. [x] Strona wizytówka trenera z opiniami: profil `/t/:id` z opiniami i oceną już był, dodane tytuł, opis i dane strukturalne (Person + ocena tylko przy istniejących opiniach) dla linków i wyszukiwarek; przycisk kopiowania linku jest w profilu trenera. Uwaga: dane ustawia JavaScript, więc podglądy w komunikatorach, które go nie uruchamiają, nadal pokażą ogólny opis
 
 ## 4. Płatności
-46. [ ] Przypomnienie o płatności z linkiem
+46. [~] Powiadomienia o płatnościach dla trenera: poprawka błędu (tekst zawierał surowy identyfikator klienta zamiast imienia i nazwiska) + push do trenera (raz na płatność i rodzaj; stuknięcie otwiera płatności w aplikacji i na webie; można wyłączyć w ustawieniach). Przypomnienie dla samego podopiecznego z linkiem do zapłaty wymaga decyzji o sposobie płatności [Ty]
 47. [Ty] Faktury/rachunki (decyzja prawna i dane firmy)
 48. [Ty] Rozliczenia studia (decyzja biznesowa)
 49. [x] Przypomnienie na 3 dni przed końcem okresu próbnego (cron, raz na 4 dni, kliknięcie otwiera profil)

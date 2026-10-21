@@ -19,3 +19,7 @@ test("unknown or missing kinds lead nowhere", () => {
   assert.equal(notificationLink(null, "client"), null);
   assert.equal(notificationLink(undefined, "trainer"), null);
 });
+
+test("a payment notice leads the trainer to the payment schedule", () => {
+  assert.equal(notificationLink("payment_due", "trainer"), "/payment-schedule");
+});

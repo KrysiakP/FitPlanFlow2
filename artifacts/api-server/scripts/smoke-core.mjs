@@ -411,6 +411,39 @@ test("editing a diet keeps what the client already ticked off", async () => {
   }
 });
 
+test("a payment notice names the client and also reaches the trainer's phone", { skip: !process.env.CRON_JOB_TOKEN }, async () => {
+  const created = await call(trainer, "POST", "/api/payments", { clientId: client.id, amount: 15000, dueDate: new Date().toISOString(), description: "Test powiadomienia" });
+  assert.equal(created.status, 201);
+  const paymentId = (await created.json()).id;
+  try {
+    const cron = await fetch(`${API_URL}/api/cron/payment-notifications`, { method: "POST", headers: { Authorization: `Bearer ${process.env.CRON_JOB_TOKEN}` } });
+    assert.equal(cron.status, 200);
+    const notices = await (await call(trainer, "GET", "/api/notifications")).json();
+    const notice = notices.find((item) => item.paymentId === paymentId);
+    assert.ok(notice, "the trainer has an in-app notice for the payment");
+    assert.match(notice.body, /Kasia|Klient|[A-ZŁŚŻ][a-ząćęłńóśźż]+ [A-ZŁŚŻ]/, "it names the client");
+    assert.ok(!/[0-9a-f]{8}-[0-9a-f]{4}-/.test(notice.body), "and never shows an id");
+    assert.match(notice.body, /150,00 zł/);
+
+    let pushed;
+    for (let i = 0; i < 20 && !pushed; i += 1) {
+      const feed = await (await call(trainer, "GET", "/api/notifications/mine?limit=100")).json();
+      pushed = feed.notifications.find((item) => item.type === "payment_due" && item.body === notice.body);
+      if (!pushed) await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    assert.ok(pushed, "the same notice was pushed to the trainer");
+
+    // a second run creates nothing new and does not push again
+    const before = (await (await call(trainer, "GET", "/api/notifications/mine?limit=100")).json()).notifications.filter((item) => item.body === notice.body).length;
+    await fetch(`${API_URL}/api/cron/payment-notifications`, { method: "POST", headers: { Authorization: `Bearer ${process.env.CRON_JOB_TOKEN}` } });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const after = (await (await call(trainer, "GET", "/api/notifications/mine?limit=100")).json()).notifications.filter((item) => item.body === notice.body).length;
+    assert.equal(after, before, "no duplicate push");
+  } finally {
+    await call(trainer, "DELETE", `/api/payments/${paymentId}`);
+  }
+});
+
 test("the trainer gets weight increase proposals for fully done exercises, and only for their own client", async () => {
   const exercise = (name, orderIndex, extra = {}) => ({ name, sets: 3, reps: 5, load: "50", restTime: 60, orderIndex, ...extra });
   const created = await call(trainer, "POST", "/api/plans/bulk", { name: "Plan progresji", workouts: [{ name: "A", orderIndex: 0, exercises: [exercise("Przysiad", 0), exercise("Wyciskanie", 1), exercise("Martwy ciąg", 2)] }] });
@@ -771,7 +804,7 @@ test("clients without a recent weekly report get one reminder", { skip: !process
 test("optional notifications can be switched off per role, and a muted one is not delivered", { skip: !process.env.CRON_JOB_TOKEN }, async () => {
   const options = async (who) => (await (await call(who, "GET", "/api/notification-preferences")).json()).options;
   assert.deepEqual((await options(client)).map((o) => o.type), ["session_reminder", "report_reminder", "review_request", "email_fallback"]);
-  assert.ok((await options(trainer)).every((o) => ["daily_summary", "weekly_summary", "studio_announcement", "email_fallback"].includes(o.type)), "trainers see their own list");
+  assert.ok((await options(trainer)).every((o) => ["payment_due", "daily_summary", "weekly_summary", "studio_announcement", "email_fallback"].includes(o.type)), "trainers see their own list");
 
   const bad = await call(client, "PUT", "/api/notification-preferences", { muted: "report_reminder" });
   assert.equal(bad.status, 400);

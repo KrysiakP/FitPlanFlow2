@@ -1,4 +1,9 @@
 import type { IStorage } from "../storage";
+import { paymentNotice } from "../lib/paymentNotice";
+
+type SendPush = (userId: string, title: string, body: string, data: Record<string, string>, type: string) => Promise<void>;
+
+export const PAYMENT_PUSH_TYPE = "payment_due";
 
 /**
  * Payment Notification Service
@@ -12,7 +17,7 @@ import type { IStorage } from "../storage";
  * instead of running on server startup.
  */
 
-export async function checkPaymentNotifications(storage: IStorage): Promise<{
+export async function checkPaymentNotifications(storage: IStorage, sendPush?: SendPush): Promise<{
   checked: number;
   created: number;
   skipped: number;
@@ -33,6 +38,14 @@ export async function checkPaymentNotifications(storage: IStorage): Promise<{
     console.log(`[PAYMENT_NOTIFICATIONS] Found ${unpaidPayments.length} unpaid payments`);
     
     const now = new Date();
+    const names = new Map<string, string>();
+    const nameOf = async (clientId: string) => {
+      if (!names.has(clientId)) {
+        const client = await storage.getUser(clientId).catch(() => undefined);
+        names.set(clientId, [client?.firstName, client?.lastName].filter(Boolean).join(" "));
+      }
+      return names.get(clientId) ?? "";
+    };
     
     for (const payment of unpaidPayments) {
       // Safely parse dueDate (could be Date object or string from database)
@@ -50,30 +63,13 @@ export async function checkPaymentNotifications(storage: IStorage): Promise<{
       const daysDiff = Math.round((startOfDueDate.getTime() - startOfToday.getTime()) / DAY_MS);
       
       let notificationType: "upcoming" | "due_today" | "overdue" | null = null;
-      let title = "";
-      let body = "";
-      
-      const amountInPLN = (payment.amount / 100).toFixed(2);
-      
-      if (daysDiff === 3) {
-        // Payment is due in 3 days
-        notificationType = "upcoming";
-        title = "Zbliżający się termin płatności";
-        body = `Płatność od ${payment.clientId} za 3 dni (kwota: ${amountInPLN} PLN)`;
-      } else if (daysDiff === 0) {
-        // Payment is due today
-        notificationType = "due_today";
-        title = "Płatność dzisiaj";
-        body = `Płatność od ${payment.clientId} dzisiaj (kwota: ${amountInPLN} PLN)`;
-      } else if (daysDiff < 0) {
-        // Payment is overdue
-        notificationType = "overdue";
-        title = "Przeterminowana płatność";
-        body = `Płatność od ${payment.clientId} przeterminowana o ${Math.abs(daysDiff)} dni (kwota: ${amountInPLN} PLN)`;
-      }
-      
+      if (daysDiff === 3) notificationType = "upcoming";
+      else if (daysDiff === 0) notificationType = "due_today";
+      else if (daysDiff < 0) notificationType = "overdue";
+
       if (notificationType) {
         try {
+          const { title, body } = paymentNotice(notificationType, await nameOf(payment.clientId), payment.amount, daysDiff);
           await storage.createNotification({
             trainerId: payment.trainerId,
             clientId: payment.clientId,
@@ -85,6 +81,12 @@ export async function checkPaymentNotifications(storage: IStorage): Promise<{
             isRead: false,
           });
           stats.created++;
+          // The in-app notice exists only once per payment and kind, so the push goes out once as well
+          if (sendPush) {
+            await sendPush(payment.trainerId, title, body, { type: PAYMENT_PUSH_TYPE, paymentId: payment.id }, PAYMENT_PUSH_TYPE).catch((err) =>
+              console.error("[PAYMENT_NOTIFICATIONS] Push failed:", err),
+            );
+          }
           console.log(`[PAYMENT_NOTIFICATIONS] Created ${notificationType} notification for payment ${payment.id}`);
         } catch (error: any) {
           // Unique constraint violation - notification already exists, skip silently

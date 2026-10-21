@@ -6501,7 +6501,7 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
       // Token valid - run payment notification check
       console.log("[CRON] Running payment notifications check...");
       cronLastRunAt = new Date().toISOString();
-      const stats = await checkPaymentNotifications(storage);
+      const stats = await checkPaymentNotifications(storage, sendPushToUserAndRecord);
       const sessionReminders = await sendSessionReminders(storage, sendPushToUserAndRecord).catch((err) => {
         console.error("[CRON] Session reminders failed:", err);
         return { checked: 0, sent: 0, skipped: 0, errors: 1 };

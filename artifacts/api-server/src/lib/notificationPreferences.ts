@@ -19,6 +19,7 @@ const OPTIONS: Record<PreferenceRole, OptionalNotification[]> = {
     { type: "email_fallback", label: "E-mail, gdy nie masz aplikacji", description: "Ważne wiadomości (terminy, plany) przyjdą e-mailem, jeśli nie masz aplikacji na telefonie" },
   ],
   trainer: [
+    { type: "payment_due", label: "Płatności podopiecznych", description: "Zbliżający się termin, płatność dzisiaj i zaległość" },
     { type: "daily_summary", label: "Twój dzień", description: "Rano: sesje w kalendarzu i nieotwarte raporty (tylko gdy coś jest)" },
     { type: "weekly_summary", label: "Podsumowanie tygodnia", description: "W poniedziałek: treningi, raporty i zaległe płatności" },
     { type: "studio_announcement", label: "Ogłoszenia studia", description: "Wiadomości od właściciela studia" },
