@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dumbbell, Users, ClipboardList, TrendingUp, MapPin, Heart, Mail, Phone, Sparkles } from "lucide-react";
+import { Dumbbell, Users, ClipboardList, TrendingUp, MapPin, Heart, Mail, Phone, Sparkles, ListChecks, Bell } from "lucide-react";
 import { Link } from "wouter";
 import { PublicHeader } from "@/components/public-header";
 import { TrainerSection } from "@/components/landing/TrainerSection";
@@ -89,6 +89,36 @@ export default function Landing() {
                   <CardTitle className="font-heading">Śledź postępy</CardTitle>
                   <CardDescription>
                     Podopieczni mają dostęp do przypisanych planów i mogą śledzić swoje treningi
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+
+              <Card data-testid="card-feature-attention">
+                <CardHeader>
+                  <ListChecks className="w-10 h-10 text-primary mb-4" />
+                  <CardTitle className="font-heading">Kto wymaga uwagi</CardTitle>
+                  <CardDescription>
+                    Na pulpicie od razu widzisz, kto zalega z płatnością, nie ma planu, dawno nie trenował albo wysłał nowy raport
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+
+              <Card data-testid="card-feature-strength">
+                <CardHeader>
+                  <Dumbbell className="w-10 h-10 text-primary mb-4" />
+                  <CardTitle className="font-heading">Wykresy siły i rekordy</CardTitle>
+                  <CardDescription>
+                    Szacowane maksimum z zapisanych serii, trend dla każdego ćwiczenia i powiadomienie o życiowym rekordzie
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+
+              <Card data-testid="card-feature-reminders">
+                <CardHeader>
+                  <Bell className="w-10 h-10 text-primary mb-4" />
+                  <CardTitle className="font-heading">Automatyczne przypomnienia</CardTitle>
+                  <CardDescription>
+                    W aplikacji mobilnej: przypomnienia o treningu i raporcie dla podopiecznych, podsumowanie tygodnia dla trenera. Każdy wyłączy to, czego nie chce
                   </CardDescription>
                 </CardHeader>
               </Card>
