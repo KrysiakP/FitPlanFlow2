@@ -169,6 +169,7 @@ export const exerciseLogs = pgTable("exercise_logs", {
   reps: integer("reps").notNull(), // ilość powtórzeń wykonanych przez podopiecznego
   load: varchar("load"), // obciążenie użyte przez podopiecznego (np. "25kg")
   notes: text("notes"), // notatki podopiecznego
+  isWarmup: boolean("is_warmup").default(false).notNull(), // seria rozgrzewkowa: nie liczy się do rekordów, historii siły ani podpowiedzi obciążenia
   loggedAt: timestamp("logged_at").defaultNow().notNull(),
   loggedByUserId: varchar("logged_by_user_id").references(() => users.id), // null = zalogowane przez samego podopiecznego; ustawione = trener zalogował w jego imieniu (wspólny trening)
 });

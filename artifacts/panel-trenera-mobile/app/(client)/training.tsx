@@ -105,6 +105,7 @@ interface LoggingTarget {
 interface LoggingState {
   reps: string;
   load: string;
+  warmup?: boolean; // a warm-up set is saved but never counts as a record or as history
 }
 
 interface SessionBody {
@@ -136,6 +137,7 @@ interface ExerciseRowProps {
   onCancelLog: () => void;
   onChangeReps: (v: string) => void;
   onChangeLoad: (v: string) => void;
+  onToggleWarmup: () => void;
   onConfirmLog: () => void;
   onAddSet: (exerciseId: string) => void;
   suggestion?: string | null; // "Ostatnio 80 kg × 10: spróbuj 82,5 kg"
@@ -157,6 +159,7 @@ function ExerciseRow({
   onCancelLog,
   onChangeReps,
   onChangeLoad,
+  onToggleWarmup,
   onConfirmLog,
   onAddSet,
   suggestion,
@@ -365,6 +368,23 @@ function ExerciseRow({
                           </View>
                         </View>
                       </View>
+                      <Pressable
+                        onPress={onToggleWarmup}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: loggingState.warmup === true }}
+                        accessibilityLabel="Seria rozgrzewkowa"
+                        style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}
+                        testID={`toggle-warmup-${exercise.id}`}
+                      >
+                        <Ionicons
+                          name={loggingState.warmup ? "checkbox" : "square-outline"}
+                          size={20}
+                          color={loggingState.warmup ? colors.primary : colors.mutedForeground}
+                        />
+                        <Text style={[styles.logInputLabel, { color: colors.mutedForeground, marginBottom: 0 }]}>
+                          Seria rozgrzewkowa (nie liczy się do rekordów)
+                        </Text>
+                      </Pressable>
                       <View style={styles.logActions}>
                         <Pressable
                           style={[styles.logBtn, styles.logBtnCancel, { borderColor: colors.border }]}
@@ -652,8 +672,8 @@ export default function TrainingScreen() {
   const hideRecordToast = useCallback(() => setRecordToast(null), []);
 
   const logMutation = useMutation({
-    mutationFn: async ({ exerciseId, setNumber, reps, load }: { exerciseId: string; setNumber: number; reps: number; load: string }) => {
-      return apiPost<{ personalRecord?: PersonalRecordInfo }>(`/api/exercises/${exerciseId}/log`, { reps, load: load || undefined, setNumber });
+    mutationFn: async ({ exerciseId, setNumber, reps, load, isWarmup }: { exerciseId: string; setNumber: number; reps: number; load: string; isWarmup?: boolean }) => {
+      return apiPost<{ personalRecord?: PersonalRecordInfo }>(`/api/exercises/${exerciseId}/log`, { reps, load: load || undefined, setNumber, ...(isWarmup ? { isWarmup: true } : {}) });
     },
     onSuccess: (data) => {
       if (data?.personalRecord) {
@@ -1041,7 +1061,7 @@ export default function TrainingScreen() {
     const wasAlreadyCompleted = completedSets[exerciseId]?.has(setNumber) ?? false;
 
     logMutation.mutate(
-      { exerciseId, setNumber, reps, load },
+      { exerciseId, setNumber, reps, load, isWarmup: loggingState.warmup === true },
       {
         onSuccess: () => {
           // Compute new completed set before updating state so we can use it for plan-update check
@@ -1274,6 +1294,7 @@ export default function TrainingScreen() {
                   }}
                   onChangeReps={(v) => setLoggingState((s) => ({ ...s, reps: v }))}
                   onChangeLoad={(v) => setLoggingState((s) => ({ ...s, load: v }))}
+                  onToggleWarmup={() => setLoggingState((s) => ({ ...s, warmup: !s.warmup }))}
                   onConfirmLog={handleConfirmLog}
                   onAddSet={handleAddSet}
                   suggestion={suggestLoad({

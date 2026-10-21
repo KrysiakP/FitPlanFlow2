@@ -23,7 +23,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 15. [ ] Biblioteka filmów z wyszukiwarką i ulubionymi
 16. [ ] Zamiennik ćwiczenia za zgodą trenera
 17. [ ] Pełnoekranowy tryb treningu
-18. [ ] Serie rozgrzewkowe nie liczą się do rekordów
+18. [x] Serie rozgrzewkowe: pole „Seria rozgrzewkowa” w formularzu serii (mobile), zapisywane z flagą i pomijane w rekordach, historii siły i podpowiedziach/wypełnianiu obciążenia (API + test); web nie ma jeszcze takiego pola
 19. [ ] Historia ćwiczenia (lista serii + wykres)
 20. [x] Osiągnięcia: 8 odznak liczonych z historii (treningi, regularność tygodniowa, raporty, zdjęcie, wzrost siły), z paskiem postępu; web i mobile
 

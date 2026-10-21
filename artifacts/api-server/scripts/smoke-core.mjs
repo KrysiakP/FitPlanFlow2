@@ -330,6 +330,25 @@ test("two-step login: setup, enforcement at login, backup codes, and no secrets 
   assert.equal((await loginRaw({})).status, 200, "login is back to a password");
 });
 
+test("warm-up sets are stored but never count as records, history or the weight to prefill", async () => {
+  const before = await (await call(client, "GET", "/api/client/exercise-history")).json();
+  const bestBefore = before.find((item) => item.exercise === "Przysiad")?.best;
+  const latestBefore = await (await call(client, "GET", `/api/exercises/${state.exerciseId}/latest-log`)).json();
+
+  const heavy = await call(client, "POST", `/api/exercises/${state.exerciseId}/log`, { reps: 5, load: "300", setNumber: 20, isWarmup: true });
+  assert.equal(heavy.status, 200);
+  const stored = await heavy.json();
+  assert.equal(stored.isWarmup, true, "it is saved, flagged as a warm-up");
+  assert.equal(stored.personalRecord, undefined, "an absurdly heavy warm-up is still not a record");
+
+  const after = await (await call(client, "GET", "/api/client/exercise-history")).json();
+  assert.equal(after.find((item) => item.exercise === "Przysiad")?.best, bestBefore, "the strength history ignores it");
+  const latestAfter = await (await call(client, "GET", `/api/exercises/${state.exerciseId}/latest-log`)).json();
+  assert.equal(latestAfter?.id, latestBefore?.id, "the next set is not pre-filled from a warm-up");
+  const all = await (await call(client, "GET", "/api/exercise-logs")).json();
+  assert.ok(all.some((item) => item.id === stored.id), "the trainer and client can still see it in the log");
+});
+
 test("the health endpoint answers without a login", async () => {
   const res = await fetch(`${API_URL}/api/health`);
   assert.equal(res.status, 200);

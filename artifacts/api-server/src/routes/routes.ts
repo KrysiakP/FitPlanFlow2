@@ -4169,7 +4169,7 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         });
       }
 
-      const { reps, load, notes, setNumber } = validationResult.data;
+      const { reps, load, notes, setNumber, isWarmup } = validationResult.data;
       // Read the history first, so the new set is compared with what came before it
       const previousSets = await storage.getClientLogsByExerciseName(clientId, exercise.name);
       const log = await storage.logExercise(clientId, exerciseId, {
@@ -4177,9 +4177,11 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         load: load ?? undefined,
         notes: notes ?? undefined,
         setNumber: setNumber ?? 1,
+        isWarmup: isWarmup === true,
         loggedByUserId: isTrainer ? userId : undefined,
       });
-      const record = evaluatePersonalRecord(previousSets, { load, reps });
+      // a warm-up set never beats a record
+      const record = isWarmup === true ? { isRecord: false as const, estimatedOneRepMax: 0, previousBest: null } : evaluatePersonalRecord(previousSets, { load, reps });
       res.json(record.isRecord ? { ...log, personalRecord: { exercise: exercise.name, estimatedOneRepMax: record.estimatedOneRepMax, previousBest: record.previousBest } } : log);
     } catch (error) {
       console.error("Error logging exercise:", error);

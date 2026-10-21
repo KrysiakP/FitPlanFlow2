@@ -171,7 +171,7 @@ export interface IStorage {
   upsertClientProgress(clientId: string, data: Partial<InsertClientProgress>): Promise<ClientProgress>;
   
   // Exercise logs operations
-  logExercise(clientId: string, exerciseId: string, data: { reps: number, load?: string, notes?: string, setNumber?: number, loggedByUserId?: string }): Promise<ExerciseLog>;
+  logExercise(clientId: string, exerciseId: string, data: { reps: number, load?: string, notes?: string, setNumber?: number, isWarmup?: boolean, loggedByUserId?: string }): Promise<ExerciseLog>;
   getExerciseLogs(clientId: string, exerciseId: string): Promise<ExerciseLog[]>;
   getClientLogsByExerciseName(clientId: string, exerciseName: string): Promise<{ load: string | null; reps: number }[]>;
   getClientLogsWithExerciseNames(clientId: string): Promise<{ name: string; load: string | null; reps: number; loggedAt: Date }[]>;
@@ -1126,7 +1126,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Exercise logs operations
-  async logExercise(clientId: string, exerciseId: string, data: { reps: number, load?: string, notes?: string, setNumber?: number, loggedByUserId?: string }): Promise<ExerciseLog> {
+  async logExercise(clientId: string, exerciseId: string, data: { reps: number, load?: string, notes?: string, setNumber?: number, isWarmup?: boolean, loggedByUserId?: string }): Promise<ExerciseLog> {
     const [log] = await db
       .insert(exerciseLogs)
       .values({
@@ -1136,6 +1136,7 @@ export class DatabaseStorage implements IStorage {
         load: data.load || null,
         notes: data.notes || null,
         setNumber: data.setNumber || 1,
+        isWarmup: data.isWarmup ?? false,
         loggedByUserId: data.loggedByUserId || null,
       })
       .returning();
@@ -1161,7 +1162,7 @@ export class DatabaseStorage implements IStorage {
       .select({ load: exerciseLogs.load, reps: exerciseLogs.reps })
       .from(exerciseLogs)
       .innerJoin(exercises, eq(exercises.id, exerciseLogs.exerciseId))
-      .where(and(eq(exerciseLogs.clientId, clientId), sql`lower(${exercises.name}) = lower(${exerciseName})`));
+      .where(and(eq(exerciseLogs.clientId, clientId), eq(exerciseLogs.isWarmup, false), sql`lower(${exercises.name}) = lower(${exerciseName})`));
   }
 
   async getClientLogsWithExerciseNames(clientId: string): Promise<{ name: string; load: string | null; reps: number; loggedAt: Date }[]> {
@@ -1169,7 +1170,7 @@ export class DatabaseStorage implements IStorage {
       .select({ name: exercises.name, load: exerciseLogs.load, reps: exerciseLogs.reps, loggedAt: exerciseLogs.loggedAt })
       .from(exerciseLogs)
       .innerJoin(exercises, eq(exercises.id, exerciseLogs.exerciseId))
-      .where(eq(exerciseLogs.clientId, clientId));
+      .where(and(eq(exerciseLogs.clientId, clientId), eq(exerciseLogs.isWarmup, false)));
   }
 
   async getAllClientExerciseLogs(clientId: string): Promise<ExerciseLog[]> {
@@ -1187,7 +1188,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(exerciseLogs.clientId, clientId),
-          eq(exerciseLogs.exerciseId, exerciseId)
+          eq(exerciseLogs.exerciseId, exerciseId),
+          eq(exerciseLogs.isWarmup, false)
         )
       )
       .orderBy(desc(exerciseLogs.loggedAt))
@@ -1203,7 +1205,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(exerciseLogs.clientId, clientId),
-          eq(exerciseLogs.exerciseId, exerciseId)
+          eq(exerciseLogs.exerciseId, exerciseId),
+          eq(exerciseLogs.isWarmup, false)
         )
       )
       .orderBy(desc(exerciseLogs.loggedAt));
