@@ -27,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertCircle, Crown, Send, CheckCircle, Mail, RotateCw, X } from "lucide-react";
 import { Link } from "wouter";
 import { useEffect, useRef } from "react";
+import { CsvInviteCard } from "@/components/csv-invite-card";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import type { TrainingPlan, InsertPlanInvitationInput, PlanInvitation } from "@shared/schema";
@@ -301,6 +302,8 @@ export default function InviteClient() {
             </Form>
         </CardContent>
       </Card>
+
+      <CsvInviteCard />
 
       <Card data-testid="card-sent-invitations">
         <CardHeader>
