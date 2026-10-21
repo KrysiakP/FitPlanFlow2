@@ -533,6 +533,21 @@ export default function TrainerReports() {
                 </>
               )}
 
+              {(report.sleepHours || report.waterLiters) && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <Heart className="w-4 h-4" />
+                      Sen i nawodnienie
+                    </div>
+                    <p className="text-base" data-testid={`text-sleep-water-${report.id}`}>
+                      {[report.sleepHours && `sen ${report.sleepHours} h na dobę`, report.waterLiters && `woda ${report.waterLiters} l na dobę`].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+                </>
+              )}
+
               {report.mood && (
                 <>
                   <Separator />

@@ -189,6 +189,8 @@ export const weeklyReports = pgTable("weekly_reports", {
   cardio: text("cardio"), // opis cardio
   supplements: text("supplements"), // suplementacja
   mood: text("mood"), // samopoczucie
+  sleepHours: varchar("sleep_hours"), // średnio godzin snu na dobę w tym tygodniu (np. "7,5")
+  waterLiters: varchar("water_liters"), // średnio litrów wody na dobę (np. "2")
   thoughts: text("thoughts"), // ogólne przemyślenia
   photoUrl: text("photo_url"), // zdjęcie raportowe sylwetki
   viewedByTrainer: boolean("viewed_by_trainer").default(false).notNull(), // czy trener widział raport

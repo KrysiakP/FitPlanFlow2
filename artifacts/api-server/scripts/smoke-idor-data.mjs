@@ -68,7 +68,7 @@ test.before(async () => {
   assert.equal(diet.status, 201, "diet created");
   s.dietId = (await diet.json()).id;
 
-  const report = await call(c1, "POST", "/api/reports", { reportDate: new Date().toISOString(), weight: "70", mood: "ok" });
+  const report = await call(c1, "POST", "/api/reports", { reportDate: new Date().toISOString(), weight: "70", mood: "ok", sleepHours: "7,5", waterLiters: "2" });
   assert.ok([200, 201].includes(report.status), "report created");
   s.reportId = (await report.json()).id;
 });
@@ -99,7 +99,11 @@ test("diet plans stay with the owning trainer and their client", async () => {
 });
 
 test("weekly reports are visible only to their client and the client's trainer", async () => {
-  assert.equal((await call(c1, "GET", `/api/reports/${s.reportId}`)).status, 200);
+  const own = await call(c1, "GET", `/api/reports/${s.reportId}`);
+  assert.equal(own.status, 200);
+  const ownBody = await own.json();
+  assert.equal(ownBody.sleepHours, "7,5", "sleep is stored with the report");
+  assert.equal(ownBody.waterLiters, "2", "and so is water");
   const viaTrainer = await (await call(t1, "GET", `/api/clients/${c1.id}/reports`)).json();
   assert.ok(JSON.stringify(viaTrainer).includes(s.reportId), "the client's trainer sees the report");
   await assertDenied("foreign trainer reads", call(t2, "GET", `/api/reports/${s.reportId}`));

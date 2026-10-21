@@ -72,6 +72,8 @@ export default function WeeklyReport() {
       cardio: "",
       supplements: "",
       mood: "",
+      sleepHours: "",
+      waterLiters: "",
       thoughts: "",
       photoUrl: "",
     },
@@ -220,6 +222,8 @@ export default function WeeklyReport() {
       cardio: report.cardio || "",
       supplements: report.supplements || "",
       mood: report.mood || "",
+      sleepHours: report.sleepHours || "",
+      waterLiters: report.waterLiters || "",
       thoughts: report.thoughts || "",
       photoUrl: "",  // Keep empty - photo state managed separately
     });
@@ -540,6 +544,35 @@ export default function WeeklyReport() {
                   )}
                 />
 
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="sleepHours"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sen (godzin na dobę)</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} inputMode="decimal" placeholder="np. 7,5" data-testid="input-sleep-hours" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="waterLiters"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Woda (litrów na dobę)</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} inputMode="decimal" placeholder="np. 2" data-testid="input-water-liters" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
                 <FormField
                   control={form.control}
                   name="mood"
@@ -750,6 +783,15 @@ export default function WeeklyReport() {
                     <div>
                       <h4 className="font-heading font-medium text-sm mb-1">Suplementacja:</h4>
                       <p className="text-sm text-muted-foreground" data-testid={`text-report-supplements-${report.id}`}>{report.supplements}</p>
+                    </div>
+                  )}
+
+                  {(report.sleepHours || report.waterLiters) && (
+                    <div>
+                      <h4 className="font-heading font-medium text-sm mb-1">Sen i nawodnienie:</h4>
+                      <p className="text-sm text-muted-foreground" data-testid={`text-report-sleep-water-${report.id}`}>
+                        {[report.sleepHours && `sen ${report.sleepHours} h`, report.waterLiters && `woda ${report.waterLiters} l`].filter(Boolean).join(" · ")}
+                      </p>
                     </div>
                   )}
 

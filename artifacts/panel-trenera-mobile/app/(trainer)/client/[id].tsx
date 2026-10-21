@@ -193,6 +193,8 @@ interface WeeklyReport {
   cardio?: string | null;
   supplements?: string | null;
   mood?: string | null;
+  sleepHours?: string | null;
+  waterLiters?: string | null;
   thoughts?: string | null;
   photoUrl?: string | null;
   viewedByTrainer?: boolean | null;
@@ -1852,6 +1854,14 @@ function TrainerReportCard({
             <View style={styles.reportDetailRow}>
               <Text style={[styles.reportDetailLabel, { color: colors.mutedForeground }]}>Suplementacja:</Text>
               <Text style={[styles.reportDetailValue, { color: colors.foreground }]}>{report.supplements}</Text>
+            </View>
+          )}
+          {(report.sleepHours || report.waterLiters) && (
+            <View style={styles.reportDetailRow}>
+              <Text style={[styles.reportDetailLabel, { color: colors.mutedForeground }]}>Sen i woda:</Text>
+              <Text style={[styles.reportDetailValue, { color: colors.foreground }]}>
+                {[report.sleepHours && `sen ${report.sleepHours} h`, report.waterLiters && `woda ${report.waterLiters} l`].filter(Boolean).join(" · ")}
+              </Text>
             </View>
           )}
           {report.mood && (

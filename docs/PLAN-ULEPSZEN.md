@@ -35,7 +35,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 25. [ ] Wstępne uzupełnianie raportu
 26. [x] Lista zakupów z jadłospisu (web: sumuje składniki z podanymi ilościami z opisów posiłków, odhaczanie i kopiowanie; pozycje bez ilości pomija; mobile jeszcze nie)
 27. [ ] Zamienniki posiłków (do zatwierdzenia)
-28. [ ] Woda i sen w raporcie
+28. [x] Sen (godziny na dobę) i woda (litry na dobę) w raporcie tygodniowym: formularz i podsumowanie w web i mobile, widok trenera w web i mobile, API (test w kontroli dostępu raportów)
 29. [x] Kalkulator kalorii i makroskładników (web, strona diety: wzór Mifflina–St Jeora, cel redukcja/utrzymanie/masa, walidacja, adnotacja że to punkt wyjścia; bez zapisu w profilu; mobile jeszcze nie)
 30. [Ty] Widżet ekranu głównego (wymaga natywnego buildu i testu na telefonie)
 

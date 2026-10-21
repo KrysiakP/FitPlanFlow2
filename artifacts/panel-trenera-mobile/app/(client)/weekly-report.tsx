@@ -64,6 +64,8 @@ interface WeeklyReport {
   cardio?: string | null;
   supplements?: string | null;
   mood?: string | null;
+  sleepHours?: string | null;
+  waterLiters?: string | null;
   thoughts?: string | null;
   photoUrl?: string | null;
   photoOriginalPath?: string | null;
@@ -82,6 +84,8 @@ interface ReportFormData {
   cardio: string;
   supplements: string;
   mood: string;
+  sleepHours: string;
+  waterLiters: string;
   thoughts: string;
 }
 
@@ -96,6 +100,8 @@ const EMPTY_FORM: ReportFormData = {
   cardio: "",
   supplements: "",
   mood: "",
+  sleepHours: "",
+  waterLiters: "",
   thoughts: "",
 };
 
@@ -160,6 +166,8 @@ export default function WeeklyReportScreen() {
         cardio: data.cardio || null,
         supplements: data.supplements || null,
         mood: data.mood || null,
+        sleepHours: data.sleepHours || null,
+        waterLiters: data.waterLiters || null,
         thoughts: data.thoughts || null,
       };
 
@@ -312,6 +320,8 @@ export default function WeeklyReportScreen() {
       cardio: report.cardio ?? "",
       supplements: report.supplements ?? "",
       mood: report.mood ?? "",
+      sleepHours: report.sleepHours ?? "",
+      waterLiters: report.waterLiters ?? "",
       thoughts: report.thoughts ?? "",
     });
     setReportDate(report.reportDate ? report.reportDate.slice(0, 10) : getThisMonday());
@@ -575,6 +585,28 @@ export default function WeeklyReportScreen() {
                 testID="input-mood"
               />
 
+              <SectionLabel icon="moon-outline" label="Sen (godzin na dobę)" colors={colors} />
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+                value={form.sleepHours}
+                onChangeText={(v) => setForm((f) => ({ ...f, sleepHours: v }))}
+                placeholder="np. 7,5"
+                placeholderTextColor={colors.mutedForeground}
+                keyboardType="decimal-pad"
+                testID="input-sleep-hours"
+              />
+
+              <SectionLabel icon="water-outline" label="Woda (litrów na dobę)" colors={colors} />
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+                value={form.waterLiters}
+                onChangeText={(v) => setForm((f) => ({ ...f, waterLiters: v }))}
+                placeholder="np. 2"
+                placeholderTextColor={colors.mutedForeground}
+                keyboardType="decimal-pad"
+                testID="input-water-liters"
+              />
+
               <SectionLabel icon="chatbubble-outline" label="Ogólne przemyślenia" colors={colors} />
               <TextInput
                 style={[styles.textarea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
@@ -751,6 +783,8 @@ function ReportCard({
           {report.supplements && (
             <Row icon="flask-outline" label="Suplementacja" value={report.supplements} colors={colors} multiline />
           )}
+          {report.sleepHours && <Row icon="moon-outline" label="Sen" value={`${report.sleepHours} h na dobę`} colors={colors} />}
+          {report.waterLiters && <Row icon="water-outline" label="Woda" value={`${report.waterLiters} l na dobę`} colors={colors} />}
           {report.mood && (
             <Row icon="happy-outline" label="Samopoczucie" value={report.mood} colors={colors} />
           )}

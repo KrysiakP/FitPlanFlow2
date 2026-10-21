@@ -223,6 +223,8 @@ export function getDemoWeeklyReports(): (WeeklyReport & { isDemo: true })[] {
       cardio: report.cardio,
       supplements: report.supplements,
       mood: report.mood,
+      sleepHours: null,
+      waterLiters: null,
       thoughts: null,
       photoUrl: null,
       viewedByTrainer: false,
