@@ -149,11 +149,45 @@ test("announcements reach active trainers only", async () => {
   assert.ok(!after.some((item) => item.id === announcement.id), "deleted announcements disappear");
 });
 
+test("the studio shares exercises that member trainers copy into their own library", async () => {
+  const name = `Wspólne ćwiczenie ${Date.now()}`;
+  assert.equal((await call(trainer, "POST", "/api/gym/exercises", { name })).status, 403, "trainers cannot add to the studio library");
+  assert.equal((await call(studio, "POST", "/api/gym/exercises", { name: "" })).status, 400, "a name is required");
+  assert.equal((await call(studio, "POST", "/api/gym/exercises", { name, videoUrl: "/objects/uploads/x" })).status, 400, "only web links are shared");
+  const created = await call(studio, "POST", "/api/gym/exercises", { name, category: "Nogi", description: "Technika studia", videoUrl: "https://www.youtube.com/watch?v=abcdefghijk", defaultSets: 3, defaultReps: 8 });
+  assert.equal(created.status, 201);
+  const exercise = await created.json();
+  let copyId;
+  try {
+    assert.ok((await (await call(studio, "GET", "/api/gym/exercises")).json()).some((item) => item.id === exercise.id), "the owner lists it");
+    assert.equal((await call(client, "GET", "/api/gym/exercises")).status, 403);
+    assert.ok((await (await call(trainer, "GET", "/api/trainer/gym/exercises")).json()).some((item) => item.id === exercise.id), "a member trainer sees it");
+
+    const copied = await call(trainer, "POST", `/api/trainer/gym/exercises/${exercise.id}/copy`);
+    assert.equal(copied.status, 201);
+    const copy = await copied.json();
+    copyId = copy.id;
+    assert.equal(copy.name, name);
+    assert.equal(copy.defaultSets, 3);
+    assert.notEqual(copy.id, exercise.id, "a separate row of the trainer's own");
+    const mine = await (await call(trainer, "GET", "/api/exercises/library")).json();
+    assert.ok(mine.some((item) => item.id === copyId), "it is in the trainer's own library now");
+    assert.equal((await call(client, "POST", `/api/trainer/gym/exercises/${exercise.id}/copy`)).status, 403);
+    assert.equal((await call(trainer, "POST", "/api/trainer/gym/exercises/00000000-0000-0000-0000-000000000000/copy")).status, 404);
+  } finally {
+    assert.equal((await call(studio, "DELETE", `/api/gym/exercises/${exercise.id}`)).status, 200);
+    if (copyId) await call(trainer, "DELETE", `/api/exercises/library/${copyId}`);
+  }
+  assert.equal((await call(studio, "DELETE", `/api/gym/exercises/${exercise.id}`)).status, 404, "already deleted");
+  assert.ok(!(await (await call(trainer, "GET", "/api/trainer/gym/exercises")).json()).some((item) => item.id === exercise.id), "gone for the trainer too");
+});
+
 test("trainer can leave the studio", async () => {
   assert.equal((await call(trainer, "DELETE", "/api/trainer/gym")).status, 200);
   const data = await (await call(studio, "GET", "/api/gym/analytics")).json();
   assert.equal(data.activeTrainers, 0);
   assert.deepEqual(await (await call(trainer, "GET", "/api/trainer/gym/announcements")).json(), [], "ex-members see no announcements");
+  assert.deepEqual(await (await call(trainer, "GET", "/api/trainer/gym/exercises")).json(), [], "nor the studio's exercises");
 });
 
 test("owner edits studio details; others cannot; bad input is rejected", async () => {

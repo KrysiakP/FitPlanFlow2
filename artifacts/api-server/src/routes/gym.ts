@@ -1,10 +1,11 @@
 // Studio (gym) routes: admin management of gyms, studio self-registration, owner panel, trainer invitations and announcements.
 import { storage } from "../storage";
+import { insertExerciseLibrarySchema } from "@workspace/db";
 import { db } from "../db";
 import { isAuthenticated, hashPassword } from "../auth";
 import { generateVerificationToken, getTokenExpiry, sendVerificationEmail, sendStudioInvitationEmail } from "../email";
 import { sql, eq, and, or, inArray, desc, gte, lt } from "drizzle-orm";
-import { sessions, users, gyms, gymTrainers, gymAnnouncements, gymAnnouncementReads, clientRelationships, workoutSessions, trainingPlans } from "@workspace/db";
+import { sessions, users, gyms, gymTrainers, gymAnnouncements, gymAnnouncementReads, gymExercises, exerciseLibrary, clientRelationships, workoutSessions, trainingPlans } from "@workspace/db";
 import { z } from "zod";
 import { randomUUID } from "crypto";
 import { authRateLimit, lookupRateLimit } from "../app";
@@ -744,6 +745,104 @@ export function registerGymRoutes(app: Express) {
       res.json(updated);
     } catch (error) {
       console.error("Error joining gym:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // ── Studio exercise library: the owner shares exercises, trainers copy them into their own library ─────────
+  const httpLinkOnly = (url: string | null | undefined) => !url || /^https?:\/\//i.test(url);
+
+  app.get("/api/gym/exercises", isAuthenticated, requireGymOwner, async (req, res) => {
+    try {
+      const gym = await getOwnerGym((req as any).user.id);
+      if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+      res.json(await db.select().from(gymExercises).where(eq(gymExercises.gymId, gym.id)).orderBy(gymExercises.name));
+    } catch (error) {
+      console.error("Error listing studio exercises:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  app.post("/api/gym/exercises", isAuthenticated, requireGymOwner, async (req, res) => {
+    try {
+      const gym = await getOwnerGym((req as any).user.id);
+      if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+      const parsed = insertExerciseLibrarySchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Nieprawidłowe dane wejściowe", errors: parsed.error.issues });
+      if (!parsed.data.name.trim()) return res.status(400).json({ message: "Nazwa ćwiczenia jest wymagana" });
+      // uploads belong to one trainer's storage: a studio exercise links to the web only
+      if (!httpLinkOnly(parsed.data.videoUrl)) return res.status(400).json({ message: "Film musi być linkiem http(s)" });
+      const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(gymExercises).where(eq(gymExercises.gymId, gym.id));
+      if (count >= 300) return res.status(409).json({ message: "Biblioteka studia ma już 300 ćwiczeń" });
+      const [created] = await db.insert(gymExercises).values({ ...parsed.data, name: parsed.data.name.trim(), gymId: gym.id }).returning();
+      res.status(201).json(created);
+    } catch (error) {
+      console.error("Error creating studio exercise:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  app.delete("/api/gym/exercises/:id", isAuthenticated, requireGymOwner, async (req, res) => {
+    try {
+      const gym = await getOwnerGym((req as any).user.id);
+      if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+      const removed = await db.delete(gymExercises).where(and(eq(gymExercises.id, String(req.params.id)), eq(gymExercises.gymId, gym.id))).returning({ id: gymExercises.id });
+      if (removed.length === 0) return res.status(404).json({ message: "Ćwiczenie nie istnieje" });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting studio exercise:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // The studio's exercises, for a trainer who is an active member
+  app.get("/api/trainer/gym/exercises", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy" });
+      const [membership] = await db
+        .select({ gymId: gymTrainers.gymId })
+        .from(gymTrainers)
+        .where(and(eq(gymTrainers.trainerId, user.id), eq(gymTrainers.status, "active")))
+        .limit(1);
+      if (!membership) return res.json([]);
+      res.json(await db.select().from(gymExercises).where(eq(gymExercises.gymId, membership.gymId)).orderBy(gymExercises.name));
+    } catch (error) {
+      console.error("Error listing studio exercises for a trainer:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // Copies one of the studio's exercises into the trainer's own library (a copy: later changes by the studio do not reach it)
+  app.post("/api/trainer/gym/exercises/:id/copy", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy" });
+      const [membership] = await db
+        .select({ gymId: gymTrainers.gymId })
+        .from(gymTrainers)
+        .where(and(eq(gymTrainers.trainerId, user.id), eq(gymTrainers.status, "active")))
+        .limit(1);
+      if (!membership) return res.status(404).json({ message: "Ćwiczenie nie istnieje" });
+      const [source] = await db.select().from(gymExercises).where(and(eq(gymExercises.id, String(req.params.id)), eq(gymExercises.gymId, membership.gymId)));
+      if (!source) return res.status(404).json({ message: "Ćwiczenie nie istnieje" });
+      const [copy] = await db
+        .insert(exerciseLibrary)
+        .values({
+          trainerId: user.id,
+          name: source.name,
+          category: source.category,
+          description: source.description,
+          videoUrl: source.videoUrl,
+          defaultSets: source.defaultSets,
+          defaultReps: source.defaultReps,
+          defaultLoad: source.defaultLoad,
+          defaultRestTime: source.defaultRestTime,
+        })
+        .returning();
+      res.status(201).json(copy);
+    } catch (error) {
+      console.error("Error copying studio exercise:", error);
       res.status(500).json({ message: "Błąd serwera" });
     }
   });

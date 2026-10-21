@@ -80,6 +80,20 @@ CREATE TABLE IF NOT EXISTS "trainer_availability" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS "gym_exercises" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"gym_id" varchar NOT NULL,
+	"name" varchar(255) NOT NULL,
+	"category" varchar(100),
+	"description" text,
+	"video_url" text,
+	"default_sets" integer,
+	"default_reps" integer,
+	"default_load" varchar,
+	"default_rest_time" integer,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+
 -- 2. Nowe kolumny w istniejących tabelach
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "totp_secret" text;
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "totp_enabled" boolean DEFAULT false NOT NULL;
@@ -144,6 +158,10 @@ DO $$ BEGIN
   ALTER TABLE "trainer_availability" ADD CONSTRAINT "trainer_availability_trainer_id_users_id_fk" FOREIGN KEY ("trainer_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+DO $$ BEGIN
+  ALTER TABLE "gym_exercises" ADD CONSTRAINT "gym_exercises_gym_id_gyms_id_fk" FOREIGN KEY ("gym_id") REFERENCES "public"."gyms"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 4. Indeksy
 CREATE UNIQUE INDEX IF NOT EXISTS "client_labels_unique" ON "client_labels" USING btree ("trainer_id","client_id","label");
@@ -162,5 +180,6 @@ CREATE INDEX IF NOT EXISTS "session_bookings_client_scheduled_idx" ON "session_b
 CREATE INDEX IF NOT EXISTS "session_bookings_trainer_scheduled_idx" ON "session_bookings" USING btree ("trainer_id","scheduled_at");
 CREATE INDEX IF NOT EXISTS "weekly_reports_client_created_idx" ON "weekly_reports" USING btree ("client_id","created_at");
 CREATE INDEX IF NOT EXISTS "trainer_availability_trainer_idx" ON "trainer_availability" USING btree ("trainer_id");
+CREATE INDEX IF NOT EXISTS "gym_exercises_gym_idx" ON "gym_exercises" USING btree ("gym_id");
 
 COMMIT;

@@ -66,7 +66,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 
 ## 5. Studia
 52. [ ] Role w studiu
-53. [ ] Wspólna biblioteka ćwiczeń studia
+53. [x] Wspólna biblioteka ćwiczeń studia (web): właściciel dodaje ćwiczenia (nazwa, kategoria, opis, link do filmu, do 300), trenerzy studia widzą je na stronie biblioteki i kopiują do własnej jednym kliknięciem (kopia, późniejsze zmiany studia jej nie dotyczą). Nowa tabela `gym_exercises` (w pliku migracji). Bez edycji istniejących wpisów (usuń i dodaj od nowa) i bez aplikacji mobilnej
 54. [ ] Porównanie trenerów (bez danych osobowych)
 55. [x] Ogłoszenia studia: przypinanie i „przeczytało X z Y" (API, testy, web, mobile)
 56. [ ] Grafik sal i zasobów

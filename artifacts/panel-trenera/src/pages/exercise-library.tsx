@@ -44,6 +44,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMemo, useState } from "react";
 import { filterLibrary, libraryCategories } from "@/lib/libraryFilter";
+import { StudioExercisesForTrainer } from "@/components/studio-exercises-for-trainer";
 
 type ExerciseFormValues = z.infer<typeof insertExerciseLibrarySchema>;
 
@@ -513,6 +514,8 @@ export default function ExerciseLibrary() {
           }
         />
       </div>
+
+      <StudioExercisesForTrainer />
 
       {error && (
         <Alert variant="destructive" data-testid="alert-library-error">

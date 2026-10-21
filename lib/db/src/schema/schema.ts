@@ -1287,6 +1287,25 @@ export const gymAnnouncementReads = pgTable("gym_announcement_reads", {
 
 export type GymAnnouncement = typeof gymAnnouncements.$inferSelect;
 
+// Exercises the studio shares with all of its trainers; a trainer copies one into their own library
+export const gymExercises = pgTable("gym_exercises", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  gymId: varchar("gym_id").notNull().references(() => gyms.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(),
+  category: varchar("category", { length: 100 }),
+  description: text("description"),
+  videoUrl: text("video_url"),
+  defaultSets: integer("default_sets"),
+  defaultReps: integer("default_reps"),
+  defaultLoad: varchar("default_load"),
+  defaultRestTime: integer("default_rest_time"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  gymIdx: index("gym_exercises_gym_idx").on(table.gymId),
+}));
+export type GymExercise = typeof gymExercises.$inferSelect;
+
+
 // A trainer's private reminder about a client ("zapytaj o kolano"); the trainer gets a push on the due day
 export const clientReminders = pgTable("client_reminders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
