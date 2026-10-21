@@ -207,6 +207,9 @@ export default function Landing() {
             <div className="space-y-4">
               <h3 className="font-heading font-semibold">Dokumenty</h3>
               <div className="space-y-2">
+                <Link href="/blog" className="block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-blog">
+                  Blog dla trenerów
+                </Link>
                 <Link href="/legal/regulamin" className="block text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-regulamin">
                   Regulamin
                 </Link>

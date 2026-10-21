@@ -35,6 +35,7 @@ import DietPlanForm from "@/pages/diet-plan-form";
 import ClientDiet from "@/pages/client-diet";
 import TrainerClientDietStats from "@/pages/trainer-client-diet-stats";
 import TrainerClientProgress from "@/pages/trainer-client-progress";
+import Blog from "@/pages/blog";
 import MyProgress from "@/pages/my-progress";
 import PaymentSchedule from "@/pages/payment-schedule";
 import Pomagamy from "@/pages/pomagamy";
@@ -99,6 +100,8 @@ function Router() {
         <Route path="/legal/polityka-cookies" component={LegalPolitykaCookies} />
         <Route path="/delete-account" component={DeleteAccount} />
         <Route path="/t/:trainerId" component={TrainerPublicProfile} />
+        <Route path="/blog" component={Blog} />
+        <Route path="/blog/:slug" component={Blog} />
         <Route component={Landing} />
       </Switch>
     );
