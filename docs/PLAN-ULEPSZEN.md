@@ -114,5 +114,5 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 88. [x] Blog dla trenerów: `/blog` i 3 artykuły (`/blog/...`) z tytułem, opisem i danymi strukturalnymi Article, wpisy w sitemap, link w stopce, przycisk zakładania konta; testy sprawdzają unikalność adresów, długość opisów i wpisy w sitemap. [Ty] Warto przejrzeć treść artykułów pod własny głos marki i dopisać kolejne
 89. [Ty] Wejście na sklepy (konta deweloperskie, zrzuty ekranu)
 90. [ ] Zaproszenie linkiem z podglądem
-91. [ ] Program poleceń widoczny od pierwszego dnia
+91. [x] Program poleceń od pierwszego dnia: karta na pulpicie trenera (web) z przyciskiem „Kopiuj link" i licznikiem zdobytych dni bonusu, link do szczegółów; mobile jeszcze nie
 92. [x] Prośba o opinię po 30 dniach współpracy (cron, raz, tylko jeśli nie ma opinii; można wyłączyć w ustawieniach powiadomień; kliknięcie otwiera profil, gdzie jest ocena)

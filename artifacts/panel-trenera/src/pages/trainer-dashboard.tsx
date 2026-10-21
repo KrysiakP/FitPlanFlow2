@@ -12,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { TrainerAttentionCard } from "@/components/trainer-attention-card";
 import { RetentionStats } from "@/components/retention-stats";
+import { ReferralPromoCard } from "@/components/referral-promo-card";
 
 export default function TrainerDashboard() {
   const { user } = useAuth();
@@ -75,6 +76,8 @@ export default function TrainerDashboard() {
       </div>
 
       <TrainerAttentionCard />
+
+      <ReferralPromoCard />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         <Link href="/plans">
