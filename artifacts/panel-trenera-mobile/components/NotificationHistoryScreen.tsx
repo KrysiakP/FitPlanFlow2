@@ -45,6 +45,7 @@ const TYPE_ICON: Record<string, { name: keyof typeof Ionicons.glyphMap; color: s
   studio_announcement: { name: "megaphone-outline", color: "#6366f1" },
   weekly_summary: { name: "stats-chart-outline", color: "#0846ab" },
   report_reminder: { name: "document-text-outline", color: "#10b981" },
+  trial_ending: { name: "hourglass-outline", color: "#f59e0b" },
 };
 
 function getTypeIconConfig(type: string | null) {

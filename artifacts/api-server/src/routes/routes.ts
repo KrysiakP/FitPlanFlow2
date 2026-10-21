@@ -65,6 +65,7 @@ import { checkPaymentNotifications } from "../services/paymentNotifications";
 import { sendSessionReminders } from "../services/sessionReminders";
 import { sendWeeklySummaries } from "../services/weeklySummary";
 import { sendReportReminders } from "../services/reportReminders";
+import { sendTrialReminders } from "../services/trialReminders";
 import { isOptionalNotificationType, optionalNotifications, sanitizeMutedTypes } from "../lib/notificationPreferences";
 import { evaluatePersonalRecord } from "../lib/personalRecord";
 import { buildAccountExport, exportFileName } from "../lib/accountExport";
@@ -6118,6 +6119,11 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         return { checked: 0, sent: 0, skipped: 0, errors: 1 };
       });
 
+      const trialReminders = await sendTrialReminders(storage, sendPushToUserAndRecord).catch((err) => {
+        console.error("[CRON] Trial reminders failed:", err);
+        return { checked: 0, sent: 0, skipped: 0, errors: 1 };
+      });
+
       res.json({
         success: true,
         timestamp: new Date().toISOString(),
@@ -6125,6 +6131,7 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         sessionReminders,
         weeklySummaries,
         reportReminders,
+        trialReminders,
       });
     } catch (error) {
       console.error("[CRON] Error running payment notifications:", error);

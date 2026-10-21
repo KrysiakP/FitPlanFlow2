@@ -342,6 +342,7 @@ export interface IStorage {
   hasPushNotification(userId: string, type: string, body: string, since: Date): Promise<boolean>;
   hasRecentPushOfType(userId: string, type: string, since: Date): Promise<boolean>;
   getClientIdsWithoutRecentReport(since: Date): Promise<string[]>;
+  getTrainersWithTrialEndingBetween(from: Date, to: Date): Promise<{ id: string; trialEndsAt: Date }[]>;
   recordDataAccess(actorId: string, subjectId: string, action: string): Promise<void>;
   getDataAccessLog(subjectId: string, limit?: number): Promise<{ id: string; action: string; createdAt: Date; actorFirstName: string; actorLastName: string }[]>;
   getNotificationPreferences(userId: string): Promise<{ muted: string[]; quietStart: number | null; quietEnd: number | null }>;
@@ -3276,6 +3277,24 @@ export class DatabaseStorage implements IStorage {
       .insert(notificationPreferences)
       .values({ userId, ...values })
       .onConflictDoUpdate({ target: notificationPreferences.userId, set: { ...values, updatedAt: new Date() } });
+  }
+
+  // Trainers whose free trial ends in the window and who have not subscribed (and have no free access)
+  async getTrainersWithTrialEndingBetween(from: Date, to: Date): Promise<{ id: string; trialEndsAt: Date }[]> {
+    const rows = await db
+      .select({ id: users.id, trialEndsAt: users.trialEndsAt })
+      .from(users)
+      .where(
+        and(
+          eq(users.role, "trainer"),
+          eq(users.isTestUser, false),
+          eq(users.hasFreeAccess, false),
+          gte(users.trialEndsAt, from),
+          lte(users.trialEndsAt, to),
+          or(isNull(users.subscriptionStatus), sql`${users.subscriptionStatus} not in ('active', 'trialing')`),
+        ),
+      );
+    return rows.flatMap((row) => (row.trialEndsAt ? [{ id: row.id, trialEndsAt: row.trialEndsAt }] : []));
   }
 
   // Clients of an active trainer (not demo accounts) who have not sent a weekly report since `since`

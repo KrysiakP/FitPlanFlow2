@@ -53,14 +53,14 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 41. [x] Kalendarz .ics (`GET /api/sessions/calendar.ics`, przyciski w web dla trenera i podopiecznego; subskrypcja na żywo wymagałaby tokenu w adresie, więc na razie plik do pobrania)
 42. [ ] Wolne terminy i zapisy przez podopiecznego
 43. [ ] Zasada odwołania do 24 h
-44. [ ] Statystyki biznesowe (przychód, retencja)
+44. [~] Przychód z 6 miesięcy i zaległości są już na pulpicie web i w aplikacji; retencja do dodania
 45. [ ] Strona wizytówka trenera z opiniami
 
 ## 4. Płatności
 46. [ ] Przypomnienie o płatności z linkiem
 47. [Ty] Faktury/rachunki (decyzja prawna i dane firmy)
 48. [Ty] Rozliczenia studia (decyzja biznesowa)
-49. [ ] Przypomnienie przed końcem okresu próbnego
+49. [x] Przypomnienie na 3 dni przed końcem okresu próbnego (cron, raz na 4 dni, kliknięcie otwiera profil)
 50. [ ] Panel „moja subskrypcja"
 51. [ ] Kody rabatowe i saldo bonusów
 

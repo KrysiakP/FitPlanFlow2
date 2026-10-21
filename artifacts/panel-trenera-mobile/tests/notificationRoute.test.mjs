@@ -27,3 +27,8 @@ test("unknown or missing types fall back to the notification history, and nobody
 test("a type that exists only for another role does not leak across roles", () => {
   assert.equal(notificationRoute("report_reminder", "trainer"), "/(trainer)/notifications");
 });
+
+test("a trainer whose trial is ending is taken to the profile (subscription)", () => {
+  assert.equal(notificationRoute("trial_ending", "trainer"), "/(trainer)/profile");
+  assert.equal(notificationRoute("trial_ending", "client"), "/(client)/notifications");
+});
