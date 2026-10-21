@@ -42,7 +42,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { filterLibrary, libraryCategories } from "@/lib/libraryFilter";
 
 type ExerciseFormValues = z.infer<typeof insertExerciseLibrarySchema>;
 
@@ -438,6 +439,13 @@ export default function ExerciseLibrary() {
     queryKey: ["/api/exercises/library"],
   });
 
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<string | null>(null);
+  const [onlyWithVideo, setOnlyWithVideo] = useState(false);
+  const categories = useMemo(() => libraryCategories(exercises ?? []), [exercises]);
+  const visible = useMemo(() => filterLibrary(exercises ?? [], { query, category, onlyWithVideo }), [exercises, query, category, onlyWithVideo]);
+  const filtering = query.trim() !== "" || category !== null || onlyWithVideo;
+
   const deleteMutation = useMutation({
     mutationFn: async (exerciseId: string) => {
       await apiRequest("DELETE", `/api/exercises/library/${exerciseId}`, {});
@@ -544,8 +552,49 @@ export default function ExerciseLibrary() {
           </CardContent>
         </Card>
       ) : !error && exercises ? (
+        <>
+        <div className="space-y-3" data-testid="library-filters">
+          <Input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Szukaj ćwiczenia (nazwa, kategoria, opis)…"
+            aria-label="Szukaj w bibliotece ćwiczeń"
+            data-testid="input-library-search"
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            {categories.map((item) => (
+              <Button
+                key={item}
+                size="sm"
+                variant={category === item ? "default" : "outline"}
+                onClick={() => setCategory(category === item ? null : item)}
+                data-testid={`button-category-${item}`}
+              >
+                {item}
+              </Button>
+            ))}
+            <Button size="sm" variant={onlyWithVideo ? "default" : "outline"} onClick={() => setOnlyWithVideo(!onlyWithVideo)} data-testid="button-only-video">
+              <Video className="w-4 h-4 mr-2" />
+              Tylko z filmem
+            </Button>
+            {filtering && (
+              <Button size="sm" variant="ghost" onClick={() => { setQuery(""); setCategory(null); setOnlyWithVideo(false); }} data-testid="button-clear-filters">
+                Wyczyść filtry
+              </Button>
+            )}
+            <span className="ml-auto text-sm text-muted-foreground" data-testid="text-library-count">
+              {filtering ? `${visible.length} z ${exercises.length}` : `${exercises.length}`} ćwiczeń
+            </span>
+          </div>
+        </div>
+        {visible.length === 0 && (
+          <p className="text-center text-muted-foreground py-8" data-testid="text-library-no-results">
+            Żadne ćwiczenie nie pasuje do wyszukiwania.
+          </p>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {exercises.map((exercise) => (
+          {visible.map((exercise) => (
             <Card key={exercise.id} className="flex flex-col" data-testid={`card-exercise-${exercise.id}`}>
               <CardHeader>
                 <CardTitle className="font-heading" data-testid={`text-exercise-name-${exercise.id}`}>
@@ -641,6 +690,7 @@ export default function ExerciseLibrary() {
             </Card>
           ))}
         </div>
+        </>
       ) : null}
     </div>
   );

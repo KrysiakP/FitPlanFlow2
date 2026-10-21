@@ -20,7 +20,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 12. [x] Notatka do serii (do 500 znaków) widoczna dla trenera: pole w aplikacji klienta, sekcja „Uwagi z treningów" na webie i w aplikacji trenera
 13. [x] Ocena trudności treningu 1-10 (RPE): okno po ukończonym treningu w aplikacji (można pominąć), zapis w sesji (API + test, walidacja 1-10), widoczna dla trenera w web i mobile (od 9 wyróżniona); podsumowanie zbiorcze jeszcze nie
 14. [ ] Trening poza planem (własne ćwiczenia)
-15. [ ] Biblioteka filmów z wyszukiwarką i ulubionymi
+15. [~] Biblioteka ćwiczeń trenera (web): wyszukiwarka (bez względu na wielkość liter i polskie znaki, po nazwie, kategorii i opisie), filtry kategorii i „Tylko z filmem", licznik wyników. Ulubionych jeszcze nie ma
 16. [ ] Zamiennik ćwiczenia za zgodą trenera
 17. [ ] Pełnoekranowy tryb treningu
 18. [x] Serie rozgrzewkowe: pole „Seria rozgrzewkowa” w formularzu serii (mobile), zapisywane z flagą i pomijane w rekordach, historii siły i podpowiedziach/wypełnianiu obciążenia (API + test); web nie ma jeszcze takiego pola
