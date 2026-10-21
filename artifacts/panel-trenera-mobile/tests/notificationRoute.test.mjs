@@ -15,6 +15,7 @@ test("the same push type leads to a different place for a trainer", () => {
 
 test("studio owners go to the studio analytics for the weekly summary", () => {
   assert.equal(notificationRoute("weekly_summary", "gym_owner"), "/(gym)/analytics");
+  assert.equal(notificationRoute("daily_summary", "trainer"), "/(trainer)/kalendarz-trenera");
 });
 
 test("unknown or missing types fall back to the notification history, and nobody is signed in means nowhere to go", () => {

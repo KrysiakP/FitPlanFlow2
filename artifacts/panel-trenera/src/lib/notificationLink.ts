@@ -16,6 +16,7 @@ const TRAINER_LINKS: Record<string, string> = {
   invitation_accepted: "/clients",
   client_reminder: "/clients",
   new_message: "/chat",
+  daily_summary: "/",
   weekly_summary: "/",
   payment: "/payment-schedule",
 };

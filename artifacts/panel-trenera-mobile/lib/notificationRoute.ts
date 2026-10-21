@@ -17,6 +17,7 @@ const ROUTES: Record<NotificationRole, Record<string, string>> = {
     session_booked: "/(trainer)/kalendarz-trenera",
     session_cancelled: "/(trainer)/kalendarz-trenera",
     studio_announcement: "/(trainer)/profile",
+    daily_summary: "/(trainer)/kalendarz-trenera",
     weekly_summary: "/(trainer)/business-stats",
     trial_ending: "/(trainer)/profile",
     client_reminder: "/(trainer)/clients",

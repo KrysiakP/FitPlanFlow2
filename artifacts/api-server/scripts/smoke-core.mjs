@@ -549,7 +549,7 @@ test("clients without a recent weekly report get one reminder", { skip: !process
 test("optional notifications can be switched off per role, and a muted one is not delivered", { skip: !process.env.CRON_JOB_TOKEN }, async () => {
   const options = async (who) => (await (await call(who, "GET", "/api/notification-preferences")).json()).options;
   assert.deepEqual((await options(client)).map((o) => o.type), ["session_reminder", "report_reminder", "review_request"]);
-  assert.ok((await options(trainer)).every((o) => ["weekly_summary", "studio_announcement"].includes(o.type)), "trainers see their own list");
+  assert.ok((await options(trainer)).every((o) => ["daily_summary", "weekly_summary", "studio_announcement"].includes(o.type)), "trainers see their own list");
 
   const bad = await call(client, "PUT", "/api/notification-preferences", { muted: "report_reminder" });
   assert.equal(bad.status, 400);
@@ -601,6 +601,31 @@ test("trainers get a weekly summary once", { skip: !process.env.CRON_JOB_TOKEN }
   // without force the job only sends on Mondays; either way it must answer cleanly
   const plain = await fetch(`${API_URL}/api/cron/payment-notifications`, { method: "POST", headers: { Authorization: `Bearer ${process.env.CRON_JOB_TOKEN}` } });
   assert.equal(plain.status, 200);
+});
+
+test("trainers get a morning message about today's calendar, once", { skip: !process.env.CRON_JOB_TOKEN }, async () => {
+  const booked = await call(trainer, "POST", "/api/sessions", {
+    clientId: client.id, scheduledAt: new Date(Date.now() + 2 * 60000).toISOString(), durationMinutes: 30,
+  });
+  assert.equal(booked.status, 201);
+  const sessionId = (await booked.json()).id;
+  try {
+    const runCron = async () => {
+      const res = await fetch(`${API_URL}/api/cron/payment-notifications`, { method: "POST", headers: { Authorization: `Bearer ${process.env.CRON_JOB_TOKEN}` } });
+      assert.equal(res.status, 200);
+      return (await res.json()).dailySummaries;
+    };
+    const first = await runCron();
+    assert.ok(first.trainers >= 1);
+    const feed = await (await call(trainer, "GET", "/api/notifications/mine?limit=100")).json();
+    const message = feed.notifications.find((item) => item.title === "Twój dzień");
+    assert.ok(message, "the trainer received the morning message (now, or earlier within 18 hours)");
+    // which run sent it (and so what it listed) depends on earlier cron calls within 18 hours; the wording is unit-tested
+    assert.match(message.body, /^Dziś: /);
+    assert.equal((await runCron()).sent, 0, "never twice within 18 hours");
+  } finally {
+    await call(trainer, "DELETE", `/api/sessions/${sessionId}`);
+  }
 });
 
 test("cleanup: archive the relationship and delete the plan", async () => {

@@ -75,7 +75,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 ## 6. Powiadomienia i komunikacja
 58. [x] Cichy tryb (presety godzin, czas polski; historia zachowana, telefon nie dzwoni)
 59. [ ] E-mail jako kanał zapasowy
-60. [ ] Dzienne podsumowanie trenera
+60. [x] Dzienne podsumowanie trenera: push „Twój dzień" (sesje dziś + nieotwarte raporty, tylko gdy coś jest, raz na 18 h, można wyciszyć); z crona
 61. [ ] Czat: załączniki i potwierdzenie odczytu
 62. [~] Głębsze linki z powiadomień: web ma mapę rodzaj → strona (testy); aplikacja miała już własną; brakuje przejścia do konkretnego podopiecznego/rozmowy
 63. [x] Centrum powiadomień na web: dzwonek klienta z historią, licznikiem, „oznacz wszystkie" i przejściem do właściwej strony (trener miał już własny dzwonek)

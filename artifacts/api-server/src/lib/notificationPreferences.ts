@@ -18,6 +18,7 @@ const OPTIONS: Record<PreferenceRole, OptionalNotification[]> = {
     { type: "review_request", label: "Prośba o opinię", description: "Raz, po miesiącu współpracy z trenerem" },
   ],
   trainer: [
+    { type: "daily_summary", label: "Twój dzień", description: "Rano: sesje w kalendarzu i nieotwarte raporty (tylko gdy coś jest)" },
     { type: "weekly_summary", label: "Podsumowanie tygodnia", description: "W poniedziałek: treningi, raporty i zaległe płatności" },
     { type: "studio_announcement", label: "Ogłoszenia studia", description: "Wiadomości od właściciela studia" },
   ],

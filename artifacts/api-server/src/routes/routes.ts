@@ -65,6 +65,7 @@ import { authRateLimit, lookupRateLimit } from "../app";
 import { checkPaymentNotifications } from "../services/paymentNotifications";
 import { sendSessionReminders } from "../services/sessionReminders";
 import { sendWeeklySummaries } from "../services/weeklySummary";
+import { sendDailySummaries } from "../services/dailySummary";
 import { sendReportReminders } from "../services/reportReminders";
 import { sendTrialReminders } from "../services/trialReminders";
 import { sendReviewRequests } from "../services/reviewRequests";
@@ -6362,6 +6363,11 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         return { trainers: 0, sent: 0, skipped: 0, errors: 1 };
       });
 
+      const dailySummaries = await sendDailySummaries(storage, sendPushToUserAndRecord).catch((err) => {
+        console.error("[CRON] Daily summaries failed:", err);
+        return { trainers: 0, sent: 0, skipped: 0, errors: 1 };
+      });
+
       const reportReminders = await sendReportReminders(storage, sendPushToUserAndRecord, { force: req.query.forceReports === "1" }).catch((err) => {
         console.error("[CRON] Report reminders failed:", err);
         return { checked: 0, sent: 0, skipped: 0, errors: 1 };
@@ -6388,6 +6394,7 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         stats,
         sessionReminders,
         weeklySummaries,
+        dailySummaries,
         reportReminders,
         trialReminders,
         reviewRequests,

@@ -96,7 +96,7 @@ import {
   type InsertTrainerReviewInput,
 } from "@workspace/db";
 import { db } from "./db";
-import { eq, and, desc, or, isNull, sql, gte, lte, asc, inArray } from "drizzle-orm";
+import { eq, and, desc, or, isNull, sql, gte, lte, lt, asc, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { createHash, randomUUID } from "crypto";
 
@@ -374,6 +374,7 @@ export interface IStorage {
   getNotificationPreferences(userId: string): Promise<{ muted: string[]; quietStart: number | null; quietEnd: number | null }>;
   setNotificationPreferences(userId: string, changes: { muted?: string[]; quiet?: { start: number; end: number } | null }): Promise<void>;
   getStudioWeeklyStats(since: Date): Promise<{ ownerId: string; gymName: string; activeTrainers: number; sessions: number; reports: number; overduePayments: number }[]>;
+  getTrainerDays(from: Date, to: Date): Promise<{ trainerId: string; sessions: number; firstAt: Date | null; unreadReports: number }[]>;
   getTrainerWeeklyStats(since: Date): Promise<{ trainerId: string; activeClients: number; sessions: number; reports: number; overduePayments: number }[]>;
   getPushNotificationHistoryForUser(userId: string, limit?: number): Promise<PushNotificationHistory[]>;
   markPushNotificationRead(id: string, userId: string): Promise<PushNotificationHistory>;
@@ -3521,6 +3522,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Per trainer with at least one active client: finished workouts and received reports since `since`, and unpaid overdue payments now
+  // Per trainer: sessions still ahead in the window (guests included) and reports from active clients nobody opened yet
+  async getTrainerDays(from: Date, to: Date): Promise<{ trainerId: string; sessions: number; firstAt: Date | null; unreadReports: number }[]> {
+    const [sessionRows, reportRows] = await Promise.all([
+      db
+        .select({ trainerId: sessionBookings.trainerId, count: sql<number>`count(*)::int`, firstAt: sql<Date>`min(${sessionBookings.scheduledAt})` })
+        .from(sessionBookings)
+        .where(and(eq(sessionBookings.status, "scheduled"), gte(sessionBookings.scheduledAt, from), lt(sessionBookings.scheduledAt, to)))
+        .groupBy(sessionBookings.trainerId),
+      db
+        .select({ trainerId: clientRelationships.trainerId, count: sql<number>`count(${weeklyReports.id})::int` })
+        .from(weeklyReports)
+        .innerJoin(clientRelationships, and(eq(clientRelationships.clientId, weeklyReports.clientId), eq(clientRelationships.status, "active")))
+        .where(eq(weeklyReports.viewedByTrainer, false))
+        .groupBy(clientRelationships.trainerId),
+    ]);
+    const reports = new Map(reportRows.map((row) => [row.trainerId, row.count]));
+    const days = new Map<string, { trainerId: string; sessions: number; firstAt: Date | null; unreadReports: number }>();
+    for (const row of sessionRows) {
+      days.set(row.trainerId, { trainerId: row.trainerId, sessions: row.count, firstAt: row.firstAt ? new Date(row.firstAt) : null, unreadReports: reports.get(row.trainerId) ?? 0 });
+    }
+    for (const [trainerId, unreadReports] of reports) {
+      if (!days.has(trainerId)) days.set(trainerId, { trainerId, sessions: 0, firstAt: null, unreadReports });
+    }
+    return [...days.values()];
+  }
+
   async getTrainerWeeklyStats(since: Date): Promise<{ trainerId: string; activeClients: number; sessions: number; reports: number; overduePayments: number }[]> {
     const active = eq(clientRelationships.status, "active");
     const [clients, sessionRows, reportRows, overdueRows] = await Promise.all([
