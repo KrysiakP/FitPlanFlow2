@@ -184,6 +184,23 @@ test("upcoming sessions can be downloaded as a calendar file by each side", asyn
   }
 });
 
+test("trainers label their clients privately", async () => {
+  const labels = async () => {
+    const list = await (await call(trainer, "GET", "/api/trainer/clients")).json();
+    return list.find((item) => item.id === client.id)?.labels;
+  };
+  const saved = await call(trainer, "PUT", `/api/trainer/clients/${client.id}/labels`, { labels: ["  VIP ", "online", "vip", ""] });
+  assert.equal(saved.status, 200);
+  assert.deepEqual((await saved.json()).labels, ["VIP", "online"]);
+  assert.deepEqual(await labels(), ["VIP", "online"], "the client list carries the labels in order");
+  assert.equal((await call(trainer, "PUT", `/api/trainer/clients/${client.id}/labels`, { labels: "VIP" })).status, 400);
+  assert.equal((await call(client, "PUT", `/api/trainer/clients/${client.id}/labels`, { labels: ["x"] })).status, 403, "clients cannot label themselves");
+  const own = JSON.stringify(await (await call(client, "GET", "/api/account/export")).json());
+  assert.ok(!own.includes("VIP"), "labels never reach the client, not even through the data export");
+  assert.equal((await call(trainer, "PUT", `/api/trainer/clients/${client.id}/labels`, { labels: [] })).status, 200);
+  assert.deepEqual(await labels(), [], "an empty list clears them");
+});
+
 test("the health endpoint answers without a login", async () => {
   const res = await fetch(`${API_URL}/api/health`);
   assert.equal(res.status, 200);

@@ -4,6 +4,7 @@ import {
   gymTrainers,
   notificationPreferences,
   dataAccessLog,
+  clientLabels,
   trainingPlans,
   workouts,
   exercises,
@@ -342,6 +343,8 @@ export interface IStorage {
   hasPushNotification(userId: string, type: string, body: string, since: Date): Promise<boolean>;
   hasRecentPushOfType(userId: string, type: string, since: Date): Promise<boolean>;
   getClientIdsWithoutRecentReport(since: Date): Promise<string[]>;
+  getClientLabelsForTrainer(trainerId: string): Promise<Record<string, string[]>>;
+  setClientLabels(trainerId: string, clientId: string, labels: string[]): Promise<void>;
   getTrainersWithTrialEndingBetween(from: Date, to: Date): Promise<{ id: string; trialEndsAt: Date }[]>;
   recordDataAccess(actorId: string, subjectId: string, action: string): Promise<void>;
   getDataAccessLog(subjectId: string, limit?: number): Promise<{ id: string; action: string; createdAt: Date; actorFirstName: string; actorLastName: string }[]>;
@@ -3295,6 +3298,24 @@ export class DatabaseStorage implements IStorage {
         ),
       );
     return rows.flatMap((row) => (row.trialEndsAt ? [{ id: row.id, trialEndsAt: row.trialEndsAt }] : []));
+  }
+
+  async getClientLabelsForTrainer(trainerId: string): Promise<Record<string, string[]>> {
+    const rows = await db.select().from(clientLabels).where(eq(clientLabels.trainerId, trainerId)).orderBy(asc(clientLabels.createdAt));
+    const byClient: Record<string, string[]> = {};
+    for (const row of rows) (byClient[row.clientId] ??= []).push(row.label);
+    return byClient;
+  }
+
+  // Replaces the whole set for one client (insertion order is the display order)
+  async setClientLabels(trainerId: string, clientId: string, labels: string[]): Promise<void> {
+    await db.transaction(async (tx) => {
+      await tx.delete(clientLabels).where(and(eq(clientLabels.trainerId, trainerId), eq(clientLabels.clientId, clientId)));
+      if (labels.length > 0) {
+        const base = Date.now();
+        await tx.insert(clientLabels).values(labels.map((label, index) => ({ trainerId, clientId, label, createdAt: new Date(base + index) })));
+      }
+    });
   }
 
   // Clients of an active trainer (not demo accounts) who have not sent a weekly report since `since`

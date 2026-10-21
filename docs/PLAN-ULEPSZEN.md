@@ -48,7 +48,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 36. [ ] Szablony odpowiedzi w czacie
 37. [ ] Notatki z przypomnieniem na datę
 38. [x] Import podopiecznych z CSV (web, strona zaproszeń: podgląd, raport błędów, limit 100; testy parsera)
-39. [ ] Etykiety/grupy podopiecznych
+39. [x] Etykiety podopiecznych (prywatne dla trenera, do 5 po 24 znaki; edytor na karcie, chipy na liście, wyszukiwanie po etykiecie; API + testy; mobile jeszcze nie)
 40. [ ] Raport miesięczny PDF
 41. [x] Kalendarz .ics (`GET /api/sessions/calendar.ics`, przyciski w web dla trenera i podopiecznego; subskrypcja na żywo wymagałaby tokenu w adresie, więc na razie plik do pobrania)
 42. [ ] Wolne terminy i zapisy przez podopiecznego

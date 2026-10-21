@@ -70,6 +70,7 @@ import {
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { StrengthProgressCard } from "@/components/strength-progress-card";
+import { ClientLabelsEditor } from "@/components/client-labels-editor";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
@@ -81,6 +82,7 @@ type WorkoutSessionWithDetails = WorkoutSession & { workoutName: string | null }
 type ClientWithAssignment = UserType & {
   assignment?: PlanAssignment & { plan: TrainingPlan };
   isDemo?: boolean;
+  labels?: string[];
 };
 
 type PlanWithDetails = TrainingPlan & {
@@ -332,6 +334,7 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
               )}
             </div>
           )}
+          {!client.isDemo && <ClientLabelsEditor clientId={client.id} labels={client.labels ?? []} />}
         </div>
       </div>
 
@@ -1161,6 +1164,16 @@ function ClientListItem({
         <p className="text-xs text-muted-foreground truncate">
           {client.email}
         </p>
+        {(client.labels?.length ?? 0) > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1" data-testid={`list-labels-${client.id}`}>
+            {client.labels!.slice(0, 3).map((label) => (
+              <Badge key={label} variant="secondary" className="text-[10px] px-1.5 py-0">
+                {label}
+              </Badge>
+            ))}
+            {client.labels!.length > 3 && <span className="text-[10px] text-muted-foreground">+{client.labels!.length - 3}</span>}
+          </div>
+        )}
       </div>
       <Badge 
         variant={client.assignment ? "default" : "outline"} 
@@ -1251,7 +1264,8 @@ export default function Clients() {
       const q = searchQuery.toLowerCase();
       result = result.filter(c => 
         `${c.firstName} ${c.lastName}`.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q)
+        c.email.toLowerCase().includes(q) ||
+        (c.labels ?? []).some((label) => label.toLowerCase().includes(q))
       );
     }
     

@@ -1240,6 +1240,18 @@ export const gymAnnouncements = pgTable("gym_announcements", {
 
 export type GymAnnouncement = typeof gymAnnouncements.$inferSelect;
 
+// Private labels a trainer puts on their clients ("online", "VIP", "zawody"); never visible to the client
+export const clientLabels = pgTable("client_labels", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  trainerId: varchar("trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  label: varchar("label", { length: 24 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueLabel: uniqueIndex("client_labels_unique").on(table.trainerId, table.clientId, table.label),
+  trainerIdx: index("client_labels_trainer_idx").on(table.trainerId),
+}));
+
 // Who looked at whose data (trainers reading a client's profile, reports, training, diet); shown to the client
 export const dataAccessLog = pgTable("data_access_log", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

@@ -73,6 +73,7 @@ import { deadPushTokens, withPushType } from "../lib/expoPush";
 import { accessFromRequest, ACTION_LABELS } from "../lib/accessAudit";
 import { isQuietNow, QUIET_PRESETS, sanitizeQuietHours } from "../lib/quietHours";
 import { buildIcs, type IcsEvent } from "../lib/ics";
+import { sanitizeLabels } from "../lib/clientLabels";
 import { buildExerciseHistory } from "../lib/exerciseHistory";
 import { buildAttentionList } from "../lib/attention";
 import { deleteTestClient } from "../testClientService";
@@ -3556,17 +3557,21 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         return res.json([demoClientWithAssignment]);
       }
       
+      // private labels; a missing table (not migrated yet) must not break the client list
+      const labelsByClient = await storage.getClientLabelsForTrainer(userId).catch(() => ({} as Record<string, string[]>));
       const clientsWithAssignments = await Promise.all(
         clients.map(async (client) => {
           const assignment = await storage.getClientAssignment(client.id, userId);
+          const labels = labelsByClient[client.id] ?? [];
           if (assignment) {
             const plan = await storage.getTrainingPlan(assignment.planId);
             return {
               ...client,
+              labels,
               assignment: plan ? { ...assignment, plan } : undefined,
             };
           }
-          return client;
+          return { ...client, labels };
         })
       );
       
@@ -3574,6 +3579,26 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
     } catch (error) {
       console.error("Error fetching trainer clients:", error);
       res.status(500).json({ message: "Failed to fetch clients" });
+    }
+  });
+
+  // Private labels on one of the trainer's own clients; the body replaces the whole set
+  app.put("/api/trainer/clients/:clientId/labels", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
+      const clientId = String(req.params.clientId);
+      if (isDemoId(clientId)) return res.status(400).json({ message: "Podopieczny demonstracyjny nie ma etykiet" });
+      if (!(await storage.hasActiveClientRelationship(user.id, clientId))) {
+        return res.status(403).json({ message: "Brak aktywnej współpracy z tym podopiecznym" });
+      }
+      if (!Array.isArray(req.body?.labels)) return res.status(400).json({ message: "Pole labels musi być listą" });
+      const labels = sanitizeLabels(req.body.labels);
+      await storage.setClientLabels(user.id, clientId, labels);
+      res.json({ labels });
+    } catch (error) {
+      console.error("Error saving client labels:", error);
+      res.status(500).json({ message: "Nie udało się zapisać etykiet" });
     }
   });
 
