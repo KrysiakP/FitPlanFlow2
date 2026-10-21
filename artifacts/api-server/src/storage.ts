@@ -1248,7 +1248,14 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(sessionBookings)
-      .where(and(eq(sessionBookings.clientId, clientId), eq(sessionBookings.status, "scheduled")))
+      .where(
+        and(
+          eq(sessionBookings.clientId, clientId),
+          eq(sessionBookings.status, "scheduled"),
+          // upcoming only (a session stays "scheduled" forever, so past ones would otherwise be listed first)
+          gte(sessionBookings.scheduledAt, new Date(Date.now() - 30 * 60 * 1000)),
+        ),
+      )
       .orderBy(asc(sessionBookings.scheduledAt));
   }
 

@@ -127,6 +127,23 @@ test("the client is notified when a session is booked or cancelled", async () =>
   assert.ok(await waitFor("Trening odwołany"), "client got the cancellation notification");
 });
 
+test("the client's upcoming sessions never include past ones", async () => {
+  const past = await call(trainer, "POST", "/api/sessions", {
+    clientId: client.id, scheduledAt: new Date(Date.now() - 3 * 86400000).toISOString(), durationMinutes: 60, location: "Wczoraj",
+  });
+  assert.equal(past.status, 201);
+  const pastId = (await past.json()).id;
+  const future = await call(trainer, "POST", "/api/sessions", {
+    clientId: client.id, scheduledAt: new Date(Date.now() + 3 * 86400000).toISOString(), durationMinutes: 60, location: "Za trzy dni",
+  });
+  const futureId = (await future.json()).id;
+  const list = await (await call(client, "GET", "/api/client/sessions")).json();
+  assert.ok(list.every((item) => new Date(item.scheduledAt) > new Date(Date.now() - 3600000)), "a past session is listed as upcoming");
+  assert.equal(list[0]?.id, futureId, "the nearest upcoming session comes first");
+  await call(trainer, "DELETE", `/api/sessions/${pastId}`);
+  await call(trainer, "DELETE", `/api/sessions/${futureId}`);
+});
+
 test("session reminders go out once for sessions starting within 24 hours", { skip: !process.env.CRON_JOB_TOKEN }, async () => {
   const runCron = async () => {
     const res = await fetch(`${API_URL}/api/cron/payment-notifications`, {

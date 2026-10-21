@@ -167,6 +167,19 @@ export default function ClientDashboard() {
               {upcomingSessions![0].location}
             </Text>
           ) : null}
+          {upcomingSessions!.slice(1, 3).map((next) => (
+            <Text key={next.id} style={{ fontSize: 13, color: colors.mutedForeground, marginTop: 6 }}>
+              Potem:{" "}
+              {new Date(next.scheduledAt).toLocaleString("pl-PL", {
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+              {next.location ? ` · ${next.location}` : ""}
+            </Text>
+          ))}
         </View>
       )}
 
