@@ -3180,6 +3180,7 @@ export class DatabaseStorage implements IStorage {
         exercisesCompleted: workoutSessions.exercisesCompleted,
         totalExercises: workoutSessions.totalExercises,
         durationSeconds: workoutSessions.durationSeconds,
+        rpe: workoutSessions.rpe,
         completedAt: workoutSessions.completedAt,
         loggedByUserId: workoutSessions.loggedByUserId,
         workoutName: workouts.name,

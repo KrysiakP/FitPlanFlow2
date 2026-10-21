@@ -4487,6 +4487,10 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
       if ((exercisesCompleted ?? 0) > (totalExercises ?? 0)) {
         return res.status(400).json({ message: "Liczba ukończonych ćwiczeń przekracza łączną liczbę ćwiczeń" });
       }
+      const { rpe } = validation.data;
+      if (rpe != null && (!Number.isInteger(rpe) || rpe < 1 || rpe > 10)) {
+        return res.status(400).json({ message: "Ocena trudności musi być liczbą od 1 do 10" });
+      }
 
       // Verify the client has an active assignment to the given planId
       const assignment = await storage.getClientAssignment(

@@ -972,6 +972,11 @@ export default function TrainerClientProgress() {
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   {durationMin} min · {session.exercisesCompleted}/{session.totalExercises} ćwiczeń
+                                  {session.rpe != null && (
+                                    <span className={session.rpe >= 9 ? "text-destructive font-medium" : ""} data-testid={`text-rpe-${session.id}`}>
+                                      {" "}· trudność {session.rpe}/10
+                                    </span>
+                                  )}
                                 </p>
                               </div>
                             </div>

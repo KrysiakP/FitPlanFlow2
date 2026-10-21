@@ -349,6 +349,20 @@ test("warm-up sets are stored but never count as records, history or the weight 
   assert.ok(all.some((item) => item.id === stored.id), "the trainer and client can still see it in the log");
 });
 
+test("a finished workout can carry a 1-10 difficulty rating that the trainer sees", async () => {
+  const body = { workoutId: state.workoutId, planId: state.planId, exercisesCompleted: 3, totalExercises: 3, durationSeconds: 1800 };
+  assert.equal((await call(client, "POST", "/api/workout-sessions", { ...body, rpe: 11 })).status, 400, "above ten is refused");
+  assert.equal((await call(client, "POST", "/api/workout-sessions", { ...body, rpe: 0 })).status, 400, "below one is refused");
+  const rated = await call(client, "POST", "/api/workout-sessions", { ...body, rpe: 8 });
+  assert.equal(rated.status, 201);
+  assert.equal((await rated.json()).rpe, 8);
+  const unrated = await call(client, "POST", "/api/workout-sessions", body);
+  assert.equal(unrated.status, 201, "the rating is optional");
+  assert.equal((await unrated.json()).rpe, null);
+  const seen = await (await call(trainer, "GET", `/api/trainer/clients/${client.id}/workout-sessions`)).json();
+  assert.ok(seen.some((item) => item.rpe === 8), "the trainer sees the rating");
+});
+
 test("the health endpoint answers without a login", async () => {
   const res = await fetch(`${API_URL}/api/health`);
   assert.equal(res.status, 200);

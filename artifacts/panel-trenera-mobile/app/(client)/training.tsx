@@ -23,6 +23,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPatch, apiPost } from "@/lib/api";
 import { RecordToast, type PersonalRecordInfo } from "@/components/RecordToast";
+import { RpeModal } from "@/components/RpeModal";
 import { suggestLoad } from "@/lib/loadSuggestion";
 
 const SESSION_SNAPSHOT_KEY = "training-session-snapshot";
@@ -114,6 +115,7 @@ interface SessionBody {
   exercisesCompleted: number;
   totalExercises: number;
   durationSeconds: number;
+  rpe?: number; // 1-10, how hard the workout felt (optional)
 }
 
 // Tracks completed sets per exercise: { exerciseId: set of set numbers }
@@ -662,13 +664,14 @@ export default function TrainingScreen() {
         `Nie udało się zapisać podsumowania treningu (${variables.exercisesCompleted}/${variables.totalExercises} ćwiczeń). Spróbuj ponownie — Twój postęp nie został utracony.`,
         [
           { text: "Odrzuć trening", style: "destructive", onPress: () => resetSessionState() },
-          { text: "Spróbuj ponownie", onPress: () => finishSessionWithCounts(variables.exercisesCompleted, variables.totalExercises) },
+          { text: "Spróbuj ponownie", onPress: () => finishSessionWithCounts(variables.exercisesCompleted, variables.totalExercises, variables.rpe) },
         ]
       );
     },
   });
 
   const [recordToast, setRecordToast] = useState<PersonalRecordInfo | null>(null);
+  const [rpePrompt, setRpePrompt] = useState<{ done: number; total: number } | null>(null);
   const hideRecordToast = useCallback(() => setRecordToast(null), []);
 
   const logMutation = useMutation({
@@ -800,7 +803,7 @@ export default function TrainingScreen() {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }
 
-  function finishSessionWithCounts(done: number, total: number) {
+  function finishSessionWithCounts(done: number, total: number, rpe?: number) {
     const durationSeconds = sessionStartTime
       ? Math.round((Date.now() - sessionStartTime) / 1000)
       : 0;
@@ -812,6 +815,7 @@ export default function TrainingScreen() {
         exercisesCompleted: done,
         totalExercises: total,
         durationSeconds,
+        ...(rpe ? { rpe } : {}),
       });
     } else {
       resetSessionState();
@@ -819,8 +823,14 @@ export default function TrainingScreen() {
     }
   }
 
+  // A completed workout first asks how hard it was; an aborted one is saved straight away
+  function requestFinish(done: number, total: number) {
+    if (total > 0 && done >= total) setRpePrompt({ done, total });
+    else finishSessionWithCounts(done, total);
+  }
+
   function finishSession() {
-    finishSessionWithCounts(doneCount, exercises.length);
+    requestFinish(doneCount, exercises.length);
   }
 
   function handleSessionButtonPress() {
@@ -1026,7 +1036,7 @@ export default function TrainingScreen() {
               });
               if (allNowDone) {
                 autoFinishCalledRef.current = true;
-                setTimeout(() => finishSessionWithCounts(exercises.length, exercises.length), 1500);
+                setTimeout(() => requestFinish(exercises.length, exercises.length), 1500);
               }
             }
 
@@ -1088,7 +1098,7 @@ export default function TrainingScreen() {
             });
             if (allNowDone) {
               autoFinishCalledRef.current = true;
-              setTimeout(() => finishSessionWithCounts(exercises.length, exercises.length), 1500);
+              setTimeout(() => requestFinish(exercises.length, exercises.length), 1500);
             }
           }
 
@@ -1310,6 +1320,14 @@ export default function TrainingScreen() {
       )}
     </ScrollView>
     <RecordToast record={recordToast} onHide={hideRecordToast} />
+    <RpeModal
+      visible={rpePrompt !== null}
+      onPick={(rpe) => {
+        const prompt = rpePrompt;
+        setRpePrompt(null);
+        if (prompt) finishSessionWithCounts(prompt.done, prompt.total, rpe);
+      }}
+    />
     </>
   );
 }

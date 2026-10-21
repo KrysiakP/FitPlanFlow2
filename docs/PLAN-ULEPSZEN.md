@@ -18,7 +18,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 10. [x] Podpowiedź obciążenia w formularzu serii (mobile): z ostatniej serii i zakresu powtórzeń w planie („Ostatnio 80 kg × 10: spróbuj 82,5 kg”); zasada podwójnej progresji, krok 2,5 kg (5 kg od 100 kg); testy; web jeszcze nie
 11. [x] Już było: formularz serii wypełnia się wynikiem poprzedniej serii z tego treningu lub ostatniego treningu (powtórzenia i ciężar)
 12. [ ] Notatka do ćwiczenia widoczna dla trenera
-13. [ ] RPE po treningu i podsumowanie dla trenera
+13. [x] Ocena trudności treningu 1-10 (RPE): okno po ukończonym treningu w aplikacji (można pominąć), zapis w sesji (API + test, walidacja 1-10), widoczna dla trenera w web i mobile (od 9 wyróżniona); podsumowanie zbiorcze jeszcze nie
 14. [ ] Trening poza planem (własne ćwiczenia)
 15. [ ] Biblioteka filmów z wyszukiwarką i ulubionymi
 16. [ ] Zamiennik ćwiczenia za zgodą trenera

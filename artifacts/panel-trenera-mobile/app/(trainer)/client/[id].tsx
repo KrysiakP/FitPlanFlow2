@@ -267,6 +267,7 @@ interface WorkoutSession {
   exercisesCompleted: number;
   totalExercises: number;
   durationSeconds: number;
+  rpe?: number | null;
   completedAt: string;
 }
 
@@ -1009,6 +1010,12 @@ export default function ClientDetailScreen() {
                         {session.exercisesCompleted}/{session.totalExercises} ćwiczeń
                       </Text>
                     </View>
+                    {session.rpe != null && (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }} accessible accessibilityLabel={`Trudność treningu: ${session.rpe} na 10`}>
+                        <Ionicons name="speedometer-outline" size={13} color={session.rpe >= 9 ? "#dc2626" : colors.primary} />
+                        <Text style={{ fontSize: 12, color: colors.mutedForeground }}>RPE {session.rpe}/10</Text>
+                      </View>
+                    )}
                     {session.durationSeconds > 0 && (
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                         <Ionicons name="time-outline" size={13} color={colors.primary} />

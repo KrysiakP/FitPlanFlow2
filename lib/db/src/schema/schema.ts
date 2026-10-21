@@ -497,6 +497,7 @@ export const workoutSessions = pgTable("workout_sessions", {
   exercisesCompleted: integer("exercises_completed").notNull().default(0),
   totalExercises: integer("total_exercises").notNull().default(0),
   durationSeconds: integer("duration_seconds"),
+  rpe: integer("rpe"), // jak ciężki był trening w skali 1-10 (ocena podopiecznego, opcjonalna)
   completedAt: timestamp("completed_at").defaultNow().notNull(),
   loggedByUserId: varchar("logged_by_user_id").references(() => users.id), // null = zalogowane przez samego podopiecznego; ustawione = trener zalogował wspólny trening
 }, (table) => ({
