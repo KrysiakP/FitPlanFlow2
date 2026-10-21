@@ -1,6 +1,6 @@
 import { Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, DrawerActions } from "@react-navigation/native";
+import { useNavigation } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 
 interface DrawerMenuButtonProps {
@@ -13,7 +13,7 @@ export function DrawerMenuButton({ style }: DrawerMenuButtonProps) {
 
   return (
     <Pressable accessibilityRole="button" accessibilityLabel="Otwórz menu"
-      onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())}
+      onPress={() => navigation.dispatch({ type: "TOGGLE_DRAWER" }) /* what DrawerActions.toggleDrawer() returns */}
       style={({ pressed }) => [
         {
           padding: 6,

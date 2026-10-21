@@ -91,7 +91,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 71. [ ] Aktualizacje zależności z lukami
 
 ## 8. Jakość i utrzymanie
-72. [ ] CI na GitHubie (testy + typy)
+72. [x] Kontrola przed wypchnięciem: `scripts/check.sh` + hook `scripts/install-hooks.sh` (typy, buildy, testy). [Ty] GitHub Actions: token nie ma zakresu `workflow`; gotowy plik w `docs/ci-github-actions.yml.example`, wystarczy go skopiować do `.github/workflows/ci.yml`
 73. [ ] Testy przeglądarkowe kluczowych ścieżek web
 74. [ ] Testy mobilne na symulatorze
 75. [~] Typy w aplikacji web (80 → 32 błędów)

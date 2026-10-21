@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Types of the shared libraries
+        run: pnpm exec tsc --build
+
+      - name: API types
+        run: pnpm exec tsc -p tsconfig.json --noEmit
+        working-directory: artifacts/api-server
+
+      - name: API build (esbuild does not check types, the step above does)
+        run: node ./build.mjs
+        working-directory: artifacts/api-server
+
+      - name: API unit tests
+        run: node --test scripts/*.test.mjs
+        working-directory: artifacts/api-server
+
+      - name: Mobile types
+        run: pnpm exec tsc --noEmit -p tsconfig.json
+        working-directory: artifacts/panel-trenera-mobile
+
+      - name: Mobile unit tests
+        run: node --test tests/*.test.mjs
+        working-directory: artifacts/panel-trenera-mobile
+
+      - name: Web build
+        run: pnpm exec vite build --config vite.config.ts
+        working-directory: artifacts/panel-trenera
+        env:
+          PORT: "5173"
+          BASE_PATH: /
