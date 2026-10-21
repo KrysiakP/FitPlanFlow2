@@ -78,6 +78,7 @@ import { deadPushTokens, withPushType } from "../lib/expoPush";
 import { accessFromRequest, ACTION_LABELS } from "../lib/accessAudit";
 import { isQuietNow, QUIET_PRESETS, sanitizeQuietHours } from "../lib/quietHours";
 import { chatPushPreview } from "../lib/chatPush";
+import { proposeProgression } from "../lib/progression";
 import { findPlanTemplate, PLAN_TEMPLATES, planFromTemplate } from "../lib/planTemplates";
 import { CANCELLATION_NOTICE_HOURS, cancellableUntil, canClientCancel } from "../lib/sessionCancellation";
 import { buildIcs, type IcsEvent } from "../lib/ics";
@@ -4419,6 +4420,41 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
     } catch (error) {
       console.error("Error computing achievements:", error);
       res.status(500).json({ message: "Nie udało się pobrać osiągnięć" });
+    }
+  });
+
+  // Weight increases the trainer may want to apply: exercises of the client's plan where the latest session was done in full
+  app.get("/api/trainer/clients/:clientId/progression", isAuthenticated, async (req, res) => {
+    try {
+      const trainer = await storage.getUser(req.session.userId!);
+      if (trainer?.role !== "trainer") return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
+      const clientId = String(req.params.clientId);
+      if (isDemoId(clientId)) return res.json([]);
+      if (!(await storage.hasActiveClientRelationship(trainer.id, clientId))) {
+        return res.status(403).json({ message: "Brak aktywnej współpracy z tym podopiecznym" });
+      }
+      const assignment = await storage.getClientAssignment(clientId, trainer.id);
+      if (!assignment) return res.json([]);
+
+      const logs = (await storage.getAllClientExerciseLogs(clientId)).filter((log) => !log.isWarmup);
+      const dayOf = (value: Date | string) => new Date(value).toLocaleDateString("sv-SE", { timeZone: "Europe/Warsaw" });
+      const proposals = [];
+      for (const workout of await storage.getWorkoutsByPlanId(assignment.planId)) {
+        for (const exercise of await storage.getExercisesByWorkoutId(workout.id)) {
+          const own = logs.filter((log) => log.exerciseId === exercise.id);
+          if (own.length === 0) continue;
+          const latestDay = own.map((log) => dayOf(log.loggedAt)).sort().pop();
+          const proposal = proposeProgression(
+            { sets: exercise.sets, reps: exercise.reps, load: exercise.load },
+            own.filter((log) => dayOf(log.loggedAt) === latestDay).map((log) => ({ load: log.load, reps: log.reps })),
+          );
+          if (proposal) proposals.push({ exerciseId: exercise.id, exercise: exercise.name, workout: workout.name, ...proposal });
+        }
+      }
+      res.json(proposals);
+    } catch (error) {
+      console.error("Error building progression proposals:", error);
+      res.status(500).json({ message: "Nie udało się przygotować propozycji progresji" });
     }
   });
 

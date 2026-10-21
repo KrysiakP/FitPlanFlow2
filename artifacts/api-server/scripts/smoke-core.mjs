@@ -411,6 +411,41 @@ test("editing a diet keeps what the client already ticked off", async () => {
   }
 });
 
+test("the trainer gets weight increase proposals for fully done exercises, and only for their own client", async () => {
+  const exercise = (name, orderIndex, extra = {}) => ({ name, sets: 3, reps: 5, load: "50", restTime: 60, orderIndex, ...extra });
+  const created = await call(trainer, "POST", "/api/plans/bulk", { name: "Plan progresji", workouts: [{ name: "A", orderIndex: 0, exercises: [exercise("Przysiad", 0), exercise("Wyciskanie", 1), exercise("Martwy ciąg", 2)] }] });
+  assert.ok([200, 201].includes(created.status));
+  const planId = (await created.json()).id;
+  try {
+    const full = await (await call(trainer, "GET", `/api/plans/${planId}`)).json();
+    const [squat, bench, deadlift] = full.workouts[0].exercises;
+    assert.equal((await call(trainer, "DELETE", `/api/assignments/client/${client.id}`)).status < 500, true);
+    assert.equal((await call(trainer, "POST", "/api/assignments/bulk", { planId, clientIds: [client.id] })).status, 200);
+    const proposals = async () => (await (await call(trainer, "GET", `/api/trainer/clients/${client.id}/progression`)).json());
+    assert.deepEqual(await proposals(), [], "nothing trained yet, nothing to propose");
+
+    for (let set = 1; set <= 3; set += 1) await call(client, "POST", `/api/exercises/${squat.id}/log`, { reps: 5, load: "50", setNumber: set }); // all done
+    for (let set = 1; set <= 3; set += 1) await call(client, "POST", `/api/exercises/${bench.id}/log`, { reps: set === 3 ? 3 : 5, load: "50", setNumber: set }); // one short
+    await call(client, "POST", `/api/exercises/${deadlift.id}/log`, { reps: 5, load: "50", setNumber: 1 }); // one set only
+    const list = await proposals();
+    assert.equal(list.length, 1, "only the fully done exercise");
+    assert.equal(list[0].exercise, "Przysiad");
+    assert.equal(list[0].from, 50);
+    assert.equal(list[0].to, 52.5);
+
+    // applying it is the ordinary exercise update, after which nothing is proposed for it any more
+    assert.equal((await call(trainer, "PUT", `/api/exercises/${squat.id}`, { load: "52.5" })).status, 200);
+    assert.equal((await proposals()).length, 0, "the plan already asks for the proposed weight");
+
+    assert.equal((await call(client, "GET", `/api/trainer/clients/${client.id}/progression`)).status, 403);
+    assert.ok((await call(outsider, "GET", `/api/trainer/clients/${client.id}/progression`)).status >= 400);
+  } finally {
+    await call(trainer, "DELETE", `/api/assignments/client/${client.id}`);
+    await call(trainer, "DELETE", `/api/plans/${planId}`);
+    await call(trainer, "POST", "/api/assignments/bulk", { planId: state.planId, clientIds: [client.id] });
+  }
+});
+
 test("a trainer starts a plan from a template and gets a plan of their own", async () => {
   assert.equal((await call(client, "GET", "/api/plan-templates")).status, 403, "trainers only");
   const templates = await (await call(trainer, "GET", "/api/plan-templates")).json();
