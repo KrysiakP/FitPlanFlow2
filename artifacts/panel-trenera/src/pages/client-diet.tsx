@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { ShoppingListDialog } from "@/components/shopping-list-dialog";
+import { MacroCalculatorDialog } from "@/components/macro-calculator-dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -215,7 +216,10 @@ export default function ClientDiet() {
             Śledź swoje nawyki żywieniowe i odhaczaj posiłki
           </p>
         </div>
-        {dietPlan?.meals && dietPlan.meals.length > 0 && <ShoppingListDialog descriptions={dietPlan.meals.map((meal) => meal.description)} />}
+        <div className="flex flex-wrap gap-2">
+          <MacroCalculatorDialog />
+          {dietPlan?.meals && dietPlan.meals.length > 0 && <ShoppingListDialog descriptions={dietPlan.meals.map((meal) => meal.description)} />}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
