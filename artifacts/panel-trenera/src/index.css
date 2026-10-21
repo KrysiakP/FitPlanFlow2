@@ -290,3 +290,12 @@ html {
     inset: -1px;
   }
 }
+
+/* Dark theme: the brand blue is a dark colour (good for buttons with white text) but only about 2:1 against the dark
+   page when used as text or an icon colour. A lighter tone of the same hue keeps `text-primary` readable (about 7:1). */
+.dark .text-primary {
+  color: hsl(217 91% 68%);
+}
+.dark .hover\:text-primary:hover {
+  color: hsl(217 91% 74%);
+}

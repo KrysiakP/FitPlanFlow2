@@ -61,7 +61,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 47. [Ty] Faktury/rachunki (decyzja prawna i dane firmy)
 48. [Ty] Rozliczenia studia (decyzja biznesowa)
 49. [x] Przypomnienie na 3 dni przed końcem okresu próbnego (cron, raz na 4 dni, kliknięcie otwiera profil)
-50. [ ] Panel „moja subskrypcja"
+50. [x] Już było: przycisk portalu rozliczeń Stripe na profilu trenera (zmiana planu, anulowanie, historia płatności); wymaga sekretów Stripe po stronie produkcji
 51. [ ] Kody rabatowe i saldo bonusów
 
 ## 5. Studia
@@ -105,7 +105,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 81. [~] Wydajność list: lista podopiecznych i statystyki trenera nie wykonują już zapytań osobno dla każdego podopiecznego/planu (jedno zapytanie zamiast N+1); właściwa paginacja do dodania przy większej liczbie danych
 82. [x] Indeksy (raporty, relacje, terminy sesji, historia powiadomień); trafią na produkcję przy publikacji
 83. [ ] Kolejka zapisu offline
-84. [ ] Dopracowanie ciemnego motywu
+84. [~] Ciemny motyw: własny skrypt kontrastu na stronie głównej znalazł niski kontrast niebieskiego tekstu (2:1); w trybie ciemnym tekst w kolorze marki jest teraz jaśniejszy (~7:1). Przyciski bez zmian. Do sprawdzenia ekrany po zalogowaniu
 85. [~] Dostępność web (+ strona główna ma teraz jeden nagłówek H1, sekcje są H2, logo w nagłówku nie jest już H1): przejrzane główne ekrany trenera własnym skryptem (przyciski bez nazw, pole bez etykiety, brak H1): poprawione motyw, powiadomienia, zaproszenie, wyszukiwarka, nagłówek listy; do sprawdzenia ekrany podopiecznego i kontrasty
 86. [ ] Wersja angielska (przygotowanie tłumaczeń)
 
