@@ -10,6 +10,7 @@ import { useColors } from "@/hooks/useColors";
 import { apiGet } from "@/lib/api";
 import { StatsCard } from "@/components/StatsCard";
 import { AttentionList, type AttentionItem } from "@/components/AttentionList";
+import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 
 type Colors = ReturnType<typeof useColors>;
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
@@ -43,6 +44,16 @@ export default function TrainerPanelScreen() {
     staleTime: 1000 * 60,
   });
 
+  const { data: plansList, isSuccess: plansLoaded } = useQuery<{ id: string }[]>({
+    queryKey: ["training-plans"],
+    queryFn: () => apiGet<{ id: string }[]>("/api/plans"),
+  });
+
+  const { data: invitations, isSuccess: invitationsLoaded } = useQuery<{ id: string; status: string }[]>({
+    queryKey: ["invitations"],
+    queryFn: () => apiGet<{ id: string; status: string }[]>("/api/invitations"),
+  });
+
   const { data: clients, isLoading: loadingClients, refetch: refetchClients, isRefetching: refetchingClients } = useQuery<ClientWithPlan[]>({
     queryKey: ["trainer-clients"],
     queryFn: () => apiGet<ClientWithPlan[]>("/api/trainer/clients"),
@@ -50,6 +61,32 @@ export default function TrainerPanelScreen() {
 
   const isLoading = loadingPayments || loadingClients;
   const isRefetching = refetchingPayments || refetchingClients;
+
+  // The virtual demo client does not count as a real one
+  const realClients = (clients ?? []).filter((c) => !c.id.startsWith("demo-"));
+  const onboardingSteps = [
+    {
+      key: "plan",
+      title: "Stwórz pierwszy plan treningowy",
+      hint: "Zestaw treningów i ćwiczeń, który przypiszesz podopiecznemu.",
+      done: (plansList ?? []).length > 0,
+      onPress: () => router.push("/plans"),
+    },
+    {
+      key: "client",
+      title: "Zaproś pierwszego podopiecznego",
+      hint: "Wpisz jego e-mail — dostanie zaproszenie z kodem.",
+      done: realClients.length > 0 || (invitations ?? []).length > 0,
+      onPress: () => router.push({ pathname: "/clients", params: { invite: Date.now().toString() } }),
+    },
+    {
+      key: "assign",
+      title: "Przypisz plan podopiecznemu",
+      hint: "Otwórz podopiecznego i wybierz plan w zakładce Plany.",
+      done: realClients.length > 0 && !(attention ?? []).some((a) => a.reasons.some((r) => r.type === "no_plan")),
+      onPress: () => router.push("/clients"),
+    },
+  ];
 
   function handleRefresh() {
     void refetchPayments();
@@ -125,6 +162,8 @@ export default function TrainerPanelScreen() {
           />
         </Pressable>
       </View>
+
+      <OnboardingChecklist steps={onboardingSteps} ready={plansLoaded && invitationsLoaded && !loadingClients} />
 
       <AttentionList items={attention ?? []} />
 
