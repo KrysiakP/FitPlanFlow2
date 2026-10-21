@@ -95,7 +95,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 73. [ ] Testy przeglądarkowe kluczowych ścieżek web
 74. [ ] Testy mobilne na symulatorze
 75. [~] Typy w aplikacji web (80 → 32 błędów)
-76. [ ] Podział `routes.ts` na moduły
+76. [~] Podział `routes.ts`: wydzielone `routes/gym.ts` (studia, ~950 linii), `services/push.ts` (wysyłka powiadomień) i `middlewares/requireAdmin.ts`; `routes.ts` zmalał z 7776 do 6782 linii. Kolejne bloki (płatności, diety, czat, raporty) do wydzielenia tą samą metodą, testy chronią przed błędami
 77. [x] Usunięty nieużywany `dla-trenera.tsx`; telefon i cel na karcie podopiecznego działają z prawdziwych danych
 78. [x] `docs/ARCHITEKTURA.md`
 79. [ ] Migracje bazy jako pliki

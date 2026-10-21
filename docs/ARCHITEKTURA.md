@@ -3,7 +3,7 @@
 ## Części (monorepo pnpm)
 | Folder | Co to jest |
 |---|---|
-| `artifacts/api-server` | API: Express 5, sesje (cookie) i tokeny mobilne (SHA-256), Drizzle + Postgres, Resend (e-mail), Stripe. Budowane esbuildem (**bez sprawdzania typów**). |
+| `artifacts/api-server` | API: Express 5, sesje (cookie) i tokeny mobilne (SHA-256), Drizzle + Postgres, Resend (e-mail), Stripe. Budowane esbuildem (**bez sprawdzania typów**). Trasy: `src/routes/routes.ts` (większość) i `src/routes/gym.ts` (studia); wysyłka powiadomień w `src/services/push.ts`, zadania cron w `src/services/*`, czysta logika w `src/lib/*` (każda z testem jednostkowym). |
 | `artifacts/panel-trenera` | Aplikacja webowa: React + Vite, wouter, React Query, shadcn/ui. |
 | `artifacts/panel-trenera-mobile` | Aplikacja mobilna: Expo SDK 54, expo-router, React Query; ma też wersję web (podgląd). |
 | `lib/db` | Schemat bazy (`src/schema/schema.ts`) i klient Drizzle. Tabele dodawane przez `drizzle-kit push` przy publikacji. |
