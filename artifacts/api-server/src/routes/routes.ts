@@ -3062,6 +3062,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Trainer viewing client profile
+  // Basic identity of one of the trainer's own clients (header of the client progress page)
+  app.get("/api/clients/:clientId", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
+      const clientId = String(req.params.clientId);
+      if (isDemoId(clientId)) {
+        return res.json({ id: DEMO_CLIENT_ID, firstName: "Demo", lastName: "Podopieczny", profileImageUrl: null });
+      }
+      if (!(await storage.hasActiveClientRelationship(user.id, clientId))) {
+        return res.status(403).json({ message: "Brak aktywnej współpracy z tym podopiecznym" });
+      }
+      const client = await storage.getUser(clientId);
+      if (!client) return res.status(404).json({ message: "Nie znaleziono podopiecznego" });
+      res.json({ id: client.id, firstName: client.firstName, lastName: client.lastName, profileImageUrl: client.profileImageUrl });
+    } catch (error) {
+      console.error("Error fetching client:", error);
+      res.status(500).json({ message: "Nie udało się pobrać podopiecznego" });
+    }
+  });
+
   app.get("/api/clients/:clientId/profile", isAuthenticated, async (req, res) => {
     try {
       const userId = req.session.userId!;

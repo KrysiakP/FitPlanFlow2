@@ -69,6 +69,7 @@ import {
   CalendarIcon,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { StrengthProgressCard } from "@/components/strength-progress-card";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
@@ -666,6 +667,18 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
           )}
         </CollapsibleContent>
       </Collapsible>
+
+      {!client.isDemo && (
+        <>
+          <StrengthProgressCard clientId={client.id} />
+          <Button asChild variant="outline" size="sm" className="w-fit" data-testid={`button-full-progress-${client.id}`}>
+            <Link href={`/trainer/clients/${client.id}/progress`}>
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Pełny progres i wykresy
+            </Link>
+          </Button>
+        </>
+      )}
 
       <Separator />
 

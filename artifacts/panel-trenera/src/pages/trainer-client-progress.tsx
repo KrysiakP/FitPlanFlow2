@@ -48,6 +48,7 @@ import {
   AreaChart
 } from "recharts";
 import { useMemo } from "react";
+import { StrengthProgressCard } from "@/components/strength-progress-card";
 
 function parseNumericValue(value: string | null | undefined): number {
   if (!value) return 0;
@@ -741,6 +742,7 @@ export default function TrainerClientProgress() {
             <TabsContent value="performance" className="mt-6">
               {exercisePerformanceData.length > 0 ? (
                 <div className="space-y-6">
+                  <StrengthProgressCard clientId={clientId} />
                   <Card data-testid="card-performance-overview">
                     <CardHeader>
                       <CardTitle className="font-heading flex items-center gap-2">

@@ -21,6 +21,7 @@ import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import type { WeeklyReport, ExerciseLog, PlanAssignment, TrainingPlan, Workout, Exercise } from "@shared/schema";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { StrengthProgressCard } from "@/components/strength-progress-card";
 
 function parseNumericValue(value: string | null | undefined): number {
   if (!value) return 0;
@@ -145,6 +146,8 @@ export default function MyProgress() {
           Śledź swoje postępy w treningu i transformacji
         </p>
       </div>
+
+      <StrengthProgressCard />
 
       {oldestReport && newestReport && (
         <Card>

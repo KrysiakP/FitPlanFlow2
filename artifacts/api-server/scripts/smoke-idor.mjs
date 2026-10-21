@@ -74,6 +74,7 @@ test.before(async () => {
 
 test("trainer 2 cannot read or change trainer 1's client", async () => {
   const id = c1.id;
+  await assertDenied("client record", call(t2, "GET", `/api/clients/${id}`));
   await assertDenied("progress", call(t2, "GET", `/api/trainer/clients/${id}/progress`));
   await assertDenied("exercise history", call(t2, "GET", `/api/trainer/clients/${id}/exercise-history`));
   await assertDenied("notes read", call(t2, "GET", `/api/trainer/clients/${id}/notes`));
