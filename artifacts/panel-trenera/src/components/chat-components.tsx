@@ -11,6 +11,7 @@ import { Send, Loader2, Bookmark, X } from "lucide-react";
 import { addTemplate, DEFAULT_TEMPLATES, insertTemplate, loadCustomTemplates, saveCustomTemplates } from "@/lib/chatTemplates";
 import type { Message } from "@shared/schema";
 import type { Conversation } from "@/hooks/use-chat";
+import { lastReadOwnMessageId } from "@/lib/readReceipt";
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -141,6 +142,8 @@ export function MessageHistory({
     setAutoScroll(isAtBottom);
   };
 
+  const readMarkId = lastReadOwnMessageId(messages, currentUserId);
+
   if (isLoading) {
     return (
       <div
@@ -174,6 +177,7 @@ export function MessageHistory({
     >
       {messages.map((message) => {
         const isOwnMessage = message.senderId === currentUserId;
+        const showReceipt = message.id === readMarkId;
         return (
           <div
             key={message.id}
@@ -206,6 +210,9 @@ export function MessageHistory({
                   addSuffix: true,
                   locale: pl,
                 })}
+                {showReceipt && (
+                  <span data-testid={`message-read-${message.id}`}> · Przeczytano</span>
+                )}
               </p>
             </Card>
           </div>

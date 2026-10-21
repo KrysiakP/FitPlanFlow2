@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useEffect, useRef } from "react";
 import { useState } from "react";
+import { lastReadOwnMessageId } from "@/lib/readReceipt";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
@@ -55,10 +56,12 @@ function getInitials(name: string): string {
 function MessageBubble({
   message,
   isOwn,
+  isRead,
   colors,
 }: {
   message: ChatMessage;
   isOwn: boolean;
+  isRead?: boolean;
   colors: ReturnType<typeof useColors>;
 }) {
   return (
@@ -76,6 +79,7 @@ function MessageBubble({
         </Text>
         <Text style={[styles.bubbleTime, { color: isOwn ? "rgba(255,255,255,0.65)" : colors.mutedForeground }]}>
           {formatMessageTime(message.createdAt)}
+          {isRead ? " · Przeczytano" : ""}
         </Text>
       </View>
     </View>
@@ -98,6 +102,8 @@ export default function ClientChatScreen() {
     conversation?.trainerId ?? null,
     conversation?.clientId ?? null
   );
+
+  const readMarkId = lastReadOwnMessageId(messages, user?.id);
 
   const sendMutation = useSendMessage();
   const markReadMutation = useMarkAsRead();
@@ -214,6 +220,7 @@ export default function ClientChatScreen() {
           <MessageBubble
             message={item}
             isOwn={item.senderId === user?.id}
+            isRead={item.id === readMarkId}
             colors={colors}
           />
         )}

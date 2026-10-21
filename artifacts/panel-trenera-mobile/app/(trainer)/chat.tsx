@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { useEffect, useRef, useState } from "react";
+import { lastReadOwnMessageId } from "@/lib/readReceipt";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
@@ -114,10 +115,12 @@ function ConversationItem({
 function MessageBubble({
   message,
   isOwn,
+  isRead,
   colors,
 }: {
   message: ChatMessage;
   isOwn: boolean;
+  isRead?: boolean;
   colors: ReturnType<typeof useColors>;
 }) {
   return (
@@ -140,6 +143,7 @@ function MessageBubble({
           ]}
         >
           {formatMessageTime(message.createdAt)}
+          {isRead ? " · Przeczytano" : ""}
         </Text>
       </View>
     </View>
@@ -163,6 +167,7 @@ export default function TrainerChatScreen() {
     selected ? (user?.id ?? null) : null,
     selected?.clientId ?? null
   );
+  const readMarkId = lastReadOwnMessageId(messages, user?.id);
 
   const sendMutation = useSendMessage();
   const markReadMutation = useMarkAsRead();
@@ -261,7 +266,7 @@ export default function TrainerChatScreen() {
             contentContainerStyle={[styles.messageList, { paddingBottom: insets.bottom + 16 }]}
             showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
-              <MessageBubble message={item} isOwn={item.senderId === user?.id} colors={colors} />
+              <MessageBubble message={item} isOwn={item.senderId === user?.id} isRead={item.id === readMarkId} colors={colors} />
             )}
             ListEmptyComponent={
               <View style={styles.emptyMessages}>
