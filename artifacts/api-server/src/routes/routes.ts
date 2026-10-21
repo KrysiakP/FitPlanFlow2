@@ -76,6 +76,7 @@ import { accessFromRequest, ACTION_LABELS } from "../lib/accessAudit";
 import { isQuietNow, QUIET_PRESETS, sanitizeQuietHours } from "../lib/quietHours";
 import { buildIcs, type IcsEvent } from "../lib/ics";
 import { sanitizeLabels } from "../lib/clientLabels";
+import { computeAchievements } from "../lib/achievements";
 import { buildExerciseHistory } from "../lib/exerciseHistory";
 import { buildAttentionList } from "../lib/attention";
 import { deleteTestClient } from "../testClientService";
@@ -4177,6 +4178,29 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
     } catch (error) {
       console.error("Error building exercise history:", error);
       res.status(500).json({ message: "Nie udało się pobrać historii ćwiczeń" });
+    }
+  });
+
+  // Milestones the client has earned or is working towards (computed from their own history)
+  app.get("/api/client/achievements", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "client") return res.status(403).json({ message: "Tylko podopieczni" });
+      const [sessions, reports, logs] = await Promise.all([
+        storage.getClientWorkoutSessions(user.id),
+        storage.getClientWeeklyReports(user.id),
+        storage.getClientLogsWithExerciseNames(user.id),
+      ]);
+      const achievements = computeAchievements({
+        workoutDates: sessions.map((session) => session.completedAt),
+        reportCount: reports.length,
+        reportsWithPhoto: reports.filter((report) => !!report.photoUrl).length,
+        strengthGains: buildExerciseHistory(logs).filter((item) => item.change !== null && item.change > 0).length,
+      });
+      res.json({ achievements, earned: achievements.filter((item) => item.earned).length });
+    } catch (error) {
+      console.error("Error computing achievements:", error);
+      res.status(500).json({ message: "Nie udało się pobrać osiągnięć" });
     }
   });
 

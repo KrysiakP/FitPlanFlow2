@@ -18,6 +18,7 @@ import { useColors } from "@/hooks/useColors";
 import { apiGet } from "@/lib/api";
 import { ProgressInsights } from "@/components/ProgressInsights";
 import { StrengthProgress, type StrengthHistory } from "@/components/StrengthProgress";
+import { AchievementsList } from "@/components/AchievementsList";
 
 interface ExerciseLogItem {
   id: string;
@@ -168,6 +169,7 @@ export default function ProgressScreen() {
         <>
           <ProgressInsights sessions={sessions} reports={reportsData ?? []} />
           <StrengthProgress history={strengthData ?? []} />
+          <AchievementsList />
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
             Aktywność treningowa (14 dni)
           </Text>

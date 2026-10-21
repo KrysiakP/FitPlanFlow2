@@ -25,7 +25,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 17. [ ] Pełnoekranowy tryb treningu
 18. [ ] Serie rozgrzewkowe nie liczą się do rekordów
 19. [ ] Historia ćwiczenia (lista serii + wykres)
-20. [ ] Odznaki i serie
+20. [x] Osiągnięcia: 8 odznak liczonych z historii (treningi, regularność tygodniowa, raporty, zdjęcie, wzrost siły), z paskiem postępu; web i mobile
 
 ## 2. Podopieczny: postępy, dieta, raporty
 21. [x] Porównanie zdjęć przed/po (web: podopieczny i trener; wybór dowolnych dwóch raportów ze zdjęciem; mobile jeszcze nie)

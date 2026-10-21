@@ -201,6 +201,20 @@ test("trainers label their clients privately", async () => {
   assert.deepEqual(await labels(), [], "an empty list clears them");
 });
 
+test("clients see their achievements, nobody else does", async () => {
+  const res = await call(client, "GET", "/api/client/achievements");
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.achievements.length, 8);
+  assert.equal(body.earned, body.achievements.filter((item) => item.earned).length);
+  for (const item of body.achievements) {
+    assert.ok(item.title && item.description, "each badge explains itself");
+    assert.ok(item.progress >= 0 && item.progress <= 1);
+  }
+  assert.equal((await call(trainer, "GET", "/api/client/achievements")).status, 403);
+  assert.equal((await fetch(`${API_URL}/api/client/achievements`)).status, 401);
+});
+
 test("the health endpoint answers without a login", async () => {
   const res = await fetch(`${API_URL}/api/health`);
   assert.equal(res.status, 200);
@@ -316,16 +330,19 @@ test("clients without a recent weekly report get one reminder", { skip: !process
   // Other suites leave weekly reports (and earlier runs leave reminders) behind, so compare the feed before and after
   const reports = await (await call(client, "GET", "/api/reports")).json();
   const hasRecentReport = reports.some((report) => Date.now() - new Date(report.createdAt).getTime() < 6 * 86400000);
-  const reminders = async () => JSON.stringify(await (await call(client, "GET", "/api/notifications/mine")).json()).split("Raport tygodniowy").length - 1;
+  const reminders = async () => JSON.stringify(await (await call(client, "GET", "/api/notifications/mine?limit=100")).json()).split("Raport tygodniowy").length - 1;
   const before = await reminders();
   const first = await runCron();
   const after = await reminders();
   if (hasRecentReport) {
     assert.equal(after, before, "a client who sent a report this week is left alone");
   } else if (before === 0) {
-    assert.ok(first.sent >= 1, "the client with no report was reminded");
-    assert.equal(after, 1);
-    assert.equal((await runCron()).sent, 0, "no second reminder within 5 days");
+    // an earlier run may have reminded this client already (one per 5 days) and that entry may have scrolled out of the feed
+    if (first.sent === 0) assert.ok(first.skipped >= 1, "no reminder only because one was sent recently");
+    else {
+      assert.equal(after, 1);
+      assert.equal((await runCron()).sent, 0, "no second reminder within 5 days");
+    }
   } else {
     assert.equal(after, before, "already reminded in the last 5 days: no duplicate");
   }
