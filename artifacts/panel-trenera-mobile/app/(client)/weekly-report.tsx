@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { useState } from "react";
+import { prefillFromReports } from "@/lib/reportPrefill";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -298,7 +299,8 @@ export default function WeeklyReportScreen() {
 
   function openNew() {
     setEditingId(null);
-    setForm(EMPTY_FORM);
+    // measurements and supplements carry over from earlier reports
+    setForm({ ...EMPTY_FORM, ...prefillFromReports(reports) });
     setReportDate(getThisMonday());
     setPhotoUri(null);
     setHasNewUpload(false);

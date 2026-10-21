@@ -16,7 +16,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { CARRIED_FIELDS, prefillFromReports } from "@/lib/reportPrefill";
 // Object Storage uploader - code adapted from javascript_object_storage blueprint
 import { ObjectUploader } from "@/components/ObjectUploader";
 import type { UploadResult } from "@uppy/core";
@@ -268,6 +269,7 @@ export default function WeeklyReport() {
   const cancelEdit = () => {
     setEditingReportId(null);
     form.reset();
+    applyPrefill();
     setUploadedPhotoUrl("");
     setTempObjectPath("");
     setTempPreviewUrl("");
@@ -278,6 +280,22 @@ export default function WeeklyReport() {
   const onSubmit = (data: InsertWeeklyReportInput) => {
     saveReportMutation.mutate(data);
   };
+
+  // A new report starts with the measurements and supplements from the previous ones; once, and never over typed text
+  const prefilled = useRef(false);
+  const applyPrefill = () => {
+    const carried = prefillFromReports(reports);
+    for (const field of CARRIED_FIELDS) {
+      const value = carried[field];
+      if (value && !form.getValues(field)) form.setValue(field, value);
+    }
+  };
+  useEffect(() => {
+    if (prefilled.current || !reports || editingReportId) return;
+    prefilled.current = true;
+    applyPrefill();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reports, editingReportId]);
 
   const sortedReports = reports
     ? [...reports].sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime())

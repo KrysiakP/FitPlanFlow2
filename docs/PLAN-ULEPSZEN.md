@@ -32,7 +32,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 22. [ ] Wykresy obwodów z trendem
 23. [x] Cel wagowy z terminem i paskiem postępu (API + testy, web na stronie progresu; ocena względem prostej linii start→termin; mobile jeszcze nie)
 24. [ ] Raport tygodniowy w kreatorze + szkic
-25. [ ] Wstępne uzupełnianie raportu
+25. [x] Wstępne uzupełnianie raportu: nowy raport zaczyna z obwodami i suplementami z poprzednich (waga, nastrój, sen, zdjęcie zawsze puste); web i mobile
 26. [x] Lista zakupów z jadłospisu (web: sumuje składniki z podanymi ilościami z opisów posiłków, odhaczanie i kopiowanie; pozycje bez ilości pomija; mobile jeszcze nie)
 27. [ ] Zamienniki posiłków (do zatwierdzenia)
 28. [x] Sen (godziny na dobę) i woda (litry na dobę) w raporcie tygodniowym: formularz i podsumowanie w web i mobile, widok trenera w web i mobile, API (test w kontroli dostępu raportów)
