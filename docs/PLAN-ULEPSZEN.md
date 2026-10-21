@@ -70,7 +70,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 54. [ ] Porównanie trenerów (bez danych osobowych)
 55. [x] Ogłoszenia studia: przypinanie i „przeczytało X z Y" (API, testy, web, mobile)
 56. [ ] Grafik sal i zasobów
-57. [ ] Zaproszenia trenerów linkiem
+57. [x] Zaproszenie trenera do studia linkiem: mail ma przycisk „Zobacz zaproszenie" (`/studio/join?code=…`), strona pokazuje bez logowania nazwę studia i zamaskowany adres (j***@domena), a zalogowany trener dołącza jednym kliknięciem; kod nadal można wpisać ręcznie. Zaproszenie jest przypisane do adresu e-mail, więc nie da się go użyć z cudzego konta
 
 ## 6. Powiadomienia i komunikacja
 58. [x] Cichy tryb (presety godzin, czas polski; historia zachowana, telefon nie dzwoni)
@@ -113,6 +113,6 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 87. [x] Zamiast osobnej strony: karty funkcji na stronie głównej (strona `dla-trenera` usunięta jako zbędna)
 88. [x] Blog dla trenerów: `/blog` i 3 artykuły (`/blog/...`) z tytułem, opisem i danymi strukturalnymi Article, wpisy w sitemap, link w stopce, przycisk zakładania konta; testy sprawdzają unikalność adresów, długość opisów i wpisy w sitemap. [Ty] Warto przejrzeć treść artykułów pod własny głos marki i dopisać kolejne
 89. [Ty] Wejście na sklepy (konta deweloperskie, zrzuty ekranu)
-90. [ ] Zaproszenie linkiem z podglądem
+90. [~] Zaproszenie linkiem z podglądem: zrobione dla zaproszeń trenerów do studia (patrz 57); zaproszenia podopiecznych (e-mail z kodem) mają już podgląd trenera w `/api/invitations/lookup`, ale bez osobnej strony z przyciskiem
 91. [x] Program poleceń od pierwszego dnia: karta na pulpicie trenera (web) z przyciskiem „Kopiuj link" i licznikiem zdobytych dni bonusu, link do szczegółów; mobile jeszcze nie
 92. [x] Prośba o opinię po 30 dniach współpracy (cron, raz, tylko jeśli nie ma opinii; można wyłączyć w ustawieniach powiadomień; kliknięcie otwiera profil, gdzie jest ocena)

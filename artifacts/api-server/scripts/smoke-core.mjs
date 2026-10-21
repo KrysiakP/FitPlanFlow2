@@ -840,11 +840,15 @@ test("trainers get a morning message about today's calendar, once", { skip: !pro
     };
     const first = await runCron();
     assert.ok(first.trainers >= 1);
-    const feed = await (await call(trainer, "GET", "/api/notifications/mine?limit=100")).json();
-    const message = feed.notifications.find((item) => item.title === "Twój dzień");
-    assert.ok(message, "the trainer received the morning message (now, or earlier within 18 hours)");
-    // which run sent it (and so what it listed) depends on earlier cron calls within 18 hours; the wording is unit-tested
-    assert.match(message.body, /^Dziś: /);
+    // sent now: it is the newest entry of the feed; sent earlier (within 18 hours): the job skips it and an old entry may have scrolled out
+    if (first.sent >= 1) {
+      const feed = await (await call(trainer, "GET", "/api/notifications/mine?limit=100")).json();
+      const message = feed.notifications.find((item) => item.title === "Twój dzień");
+      assert.ok(message, "the trainer received the morning message");
+      assert.match(message.body, /^Dziś: /);
+    } else {
+      assert.ok(first.skipped >= 1, "otherwise the job found it already sent");
+    }
     assert.equal((await runCron()).sent, 0, "never twice within 18 hours");
   } finally {
     await call(trainer, "DELETE", `/api/sessions/${sessionId}`);

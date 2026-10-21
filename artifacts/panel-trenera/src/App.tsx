@@ -37,6 +37,7 @@ import TrainerClientDietStats from "@/pages/trainer-client-diet-stats";
 import TrainerClientProgress from "@/pages/trainer-client-progress";
 import Blog from "@/pages/blog";
 import MyProgress from "@/pages/my-progress";
+import StudioJoin from "@/pages/studio-join";
 import MonthlyReport from "@/pages/monthly-report";
 import PaymentSchedule from "@/pages/payment-schedule";
 import Pomagamy from "@/pages/pomagamy";
@@ -93,6 +94,7 @@ function Router() {
         <Route path="/cennik" component={CennikRedirect} />
         <Route path="/register" component={Register} />
         <Route path="/studio/register" component={StudioRegister} />
+        <Route path="/studio/join" component={StudioJoin} />
         <Route path="/verify-email" component={VerifyEmail} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password" component={ResetPassword} />
@@ -139,6 +141,7 @@ function Router() {
           <>
             <Route path="/" component={TrainerDashboard} />
             <Route path="/plans" component={TrainingPlans} />
+            <Route path="/studio/join" component={StudioJoin} />
             <Route path="/plans/new" component={PlanForm} />
             <Route path="/plans/:id/edit" component={PlanForm} />
             <Route path="/plans/:id/assign" component={AssignPlan} />

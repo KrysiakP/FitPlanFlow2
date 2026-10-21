@@ -670,6 +670,7 @@ export async function sendStudioInvitationEmail({ email, studioName, inviteCode 
     const baseUrl = getBaseUrl();
     const safeStudio = escapeHtml(studioName);
     const safeCode = escapeHtml(inviteCode);
+    const joinUrl = `${baseUrl}/studio/join?code=${encodeURIComponent(inviteCode)}`;
 
     await client.emails.send({
       from: fromEmail,
@@ -690,7 +691,11 @@ export async function sendStudioInvitationEmail({ email, studioName, inviteCode 
           <div style="background-color: #f8fafc; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
             <h2 style="color: #1e293b; margin-top: 0;">Zaproszenie do studia</h2>
             <p><strong>${safeStudio}</strong> zaprasza Cię do swojego studia w Panelu Trenera.</p>
-            <p>Zaloguj się na konto trenera (to z tym adresem e-mail), otwórz <strong>Profil &rarr; Studio</strong> i wpisz kod:</p>
+            <p>Zaloguj się na konto trenera (to z tym adresem e-mail) i kliknij poniższy przycisk:</p>
+            <div style="text-align: center; margin: 24px 0;">
+              <a href="${joinUrl}" style="display: inline-block; background-color: #0d9488; color: white; text-decoration: none; padding: 14px 30px; border-radius: 8px; font-weight: 600; font-size: 16px;">Zobacz zaproszenie</a>
+            </div>
+            <p style="color: #64748b; font-size: 14px;">Możesz też otworzyć <strong>Profil &rarr; Studio</strong> i wpisać kod ręcznie:</p>
             <div style="text-align: center; margin: 24px 0;">
               <span style="display: inline-block; background-color: #fff; border: 1px dashed #0d9488; border-radius: 8px; padding: 12px 24px; font-family: monospace; font-size: 24px; letter-spacing: 4px; color: #0d9488;">${safeCode}</span>
             </div>
@@ -708,7 +713,7 @@ export async function sendStudioInvitationEmail({ email, studioName, inviteCode 
         </body>
         </html>
       `,
-      text: `${studioName} zaprasza Cię do swojego studia w Panelu Trenera.\n\nZaloguj się na konto trenera (z tym adresem e-mail), otwórz Profil > Studio i wpisz kod: ${inviteCode}\n\nDołączenie do studia nie zmienia Twoich podopiecznych ani planów.`,
+      text: `${studioName} zaprasza Cię do swojego studia w Panelu Trenera.\n\nZaloguj się na konto trenera (z tym adresem e-mail) i otwórz link: ${joinUrl}\n\nAlbo wpisz kod ręcznie w Profil > Studio: ${inviteCode}\n\nDołączenie do studia nie zmienia Twoich podopiecznych ani planów.`,
     });
     return true;
   } catch (error) {

@@ -7,7 +7,8 @@ import { sql, eq, and, or, inArray, desc, gte, lt } from "drizzle-orm";
 import { sessions, users, gyms, gymTrainers, gymAnnouncements, gymAnnouncementReads, clientRelationships, workoutSessions, trainingPlans } from "@workspace/db";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-import { authRateLimit } from "../app";
+import { authRateLimit, lookupRateLimit } from "../app";
+import { maskEmail } from "../lib/maskEmail";
 import { requireAdmin } from "../middlewares/requireAdmin";
 import { sendPushToUserAndRecord } from "../services/push";
 import type { Express } from "express";
@@ -696,7 +697,24 @@ export function registerGymRoutes(app: Express) {
     }
   });
 
-  // Public lookup: GET /api/gym/join/:code — trainer joins gym via invite code
+  // Public preview of an invitation link: which studio invites, and for which (masked) address; nothing else
+  app.get("/api/gym/invitation/:code", lookupRateLimit, async (req, res) => {
+    try {
+      const [row] = await db
+        .select({ gymName: gyms.name, inviteEmail: gymTrainers.inviteEmail })
+        .from(gymTrainers)
+        .innerJoin(gyms, eq(gyms.id, gymTrainers.gymId))
+        .where(and(eq(gymTrainers.inviteCode, String(req.params.code).toUpperCase()), eq(gymTrainers.status, "invited")))
+        .limit(1);
+      if (!row) return res.status(404).json({ message: "Zaproszenie jest nieaktywne lub nieprawidłowe" });
+      res.json({ studioName: row.gymName, maskedEmail: maskEmail(row.inviteEmail) });
+    } catch (error) {
+      console.error("Error previewing studio invitation:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // POST /api/gym/join/:code — the signed-in trainer joins the studio with the invite code
   app.post("/api/gym/join/:code", isAuthenticated, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);

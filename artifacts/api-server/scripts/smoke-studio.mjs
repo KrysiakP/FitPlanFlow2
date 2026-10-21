@@ -80,6 +80,17 @@ test("the invited trainer sees the pending invitation without typing a code", as
   assert.equal((await call(client, "GET", "/api/trainer/gym/invitations")).status, 403);
 });
 
+test("the invitation link shows the studio and a masked address to anyone, and nothing more", async () => {
+  const anonymous = await fetch(`${API_URL}/api/gym/invitation/${test.inviteCode.toLowerCase()}`);
+  assert.equal(anonymous.status, 200, "no login needed");
+  const preview = await anonymous.json();
+  assert.ok(preview.studioName, "the studio is named");
+  assert.match(preview.maskedEmail, /^.\*\*\*@/, "the address is masked");
+  assert.ok(!JSON.stringify(preview).includes(TRAINER_EMAIL), "the full address never leaves");
+  assert.deepEqual(Object.keys(preview).sort(), ["maskedEmail", "studioName"]);
+  assert.equal((await fetch(`${API_URL}/api/gym/invitation/ZZZZZZZZ`)).status, 404, "an unknown code");
+});
+
 test("only the invited trainer can use the code", async () => {
   assert.equal((await call(client, "POST", `/api/gym/join/${test.inviteCode}`)).status, 403);
   assert.equal((await call(trainer, "POST", "/api/gym/join/ZZZZZZZZ")).status, 404);
