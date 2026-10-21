@@ -3,6 +3,7 @@ import {
   gyms,
   gymTrainers,
   notificationPreferences,
+  dataAccessLog,
   trainingPlans,
   workouts,
   exercises,
@@ -341,6 +342,8 @@ export interface IStorage {
   hasPushNotification(userId: string, type: string, body: string, since: Date): Promise<boolean>;
   hasRecentPushOfType(userId: string, type: string, since: Date): Promise<boolean>;
   getClientIdsWithoutRecentReport(since: Date): Promise<string[]>;
+  recordDataAccess(actorId: string, subjectId: string, action: string): Promise<void>;
+  getDataAccessLog(subjectId: string, limit?: number): Promise<{ id: string; action: string; createdAt: Date; actorFirstName: string; actorLastName: string }[]>;
   getMutedNotificationTypes(userId: string): Promise<string[]>;
   setMutedNotificationTypes(userId: string, types: string[]): Promise<void>;
   getStudioWeeklyStats(since: Date): Promise<{ ownerId: string; gymName: string; activeTrainers: number; sessions: number; reports: number; overduePayments: number }[]>;
@@ -3226,6 +3229,34 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(pushNotificationHistory.userId, userId), eq(pushNotificationHistory.type, type), gte(pushNotificationHistory.createdAt, since)))
       .limit(1);
     return !!row;
+  }
+
+  // One entry per actor, subject and kind of data per hour: opening a screen twice is not two views
+  async recordDataAccess(actorId: string, subjectId: string, action: string): Promise<void> {
+    const since = new Date(Date.now() - 60 * 60 * 1000);
+    const [recent] = await db
+      .select({ id: dataAccessLog.id })
+      .from(dataAccessLog)
+      .where(and(eq(dataAccessLog.actorId, actorId), eq(dataAccessLog.subjectId, subjectId), eq(dataAccessLog.action, action), gte(dataAccessLog.createdAt, since)))
+      .limit(1);
+    if (recent) return;
+    await db.insert(dataAccessLog).values({ actorId, subjectId, action });
+  }
+
+  async getDataAccessLog(subjectId: string, limit: number = 50) {
+    return db
+      .select({
+        id: dataAccessLog.id,
+        action: dataAccessLog.action,
+        createdAt: dataAccessLog.createdAt,
+        actorFirstName: users.firstName,
+        actorLastName: users.lastName,
+      })
+      .from(dataAccessLog)
+      .innerJoin(users, eq(users.id, dataAccessLog.actorId))
+      .where(eq(dataAccessLog.subjectId, subjectId))
+      .orderBy(desc(dataAccessLog.createdAt))
+      .limit(limit);
   }
 
   async getMutedNotificationTypes(userId: string): Promise<string[]> {

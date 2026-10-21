@@ -148,6 +148,21 @@ test("a set that beats the history is flagged as a personal record", async () =>
   assert.equal(viaTrainer[0].exercise, "Przysiad");
 });
 
+test("clients can see which trainer opened their data", async () => {
+  const log = async (who) => (await (await call(who, "GET", "/api/account/access-log")).json()).entries;
+  const before = (await log(client)).length;
+  assert.equal((await call(trainer, "GET", `/api/clients/${client.id}/reports`)).status, 200);
+  assert.equal((await call(trainer, "GET", `/api/trainer/clients/${client.id}/exercise-logs`)).status, 200);
+  await new Promise((resolve) => setTimeout(resolve, 300)); // the entry is written after the response
+  const entries = await log(client);
+  assert.ok(entries.length >= before, "entries are never lost");
+  assert.ok(entries.some((entry) => entry.what.includes("raporty")), "the report view is listed");
+  assert.ok(entries.some((entry) => entry.what.includes("treningi")), "the training view is listed");
+  assert.ok(entries.every((entry) => entry.by && entry.at), "who and when are present");
+  assert.equal((await log(trainer)).some((entry) => entry.what.includes("raporty")), false, "the trainer's own log has nothing about the client's data");
+  assert.equal((await fetch(`${API_URL}/api/account/access-log`)).status, 401);
+});
+
 test("the health endpoint answers without a login", async () => {
   const res = await fetch(`${API_URL}/api/health`);
   assert.equal(res.status, 200);

@@ -82,11 +82,11 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 
 ## 7. Bezpieczeństwo i prywatność
 64. [ ] Prywatne zdjęcia raportów (kod; test na prawdziwym magazynie po wdrożeniu)
-65. [ ] Nagłówki bezpieczeństwa i CSP (najpierw tryb raportowania)
+65. [~] Pliki wysyłane przez użytkowników są serwowane z restrykcyjnym CSP (`sandbox`, bez skryptów). Pełne CSP strony webowej [Ty]: strona jest serwowana osobno (hosting statyczny), nagłówek trzeba ustawić tam
 66. [ ] TOTP dla trenerów i właścicieli
 67. [~] „Wyloguj ze wszystkich urządzeń" (API, web, mobile, testy); lista urządzeń do zrobienia
-68. [ ] Dziennik dostępu do danych podopiecznego
-69. [ ] Zgody RODO per cel
+68. [x] Dziennik wyświetleń danych podopiecznego (tabela `data_access_log`, jeden wpis na godzinę), widoczny dla podopiecznego w web i mobile („Kto oglądał moje dane")
+69. [Ty] Zgody RODO per cel: potrzebne brzmienie od prawnika (dane o zdrowiu); po dostarczeniu tekstu dopiszę zapis zgód z datą
 70. [x] Okazało się, że usuwanie konta działa od razu (nie po 30 dniach, jak sugerował tekst): poprawiłem teksty (web, mobile, pomoc) i dodałem anulowanie subskrypcji Stripe przy usunięciu konta (wcześniej usunięty trener mógł być dalej obciążany)
 71. [ ] Aktualizacje zależności z lukami
 

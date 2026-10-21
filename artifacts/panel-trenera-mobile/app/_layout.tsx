@@ -102,6 +102,7 @@ function RootLayoutNav() {
         <Stack.Screen name="(client)" />
         <Stack.Screen name="(trainer)" />
         <Stack.Screen name="notification-settings" />
+        <Stack.Screen name="access-log" />
       </Stack>
     </>
   );

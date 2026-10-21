@@ -1231,6 +1231,17 @@ export const gymAnnouncements = pgTable("gym_announcements", {
 
 export type GymAnnouncement = typeof gymAnnouncements.$inferSelect;
 
+// Who looked at whose data (trainers reading a client's profile, reports, training, diet); shown to the client
+export const dataAccessLog = pgTable("data_access_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  actorId: varchar("actor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  subjectId: varchar("subject_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  action: varchar("action", { length: 40 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  subjectCreatedIdx: index("data_access_log_subject_created_idx").on(table.subjectId, table.createdAt),
+}));
+
 // Optional push notification types a user has switched off (see api-server/src/lib/notificationPreferences.ts)
 export const notificationPreferences = pgTable("notification_preferences", {
   userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),

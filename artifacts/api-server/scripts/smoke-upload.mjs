@@ -43,6 +43,7 @@ test("HTML disguised as an image is never served as HTML", async () => {
   const served = await fetch(`${API_URL}${url}`);
   assert.ok(!/text\/html|svg|javascript|xml/i.test(served.headers.get("content-type") ?? ""), `served as ${served.headers.get("content-type")}`);
   assert.equal(served.headers.get("x-content-type-options"), "nosniff");
+  assert.match(served.headers.get("content-security-policy") ?? "", /default-src 'none'.*sandbox/, "uploads are served with a locked-down CSP");
 });
 
 test("double extensions and odd names cannot smuggle an extension", async () => {

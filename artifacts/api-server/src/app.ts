@@ -96,6 +96,13 @@ app.use('/attached_assets', (req, res, next) => {
   }
   next();
 });
+// Defense in depth for user-uploaded files: even if active content slipped through, the browser may not run it
+// (no scripts, no framing, no network) when someone opens the file directly.
+app.use(['/attached_assets', '/objects'], (_req, res, next) => {
+  res.setHeader("Content-Security-Policy", "default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'; sandbox");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  next();
+});
 app.use('/attached_assets', express.static(path.join(process.cwd(), 'attached_assets')));
 
 export default app;

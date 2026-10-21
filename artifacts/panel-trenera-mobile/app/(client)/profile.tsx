@@ -202,7 +202,7 @@ export default function ClientProfileScreen() {
           label="Ustawienia powiadomień"
           desc="Zarządzaj powiadomieniami push"
           colors={colors}
-          onPress={() => router.push("/(client)/notifications")}
+          onPress={() => router.push("/notification-settings")}
           testID="button-notifications"
         />
         <MenuRow
@@ -213,6 +213,7 @@ export default function ClientProfileScreen() {
           onPress={() => Linking.openURL("https://paneltrenera.pl").catch(() => {})}
           testID="button-manage-account"
         />
+        <MenuRow icon="eye-outline" label="Kto oglądał moje dane" desc="Kiedy trener otworzył Twoje dane" colors={colors} onPress={() => router.push("/access-log")} testID="button-access-log" />
         <MenuRow icon="shield-checkmark-outline" label="Prywatność i RODO" desc="Zarządzaj zgodami i danymi" colors={colors} onPress={() => router.push("/(auth)/privacy")} testID="button-privacy" />
         <MenuRow icon="help-circle-outline" label="Pomoc i kontakt" desc="FAQ i kontakt z supportem" colors={colors} onPress={() => router.push("/(auth)/help")} testID="button-help" />
 

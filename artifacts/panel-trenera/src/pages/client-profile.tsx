@@ -28,6 +28,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState, useEffect } from "react";
+import { AccessLogCard } from "@/components/access-log-card";
 
 const profileSchema = z.object({
   bio: z.string().optional(),
@@ -517,6 +518,8 @@ export default function ClientProfile() {
               </Button>
             </CardContent>
           </Card>
+
+          <AccessLogCard />
 
           </div>
         </>

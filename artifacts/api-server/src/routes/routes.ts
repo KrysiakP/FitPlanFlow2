@@ -69,6 +69,7 @@ import { isOptionalNotificationType, optionalNotifications, sanitizeMutedTypes }
 import { evaluatePersonalRecord } from "../lib/personalRecord";
 import { buildAccountExport, exportFileName } from "../lib/accountExport";
 import { deadPushTokens, withPushType } from "../lib/expoPush";
+import { accessFromRequest, ACTION_LABELS } from "../lib/accessAudit";
 import { buildExerciseHistory } from "../lib/exerciseHistory";
 import { buildAttentionList } from "../lib/attention";
 import { deleteTestClient } from "../testClientService";
@@ -581,6 +582,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Auth middleware
   await setupAuth(app);
+
+  // Remember which trainer opened which part of a client's data (shown to the client under "who viewed my data").
+  // Runs after the response, so it only records requests that were actually allowed (200), and never slows or breaks them.
+  app.use((req, res, next) => {
+    const access = accessFromRequest(req.method, req.path);
+    if (access) {
+      res.on("finish", () => {
+        const actorId = req.session?.userId;
+        if (res.statusCode === 200 && actorId && actorId !== access.subjectId && !isDemoId(access.subjectId)) {
+          void storage.recordDataAccess(actorId, access.subjectId, access.action).catch(() => undefined);
+        }
+      });
+    }
+    next();
+  });
 
   // Object Storage endpoints - code adapted from javascript_object_storage blueprint
   // Serves objects with ACL check
@@ -1369,6 +1385,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error signing out everywhere:", error);
       res.status(500).json({ message: "Nie udało się wylogować ze wszystkich urządzeń" });
+    }
+  });
+
+  // Who looked at my data: the client's view of the access log
+  app.get("/api/account/access-log", isAuthenticated, async (req, res) => {
+    try {
+      const entries = await storage.getDataAccessLog(req.session.userId!, 50);
+      res.json({
+        entries: entries.map((entry) => ({
+          id: entry.id,
+          what: ACTION_LABELS[entry.action] ?? entry.action,
+          by: `${entry.actorFirstName} ${entry.actorLastName}`.trim(),
+          at: entry.createdAt,
+        })),
+      });
+    } catch (error) {
+      console.error("Error loading access log:", error);
+      res.status(500).json({ message: "Nie udało się pobrać historii wyświetleń" });
     }
   });
 
