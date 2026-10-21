@@ -346,6 +346,7 @@ export interface IStorage {
   hasPushNotification(userId: string, type: string, body: string, since: Date): Promise<boolean>;
   hasRecentPushOfType(userId: string, type: string, since: Date): Promise<boolean>;
   getClientIdsWithoutRecentReport(since: Date): Promise<string[]>;
+  getLatestAssignmentsWithPlans(trainerId: string, clientIds: string[]): Promise<Map<string, { assignment: PlanAssignment; plan: TrainingPlan }>>;
   getReportPhotoOwner(objectPath: string): Promise<string | null>;
   setTotpSecret(userId: string, sealedSecret: string): Promise<void>;
   enableTotp(userId: string, backupCodeHashes: string[]): Promise<void>;
@@ -994,13 +995,15 @@ export class DatabaseStorage implements IStorage {
   }> {
     const plans = await this.getTrainerPlans(trainerId);
     const clients = await this.getTrainerClients(trainerId);
-    
-    let totalAssignments = 0;
-    for (const plan of plans) {
-      const assignments = await this.getAssignmentsByPlan(plan.id);
-      totalAssignments += assignments.length;
-    }
-    
+
+    // one count instead of one query per plan
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(planAssignments)
+      .innerJoin(trainingPlans, eq(planAssignments.planId, trainingPlans.id))
+      .where(eq(trainingPlans.trainerId, trainerId));
+    const totalAssignments = count;
+
     return {
       totalPlans: plans.length,
       totalClients: clients.length,
@@ -3448,6 +3451,21 @@ export class DatabaseStorage implements IStorage {
   async getReportPhotoOwner(objectPath: string): Promise<string | null> {
     const [row] = await db.select({ clientId: weeklyReports.clientId }).from(weeklyReports).where(eq(weeklyReports.photoUrl, objectPath)).limit(1);
     return row?.clientId ?? null;
+  }
+
+  // The newest assignment of each client to one of this trainer's plans, with the plan, in a single query
+  // (the client list used to ask the database twice per client)
+  async getLatestAssignmentsWithPlans(trainerId: string, clientIds: string[]): Promise<Map<string, { assignment: PlanAssignment; plan: TrainingPlan }>> {
+    const result = new Map<string, { assignment: PlanAssignment; plan: TrainingPlan }>();
+    if (clientIds.length === 0) return result;
+    const rows = await db
+      .select({ assignment: planAssignments, plan: trainingPlans })
+      .from(planAssignments)
+      .innerJoin(trainingPlans, eq(planAssignments.planId, trainingPlans.id))
+      .where(and(inArray(planAssignments.clientId, clientIds), eq(trainingPlans.trainerId, trainerId)))
+      .orderBy(desc(planAssignments.assignedAt));
+    for (const row of rows) if (!result.has(row.assignment.clientId)) result.set(row.assignment.clientId, row); // newest first
+    return result;
   }
 
   // Clients of an active trainer (not demo accounts) who have not sent a weekly report since `since`

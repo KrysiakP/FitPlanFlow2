@@ -189,6 +189,13 @@ test("trainers label their clients privately", async () => {
     const list = await (await call(trainer, "GET", "/api/trainer/clients")).json();
     return list.find((item) => item.id === client.id)?.labels;
   };
+  // the list carries each client's newest assignment with its plan (one query for all clients)
+  const listed = (await (await call(trainer, "GET", "/api/trainer/clients")).json()).find((item) => item.id === client.id);
+  assert.equal(listed.assignment?.planId, state.planId, "the assigned plan is on the client");
+  assert.equal(listed.assignment?.plan?.id, state.planId, "with the plan itself");
+  const stats = await (await call(trainer, "GET", "/api/trainer/stats")).json();
+  assert.ok(stats.totalAssignments >= 1 && stats.totalPlans >= 1 && stats.totalClients >= 1, "the dashboard counts see the plan and its assignment");
+
   const saved = await call(trainer, "PUT", `/api/trainer/clients/${client.id}/labels`, { labels: ["  VIP ", "online", "vip", ""] });
   assert.equal(saved.status, 200);
   assert.deepEqual((await saved.json()).labels, ["VIP", "online"]);

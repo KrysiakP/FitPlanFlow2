@@ -3578,21 +3578,12 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
       
       // private labels; a missing table (not migrated yet) must not break the client list
       const labelsByClient = await storage.getClientLabelsForTrainer(userId).catch(() => ({} as Record<string, string[]>));
-      const clientsWithAssignments = await Promise.all(
-        clients.map(async (client) => {
-          const assignment = await storage.getClientAssignment(client.id, userId);
-          const labels = labelsByClient[client.id] ?? [];
-          if (assignment) {
-            const plan = await storage.getTrainingPlan(assignment.planId);
-            return {
-              ...client,
-              labels,
-              assignment: plan ? { ...assignment, plan } : undefined,
-            };
-          }
-          return { ...client, labels };
-        })
-      );
+      const assignments = await storage.getLatestAssignmentsWithPlans(userId, clients.map((client) => client.id));
+      const clientsWithAssignments = clients.map((client) => {
+        const found = assignments.get(client.id);
+        const labels = labelsByClient[client.id] ?? [];
+        return found ? { ...client, labels, assignment: { ...found.assignment, plan: found.plan } } : { ...client, labels };
+      });
       
       res.json(clientsWithAssignments);
     } catch (error) {
