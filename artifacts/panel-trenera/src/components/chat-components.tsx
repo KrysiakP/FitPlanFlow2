@@ -7,7 +7,8 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, Bookmark, X } from "lucide-react";
+import { addTemplate, DEFAULT_TEMPLATES, insertTemplate, loadCustomTemplates, saveCustomTemplates } from "@/lib/chatTemplates";
 import type { Message } from "@shared/schema";
 import type { Conversation } from "@/hooks/use-chat";
 
@@ -218,14 +219,22 @@ interface MessageComposerProps {
   onSend: (body: string) => Promise<void> | void;
   isSending: boolean;
   disabled?: boolean;
+  /** Trainers get ready-made replies above the box (defaults plus their own, kept in this browser). */
+  quickReplies?: boolean;
 }
 
 export function MessageComposer({
   onSend,
   isSending,
   disabled = false,
+  quickReplies = false,
 }: MessageComposerProps) {
   const [message, setMessage] = useState("");
+  const [custom, setCustom] = useState<string[]>(() => (quickReplies ? loadCustomTemplates() : []));
+  const updateCustom = (next: string[]) => {
+    setCustom(next);
+    saveCustomTemplates(next);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -249,9 +258,46 @@ export function MessageComposer({
   };
 
   return (
+    <div className="border-t">
+      {quickReplies && (
+        <div className="flex flex-wrap items-center gap-2 px-4 pt-3" data-testid="quick-replies">
+          {[...DEFAULT_TEMPLATES, ...custom].map((template) => {
+            const isCustom = custom.includes(template);
+            return (
+              <span key={template} className="inline-flex items-center rounded-full border text-xs">
+                <button
+                  type="button"
+                  className="px-3 py-1 hover-elevate rounded-full text-left max-w-[16rem] truncate"
+                  title={template}
+                  onClick={() => setMessage((current) => insertTemplate(current, template))}
+                  disabled={disabled || isSending}
+                >
+                  {template}
+                </button>
+                {isCustom && (
+                  <button type="button" aria-label="Usuń szablon" className="pr-2" onClick={() => updateCustom(custom.filter((item) => item !== template))}>
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </span>
+            );
+          })}
+          {message.trim() && (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+              onClick={() => updateCustom(addTemplate(custom, message))}
+              data-testid="button-save-template"
+            >
+              <Bookmark className="w-3 h-3" />
+              Zapisz jako szablon
+            </button>
+          )}
+        </div>
+      )}
     <form
       onSubmit={handleSubmit}
-      className="flex items-end gap-2 p-4 border-t"
+      className="flex items-end gap-2 p-4"
       data-testid="message-composer"
     >
       <Textarea
@@ -276,5 +322,6 @@ export function MessageComposer({
         )}
       </Button>
     </form>
+    </div>
   );
 }

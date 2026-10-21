@@ -220,6 +220,7 @@ export default function ChatPage() {
                 <MessageComposer
                   onSend={handleSendMessage}
                   isSending={sendMessageMutation.isPending}
+                  quickReplies={isTrainer}
                 />
               </div>
             </>

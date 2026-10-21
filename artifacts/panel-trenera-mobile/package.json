@@ -8,7 +8,7 @@
     "build": "node scripts/build.js",
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test tests/progressInsights.test.mjs tests/nextWorkout.test.mjs tests/notificationRoute.test.mjs tests/loadSuggestion.test.mjs"
+    "test": "node --test tests/progressInsights.test.mjs tests/nextWorkout.test.mjs tests/notificationRoute.test.mjs tests/loadSuggestion.test.mjs tests/chatTemplates.test.mjs"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

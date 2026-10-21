@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
+import { DEFAULT_TEMPLATES, insertTemplate } from "@/lib/chatTemplates";
 import { useColors } from "@/hooks/useColors";
 import { useKeyboardVisible } from "@/hooks/useKeyboardVisible";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
@@ -273,6 +274,29 @@ export default function TrainerChatScreen() {
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
           />
         )}
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          style={{ flexGrow: 0, backgroundColor: colors.background }}
+          contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 8, gap: 8 }}
+          testID="quick-replies"
+        >
+          {DEFAULT_TEMPLATES.map((template) => (
+            <Pressable
+              key={template}
+              onPress={() => setInputText((current) => insertTemplate(current, template))}
+              accessibilityRole="button"
+              accessibilityLabel={`Wstaw odpowiedź: ${template}`}
+              style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, maxWidth: 260 }}
+            >
+              <Text numberOfLines={1} style={{ color: colors.foreground, fontSize: 12 }}>
+                {template}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
 
         <View
           style={[

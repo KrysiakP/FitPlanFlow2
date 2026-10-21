@@ -45,7 +45,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 33. [ ] Automatyczna progresja obciążeń
 34. [ ] Edycja planu w trakcie bez gubienia historii
 35. [ ] Komentarz trenera do treningu/zdjęcia
-36. [ ] Szablony odpowiedzi w czacie
+36. [x] Szablony odpowiedzi w czacie trenera: 5 gotowych (web i mobile, wstawiane do pola wiadomości), w web własne szablony zapisywane w przeglądarce („Zapisz jako szablon”, do 8); zaplanowane wiadomości jeszcze nie
 37. [x] Przypomnienia trenera o podopiecznym z datą (API, push w dniu terminu przez cron, testy, web na karcie podopiecznego; mobile jeszcze nie)
 38. [x] Import podopiecznych z CSV (web, strona zaproszeń: podgląd, raport błędów, limit 100; testy parsera)
 39. [x] Etykiety podopiecznych (prywatne dla trenera, do 5 po 24 znaki; edytor na karcie, chipy na liście, wyszukiwanie po etykiecie; API + testy; mobile jeszcze nie)
