@@ -26,9 +26,9 @@ export function TrainerSection() {
           <div className="text-center space-y-6">
             <div className="flex items-center justify-center gap-3">
               <Dumbbell className="w-12 h-12 text-primary" />
-              <h1 className="font-heading font-bold text-5xl" data-testid="text-page-title">
+              <h2 className="font-heading font-bold text-5xl" data-testid="text-page-title">
                 Panel Trenera
-              </h1>
+              </h2>
             </div>
             
             <div className="max-w-4xl mx-auto space-y-6">

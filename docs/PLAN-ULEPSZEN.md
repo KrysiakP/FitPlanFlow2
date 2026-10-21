@@ -106,7 +106,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 82. [x] Indeksy (raporty, relacje, terminy sesji, historia powiadomień); trafią na produkcję przy publikacji
 83. [ ] Kolejka zapisu offline
 84. [ ] Dopracowanie ciemnego motywu
-85. [~] Dostępność web: przejrzane główne ekrany trenera własnym skryptem (przyciski bez nazw, pole bez etykiety, brak H1): poprawione motyw, powiadomienia, zaproszenie, wyszukiwarka, nagłówek listy; do sprawdzenia ekrany podopiecznego i kontrasty
+85. [~] Dostępność web (+ strona główna ma teraz jeden nagłówek H1, sekcje są H2, logo w nagłówku nie jest już H1): przejrzane główne ekrany trenera własnym skryptem (przyciski bez nazw, pole bez etykiety, brak H1): poprawione motyw, powiadomienia, zaproszenie, wyszukiwarka, nagłówek listy; do sprawdzenia ekrany podopiecznego i kontrasty
 86. [ ] Wersja angielska (przygotowanie tłumaczeń)
 
 ## 10. Marketing i wzrost

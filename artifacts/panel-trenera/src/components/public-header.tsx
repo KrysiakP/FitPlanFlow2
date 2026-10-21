@@ -32,7 +32,7 @@ export function PublicHeader() {
         <div className="flex items-center justify-between">
           <Link href="/" onClick={handleHomeClick} className="flex items-center gap-2 hover-elevate active-elevate-2 rounded-md px-2 py-1 -mx-2" data-testid="link-home">
             <Dumbbell className="w-8 h-8 text-primary" />
-            <h1 className="font-heading font-bold text-2xl">Panel Trenera</h1>
+            <span className="font-heading font-bold text-2xl">Panel Trenera</span>
           </Link>
           
           {user ? (

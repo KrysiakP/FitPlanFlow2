@@ -284,9 +284,9 @@ export function PricingSection() {
     <section id="pricing" className="py-16 px-4 bg-card">
       <div className="container mx-auto px-4 py-12 space-y-8">
         <div className="text-center space-y-2">
-          <h1 className="font-heading font-bold text-4xl" data-testid="text-pricing-title">
+          <h2 className="font-heading font-bold text-4xl" data-testid="text-pricing-title">
             Plany cenowe
-          </h1>
+          </h2>
           <p className="text-muted-foreground text-lg">
             Wybierz plan, który najlepiej odpowiada Twoim potrzebom
           </p>
