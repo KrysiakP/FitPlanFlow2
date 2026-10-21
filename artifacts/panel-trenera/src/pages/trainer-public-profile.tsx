@@ -13,6 +13,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { PublicHeader } from "@/components/public-header";
+import { usePageMeta } from "@/hooks/use-page-meta";
+import { trainerPageMeta } from "@/lib/trainerSeo";
 
 interface MyTrainerInfo {
   id: string;
@@ -72,6 +74,9 @@ export default function TrainerPublicProfile() {
   });
 
   const canReview = !!user && user.role === "client" && myTrainer?.id === trainerId;
+
+  const seo = profile ? trainerPageMeta(profile, window.location.origin) : null;
+  usePageMeta(seo?.title ?? "Profil trenera | Panel Trenera", seo?.description ?? "Profil trenera w Panelu Trenera.", seo?.jsonLd);
 
   const submitReviewMutation = useMutation({
     mutationFn: async () => {

@@ -54,7 +54,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 42. [ ] Wolne terminy i zapisy przez podopiecznego
 43. [x] Odwołanie terminu przez podopiecznego najpóźniej 24 h przed (API 409 po terminie, push do trenera; przycisk na webie i w aplikacji)
 44. [x] Statystyki biznesowe: przychód i zaległości (były) + retencja 90 dni, średni czas współpracy i zakończone współprace (nowe, web; w aplikacji mobilnej jeszcze nie)
-45. [ ] Strona wizytówka trenera z opiniami
+45. [x] Strona wizytówka trenera z opiniami: profil `/t/:id` z opiniami i oceną już był, dodane tytuł, opis i dane strukturalne (Person + ocena tylko przy istniejących opiniach) dla linków i wyszukiwarek; przycisk kopiowania linku jest w profilu trenera. Uwaga: dane ustawia JavaScript, więc podglądy w komunikatorach, które go nie uruchamiają, nadal pokażą ogólny opis
 
 ## 4. Płatności
 46. [ ] Przypomnienie o płatności z linkiem

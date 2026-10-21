@@ -1,41 +1,11 @@
-import { useEffect } from "react";
 import { Link, useRoute } from "wouter";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PublicHeader } from "@/components/public-header";
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { ARTICLES, wordCount, type Article } from "@/content/blog";
 
 const formatDate = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" });
-
-/** Sets the page title, meta description and Article structured data (removed again when the page is left). */
-function usePageMeta(title: string, description: string, jsonLd?: object) {
-  useEffect(() => {
-    const previousTitle = document.title;
-    document.title = title;
-    let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    const created = !meta;
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.name = "description";
-      document.head.appendChild(meta);
-    }
-    const previousDescription = meta.content;
-    meta.content = description;
-    let script: HTMLScriptElement | null = null;
-    if (jsonLd) {
-      script = document.createElement("script");
-      script.type = "application/ld+json";
-      script.text = JSON.stringify(jsonLd);
-      document.head.appendChild(script);
-    }
-    return () => {
-      document.title = previousTitle;
-      if (created) meta?.remove();
-      else if (meta) meta.content = previousDescription;
-      script?.remove();
-    };
-  }, [title, description, jsonLd]);
-}
 
 function ArticleView({ article }: { article: Article }) {
   usePageMeta(`${article.title} | Panel Trenera`, article.description, {
