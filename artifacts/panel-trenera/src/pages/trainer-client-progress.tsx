@@ -49,6 +49,7 @@ import {
 } from "recharts";
 import { useMemo } from "react";
 import { StrengthProgressCard } from "@/components/strength-progress-card";
+import { PhotoCompareCard } from "@/components/photo-compare-card";
 
 function parseNumericValue(value: string | null | undefined): number {
   if (!value) return 0;
@@ -500,7 +501,8 @@ export default function TrainerClientProgress() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="weight" className="mt-6">
+            <TabsContent value="weight" className="mt-6 space-y-6">
+              <PhotoCompareCard reports={sortedReports} />
               {weightData.length > 1 ? (
                 <Card data-testid="card-weight-chart">
                   <CardHeader>

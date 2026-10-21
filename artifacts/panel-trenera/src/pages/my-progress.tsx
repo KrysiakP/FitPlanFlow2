@@ -22,6 +22,7 @@ import { pl } from "date-fns/locale";
 import type { WeeklyReport, ExerciseLog, PlanAssignment, TrainingPlan, Workout, Exercise } from "@shared/schema";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { StrengthProgressCard } from "@/components/strength-progress-card";
+import { PhotoCompareCard } from "@/components/photo-compare-card";
 
 function parseNumericValue(value: string | null | undefined): number {
   if (!value) return 0;
@@ -148,6 +149,8 @@ export default function MyProgress() {
       </div>
 
       <StrengthProgressCard />
+
+      <PhotoCompareCard reports={reports ?? []} />
 
       {oldestReport && newestReport && (
         <Card>

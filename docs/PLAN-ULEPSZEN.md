@@ -28,7 +28,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 20. [ ] Odznaki i serie
 
 ## 2. Podopieczny: postępy, dieta, raporty
-21. [ ] Porównanie zdjęć przed/po
+21. [x] Porównanie zdjęć przed/po (web: podopieczny i trener; wybór dowolnych dwóch raportów ze zdjęciem; mobile jeszcze nie)
 22. [ ] Wykresy obwodów z trendem
 23. [ ] Cele z terminem i paskiem postępu
 24. [ ] Raport tygodniowy w kreatorze + szkic
