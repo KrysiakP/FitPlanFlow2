@@ -11,6 +11,7 @@ export interface ExerciseHistoryPoint {
   date: string; // YYYY-MM-DD (Europe/Warsaw day)
   estimatedOneRepMax: number;
   bestLoad: number;
+  sets: { load: number; reps: number }[]; // every weighted set of the day, in the order they were done
 }
 
 export interface ExerciseHistory {
@@ -46,14 +47,17 @@ export function buildExerciseHistory(rows: HistoryRow[], { maxExercises = 8, max
     const day = dayKey(row.loggedAt);
     const estimate = estimateOneRepMax(kg, row.reps);
     const existing = entry.days.get(day);
+    const sets = [...(existing?.sets ?? []), { load: kg, reps: row.reps }];
     if (!existing || estimate > existing.estimatedOneRepMax) {
       entry.days.set(day, {
         date: day,
         estimatedOneRepMax: round1(estimate),
         bestLoad: Math.max(kg, existing?.bestLoad ?? 0),
+        sets,
       });
     } else {
       existing.bestLoad = Math.max(existing.bestLoad, kg);
+      existing.sets = sets;
     }
   }
 

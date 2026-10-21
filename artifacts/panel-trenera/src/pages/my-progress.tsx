@@ -135,6 +135,10 @@ export default function MyProgress() {
             Wypełnij swój pierwszy raport tygodniowy, aby zobaczyć swoje postępy
           </AlertDescription>
         </Alert>
+
+        {/* these come from logged workouts, not from reports */}
+        <StrengthProgressCard />
+        <AchievementsCard />
       </div>
     );
   }
@@ -170,7 +174,7 @@ export default function MyProgress() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               {oldestReport.weight && newestReport.weight && (
                 <MeasurementChange
                   label="Waga"
@@ -213,6 +217,15 @@ export default function MyProgress() {
                   icon={<Ruler className="w-4 h-4" />}
                   before={parseNumericValue(oldestReport.arm)}
                   after={parseNumericValue(newestReport.arm)}
+                  unit="cm"
+                />
+              )}
+              {oldestReport.leg && newestReport.leg && (
+                <MeasurementChange
+                  label="Udo"
+                  icon={<Ruler className="w-4 h-4" />}
+                  before={parseNumericValue(oldestReport.leg)}
+                  after={parseNumericValue(newestReport.leg)}
                   unit="cm"
                 />
               )}

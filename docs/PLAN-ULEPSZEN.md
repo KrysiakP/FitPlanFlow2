@@ -24,12 +24,12 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 16. [ ] Zamiennik ćwiczenia za zgodą trenera
 17. [ ] Pełnoekranowy tryb treningu
 18. [x] Serie rozgrzewkowe: pole „Seria rozgrzewkowa” w formularzu serii (mobile), zapisywane z flagą i pomijane w rekordach, historii siły i podpowiedziach/wypełnianiu obciążenia (API + test); web nie ma jeszcze takiego pola
-19. [ ] Historia ćwiczenia (lista serii + wykres)
+19. [x] Historia ćwiczenia: wykres 1RM (był) + lista serii z ostatnich 6 dni treningowych (nowe, web; API zwraca serie dnia); karta siły widoczna też bez raportów
 20. [x] Osiągnięcia: 8 odznak liczonych z historii (treningi, regularność tygodniowa, raporty, zdjęcie, wzrost siły), z paskiem postępu; web i mobile
 
 ## 2. Podopieczny: postępy, dieta, raporty
 21. [x] Porównanie zdjęć przed/po (web: podopieczny i trener; wybór dowolnych dwóch raportów ze zdjęciem; mobile jeszcze nie)
-22. [ ] Wykresy obwodów z trendem
+22. [x] Wykresy obwodów z trendem: wykres 5 obwodów (był) + karty zmian przed/po, teraz także udo (web)
 23. [x] Cel wagowy z terminem i paskiem postępu (API + testy, web na stronie progresu; ocena względem prostej linii start→termin; mobile jeszcze nie)
 24. [ ] Raport tygodniowy w kreatorze + szkic
 25. [x] Wstępne uzupełnianie raportu: nowy raport zaczyna z obwodami i suplementami z poprzednich (waga, nastrój, sen, zdjęcie zawsze puste); web i mobile

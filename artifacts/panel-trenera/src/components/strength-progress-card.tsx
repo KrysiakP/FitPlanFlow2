@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 interface StrengthHistory {
   exercise: string;
-  points: { date: string; estimatedOneRepMax: number; bestLoad: number }[];
+  points: { date: string; estimatedOneRepMax: number; bestLoad: number; sets?: { load: number; reps: number }[] }[];
   best: number;
   latest: number;
   change: number | null;
@@ -75,6 +75,18 @@ export function StrengthProgressCard({ clientId }: { clientId?: string }) {
             <Line type="monotone" dataKey="max" stroke="hsl(var(--primary))" strokeWidth={2} dot />
           </LineChart>
         </ResponsiveContainer>
+        <ul className="space-y-1 text-sm" data-testid="list-strength-sets">
+          {[...selected.points].reverse().slice(0, 6).map((point) => (
+            <li key={point.date} className="flex flex-wrap gap-x-3">
+              <span className="text-muted-foreground tabular-nums w-14">
+                {new Date(`${point.date}T12:00:00`).toLocaleDateString("pl-PL", { day: "numeric", month: "numeric" })}
+              </span>
+              <span className="tabular-nums">
+                {(point.sets ?? []).map((set) => `${formatKg(set.load)} × ${set.reps}`).join(", ") || formatKg(point.bestLoad)}
+              </span>
+            </li>
+          ))}
+        </ul>
       </CardContent>
     </Card>
   );

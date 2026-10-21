@@ -58,3 +58,17 @@ test("the day boundary follows Warsaw time", () => {
   const [history] = buildExerciseHistory([row("Przysiad", "100", 5, "2026-10-01T23:30:00Z")]);
   assert.equal(history.points[0].date, "2026-10-02");
 });
+
+test("each day lists all its weighted sets in order, so the history can show them", () => {
+  const history = buildExerciseHistory([
+    row("Przysiad", "100", 5, "2026-10-01T10:00:00Z"),
+    row("Przysiad", "110", 5, "2026-10-01T10:10:00Z"),
+    row("Przysiad", "90", 8, "2026-10-01T10:20:00Z"),
+    row("Przysiad", "bez ciężaru", 12, "2026-10-01T10:30:00Z"),
+  ]);
+  assert.deepEqual(history[0].points[0].sets, [
+    { load: 100, reps: 5 },
+    { load: 110, reps: 5 },
+    { load: 90, reps: 8 },
+  ]);
+});
