@@ -10,6 +10,7 @@ import { pl } from "date-fns/locale";
 import type { ClientPayment } from "@shared/schema";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { TrainerAttentionCard } from "@/components/trainer-attention-card";
 
 export default function TrainerDashboard() {
   const { user } = useAuth();
@@ -71,6 +72,8 @@ export default function TrainerDashboard() {
           Witaj, {user?.firstName || "Trenerze"}! Zarządzaj swoimi planami i podopiecznymi.
         </p>
       </div>
+
+      <TrainerAttentionCard />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         <Link href="/plans">
