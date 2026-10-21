@@ -41,9 +41,16 @@ interface PreferenceOption {
   enabled: boolean;
 }
 
+interface QuietWindow {
+  start: number;
+  end: number;
+  label?: string;
+}
+
 export default function NotificationSettingsScreen() {
   const colors = useColors();
   const [options, setOptions] = useState<PreferenceOption[]>([]);
+  const [quiet, setQuiet] = useState<{ current: QuietWindow | null; presets: QuietWindow[] } | null>(null);
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
 
@@ -69,14 +76,30 @@ export default function NotificationSettingsScreen() {
     let cancelled = false;
     apiFetch("/api/notification-preferences")
       .then((res) => (res.ok ? res.json() : null))
-      .then((body: { options?: PreferenceOption[] } | null) => {
-        if (!cancelled && body?.options) setOptions(body.options);
+      .then((body: { options?: PreferenceOption[]; quietHours?: { current: QuietWindow | null; presets: QuietWindow[] } } | null) => {
+        if (cancelled) return;
+        if (body?.options) setOptions(body.options);
+        if (body?.quietHours) setQuiet(body.quietHours);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, []);
+
+  async function chooseQuiet(window: QuietWindow | null) {
+    const previous = quiet;
+    setQuiet((state) => (state ? { ...state, current: window } : state));
+    try {
+      const res = await apiFetch("/api/notification-preferences", {
+        method: "PUT",
+        body: JSON.stringify({ quietHours: window ? { start: window.start, end: window.end } : null }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch {
+      setQuiet(previous);
+    }
+  }
 
   async function toggleOption(type: string, enabled: boolean) {
     const previous = options;
@@ -260,6 +283,34 @@ export default function NotificationSettingsScreen() {
         </>
       )}
 
+      {quiet && (
+        <>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Cichy tryb</Text>
+          <Text style={[styles.notifDesc, { color: colors.mutedForeground, marginBottom: 10 }]}>
+            W tych godzinach telefon nie zadzwoni ani nie zawibruje. Powiadomienia zobaczysz później w historii.
+          </Text>
+          <View style={styles.quietRow}>
+            {[{ start: -1, end: -1, label: "Wyłączony" } as QuietWindow, ...quiet.presets].map((window) => {
+              const off = window.start === -1;
+              const active = off ? quiet.current === null : quiet.current?.start === window.start && quiet.current?.end === window.end;
+              return (
+                <Pressable
+                  key={window.label}
+                  onPress={() => void chooseQuiet(off ? null : window)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  style={[styles.quietChip, { backgroundColor: active ? colors.primary : colors.card, borderColor: active ? colors.primary : colors.border }]}
+                  testID={`chip-quiet-${window.label}`}
+                >
+                  <Text style={{ color: active ? "#fff" : colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>{window.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <View style={{ height: 20 }} />
+        </>
+      )}
+
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Rodzaje powiadomień</Text>
 
       {NOTIF_TYPES.map((item) => (
@@ -296,6 +347,8 @@ export default function NotificationSettingsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingHorizontal: 20, gap: 0 },
+  quietRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  quietChip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
   backBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8, alignSelf: "flex-start" },
   backText: { fontSize: 15, fontFamily: "Inter_500Medium" },
   pageTitle: { fontSize: 22, fontFamily: "Inter_700Bold", marginBottom: 4 },

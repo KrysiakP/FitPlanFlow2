@@ -188,7 +188,9 @@ export const weeklyReports = pgTable("weekly_reports", {
   photoUrl: text("photo_url"), // zdjęcie raportowe sylwetki
   viewedByTrainer: boolean("viewed_by_trainer").default(false).notNull(), // czy trener widział raport
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  clientCreatedIdx: index("weekly_reports_client_created_idx").on(table.clientId, table.createdAt),
+}));
 
 // Client-Trainer relationships - tracks active/archived collaborations
 export const clientRelationships = pgTable("client_relationships", {
@@ -204,6 +206,8 @@ export const clientRelationships = pgTable("client_relationships", {
   uniqueActiveRelationship: uniqueIndex("unique_active_trainer_client")
     .on(table.trainerId, table.clientId)
     .where(sql`status = 'active'`),
+  clientIdx: index("client_relationships_client_idx").on(table.clientId),
+  trainerStatusIdx: index("client_relationships_trainer_status_idx").on(table.trainerId, table.status),
 }));
 
 // Trainer reviews - public reviews left by (former) clients on a trainer's public profile
@@ -232,7 +236,11 @@ export const sessionBookings = pgTable("session_bookings", {
   notes: text("notes"), // notatki trenera do sesji
   status: varchar("status", { length: 20 }).notNull().default("scheduled"), // scheduled, cancelled, completed
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  scheduledIdx: index("session_bookings_scheduled_idx").on(table.scheduledAt),
+  clientScheduledIdx: index("session_bookings_client_scheduled_idx").on(table.clientId, table.scheduledAt),
+  trainerScheduledIdx: index("session_bookings_trainer_scheduled_idx").on(table.trainerId, table.scheduledAt),
+}));
 
 // Plan invitations - trainer invites client to a plan (plan optional)
 export const planInvitations = pgTable("plan_invitations", {
@@ -521,6 +529,7 @@ export const pushNotificationHistory = pgTable("push_notification_history", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
   userIdx: index("push_notification_history_user_idx").on(table.userId),
+  userTypeCreatedIdx: index("push_notification_history_user_type_created_idx").on(table.userId, table.type, table.createdAt),
   createdAtIdx: index("push_notification_history_created_at_idx").on(table.createdAt),
 }));
 
@@ -1246,6 +1255,8 @@ export const dataAccessLog = pgTable("data_access_log", {
 export const notificationPreferences = pgTable("notification_preferences", {
   userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   mutedTypes: text("muted_types").array().notNull().default(sql`'{}'::text[]`),
+  quietStart: integer("quiet_start"), // quiet hours (Europe/Warsaw), minutes after midnight; both null = off
+  quietEnd: integer("quiet_end"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

@@ -344,8 +344,8 @@ export interface IStorage {
   getClientIdsWithoutRecentReport(since: Date): Promise<string[]>;
   recordDataAccess(actorId: string, subjectId: string, action: string): Promise<void>;
   getDataAccessLog(subjectId: string, limit?: number): Promise<{ id: string; action: string; createdAt: Date; actorFirstName: string; actorLastName: string }[]>;
-  getMutedNotificationTypes(userId: string): Promise<string[]>;
-  setMutedNotificationTypes(userId: string, types: string[]): Promise<void>;
+  getNotificationPreferences(userId: string): Promise<{ muted: string[]; quietStart: number | null; quietEnd: number | null }>;
+  setNotificationPreferences(userId: string, changes: { muted?: string[]; quiet?: { start: number; end: number } | null }): Promise<void>;
   getStudioWeeklyStats(since: Date): Promise<{ ownerId: string; gymName: string; activeTrainers: number; sessions: number; reports: number; overduePayments: number }[]>;
   getTrainerWeeklyStats(since: Date): Promise<{ trainerId: string; activeClients: number; sessions: number; reports: number; overduePayments: number }[]>;
   getPushNotificationHistoryForUser(userId: string, limit?: number): Promise<PushNotificationHistory[]>;
@@ -3259,16 +3259,23 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  async getMutedNotificationTypes(userId: string): Promise<string[]> {
-    const [row] = await db.select({ muted: notificationPreferences.mutedTypes }).from(notificationPreferences).where(eq(notificationPreferences.userId, userId));
-    return row?.muted ?? [];
+  async getNotificationPreferences(userId: string): Promise<{ muted: string[]; quietStart: number | null; quietEnd: number | null }> {
+    const [row] = await db.select().from(notificationPreferences).where(eq(notificationPreferences.userId, userId));
+    return { muted: row?.mutedTypes ?? [], quietStart: row?.quietStart ?? null, quietEnd: row?.quietEnd ?? null };
   }
 
-  async setMutedNotificationTypes(userId: string, types: string[]): Promise<void> {
+  // Only the fields present in `changes` are touched; `quiet: null` switches quiet hours off
+  async setNotificationPreferences(userId: string, changes: { muted?: string[]; quiet?: { start: number; end: number } | null }): Promise<void> {
+    const values: Partial<typeof notificationPreferences.$inferInsert> = {};
+    if (changes.muted) values.mutedTypes = changes.muted;
+    if (changes.quiet !== undefined) {
+      values.quietStart = changes.quiet?.start ?? null;
+      values.quietEnd = changes.quiet?.end ?? null;
+    }
     await db
       .insert(notificationPreferences)
-      .values({ userId, mutedTypes: types })
-      .onConflictDoUpdate({ target: notificationPreferences.userId, set: { mutedTypes: types, updatedAt: new Date() } });
+      .values({ userId, ...values })
+      .onConflictDoUpdate({ target: notificationPreferences.userId, set: { ...values, updatedAt: new Date() } });
   }
 
   // Clients of an active trainer (not demo accounts) who have not sent a weekly report since `since`

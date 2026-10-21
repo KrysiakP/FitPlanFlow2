@@ -73,7 +73,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 57. [ ] Zaproszenia trenerów linkiem
 
 ## 6. Powiadomienia i komunikacja
-58. [ ] Cichy tryb
+58. [x] Cichy tryb (presety godzin, czas polski; historia zachowana, telefon nie dzwoni)
 59. [ ] E-mail jako kanał zapasowy
 60. [ ] Dzienne podsumowanie trenera
 61. [ ] Czat: załączniki i potwierdzenie odczytu
@@ -103,7 +103,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 
 ## 9. Wydajność i wygoda
 81. [ ] Paginacja list
-82. [ ] Indeksy dla zapytań harmonogramu
+82. [x] Indeksy (raporty, relacje, terminy sesji, historia powiadomień); trafią na produkcję przy publikacji
 83. [ ] Kolejka zapisu offline
 84. [ ] Dopracowanie ciemnego motywu
 85. [ ] Dostępność web

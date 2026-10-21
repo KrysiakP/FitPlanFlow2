@@ -70,6 +70,7 @@ import { evaluatePersonalRecord } from "../lib/personalRecord";
 import { buildAccountExport, exportFileName } from "../lib/accountExport";
 import { deadPushTokens, withPushType } from "../lib/expoPush";
 import { accessFromRequest, ACTION_LABELS } from "../lib/accessAudit";
+import { isQuietNow, QUIET_PRESETS, sanitizeQuietHours } from "../lib/quietHours";
 import { buildExerciseHistory } from "../lib/exerciseHistory";
 import { buildAttentionList } from "../lib/attention";
 import { deleteTestClient } from "../testClientService";
@@ -141,13 +142,12 @@ async function sendPushToUserAndRecord(
   data?: Record<string, string>,
   notificationType?: string
 ): Promise<void> {
-  // Optional kinds (reminders, summaries) respect the user's choice; everything else is always delivered
+  // Optional kinds (reminders, summaries) respect the user's choice; quiet hours only hold back the buzz, not the history.
+  // A failed lookup (e.g. the table is not migrated yet) must never block the notification itself.
   const optionalType = notificationType ?? data?.type;
-  if (isOptionalNotificationType(optionalType)) {
-    // a failed lookup (e.g. the table is not migrated yet) must never block the notification itself
-    const muted = await storage.getMutedNotificationTypes(userId).catch(() => [] as string[]);
-    if (muted.includes(optionalType!)) return;
-  }
+  const preferences = await storage.getNotificationPreferences(userId).catch(() => null);
+  if (preferences && isOptionalNotificationType(optionalType) && preferences.muted.includes(optionalType!)) return;
+  const quiet = !!preferences && isQuietNow(preferences.quietStart, preferences.quietEnd);
 
   const [tokens] = await Promise.all([
     storage.getPushTokensByUser(userId),
@@ -158,7 +158,7 @@ async function sendPushToUserAndRecord(
       type: notificationType ?? data?.type ?? null,
     }).catch((err: unknown) => console.error("Failed to record push history:", err)),
   ]);
-  if (tokens.length > 0) {
+  if (tokens.length > 0 && !quiet) {
     void sendExpoPush(userId, tokens.map((t) => t.token), title, body, withPushType(data, notificationType));
   }
 }
@@ -1411,20 +1411,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(404).json({ message: "Nie znaleziono konta." });
-      const muted = new Set(await storage.getMutedNotificationTypes(user.id));
-      res.json({ options: optionalNotifications(user.role).map((option) => ({ ...option, enabled: !muted.has(option.type) })) });
+      const preferences = await storage.getNotificationPreferences(user.id);
+      const muted = new Set(preferences.muted);
+      res.json({
+        options: optionalNotifications(user.role).map((option) => ({ ...option, enabled: !muted.has(option.type) })),
+        quietHours: {
+          current: preferences.quietStart != null && preferences.quietEnd != null ? { start: preferences.quietStart, end: preferences.quietEnd } : null,
+          presets: QUIET_PRESETS,
+        },
+      });
     } catch (error) {
       console.error("Error loading notification preferences:", error);
       res.status(500).json({ message: "Nie udało się pobrać ustawień powiadomień" });
     }
   });
 
+  // Body: { muted?: string[], quietHours?: { start, end } | null }. Fields that are left out stay as they were.
   app.put("/api/notification-preferences", isAuthenticated, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
       if (!user) return res.status(404).json({ message: "Nie znaleziono konta." });
-      if (!Array.isArray(req.body?.muted)) return res.status(400).json({ message: "Pole muted musi być listą" });
-      await storage.setMutedNotificationTypes(user.id, sanitizeMutedTypes(req.body.muted, user.role));
+      const hasMuted = req.body?.muted !== undefined;
+      const quiet = sanitizeQuietHours(req.body?.quietHours);
+      if (hasMuted && !Array.isArray(req.body.muted)) return res.status(400).json({ message: "Pole muted musi być listą" });
+      if (!hasMuted && quiet === undefined) return res.status(400).json({ message: "Brak zmian do zapisania" });
+      await storage.setNotificationPreferences(user.id, {
+        ...(hasMuted ? { muted: sanitizeMutedTypes(req.body.muted, user.role) } : {}),
+        ...(quiet !== undefined ? { quiet } : {}),
+      });
       res.json({ success: true });
     } catch (error) {
       console.error("Error saving notification preferences:", error);

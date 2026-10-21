@@ -315,6 +315,16 @@ test("optional notifications can be switched off per role, and a muted one is no
   assert.equal(res.status, 200);
   assert.equal(await count(), before, "a muted reminder is not delivered");
 
+  // quiet hours: only the offered presets, independent of the muted list
+  const quiet = async () => (await (await call(client, "GET", "/api/notification-preferences")).json()).quietHours;
+  assert.equal((await call(client, "PUT", "/api/notification-preferences", { quietHours: { start: 1, end: 2 } })).status, 400, "arbitrary windows are refused");
+  assert.equal((await call(client, "PUT", "/api/notification-preferences", { quietHours: { start: 22 * 60, end: 7 * 60 } })).status, 200);
+  assert.deepEqual((await quiet()).current, { start: 1320, end: 420 });
+  assert.equal((await options(client)).find((o) => o.type === "report_reminder").enabled, false, "the muted list was left alone");
+  assert.ok((await quiet()).presets.length >= 1, "the app gets the presets from the server");
+  assert.equal((await call(client, "PUT", "/api/notification-preferences", { quietHours: null })).status, 200);
+  assert.equal((await quiet()).current, null);
+
   assert.equal((await call(client, "PUT", "/api/notification-preferences", { muted: [] })).status, 200);
   assert.ok((await options(client)).every((o) => o.enabled), "everything is on again");
   assert.equal((await fetch(`${API_URL}/api/notification-preferences`)).status, 401);
