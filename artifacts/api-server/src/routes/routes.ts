@@ -1359,6 +1359,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sign out everywhere: ends every browser session and every mobile token of the user (lost phone, shared computer)
+  app.post("/api/account/logout-everywhere", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      await db.delete(sessions).where(sql`sess->>'userId' = ${userId}`);
+      await storage.deleteAllMobileTokensForUser(userId);
+      res.json({ message: "Wylogowano ze wszystkich urządzeń" });
+    } catch (error) {
+      console.error("Error signing out everywhere:", error);
+      res.status(500).json({ message: "Nie udało się wylogować ze wszystkich urządzeń" });
+    }
+  });
+
   // Which optional push notifications the user receives (the app renders the list as returned)
   app.get("/api/notification-preferences", isAuthenticated, async (req, res) => {
     try {

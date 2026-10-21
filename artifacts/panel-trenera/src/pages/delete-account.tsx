@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Trash2, CheckCircle, AlertTriangle, Download, LogIn } from "lucide-react";
+import { ArrowLeft, Trash2, CheckCircle, AlertTriangle, Download, LogIn, LogOut } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { PublicHeader } from "@/components/public-header";
 import { useAuth } from "@/hooks/useAuth";
@@ -157,6 +157,25 @@ export default function DeleteAccount() {
                       <Download className="w-4 h-4 mr-2" />
                       Pobierz moje dane
                     </a>
+                  </Button>
+                </div>
+
+                <div className="rounded-lg border p-4 space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Zgubiony telefon albo cudzy komputer? Wyloguj to konto ze wszystkich urządzeń naraz.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={async () => {
+                      await fetch("/api/account/logout-everywhere", { method: "POST", credentials: "include" });
+                      setLocation("/login");
+                    }}
+                    data-testid="button-logout-everywhere"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Wyloguj ze wszystkich urządzeń
                   </Button>
                 </div>
 

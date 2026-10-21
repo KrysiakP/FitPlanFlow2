@@ -149,6 +149,18 @@ test("exercise logs and workouts belong to the plan's owner and assignee", async
   assert.ok([200, 201].includes(ok.status), `assignee logs a set (got ${ok.status})`);
 });
 
+test("signing out everywhere ends every session of that user and nobody else's", async () => {
+  const phone = await login(CLIENT2_EMAIL);
+  const tablet = await login(CLIENT2_EMAIL);
+  const other = await login(TRAINER2_EMAIL);
+  assert.equal((await call(tablet, "GET", "/api/auth/user")).status, 200);
+  assert.equal((await fetch(`${API_URL}/api/account/logout-everywhere`, { method: "POST" })).status, 401, "needs a login");
+  assert.equal((await call(phone, "POST", "/api/account/logout-everywhere")).status, 200);
+  assert.equal((await call(phone, "GET", "/api/auth/user")).status, 401, "the device that asked is out");
+  assert.equal((await call(tablet, "GET", "/api/auth/user")).status, 401, "so is the other device");
+  assert.equal((await call(other, "GET", "/api/auth/user")).status, 200, "another user is untouched");
+});
+
 test.after(async () => {
   if (!t1) return;
   await call(t1, "DELETE", `/api/assignments/client/${c1.id}`);
