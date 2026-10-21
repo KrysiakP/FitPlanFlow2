@@ -127,3 +127,18 @@ test("studio registration validates input and rejects an e-mail that already has
   assert.equal(duplicate.status, 400);
   assert.match((await duplicate.json()).message, /już istnieje/);
 });
+
+test("a studio owner cannot use trainer or client features", async () => {
+  const forbidden = async (method, path, body) => {
+    const res = await call(studio, method, path, body);
+    assert.ok([403, 404].includes(res.status), `${method} ${path}: expected denied, got ${res.status}`);
+  };
+  await forbidden("GET", "/api/trainer/clients");
+  await forbidden("POST", "/api/plans", { name: "Plan właściciela" });
+  await forbidden("POST", "/api/payments", { clientId: "x", amount: 100, dueDate: new Date().toISOString() });
+  await forbidden("POST", "/api/invitations/send", { clientEmail: "ktos@local.test" });
+  await forbidden("GET", "/api/client/assignment");
+  await forbidden("GET", "/api/client/diet");
+  await forbidden("POST", "/api/sessions", { guestName: "Gość", scheduledAt: new Date(Date.now() + 86400000).toISOString(), durationMinutes: 60 });
+  await forbidden("POST", "/api/gym/join/AAAAAAAA");
+});

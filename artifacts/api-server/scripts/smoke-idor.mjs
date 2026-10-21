@@ -63,6 +63,12 @@ test.before(async () => {
 
   const plan = await call(t1, "POST", "/api/plans", { name: "IDOR plan" });
   state.planId = (await plan.json()).id;
+  const workout = await call(t1, "POST", `/api/plans/${state.planId}/workouts`, { name: "A", orderIndex: 0 });
+  state.workoutId = (await workout.json()).id;
+  const exercise = await call(t1, "POST", `/api/workouts/${state.workoutId}/exercises`, [
+    { name: "Martwy ciąg", sets: 3, reps: 5, load: "100", restTime: 120, orderIndex: 0 },
+  ]);
+  state.exerciseId = (await exercise.json())[0].id;
   assert.equal((await call(t1, "POST", "/api/assignments/bulk", { planId: state.planId, clientIds: [c1.id] })).status, 200);
 });
 
@@ -109,6 +115,29 @@ test("client 2 cannot see client 1's plan or data", async () => {
   }
   await assertDenied("trainer endpoint as client", call(c2, "GET", `/api/trainer/clients/${c1.id}/progress`));
   await assertDenied("create plan as client", call(c2, "POST", "/api/plans", { name: "x" }));
+});
+
+test("exercise logs and workouts belong to the plan's owner and assignee", async () => {
+  await assertDenied("foreign client logs a set", call(c2, "POST", `/api/exercises/${state.exerciseId}/log`, { reps: 5, load: "100", setNumber: 1 }));
+  // These are scoped to the caller's own history: denied, or an empty answer, but never another client's data
+  for (const path of [`/api/exercises/${state.exerciseId}/logs`, `/api/exercises/${state.exerciseId}/latest-log`]) {
+    const res = await call(c2, "GET", path);
+    if (res.status === 200) {
+      const body = await res.json();
+      assert.ok(body === null || (Array.isArray(body) && body.length === 0) || Object.keys(body).length === 0, `${path} leaked data`);
+    } else {
+      assert.ok([403, 404].includes(res.status), `${path}: got ${res.status}`);
+    }
+  }
+  await assertDenied("foreign trainer reads workout", call(t2, "GET", `/api/workouts/${state.workoutId}`));
+  await assertDenied("foreign trainer lists exercises", call(t2, "GET", `/api/workouts/${state.workoutId}/exercises`));
+  await assertDenied("foreign trainer edits exercise", call(t2, "PUT", `/api/exercises/${state.exerciseId}`, { name: "Przejęte" }));
+  await assertDenied("foreign trainer deletes exercise", call(t2, "DELETE", `/api/exercises/${state.exerciseId}`));
+  await assertDenied("foreign trainer edits workout", call(t2, "PUT", `/api/workouts/${state.workoutId}`, { name: "x" }));
+  await assertDenied("foreign trainer deletes workout", call(t2, "DELETE", `/api/workouts/${state.workoutId}`));
+  // the assignee may log
+  const ok = await call(c1, "POST", `/api/exercises/${state.exerciseId}/log`, { reps: 5, load: "100", setNumber: 1 });
+  assert.ok([200, 201].includes(ok.status), `assignee logs a set (got ${ok.status})`);
 });
 
 test.after(async () => {
