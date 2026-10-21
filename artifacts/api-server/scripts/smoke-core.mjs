@@ -383,6 +383,8 @@ test("editing a diet keeps what the client already ticked off", async () => {
     assert.equal(ticked.status, 200, "the client ticks two meals");
     const logsOf = async () => (await (await call(client, "GET", `/api/client/diet/logs?planId=${planId}&startDate=${today}&endDate=${today}`)).json());
     assert.equal((await logsOf())[0].checkmarks.length, 2);
+    const onlyMeals = await call(client, "POST", "/api/client/diet/log", { date: today, planId, mealCheckmarks: [{ mealId: chicken.id, completed: false }] });
+    assert.equal(onlyMeals.status, 200, "a log with only ticked meals and no other value is accepted");
 
     // edit: rename nothing, change a macro, add a meal and drop the Tuesday porridge; ids come from the saved rows
     const edit = await call(trainer, "PUT", `/api/diets/plans/${planId}/meals/sync`, {

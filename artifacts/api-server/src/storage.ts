@@ -2273,6 +2273,8 @@ export class DatabaseStorage implements IStorage {
       .onConflictDoUpdate({
         target: [dailyHabitLogs.clientId, dailyHabitLogs.planId, dailyHabitLogs.date],
         set: {
+          // a harmless assignment, so a log without any value (only ticked meals) still has something to set
+          clientId: log.clientId,
           waterLiters: log.waterLiters,
           hitCalories: log.hitCalories,
           hitProtein: log.hitProtein,
