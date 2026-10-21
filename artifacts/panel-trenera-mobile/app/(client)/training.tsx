@@ -107,6 +107,7 @@ interface LoggingState {
   reps: string;
   load: string;
   warmup?: boolean; // a warm-up set is saved but never counts as a record or as history
+  note?: string; // the client's remark on this set; the trainer reads it
 }
 
 interface SessionBody {
@@ -140,6 +141,7 @@ interface ExerciseRowProps {
   onChangeReps: (v: string) => void;
   onChangeLoad: (v: string) => void;
   onToggleWarmup: () => void;
+  onChangeNote: (v: string) => void;
   onConfirmLog: () => void;
   onAddSet: (exerciseId: string) => void;
   suggestion?: string | null; // "Ostatnio 80 kg × 10: spróbuj 82,5 kg"
@@ -162,6 +164,7 @@ function ExerciseRow({
   onChangeReps,
   onChangeLoad,
   onToggleWarmup,
+  onChangeNote,
   onConfirmLog,
   onAddSet,
   suggestion,
@@ -387,6 +390,15 @@ function ExerciseRow({
                           Seria rozgrzewkowa (nie liczy się do rekordów)
                         </Text>
                       </Pressable>
+                      <TextInput
+                        style={[styles.logNoteInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
+                        value={loggingState.note ?? ""}
+                        onChangeText={onChangeNote}
+                        placeholder="Uwaga dla trenera (np. kolano pobolewa)"
+                        placeholderTextColor={colors.mutedForeground}
+                        maxLength={500}
+                        testID={`input-note-${exercise.id}-${setNum}`}
+                      />
                       <View style={styles.logActions}>
                         <Pressable
                           style={[styles.logBtn, styles.logBtnCancel, { borderColor: colors.border }]}
@@ -675,8 +687,8 @@ export default function TrainingScreen() {
   const hideRecordToast = useCallback(() => setRecordToast(null), []);
 
   const logMutation = useMutation({
-    mutationFn: async ({ exerciseId, setNumber, reps, load, isWarmup }: { exerciseId: string; setNumber: number; reps: number; load: string; isWarmup?: boolean }) => {
-      return apiPost<{ personalRecord?: PersonalRecordInfo }>(`/api/exercises/${exerciseId}/log`, { reps, load: load || undefined, setNumber, ...(isWarmup ? { isWarmup: true } : {}) });
+    mutationFn: async ({ exerciseId, setNumber, reps, load, isWarmup, note }: { exerciseId: string; setNumber: number; reps: number; load: string; isWarmup?: boolean; note?: string }) => {
+      return apiPost<{ personalRecord?: PersonalRecordInfo }>(`/api/exercises/${exerciseId}/log`, { reps, load: load || undefined, setNumber, ...(isWarmup ? { isWarmup: true } : {}), ...(note ? { notes: note } : {}) });
     },
     onSuccess: (data) => {
       if (data?.personalRecord) {
@@ -1071,7 +1083,7 @@ export default function TrainingScreen() {
     const wasAlreadyCompleted = completedSets[exerciseId]?.has(setNumber) ?? false;
 
     logMutation.mutate(
-      { exerciseId, setNumber, reps, load, isWarmup: loggingState.warmup === true },
+      { exerciseId, setNumber, reps, load, isWarmup: loggingState.warmup === true, note: loggingState.note?.trim() || undefined },
       {
         onSuccess: () => {
           // Compute new completed set before updating state so we can use it for plan-update check
@@ -1305,6 +1317,7 @@ export default function TrainingScreen() {
                   onChangeReps={(v) => setLoggingState((s) => ({ ...s, reps: v }))}
                   onChangeLoad={(v) => setLoggingState((s) => ({ ...s, load: v }))}
                   onToggleWarmup={() => setLoggingState((s) => ({ ...s, warmup: !s.warmup }))}
+                  onChangeNote={(v) => setLoggingState((s) => ({ ...s, note: v }))}
                   onConfirmLog={handleConfirmLog}
                   onAddSet={handleAddSet}
                   suggestion={suggestLoad({
@@ -1430,6 +1443,7 @@ const styles = StyleSheet.create({
   tag: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
   tagText: { fontSize: 11, fontFamily: "Inter_500Medium" },
   setsProgress: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  logNoteInput: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 10 },
   exerciseNotes: { fontSize: 12, fontFamily: "Inter_400Regular", fontStyle: "italic" },
   setList: { borderTopWidth: 1 },
   setRow: {

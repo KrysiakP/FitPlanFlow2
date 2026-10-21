@@ -49,6 +49,7 @@ import {
 } from "recharts";
 import { useMemo } from "react";
 import { StrengthProgressCard } from "@/components/strength-progress-card";
+import { ExerciseNotesCard } from "@/components/exercise-notes-card";
 import { PhotoCompareCard } from "@/components/photo-compare-card";
 
 function parseNumericValue(value: string | null | undefined): number {
@@ -744,6 +745,7 @@ export default function TrainerClientProgress() {
             <TabsContent value="performance" className="mt-6">
               {exercisePerformanceData.length > 0 ? (
                 <div className="space-y-6">
+                  <ExerciseNotesCard clientId={clientId} />
                   <StrengthProgressCard clientId={clientId} />
                   <Card data-testid="card-performance-overview">
                     <CardHeader>

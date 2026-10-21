@@ -363,6 +363,20 @@ test("a finished workout can carry a 1-10 difficulty rating that the trainer see
   assert.ok(seen.some((item) => item.rpe === 8), "the trainer sees the rating");
 });
 
+test("notes written next to a set reach the trainer, and only the right trainer", async () => {
+  const text = `Kolano pobolewa ${Date.now()}`;
+  const logged = await call(client, "POST", `/api/exercises/${state.exerciseId}/log`, { reps: 5, load: "60", setNumber: 21, notes: text });
+  assert.equal(logged.status, 200);
+  const notes = await (await call(trainer, "GET", `/api/trainer/clients/${client.id}/exercise-notes`)).json();
+  const found = notes.find((item) => item.note === text);
+  assert.ok(found, "the note is listed");
+  assert.equal(found.exercise, "Przysiad", "with the exercise it belongs to");
+  assert.ok(!notes.some((item) => !item.note || !item.note.trim()), "empty notes are never listed");
+  assert.equal((await call(client, "GET", `/api/trainer/clients/${client.id}/exercise-notes`)).status, 403);
+  const tooLong = await call(client, "POST", `/api/exercises/${state.exerciseId}/log`, { reps: 5, load: "60", setNumber: 22, notes: "x".repeat(501) });
+  assert.equal(tooLong.status, 400, "a set note is capped at 500 characters");
+});
+
 test("the health endpoint answers without a login", async () => {
   const res = await fetch(`${API_URL}/api/health`);
   assert.equal(res.status, 200);

@@ -4156,6 +4156,10 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         return res.status(403).json({ message: "Brak dostępu do tego ćwiczenia" });
       }
 
+      if (typeof req.body?.notes === "string" && req.body.notes.length > 500) {
+        return res.status(400).json({ message: "Notatka do serii może mieć najwyżej 500 znaków" });
+      }
+
       const validationResult = insertExerciseLogSchema.safeParse({
         ...req.body,
         exerciseId,
@@ -4341,6 +4345,23 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
     } catch (error) {
       console.error("Error computing achievements:", error);
       res.status(500).json({ message: "Nie udało się pobrać osiągnięć" });
+    }
+  });
+
+  // What the client wrote next to their sets: the trainer's early warning for pain and trouble
+  app.get("/api/trainer/clients/:clientId/exercise-notes", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
+      const clientId = String(req.params.clientId);
+      if (isDemoId(clientId)) return res.json([]);
+      if (!(await storage.hasActiveClientRelationship(user.id, clientId))) {
+        return res.status(403).json({ message: "Brak aktywnej współpracy z tym podopiecznym" });
+      }
+      res.json(await storage.getClientExerciseNotes(clientId));
+    } catch (error) {
+      console.error("Error loading exercise notes:", error);
+      res.status(500).json({ message: "Nie udało się pobrać uwag z treningów" });
     }
   });
 

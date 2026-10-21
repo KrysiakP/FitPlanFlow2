@@ -402,6 +402,12 @@ export default function ClientDetailScreen() {
     onError: () => Alert.alert("Błąd", "Nie udało się anulować sesji."),
   });
 
+  const { data: exerciseNotes } = useQuery<{ id: string; exercise: string; note: string; load: string | null; reps: number; loggedAt: string }[]>({
+    queryKey: ["client-exercise-notes", id],
+    queryFn: () => apiGet(`/api/trainer/clients/${id}/exercise-notes`),
+    enabled: !!id,
+  });
+
   const { data: trainerNotesData } = useQuery<{ notes: string | null }>({
     queryKey: ["trainer-notes", id],
     queryFn: () => apiGet<{ notes: string | null }>(`/api/trainer/clients/${id}/notes`),
@@ -981,6 +987,23 @@ export default function ClientDetailScreen() {
                     </View>
                   ))}
                 </View>
+              </>
+            )}
+
+            {(exerciseNotes ?? []).length > 0 && (
+              <>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Uwagi z treningów</Text>
+                {(exerciseNotes ?? []).slice(0, 10).map((item) => (
+                  <View key={item.id} style={[styles.progressRow, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: "column", alignItems: "flex-start", gap: 2 }]}>
+                    <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.foreground }}>
+                      {item.exercise}
+                      <Text style={{ fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>
+                        {` · ${item.load ? `${item.load} kg × ` : ""}${item.reps} · ${formatDateTime(item.loggedAt)}`}
+                      </Text>
+                    </Text>
+                    <Text style={{ fontSize: 13, color: colors.mutedForeground }}>{item.note}</Text>
+                  </View>
+                ))}
               </>
             )}
 

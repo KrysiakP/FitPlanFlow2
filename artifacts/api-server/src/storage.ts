@@ -346,6 +346,7 @@ export interface IStorage {
   hasPushNotification(userId: string, type: string, body: string, since: Date): Promise<boolean>;
   hasRecentPushOfType(userId: string, type: string, since: Date): Promise<boolean>;
   getClientIdsWithoutRecentReport(since: Date): Promise<string[]>;
+  getClientExerciseNotes(clientId: string, limit?: number): Promise<{ id: string; exercise: string; note: string; load: string | null; reps: number; loggedAt: Date }[]>;
   getLatestAssignmentsWithPlans(trainerId: string, clientIds: string[]): Promise<Map<string, { assignment: PlanAssignment; plan: TrainingPlan }>>;
   getReportPhotoOwner(objectPath: string): Promise<string | null>;
   setTotpSecret(userId: string, sealedSecret: string): Promise<void>;
@@ -3470,6 +3471,18 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(planAssignments.assignedAt));
     for (const row of rows) if (!result.has(row.assignment.clientId)) result.set(row.assignment.clientId, row); // newest first
     return result;
+  }
+
+  // The client's own remarks on sets ("kolano pobolewa"), newest first, with the exercise they belong to
+  async getClientExerciseNotes(clientId: string, limit: number = 20) {
+    const rows = await db
+      .select({ id: exerciseLogs.id, exercise: exercises.name, note: exerciseLogs.notes, load: exerciseLogs.load, reps: exerciseLogs.reps, loggedAt: exerciseLogs.loggedAt })
+      .from(exerciseLogs)
+      .innerJoin(exercises, eq(exercises.id, exerciseLogs.exerciseId))
+      .where(and(eq(exerciseLogs.clientId, clientId), sql`${exerciseLogs.notes} is not null and btrim(${exerciseLogs.notes}) <> ''`))
+      .orderBy(desc(exerciseLogs.loggedAt))
+      .limit(limit);
+    return rows.flatMap((row) => (row.note ? [{ ...row, note: row.note }] : []));
   }
 
   // Clients of an active trainer (not demo accounts) who have not sent a weekly report since `since`
