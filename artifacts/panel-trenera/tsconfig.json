@@ -11,7 +11,9 @@
     "moduleResolution": "bundler",
     "types": ["node", "vite/client"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@shared/schema": ["../../lib/db/src/schema/schema.ts"],
+      "@assets/*": ["../../attached_assets/*"]
     }
   },
   "references": [
