@@ -21,11 +21,14 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, totpCode?: string) => Promise<void>;
   register: (firstName: string, email: string, password: string, role?: "client" | "trainer", lastName?: string, invitationCode?: string, referralCode?: string) => Promise<{ requiresEmailVerification: boolean }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
+
+/** Thrown by login() when the account has two-step login switched on and no (or a wrong) code was given. */
+export class TwoFactorRequiredError extends Error {}
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -234,13 +237,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [refreshUser]);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, totpCode?: string) => {
     const res = await apiFetch("/api/login", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(totpCode ? { email, password, totpCode } : { email, password }),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({})) as { message?: string };
+      const err = await res.json().catch(() => ({})) as { message?: string; requires2fa?: boolean };
+      // two-step login: the password was right, the app must now ask for the code
+      if (res.status === 401 && err.requires2fa) throw new TwoFactorRequiredError(err.message ?? "Podaj kod z aplikacji uwierzytelniającej");
       throw new Error(err.message ?? "Nieprawidłowe dane logowania");
     }
     const data: User & { mobileToken?: string } = await res.json();

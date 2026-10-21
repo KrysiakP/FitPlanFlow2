@@ -346,6 +346,10 @@ export interface IStorage {
   hasPushNotification(userId: string, type: string, body: string, since: Date): Promise<boolean>;
   hasRecentPushOfType(userId: string, type: string, since: Date): Promise<boolean>;
   getClientIdsWithoutRecentReport(since: Date): Promise<string[]>;
+  setTotpSecret(userId: string, sealedSecret: string): Promise<void>;
+  enableTotp(userId: string, backupCodeHashes: string[]): Promise<void>;
+  disableTotp(userId: string): Promise<void>;
+  useBackupCode(userId: string, hash: string): Promise<boolean>;
   createClientReminder(trainerId: string, clientId: string, text: string, dueDate: Date): Promise<{ id: string }>;
   getOpenClientReminders(trainerId: string): Promise<{ id: string; clientId: string; text: string; dueDate: Date; clientFirstName: string; clientLastName: string }[]>;
   completeClientReminder(trainerId: string, id: string): Promise<boolean>;
@@ -3414,6 +3418,29 @@ export class DatabaseStorage implements IStorage {
 
   async markReminderNotified(id: string): Promise<void> {
     await db.update(clientReminders).set({ notifiedAt: new Date() }).where(eq(clientReminders.id, id));
+  }
+
+  // A fresh secret is pending (not enabled) until the user proves they can produce a code
+  async setTotpSecret(userId: string, sealedSecret: string): Promise<void> {
+    await db.update(users).set({ totpSecret: sealedSecret, totpEnabled: false, totpBackupCodes: [] }).where(eq(users.id, userId));
+  }
+
+  async enableTotp(userId: string, backupCodeHashes: string[]): Promise<void> {
+    await db.update(users).set({ totpEnabled: true, totpBackupCodes: backupCodeHashes }).where(eq(users.id, userId));
+  }
+
+  async disableTotp(userId: string): Promise<void> {
+    await db.update(users).set({ totpSecret: null, totpEnabled: false, totpBackupCodes: [] }).where(eq(users.id, userId));
+  }
+
+  // Single use: the code is removed in the same statement that finds it, so two parallel logins cannot both use it
+  async useBackupCode(userId: string, hash: string): Promise<boolean> {
+    const rows = await db
+      .update(users)
+      .set({ totpBackupCodes: sql`array_remove(${users.totpBackupCodes}, ${hash})` })
+      .where(and(eq(users.id, userId), sql`${hash} = any(${users.totpBackupCodes})`))
+      .returning({ id: users.id });
+    return rows.length > 0;
   }
 
   // Clients of an active trainer (not demo accounts) who have not sent a weekly report since `since`

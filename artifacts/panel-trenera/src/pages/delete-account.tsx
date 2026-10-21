@@ -16,6 +16,7 @@ import { ArrowLeft, Trash2, CheckCircle, AlertTriangle, Download, LogIn, LogOut 
 import { Link, useLocation } from "wouter";
 import { PublicHeader } from "@/components/public-header";
 import { useAuth } from "@/hooks/useAuth";
+import { TwoFactorCard } from "@/components/two-factor-card";
 
 export default function DeleteAccount() {
   const { user, isLoading } = useAuth();
@@ -147,6 +148,8 @@ export default function DeleteAccount() {
                     <p className="mt-2">Operacja jest <strong>nieodwracalna</strong>.</p>
                   </div>
                 </div>
+
+                <TwoFactorCard />
 
                 <div className="rounded-lg border p-4 space-y-3">
                   <p className="text-sm text-muted-foreground">

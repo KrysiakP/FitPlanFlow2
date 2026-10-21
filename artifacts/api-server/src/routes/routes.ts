@@ -81,6 +81,8 @@ import { computeRetention } from "../lib/retention";
 import { goalProgress } from "../lib/goalProgress";
 import { sanitizeReminderText } from "../lib/clientReminder";
 import { sendClientReminders } from "../services/clientReminders";
+import { stripSecrets } from "../lib/publicUser";
+import { generateBackupCodes, generateTotpSecret, hashBackupCode, openSecret, otpauthUrl, sealSecret, verifyTotp } from "../lib/totp";
 import { buildExerciseHistory } from "../lib/exerciseHistory";
 import { buildAttentionList } from "../lib/attention";
 import { deleteTestClient } from "../testClientService";
@@ -936,7 +938,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Don't create session - user must verify email first
-      const { password: _, ...userWithoutPassword } = user;
+      const userWithoutPassword = stripSecrets(user);
       console.log("[REGISTER] User registered, verification email sent:", user.id);
       res.status(201).json({ 
         ...userWithoutPassword,
@@ -1071,7 +1073,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn("[MOBILE-REGISTER] Failed to send verification email to:", user.email);
       }
 
-      const { password: _, ...userWithoutPassword } = user;
+      const userWithoutPassword = stripSecrets(user);
       console.log("[MOBILE-REGISTER] User registered, verification email sent:", user.id);
       return res.status(201).json({
         ...userWithoutPassword,
@@ -1115,6 +1117,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Two-step login: users who switched it on must also give a code from the app (or a one-time backup code)
+      if (user.totpEnabled && user.totpSecret) {
+        const supplied = typeof req.body?.totpCode === "string" ? req.body.totpCode.trim() : "";
+        if (!supplied) {
+          return res.status(401).json({ requires2fa: true, message: "Podaj kod z aplikacji uwierzytelniającej" });
+        }
+        const valid = verifyTotp(openSecret(user.totpSecret, process.env.SESSION_SECRET!), supplied) || (await storage.useBackupCode(user.id, hashBackupCode(supplied)));
+        if (!valid) {
+          return res.status(401).json({ requires2fa: true, message: "Nieprawidłowy kod. Spróbuj ponownie albo użyj kodu zapasowego." });
+        }
+      }
+
       // Regenerate the session id on login to prevent session fixation
       req.session.regenerate((regenErr) => {
         if (regenErr) {
@@ -1129,7 +1143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.error("Error saving session:", err);
             return res.status(500).json({ message: "Nie udało się zapisać sesji" });
           }
-          const { password: _, ...userWithoutPassword } = user;
+          const userWithoutPassword = stripSecrets(user);
           // Generate a Bearer token for mobile clients (avoids cross-site cookie issues)
           try {
             const tokenValue = randomUUID();
@@ -1382,6 +1396,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error in forgot password:", error);
       res.status(500).json({ message: "Wystąpił błąd podczas przetwarzania żądania" });
+    }
+  });
+
+  // Two-step login with an authenticator app (any signed-in user may switch it on)
+  app.get("/api/account/2fa", isAuthenticated, async (req, res) => {
+    const user = await storage.getUser(req.session.userId!);
+    if (!user) return res.status(404).json({ message: "Nie znaleziono konta." });
+    res.json({ enabled: user.totpEnabled, backupCodesLeft: user.totpEnabled ? user.totpBackupCodes.length : 0 });
+  });
+
+  app.post("/api/account/2fa/setup", isAuthenticated, authRateLimit, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(404).json({ message: "Nie znaleziono konta." });
+      if (user.totpEnabled) return res.status(409).json({ message: "Dwuskładnikowe logowanie jest już włączone" });
+      const secret = generateTotpSecret();
+      await storage.setTotpSecret(user.id, sealSecret(secret, process.env.SESSION_SECRET!));
+      res.json({ secret, otpauthUrl: otpauthUrl(user.email, secret) });
+    } catch (error) {
+      console.error("Error starting 2FA setup:", error);
+      res.status(500).json({ message: "Nie udało się rozpocząć konfiguracji" });
+    }
+  });
+
+  // Proves the app works before the second step is enforced; returns the backup codes exactly once
+  app.post("/api/account/2fa/enable", isAuthenticated, authRateLimit, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(404).json({ message: "Nie znaleziono konta." });
+      if (user.totpEnabled) return res.status(409).json({ message: "Dwuskładnikowe logowanie jest już włączone" });
+      if (!user.totpSecret) return res.status(400).json({ message: "Najpierw rozpocznij konfigurację" });
+      if (typeof req.body?.code !== "string" || !verifyTotp(openSecret(user.totpSecret, process.env.SESSION_SECRET!), req.body.code)) {
+        return res.status(400).json({ message: "Nieprawidłowy kod. Sprawdź, czy zegar w telefonie jest dokładny." });
+      }
+      const backupCodes = generateBackupCodes();
+      await storage.enableTotp(user.id, backupCodes.map(hashBackupCode));
+      res.json({ enabled: true, backupCodes });
+    } catch (error) {
+      console.error("Error enabling 2FA:", error);
+      res.status(500).json({ message: "Nie udało się włączyć logowania dwuskładnikowego" });
+    }
+  });
+
+  // Switching it off needs the password and a current code, so a stolen session alone cannot remove the protection
+  app.post("/api/account/2fa/disable", isAuthenticated, authRateLimit, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(404).json({ message: "Nie znaleziono konta." });
+      if (!user.totpEnabled || !user.totpSecret) return res.status(400).json({ message: "Logowanie dwuskładnikowe nie jest włączone" });
+      const { password, code } = req.body ?? {};
+      if (typeof password !== "string" || !(await comparePassword(password, user.password))) {
+        return res.status(403).json({ message: "Nieprawidłowe hasło" });
+      }
+      const validCode = typeof code === "string" && (verifyTotp(openSecret(user.totpSecret, process.env.SESSION_SECRET!), code) || (await storage.useBackupCode(user.id, hashBackupCode(code))));
+      if (!validCode) return res.status(403).json({ message: "Nieprawidłowy kod" });
+      await storage.disableTotp(user.id);
+      res.json({ enabled: false });
+    } catch (error) {
+      console.error("Error disabling 2FA:", error);
+      res.status(500).json({ message: "Nie udało się wyłączyć logowania dwuskładnikowego" });
     }
   });
 
@@ -1657,7 +1731,7 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         profileImageDisplayUrl = await objectStorageService.getObjectReadUrl(user.profileImageUrl);
       }
       
-      const { password: _, ...userWithoutPassword } = user;
+      const userWithoutPassword = stripSecrets(user);
       res.json({
         ...userWithoutPassword,
         profileImageDisplayUrl,
@@ -1673,7 +1747,7 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
       const userId = req.session.userId!;
       const { role } = updateUserRoleSchema.parse(req.body);
       const user = await storage.updateUserRole(userId, role);
-      const { password: _, ...userWithoutPassword } = user;
+      const userWithoutPassword = stripSecrets(user);
       res.json(userWithoutPassword);
     } catch (error) {
       console.error("Error updating role:", error);
@@ -3469,7 +3543,7 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         return res.status(404).json({ message: "Client not found" });
       }
 
-      const { password: _, ...clientWithoutPassword } = client;
+      const clientWithoutPassword = stripSecrets(client);
       
       const assignment = await storage.getClientAssignment(client.id, userId);
       let assignmentWithPlan = undefined;
@@ -3848,7 +3922,7 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
               return null;
             }
             
-            const { password: _, ...trainerWithoutPassword } = trainer;
+            const trainerWithoutPassword = stripSecrets(trainer);
             
             return {
               ...invitation,

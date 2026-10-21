@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import * as LocalAuthentication from "expo-local-authentication";
-import { useAuth, hasStoredSession } from "@/context/AuthContext";
+import { useAuth, hasStoredSession, TwoFactorRequiredError } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
 export default function LoginScreen() {
@@ -24,6 +24,8 @@ export default function LoginScreen() {
   const { login, refreshUser } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [needsCode, setNeedsCode] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
@@ -83,11 +85,18 @@ export default function LoginScreen() {
     setLoading(true);
     setError(null);
     try {
-      await login(email.trim().toLowerCase(), password);
+      await login(email.trim().toLowerCase(), password, totpCode.trim() || undefined);
       // login() sets hasStoredSession flag — biometric becomes available next launch
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/");
     } catch (e: unknown) {
+      if (e instanceof TwoFactorRequiredError) {
+        // asking for the code for the first time is not an error message
+        setNeedsCode(true);
+        if (totpCode.trim()) setError(e.message);
+        setLoading(false);
+        return;
+      }
       const msg = e instanceof Error ? e.message : "Wystąpił błąd. Spróbuj ponownie.";
       setError(msg);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -178,6 +187,27 @@ export default function LoginScreen() {
                 </Pressable>
               </View>
             </View>
+
+            {needsCode && (
+              <View style={styles.field}>
+                <Text style={[styles.label, { color: colors.mutedForeground }]}>Kod z aplikacji uwierzytelniającej</Text>
+                <View style={[styles.inputWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color={colors.mutedForeground} style={styles.inputIcon} />
+                  <TextInput
+                    style={[styles.input, { color: colors.foreground }]}
+                    placeholder="123 456 lub kod zapasowy"
+                    placeholderTextColor={colors.mutedForeground}
+                    value={totpCode}
+                    onChangeText={setTotpCode}
+                    autoComplete="one-time-code"
+                    textContentType="oneTimeCode"
+                    autoCapitalize="characters"
+                    autoFocus
+                    testID="input-totp-code"
+                  />
+                </View>
+              </View>
+            )}
 
             <Pressable
               onPress={() => router.push("/(auth)/forgot-password")}

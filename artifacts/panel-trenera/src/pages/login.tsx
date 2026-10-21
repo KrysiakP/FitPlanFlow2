@@ -18,6 +18,9 @@ export default function Login() {
   const { toast } = useToast();
   const [verificationNeeded, setVerificationNeeded] = useState(false);
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  // two-step login: the server answers 401 + requires2fa, then the code field appears
+  const [needsCode, setNeedsCode] = useState(false);
+  const [totpCode, setTotpCode] = useState("");
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -32,13 +35,18 @@ export default function Login() {
       const response = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(totpCode.trim() ? { ...data, totpCode: totpCode.trim() } : data),
         credentials: "include",
       });
       
       const result = await response.json();
       
       if (!response.ok) {
+        if (response.status === 401 && result.requires2fa) {
+          const hadCode = totpCode.trim() !== "";
+          setNeedsCode(true);
+          throw new Error(hadCode ? result.message : "");
+        }
         if (response.status === 403 && result.requiresEmailVerification) {
           setVerificationNeeded(true);
           setPendingEmail(result.email || data.email);
@@ -54,7 +62,8 @@ export default function Login() {
       setLocation("/");
     },
     onError: (error: Error) => {
-      if (!verificationNeeded) {
+      // asking for the code for the first time is not an error
+      if (!verificationNeeded && error.message) {
         toast({
           title: "Błąd logowania",
           description: error.message,
@@ -178,6 +187,23 @@ export default function Login() {
                   </FormItem>
                 )}
               />
+
+              {needsCode && (
+                <div className="space-y-2" data-testid="section-totp">
+                  <label htmlFor="totp-code" className="text-sm font-medium leading-none">Kod z aplikacji uwierzytelniającej</label>
+                  <Input
+                    id="totp-code"
+                    value={totpCode}
+                    onChange={(event) => setTotpCode(event.target.value)}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    autoFocus
+                    placeholder="123 456"
+                    data-testid="input-totp-code"
+                  />
+                  <p className="text-xs text-muted-foreground">Masz zgubiony telefon? Wpisz jeden z kodów zapasowych.</p>
+                </div>
+              )}
 
               <div className="text-right">
                 <Link 

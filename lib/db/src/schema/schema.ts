@@ -29,6 +29,10 @@ export const users = pgTable("users", {
   isTestUser: boolean("is_test_user").default(false).notNull(), // Test client created for trainer onboarding demo
   testUserTrainerId: varchar("test_user_trainer_id").references((): AnyPgColumn => users.id, { onDelete: "cascade" }), // Trainer who owns this test client
   // Email verification fields
+  // Two-step login (authenticator app); the secret is stored sealed, backup codes only as hashes
+  totpSecret: text("totp_secret"),
+  totpEnabled: boolean("totp_enabled").default(false).notNull(),
+  totpBackupCodes: text("totp_backup_codes").array().notNull().default(sql`'{}'::text[]`),
   emailVerified: boolean("email_verified").default(false).notNull(),
   emailVerificationToken: varchar("email_verification_token", { length: 64 }),
   emailVerificationTokenExpiresAt: timestamp("email_verification_token_expires_at"),

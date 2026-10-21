@@ -277,6 +277,52 @@ test("trainers keep private reminders about clients and are pushed on the due da
   assert.equal((await call(trainer, "DELETE", `/api/trainer/reminders/${later.id}`)).status, 404, "already gone");
 });
 
+test("two-step login: setup, enforcement at login, backup codes, and no secrets in responses", async () => {
+  const { totpCode } = await import("../src/lib/totp.ts");
+  const base = `${API_URL}/api/login`;
+  const loginRaw = (body) => fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: process.env.TRAINER_EMAIL, password: process.env.TEST_PASSWORD, ...body }) });
+
+  // a normal login must never expose secrets, even before 2FA
+  const plain = await (await loginRaw({})).json();
+  for (const field of ["password", "passwordResetToken", "emailVerificationToken", "totpSecret", "totpBackupCodes"]) assert.ok(!(field in plain), `${field} must not be in the login response`);
+
+  assert.deepEqual(await (await call(trainer, "GET", "/api/account/2fa")).json(), { enabled: false, backupCodesLeft: 0 });
+  const setup = await (await call(trainer, "POST", "/api/account/2fa/setup")).json();
+  assert.match(setup.secret, /^[A-Z2-7]{32}$/);
+  assert.match(setup.otpauthUrl, /^otpauth:\/\/totp\//);
+  assert.equal((await loginRaw({})).status, 200, "pending setup does not change login yet");
+  assert.equal((await call(trainer, "POST", "/api/account/2fa/enable", { code: "000000" })).status, 400, "a wrong code does not enable it");
+
+  const enabled = await call(trainer, "POST", "/api/account/2fa/enable", { code: totpCode(setup.secret) });
+  assert.equal(enabled.status, 200);
+  const { backupCodes } = await enabled.json();
+  assert.equal(backupCodes.length, 10);
+  assert.equal((await call(trainer, "POST", "/api/account/2fa/setup")).status, 409, "already enabled");
+
+  try {
+    const noCode = await loginRaw({});
+    assert.equal(noCode.status, 401);
+    assert.equal((await noCode.json()).requires2fa, true, "the app is told to ask for a code");
+    assert.equal((await loginRaw({ totpCode: "123456" })).status, 401, "a wrong code is refused");
+    const withCode = await loginRaw({ totpCode: totpCode(setup.secret) });
+    assert.equal(withCode.status, 200);
+    const loggedIn = await withCode.json();
+    assert.ok(!("totpSecret" in loggedIn) && !("totpBackupCodes" in loggedIn));
+
+    assert.equal((await loginRaw({ totpCode: backupCodes[0] })).status, 200, "a backup code works once");
+    assert.equal((await loginRaw({ totpCode: backupCodes[0] })).status, 401, "and only once");
+    assert.equal((await (await call(trainer, "GET", "/api/account/2fa")).json()).backupCodesLeft, 9);
+
+    // switching it off needs the password and a code
+    assert.equal((await call(trainer, "POST", "/api/account/2fa/disable", { password: "wrong", code: totpCode(setup.secret) })).status, 403);
+    assert.equal((await call(trainer, "POST", "/api/account/2fa/disable", { password: process.env.TEST_PASSWORD, code: "000000" })).status, 403);
+  } finally {
+    const off = await call(trainer, "POST", "/api/account/2fa/disable", { password: process.env.TEST_PASSWORD, code: totpCode(setup.secret) });
+    assert.equal(off.status, 200, "the account must be left without 2FA for the other tests");
+  }
+  assert.equal((await loginRaw({})).status, 200, "login is back to a password");
+});
+
 test("the health endpoint answers without a login", async () => {
   const res = await fetch(`${API_URL}/api/health`);
   assert.equal(res.status, 200);

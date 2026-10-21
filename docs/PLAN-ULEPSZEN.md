@@ -83,7 +83,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 ## 7. Bezpieczeństwo i prywatność
 64. [ ] Prywatne zdjęcia raportów (kod; test na prawdziwym magazynie po wdrożeniu)
 65. [~] Pliki wysyłane przez użytkowników są serwowane z restrykcyjnym CSP (`sandbox`, bez skryptów). Pełne CSP strony webowej [Ty]: strona jest serwowana osobno (hosting statyczny), nagłówek trzeba ustawić tam
-66. [ ] TOTP dla trenerów i właścicieli
+66. [x] Logowanie dwuskładnikowe (aplikacja uwierzytelniająca, RFC 6238, kody zapasowe, sekret zaszyfrowany w bazie): włączanie i wyłączanie w web (strona konta), pole kodu przy logowaniu w web i w aplikacji mobilnej; konfiguracja tylko w web (bez kodu QR, klucz do wpisania). Przy okazji odpowiedzi API (logowanie, /api/auth/user i inne) nie zawierają już tokenów resetu hasła ani weryfikacji e-mail
 67. [~] „Wyloguj ze wszystkich urządzeń" (API, web, mobile, testy); lista urządzeń do zrobienia
 68. [x] Dziennik wyświetleń danych podopiecznego (tabela `data_access_log`, jeden wpis na godzinę), widoczny dla podopiecznego w web i mobile („Kto oglądał moje dane")
 69. [Ty] Zgody RODO per cel: potrzebne brzmienie od prawnika (dane o zdrowiu); po dostarczeniu tekstu dopiszę zapis zgód z datą
