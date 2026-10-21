@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { ShoppingListDialog } from "@/components/shopping-list-dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -205,13 +206,16 @@ export default function ClientDiet() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-heading font-bold text-4xl mb-2" data-testid="text-diet-title">
-          Moja dieta
-        </h1>
-        <p className="text-muted-foreground">
-          Śledź swoje nawyki żywieniowe i odhaczaj posiłki
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-heading font-bold text-4xl mb-2" data-testid="text-diet-title">
+            Moja dieta
+          </h1>
+          <p className="text-muted-foreground">
+            Śledź swoje nawyki żywieniowe i odhaczaj posiłki
+          </p>
+        </div>
+        {dietPlan?.meals && dietPlan.meals.length > 0 && <ShoppingListDialog descriptions={dietPlan.meals.map((meal) => meal.description)} />}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
