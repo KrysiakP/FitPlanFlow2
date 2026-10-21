@@ -44,10 +44,22 @@ interface StudioInvitation {
   inviteCode: string;
 }
 
+interface StudioAnnouncement {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;
+}
+
 export function StudioMembershipCard() {
   const { toast } = useToast();
   const [code, setCode] = useState("");
   const { data, isLoading, isError } = useQuery<TrainerGym>({ queryKey: ["/api/trainer/gym"] });
+
+  const announcementsQuery = useQuery<StudioAnnouncement[]>({
+    queryKey: ["/api/trainer/gym/announcements"],
+    enabled: !!data?.gym && data.status === "active",
+  });
 
   const invitationsQuery = useQuery<StudioInvitation[]>({
     queryKey: ["/api/trainer/gym/invitations"],
@@ -97,6 +109,20 @@ export function StudioMembershipCard() {
             <p className="text-sm text-muted-foreground">
               {data.status === "suspended" ? "Członkostwo zawieszone przez właściciela studia" : "Jesteś członkiem tego studia"}
             </p>
+            {(announcementsQuery.data ?? []).length > 0 && (
+              <div className="space-y-2 pt-2" data-testid="list-studio-announcements">
+                <p className="text-sm font-medium">Ogłoszenia studia</p>
+                {(announcementsQuery.data ?? []).slice(0, 3).map((item) => (
+                  <div key={item.id} className="rounded-md border p-3">
+                    <p className="font-medium text-sm">{item.title}</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{item.body}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {new Date(item.createdAt).toLocaleString("pl-PL", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="sm" data-testid="button-leave-studio">Opuść studio</Button>

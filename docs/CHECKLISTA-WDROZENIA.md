@@ -13,6 +13,8 @@ Rzeczy, które wymagają Twojej akcji (kod jest już gotowy i wypchnięty na Git
    curl -s -i -X PATCH https://paneltrenera.pl/api/gym/me | head -1                    # oczekiwane: 401 (a nie 404)
    ```
 
+**Uwaga — migracja bazy:** ta wersja dodaje nową tabelę `gym_announcements` (ogłoszenia studia; tylko dodanie, nic nie jest usuwane). Podczas publikacji Replit pokaże zmiany w bazie produkcyjnej — zatwierdź je. Bez tego endpointy ogłoszeń zwrócą błąd (reszta aplikacji działa).
+
 W tej publikacji: poprawka luki XSS w wysyłaniu plików, limity prób dla kodów, zabezpieczenia dostępu,
 powiadomienia o terminach, edycja studia, zaproszenia jednym kliknięciem.
 

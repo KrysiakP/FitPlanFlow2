@@ -1217,6 +1217,20 @@ export const gymTrainers = pgTable("gym_trainers", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Announcements the studio owner sends to all of the studio's trainers
+export const gymAnnouncements = pgTable("gym_announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  gymId: varchar("gym_id").notNull().references(() => gyms.id, { onDelete: "cascade" }),
+  authorId: varchar("author_id").references(() => users.id, { onDelete: "set null" }),
+  title: varchar("title", { length: 150 }).notNull(),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  gymCreatedIdx: index("gym_announcements_gym_created_idx").on(table.gymId, table.createdAt),
+}));
+
+export type GymAnnouncement = typeof gymAnnouncements.$inferSelect;
+
 export const insertGymSchema = createInsertSchema(gyms).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertGymTrainerSchema = createInsertSchema(gymTrainers).omit({ id: true, createdAt: true, invitedAt: true });
 

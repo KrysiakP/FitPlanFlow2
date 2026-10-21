@@ -42,6 +42,7 @@ import {
   users,
   gyms,
   gymTrainers,
+  gymAnnouncements,
   insertGymSchema,
   clientRelationships,
   workoutSessions,
@@ -6603,6 +6604,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updated);
     } catch (error) {
       console.error("Error joining gym:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // ── Studio announcements ────────────────────────────────────────────────
+  // POST /api/gym/announcements — owner sends a message to every active trainer of the studio
+  app.post("/api/gym/announcements", isAuthenticated, requireGymOwner, async (req, res) => {
+    const schema = z.object({
+      title: z.string().trim().min(1, "Podaj tytuł").max(150),
+      body: z.string().trim().min(1, "Wpisz treść ogłoszenia").max(2000),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Nieprawidłowe ogłoszenie" });
+    }
+
+    try {
+      const user = (req as any).user;
+      const gym = await getOwnerGym(user.id);
+      if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+
+      const [announcement] = await db
+        .insert(gymAnnouncements)
+        .values({ gymId: gym.id, authorId: user.id, title: parsed.data.title, body: parsed.data.body })
+        .returning();
+
+      const members = await db
+        .select({ trainerId: gymTrainers.trainerId })
+        .from(gymTrainers)
+        .where(and(eq(gymTrainers.gymId, gym.id), eq(gymTrainers.status, "active")));
+      const trainerIds = members.map((m) => m.trainerId).filter((id): id is string => !!id);
+
+      res.status(201).json({ ...announcement, notifiedTrainers: trainerIds.length });
+
+      const preview = parsed.data.body.length > 140 ? `${parsed.data.body.slice(0, 137)}...` : parsed.data.body;
+      for (const trainerId of trainerIds) {
+        void sendPushToUserAndRecord(
+          trainerId,
+          `${gym.name}: ${parsed.data.title}`,
+          preview,
+          { type: "studio_announcement", announcementId: announcement.id },
+          "studio_announcement"
+        ).catch((err) => console.error("Failed to push studio announcement:", err));
+      }
+    } catch (error) {
+      console.error("Error creating studio announcement:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // GET /api/gym/announcements — owner's sent announcements, newest first
+  app.get("/api/gym/announcements", isAuthenticated, requireGymOwner, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const gym = await getOwnerGym(user.id);
+      if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+      const rows = await db
+        .select()
+        .from(gymAnnouncements)
+        .where(eq(gymAnnouncements.gymId, gym.id))
+        .orderBy(desc(gymAnnouncements.createdAt))
+        .limit(30);
+      res.json(rows);
+    } catch (error) {
+      console.error("Error listing studio announcements:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // DELETE /api/gym/announcements/:id
+  app.delete("/api/gym/announcements/:id", isAuthenticated, requireGymOwner, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const gym = await getOwnerGym(user.id);
+      if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+      const removed = await db
+        .delete(gymAnnouncements)
+        .where(and(eq(gymAnnouncements.id, String(req.params.id)), eq(gymAnnouncements.gymId, gym.id)))
+        .returning({ id: gymAnnouncements.id });
+      if (removed.length === 0) return res.status(404).json({ message: "Ogłoszenie nie istnieje" });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting studio announcement:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // GET /api/trainer/gym/announcements — what the trainer's studio has announced (active members only)
+  app.get("/api/trainer/gym/announcements", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy" });
+      const [membership] = await db
+        .select({ gymId: gymTrainers.gymId })
+        .from(gymTrainers)
+        .where(and(eq(gymTrainers.trainerId, user.id), eq(gymTrainers.status, "active")))
+        .limit(1);
+      if (!membership) return res.json([]);
+      const rows = await db
+        .select({ id: gymAnnouncements.id, title: gymAnnouncements.title, body: gymAnnouncements.body, createdAt: gymAnnouncements.createdAt })
+        .from(gymAnnouncements)
+        .where(eq(gymAnnouncements.gymId, membership.gymId))
+        .orderBy(desc(gymAnnouncements.createdAt))
+        .limit(10);
+      res.json(rows);
+    } catch (error) {
+      console.error("Error fetching studio announcements:", error);
       res.status(500).json({ message: "Błąd serwera" });
     }
   });

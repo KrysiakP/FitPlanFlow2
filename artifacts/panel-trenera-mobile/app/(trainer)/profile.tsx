@@ -407,6 +407,12 @@ function StudioMembershipSection({ colors }: { colors: ReturnType<typeof useColo
     queryFn: () => apiGet("/api/trainer/gym"),
   });
 
+  const announcementsQuery = useQuery<{ id: string; title: string; body: string; createdAt: string }[]>({
+    queryKey: ["trainer-gym-announcements"],
+    queryFn: () => apiGet("/api/trainer/gym/announcements"),
+    enabled: !!data?.gym && data.status === "active",
+  });
+
   const invitationsQuery = useQuery<{ id: string; gymName: string; inviteCode: string }[]>({
     queryKey: ["trainer-gym-invitations"],
     queryFn: () => apiGet("/api/trainer/gym/invitations"),
@@ -452,6 +458,15 @@ function StudioMembershipSection({ colors }: { colors: ReturnType<typeof useColo
           <Text style={{ color: colors.mutedForeground, fontSize: 12.5 }}>
             {data.status === "suspended" ? "Członkostwo zawieszone przez właściciela studia" : "Jesteś członkiem tego studia"}
           </Text>
+          {(announcementsQuery.data ?? []).slice(0, 3).map((item) => (
+            <View key={item.id} style={{ gap: 2, paddingTop: 6 }}>
+              <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold" }}>{item.title}</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 18 }}>{item.body}</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
+                {new Date(item.createdAt).toLocaleString("pl-PL", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+              </Text>
+            </View>
+          ))}
           <Pressable
             onPress={() => confirmLeave(data.gym!.name)}
             disabled={leaveMutation.isPending}

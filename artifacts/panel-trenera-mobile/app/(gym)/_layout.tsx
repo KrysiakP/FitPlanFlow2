@@ -76,6 +76,7 @@ export default function GymLayout() {
   const screens: DrawerScreen[] = [
     { name: "index", title: "Panel główny", icon: "grid-outline", iconFocused: "grid" },
     { name: "trainers", title: "Trenerzy", icon: "people-outline", iconFocused: "people" },
+    { name: "announcements", title: "Ogłoszenia", icon: "megaphone-outline", iconFocused: "megaphone" },
     { name: "analytics", title: "Analityka", icon: "bar-chart-outline", iconFocused: "bar-chart" },
     { name: "profile", title: "Profil siłowni", icon: "business-outline", iconFocused: "business" },
     { name: "trainer/[id]", title: "Trener", icon: "person-outline", iconFocused: "person", hidden: true },

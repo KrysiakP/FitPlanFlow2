@@ -99,10 +99,39 @@ test("analytics show aggregate numbers only", async () => {
   }
 });
 
+test("announcements reach active trainers only", async () => {
+  assert.equal((await call(studio, "POST", "/api/gym/announcements", { title: "", body: "x" })).status, 400);
+  assert.equal((await call(trainer, "POST", "/api/gym/announcements", { title: "Hack", body: "x" })).status, 403);
+  assert.equal((await call(client, "GET", "/api/trainer/gym/announcements")).status, 403);
+
+  const created = await call(studio, "POST", "/api/gym/announcements", { title: "Zebranie zespołu", body: "W piątek o 18:00 omawiamy grafik." });
+  assert.equal(created.status, 201);
+  const announcement = await created.json();
+  assert.ok(announcement.notifiedTrainers >= 1);
+
+  const seen = await (await call(trainer, "GET", "/api/trainer/gym/announcements")).json();
+  assert.ok(seen.some((item) => item.id === announcement.id), "the member trainer sees it");
+  const owner = await (await call(studio, "GET", "/api/gym/announcements")).json();
+  assert.ok(owner.some((item) => item.id === announcement.id));
+
+  let notified = false;
+  for (let i = 0; i < 20 && !notified; i += 1) {
+    notified = JSON.stringify(await (await call(trainer, "GET", "/api/notifications/mine")).json()).includes("Zebranie zespołu");
+    if (!notified) await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.ok(notified, "the trainer got a push notification");
+
+  assert.equal((await call(trainer, "DELETE", `/api/gym/announcements/${announcement.id}`)).status, 403);
+  assert.equal((await call(studio, "DELETE", `/api/gym/announcements/${announcement.id}`)).status, 200);
+  const after = await (await call(trainer, "GET", "/api/trainer/gym/announcements")).json();
+  assert.ok(!after.some((item) => item.id === announcement.id), "deleted announcements disappear");
+});
+
 test("trainer can leave the studio", async () => {
   assert.equal((await call(trainer, "DELETE", "/api/trainer/gym")).status, 200);
   const data = await (await call(studio, "GET", "/api/gym/analytics")).json();
   assert.equal(data.activeTrainers, 0);
+  assert.deepEqual(await (await call(trainer, "GET", "/api/trainer/gym/announcements")).json(), [], "ex-members see no announcements");
 });
 
 test("owner edits studio details; others cannot; bad input is rejected", async () => {

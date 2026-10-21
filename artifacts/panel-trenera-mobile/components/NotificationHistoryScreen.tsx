@@ -42,6 +42,7 @@ const TYPE_ICON: Record<string, { name: keyof typeof Ionicons.glyphMap; color: s
   session_booked: { name: "calendar-outline", color: "#0846ab" },
   session_cancelled: { name: "calendar-clear-outline", color: "#ef4444" },
   session_reminder: { name: "alarm-outline", color: "#f59e0b" },
+  studio_announcement: { name: "megaphone-outline", color: "#6366f1" },
 };
 
 function getTypeIconConfig(type: string | null) {

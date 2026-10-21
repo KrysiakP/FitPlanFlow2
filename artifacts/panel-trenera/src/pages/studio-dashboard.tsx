@@ -20,6 +20,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { StudioDetailsCard } from "@/components/studio-details-card";
+import { StudioAnnouncementsCard } from "@/components/studio-announcements-card";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -400,6 +401,8 @@ export default function StudioDashboard() {
           )}
         </CardContent>
       </Card>
+
+      <StudioAnnouncementsCard />
 
       {gymQuery.data && <StudioDetailsCard gym={gymQuery.data} />}
 
