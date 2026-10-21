@@ -23,6 +23,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPatch, apiPost } from "@/lib/api";
 import { RecordToast, type PersonalRecordInfo } from "@/components/RecordToast";
+import { suggestLoad } from "@/lib/loadSuggestion";
 
 const SESSION_SNAPSHOT_KEY = "training-session-snapshot";
 
@@ -137,6 +138,7 @@ interface ExerciseRowProps {
   onChangeLoad: (v: string) => void;
   onConfirmLog: () => void;
   onAddSet: (exerciseId: string) => void;
+  suggestion?: string | null; // "Ostatnio 80 kg × 10: spróbuj 82,5 kg"
 }
 
 function ExerciseRow({
@@ -157,6 +159,7 @@ function ExerciseRow({
   onChangeLoad,
   onConfirmLog,
   onAddSet,
+  suggestion,
 }: ExerciseRowProps) {
   type Tag = { icon: ComponentProps<typeof Ionicons>["name"]; label: string };
   const tags: Tag[] = [];
@@ -327,6 +330,11 @@ function ExerciseRow({
                       <Text style={[styles.logFormTitle, { color: colors.foreground }]}>
                         {isCompleted ? "Edytuj Serię" : "Zaloguj Serię"} {setNum}
                       </Text>
+                      {suggestion && !isCompleted && (
+                        <Text style={[styles.logInputLabel, { color: colors.primary }]} testID={`text-suggestion-${exercise.id}`}>
+                          {suggestion}
+                        </Text>
+                      )}
                       <View style={styles.logInputRow}>
                         <View style={styles.logInputGroup}>
                           <Text style={[styles.logInputLabel, { color: colors.mutedForeground }]}>Powtórzenia</Text>
@@ -1268,6 +1276,11 @@ export default function TrainingScreen() {
                   onChangeLoad={(v) => setLoggingState((s) => ({ ...s, load: v }))}
                   onConfirmLog={handleConfirmLog}
                   onAddSet={handleAddSet}
+                  suggestion={suggestLoad({
+                    plannedReps: ex.reps,
+                    lastReps: lastSessionLogsRef.current[ex.id]?.reps,
+                    lastLoad: lastSessionLogsRef.current[ex.id]?.load,
+                  })}
                 />
               ))}
             </>

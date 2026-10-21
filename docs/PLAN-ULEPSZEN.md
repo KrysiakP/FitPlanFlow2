@@ -15,8 +15,8 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 ## 1. Podopieczny: trening
 8. [ ] Widok „dziś w planie" z przyciskiem startu (web)
 9. [ ] Timer przerwy: wibracja/dźwięk, praca w tle
-10. [ ] Podpowiedź obciążenia z ostatniego treningu
-11. [ ] Kopiowanie poprzedniej serii jednym dotknięciem
+10. [x] Podpowiedź obciążenia w formularzu serii (mobile): z ostatniej serii i zakresu powtórzeń w planie („Ostatnio 80 kg × 10: spróbuj 82,5 kg”); zasada podwójnej progresji, krok 2,5 kg (5 kg od 100 kg); testy; web jeszcze nie
+11. [x] Już było: formularz serii wypełnia się wynikiem poprzedniej serii z tego treningu lub ostatniego treningu (powtórzenia i ciężar)
 12. [ ] Notatka do ćwiczenia widoczna dla trenera
 13. [ ] RPE po treningu i podsumowanie dla trenera
 14. [ ] Trening poza planem (własne ćwiczenia)
