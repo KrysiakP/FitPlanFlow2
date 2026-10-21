@@ -17,6 +17,7 @@ import { useState } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ProgressInsights } from "@/components/ProgressInsights";
+import { StrengthProgress, type StrengthHistory } from "@/components/StrengthProgress";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -413,6 +414,12 @@ export default function ClientDetailScreen() {
   const { data: workoutSessions, isLoading: loadingWorkoutSessions } = useQuery<WorkoutSession[]>({
     queryKey: ["client-workout-sessions", id],
     queryFn: () => apiGet<WorkoutSession[]>(`/api/trainer/clients/${id}/workout-sessions`),
+    enabled: !!id && activeTab === "progress",
+  });
+
+  const { data: strengthHistory } = useQuery<StrengthHistory[]>({
+    queryKey: ["client-exercise-history", id],
+    queryFn: () => apiGet<StrengthHistory[]>(`/api/trainer/clients/${id}/exercise-history`),
     enabled: !!id && activeTab === "progress",
   });
 
@@ -905,6 +912,7 @@ export default function ClientDetailScreen() {
         {activeTab === "progress" && (
           <>
             <ProgressInsights sessions={workoutSessions ?? []} reports={clientReports ?? []} />
+            <StrengthProgress history={strengthHistory ?? []} />
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Aktualne dane</Text>
             {loadingProgress ? (
               <ActivityIndicator color={colors.primary} />

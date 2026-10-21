@@ -63,6 +63,7 @@ import { authRateLimit, lookupRateLimit } from "../app";
 import { checkPaymentNotifications } from "../services/paymentNotifications";
 import { sendSessionReminders } from "../services/sessionReminders";
 import { evaluatePersonalRecord } from "../lib/personalRecord";
+import { buildExerciseHistory } from "../lib/exerciseHistory";
 import { deleteTestClient } from "../testClientService";
 import { getDemoClient, getDemoTrainingPlans, getDemoWeeklyReports, getDemoDietPlan, getDemoPayments, isDemoId, DEMO_CLIENT_ID } from "../demoDataService";
 
@@ -3850,6 +3851,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       req.log.error({ error }, "Error updating exercise for client");
       res.status(500).json({ message: "Nie udało się zaktualizować ćwiczenia" });
+    }
+  });
+
+  // Strength history: best estimated one-rep max per exercise and day (for the progress charts)
+  app.get("/api/client/exercise-history", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "client") return res.status(403).json({ message: "Tylko podopieczni" });
+      res.json(buildExerciseHistory(await storage.getClientLogsWithExerciseNames(user.id)));
+    } catch (error) {
+      console.error("Error building exercise history:", error);
+      res.status(500).json({ message: "Nie udało się pobrać historii ćwiczeń" });
+    }
+  });
+
+  app.get("/api/trainer/clients/:clientId/exercise-history", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
+      const clientId = String(req.params.clientId);
+      if (isDemoId(clientId)) return res.json([]);
+      if (!(await storage.hasActiveClientRelationship(user.id, clientId))) {
+        return res.status(403).json({ message: "Brak aktywnej współpracy z tym podopiecznym" });
+      }
+      res.json(buildExerciseHistory(await storage.getClientLogsWithExerciseNames(clientId)));
+    } catch (error) {
+      console.error("Error building client exercise history:", error);
+      res.status(500).json({ message: "Nie udało się pobrać historii ćwiczeń" });
     }
   });
 

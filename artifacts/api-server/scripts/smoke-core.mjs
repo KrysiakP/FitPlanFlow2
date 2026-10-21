@@ -121,6 +121,15 @@ test("a set that beats the history is flagged as a personal record", async () =>
   assert.ok(record.personalRecord.estimatedOneRepMax > record.personalRecord.previousBest);
   assert.equal((await log(5, "105", 3)).personalRecord, undefined, "a weaker set is not");
   assert.equal((await log(5, "", 4)).personalRecord, undefined, "no load, no record");
+
+  const history = await (await call(client, "GET", "/api/client/exercise-history")).json();
+  const squat = history.find((item) => item.exercise === "Przysiad");
+  assert.ok(squat, "the logged exercise has a history");
+  assert.equal(squat.points.length, 1, "all sets were logged today: one point");
+  assert.equal(squat.points[0].bestLoad, 110);
+  assert.equal((await call(trainer, "GET", `/api/client/exercise-history`)).status, 403, "trainers use their own endpoint");
+  const viaTrainer = await (await call(trainer, "GET", `/api/trainer/clients/${client.id}/exercise-history`)).json();
+  assert.equal(viaTrainer[0].exercise, "Przysiad");
 });
 
 test("the client is notified when a session is booked or cancelled", async () => {

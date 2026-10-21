@@ -17,6 +17,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { apiGet } from "@/lib/api";
 import { ProgressInsights } from "@/components/ProgressInsights";
+import { StrengthProgress, type StrengthHistory } from "@/components/StrengthProgress";
 
 interface ExerciseLogItem {
   id: string;
@@ -112,6 +113,13 @@ export default function ProgressScreen() {
     staleTime: 1000 * 60 * 5,
   });
 
+  const { data: strengthData } = useQuery<StrengthHistory[]>({
+    queryKey: ["client-exercise-history", user?.id],
+    queryFn: () => apiGet<StrengthHistory[]>("/api/client/exercise-history"),
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
+  });
+
   const entries = data ? [data] : [];
   const latest = data ?? null;
   const sessions = sessionsData ?? [];
@@ -159,6 +167,7 @@ export default function ProgressScreen() {
       ) : (
         <>
           <ProgressInsights sessions={sessions} reports={reportsData ?? []} />
+          <StrengthProgress history={strengthData ?? []} />
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
             Aktywność treningowa (14 dni)
           </Text>
