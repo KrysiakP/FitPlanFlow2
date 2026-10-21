@@ -9,6 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { apiGet } from "@/lib/api";
 import { StatsCard } from "@/components/StatsCard";
+import { AttentionList, type AttentionItem } from "@/components/AttentionList";
 
 type Colors = ReturnType<typeof useColors>;
 type IoniconsName = ComponentProps<typeof Ionicons>["name"];
@@ -36,6 +37,12 @@ export default function TrainerPanelScreen() {
     queryFn: () => apiGet<Payment[]>("/api/payments"),
   });
 
+  const { data: attention, refetch: refetchAttention } = useQuery<AttentionItem[]>({
+    queryKey: ["trainer-attention"],
+    queryFn: () => apiGet<AttentionItem[]>("/api/trainer/attention"),
+    staleTime: 1000 * 60,
+  });
+
   const { data: clients, isLoading: loadingClients, refetch: refetchClients, isRefetching: refetchingClients } = useQuery<ClientWithPlan[]>({
     queryKey: ["trainer-clients"],
     queryFn: () => apiGet<ClientWithPlan[]>("/api/trainer/clients"),
@@ -47,6 +54,7 @@ export default function TrainerPanelScreen() {
   function handleRefresh() {
     void refetchPayments();
     void refetchClients();
+    void refetchAttention();
   }
 
   function openUrl(url: string) {
@@ -117,6 +125,8 @@ export default function TrainerPanelScreen() {
           />
         </Pressable>
       </View>
+
+      <AttentionList items={attention ?? []} />
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Szybki dostęp</Text>
       <View style={styles.quickGrid}>

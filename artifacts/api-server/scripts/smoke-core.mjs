@@ -108,6 +108,22 @@ test("the client sees the assigned plan and may only change reps and load", asyn
   assert.equal((await call(outsider, "GET", `/api/plans/${state.planId}`)).status, 403);
 });
 
+test("the trainer's attention list flags the client who has a plan but never trained, and unpaid dues", async () => {
+  const attention = async () => (await (await call(trainer, "GET", "/api/trainer/attention")).json()).find((item) => item.clientId === client.id);
+  assert.ok((await attention())?.reasons.some((r) => r.type === "never_trained"));
+
+  const payment = await call(trainer, "POST", "/api/payments", {
+    clientId: client.id, amount: 100, dueDate: new Date(Date.now() - 2 * 86400000).toISOString(), description: "Zaległa",
+  });
+  assert.equal(payment.status, 201);
+  const paymentId = (await payment.json()).id;
+  assert.ok((await attention())?.reasons.some((r) => r.type === "overdue_payment"), "an overdue payment is flagged");
+  assert.equal((await call(trainer, "PATCH", `/api/payments/${paymentId}/mark-paid`, {})).status < 300, true);
+  assert.ok(!(await attention())?.reasons.some((r) => r.type === "overdue_payment"), "a paid one is not");
+  await call(trainer, "DELETE", `/api/payments/${paymentId}`);
+  assert.equal((await call(client, "GET", "/api/trainer/attention")).status, 403);
+});
+
 test("a set that beats the history is flagged as a personal record", async () => {
   const log = async (reps, load, setNumber) => {
     const res = await call(client, "POST", `/api/exercises/${state.exerciseId}/log`, { reps, load, setNumber });

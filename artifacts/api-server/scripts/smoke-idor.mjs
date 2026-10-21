@@ -99,6 +99,13 @@ test("trainer 2 cannot touch trainer 1's plan or assign to trainer 1's client", 
   await assertDenied("assign foreign plan", call(t2, "POST", "/api/assignments/bulk", { planId: state.planId, clientIds: [c2.id] }));
 });
 
+test("the attention list never mentions another trainer's clients", async () => {
+  const list = await (await call(t2, "GET", "/api/trainer/attention")).json();
+  assert.ok(!list.some((item) => item.clientId === c1.id), "trainer 2 sees trainer 1's client");
+  const own = await (await call(t1, "GET", "/api/trainer/attention")).json();
+  assert.ok(!own.some((item) => item.clientId === c2.id));
+});
+
 test("client lists never include another trainer's clients", async () => {
   const list = await (await call(t2, "GET", "/api/trainer/clients")).json();
   assert.ok(Array.isArray(list));

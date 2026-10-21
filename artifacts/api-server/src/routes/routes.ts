@@ -43,6 +43,7 @@ import {
   gyms,
   gymTrainers,
   gymAnnouncements,
+  planAssignments,
   insertGymSchema,
   clientRelationships,
   workoutSessions,
@@ -64,6 +65,7 @@ import { checkPaymentNotifications } from "../services/paymentNotifications";
 import { sendSessionReminders } from "../services/sessionReminders";
 import { evaluatePersonalRecord } from "../lib/personalRecord";
 import { buildExerciseHistory } from "../lib/exerciseHistory";
+import { buildAttentionList } from "../lib/attention";
 import { deleteTestClient } from "../testClientService";
 import { getDemoClient, getDemoTrainingPlans, getDemoWeeklyReports, getDemoDietPlan, getDemoPayments, isDemoId, DEMO_CLIENT_ID } from "../demoDataService";
 
@@ -3237,6 +3239,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error searching for client:", error);
       res.status(500).json({ message: "Failed to search for client" });
+    }
+  });
+
+  // Who needs the trainer's attention: overdue payments, no plan, long breaks, unread reports
+  app.get("/api/trainer/attention", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
+
+      const clients = await storage.getTrainerClients(user.id);
+      const clientIds = clients.map((c) => c.id);
+      if (clientIds.length === 0) return res.json([]);
+
+      const [lastSessions, assignments, overdue, unread] = await Promise.all([
+        db
+          .select({ clientId: workoutSessions.clientId, last: sql<Date>`max(${workoutSessions.completedAt})` })
+          .from(workoutSessions)
+          .where(inArray(workoutSessions.clientId, clientIds))
+          .groupBy(workoutSessions.clientId),
+        db.select({ clientId: planAssignments.clientId }).from(planAssignments).where(inArray(planAssignments.clientId, clientIds)),
+        db
+          .select({ clientId: clientPayments.clientId, count: sql<number>`count(*)::int` })
+          .from(clientPayments)
+          .where(and(eq(clientPayments.trainerId, user.id), eq(clientPayments.isPaid, false), lt(clientPayments.dueDate, new Date())))
+          .groupBy(clientPayments.clientId),
+        db
+          .select({ clientId: weeklyReports.clientId, count: sql<number>`count(*)::int` })
+          .from(weeklyReports)
+          .where(and(inArray(weeklyReports.clientId, clientIds), eq(weeklyReports.viewedByTrainer, false)))
+          .groupBy(weeklyReports.clientId),
+      ]);
+
+      res.json(
+        buildAttentionList({
+          clients,
+          lastSessionAt: new Map(lastSessions.map((r) => [r.clientId, new Date(r.last)])),
+          assignedClientIds: new Set(assignments.map((a) => a.clientId)),
+          overduePayments: new Map(overdue.map((r) => [r.clientId, r.count])),
+          unreadReports: new Map(unread.map((r) => [r.clientId, r.count])),
+        }),
+      );
+    } catch (error) {
+      console.error("Error building attention list:", error);
+      res.status(500).json({ message: "Nie udało się przygotować listy" });
     }
   });
 
