@@ -16,6 +16,7 @@ import {
 import { Dumbbell, LayoutDashboard, ClipboardList, Users, LogOut, Menu, User, FileText, Crown, CreditCard, UserPlus, ShieldCheck, Heart, UtensilsCrossed, Apple, GraduationCap, TrendingUp, DollarSign, Clock, MessageSquare, Bell, Gift } from "lucide-react";
 import { RestTimerButton } from "@/components/rest-timer";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ClientNotificationsBell } from "@/components/client-notifications-bell";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -274,6 +275,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            {!isTrainer && user && <ClientNotificationsBell />}
             {isTrainer && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

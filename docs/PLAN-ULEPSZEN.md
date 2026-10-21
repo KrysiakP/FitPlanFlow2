@@ -77,8 +77,8 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 59. [ ] E-mail jako kanał zapasowy
 60. [ ] Dzienne podsumowanie trenera
 61. [ ] Czat: załączniki i potwierdzenie odczytu
-62. [ ] Głębsze linki z powiadomień
-63. [ ] Centrum powiadomień na web
+62. [~] Głębsze linki z powiadomień: web ma mapę rodzaj → strona (testy); aplikacja miała już własną; brakuje przejścia do konkretnego podopiecznego/rozmowy
+63. [x] Centrum powiadomień na web: dzwonek klienta z historią, licznikiem, „oznacz wszystkie" i przejściem do właściwej strony (trener miał już własny dzwonek)
 
 ## 7. Bezpieczeństwo i prywatność
 64. [~] Zdjęcia raportów: nowe są zapisywane jako prywatne, a odczyt przez `/objects/...` ma regułę „tylko podopieczny i jego trener” także dla starych zdjęć oznaczonych jako publiczne (reguła przetestowana jednostkowo). Zostaje do sprawdzenia na prawdziwym magazynie po publikacji; stare adresy podpisane (7 dni) działają jak dotychczas
