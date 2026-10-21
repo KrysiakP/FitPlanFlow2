@@ -182,7 +182,7 @@ export default function TrainerClientsScreen() {
             </View>
             <View style={{ flex: 1 }} />
             {(data?.length ?? 0) > 0 && (
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel="Przypomnij wszystkim podopiecznym"
                 onPress={() => {
                   if (!remindAllMutation.isPending) setRemindAllModalVisible(true);
                 }}
@@ -197,7 +197,7 @@ export default function TrainerClientsScreen() {
                 )}
               </Pressable>
             )}
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel="Zaproś podopiecznego"
               onPress={handleInviteOpen}
               style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
               testID="button-invite-client-header"
@@ -317,7 +317,7 @@ export default function TrainerClientsScreen() {
         </ScrollView>
 
         {/* FAB */}
-        <Pressable
+        <Pressable accessibilityRole="button" accessibilityLabel="Zaproś podopiecznego"
           onPress={handleInviteOpen}
           style={({ pressed }) => [
             styles.fab,
@@ -348,7 +348,7 @@ export default function TrainerClientsScreen() {
           <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.modalTitleRow}>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>Zaproś podopiecznego</Text>
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel="Zamknij"
                 onPress={() => {
                   if (!inviteMutation.isPending) {
                     setInviteModalVisible(false);
@@ -482,7 +482,7 @@ export default function TrainerClientsScreen() {
           <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.modalTitleRow}>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>Przypomnij wszystkim</Text>
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel="Zamknij"
                 onPress={() => {
                   if (!remindAllMutation.isPending) {
                     setRemindAllModalVisible(false);

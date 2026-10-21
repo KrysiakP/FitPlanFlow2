@@ -665,7 +665,7 @@ export default function ClientDetailScreen() {
                   {session.durationMinutes} min{session.location ? ` • ${session.location}` : ""}
                 </Text>
               </View>
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel="Odwołaj sesję"
                 onPress={() =>
                   Alert.alert("Anuluj sesję", "Czy na pewno chcesz anulować tę sesję?", [
                     { text: "Nie", style: "cancel" },
@@ -1110,7 +1110,7 @@ export default function ClientDetailScreen() {
           <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.modalTitleRow}>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>Zaplanuj sesję</Text>
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel="Zamknij"
                 onPress={() => { if (!createSessionMutation.isPending) setSessionModalVisible(false); }}
                 testID="button-close-session-modal"
               >
@@ -1231,7 +1231,7 @@ export default function ClientDetailScreen() {
           <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.modalTitleRow}>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>Wyślij przypomnienie</Text>
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel="Zamknij"
                 onPress={() => { if (!remindMutation.isPending) { setRemindModalVisible(false); setCustomMessage(""); } }}
                 testID="button-close-remind-modal"
               >
@@ -1294,7 +1294,7 @@ export default function ClientDetailScreen() {
           <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.modalTitleRow}>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>Notatki prywatne</Text>
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel="Zamknij"
                 onPress={() => { if (!updateNotesMutation.isPending) setNotesModalVisible(false); }}
                 testID="button-close-notes-modal"
               >
@@ -1391,7 +1391,7 @@ export default function ClientDetailScreen() {
           <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.modalTitleRow}>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nowy plan diety</Text>
-              <Pressable onPress={() => { if (!createDietMutation.isPending) setCreateDietModalVisible(false); }} testID="button-close-create-diet-modal">
+              <Pressable accessibilityRole="button" accessibilityLabel="Zamknij" onPress={() => { if (!createDietMutation.isPending) setCreateDietModalVisible(false); }} testID="button-close-create-diet-modal">
                 <Ionicons name="close" size={22} color={colors.mutedForeground} />
               </Pressable>
             </View>
@@ -1453,7 +1453,7 @@ export default function ClientDetailScreen() {
           <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.modalTitleRow}>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nowy plan treningowy</Text>
-              <Pressable onPress={() => { if (!createAndAssignMutation.isPending) setCreatePlanModalVisible(false); }} testID="button-close-create-plan-modal">
+              <Pressable accessibilityRole="button" accessibilityLabel="Zamknij" onPress={() => { if (!createAndAssignMutation.isPending) setCreatePlanModalVisible(false); }} testID="button-close-create-plan-modal">
                 <Ionicons name="close" size={22} color={colors.mutedForeground} />
               </Pressable>
             </View>
@@ -1515,7 +1515,7 @@ export default function ClientDetailScreen() {
           <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.modalTitleRow}>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>Wybierz plan</Text>
-              <Pressable onPress={() => setAssignModalVisible(false)} testID="button-close-assign-modal">
+              <Pressable accessibilityRole="button" accessibilityLabel="Zamknij" onPress={() => setAssignModalVisible(false)} testID="button-close-assign-modal">
                 <Ionicons name="close" size={22} color={colors.mutedForeground} />
               </Pressable>
             </View>

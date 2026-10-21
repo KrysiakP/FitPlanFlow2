@@ -548,7 +548,7 @@ export default function DietPlanDetailScreen() {
                 </Text>
               </Pressable>
             </View>
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel="Edytuj"
               onPress={openEditPlan}
               style={[styles.iconBtn, { backgroundColor: colors.primary + "1a" }]}
               testID="button-edit-plan-header"
@@ -686,14 +686,14 @@ export default function DietPlanDetailScreen() {
                   <Text style={[styles.mealCal, { color: colors.primary }]}>{meal.calories} kcal</Text>
                 )}
                 <View style={styles.mealActions}>
-                  <Pressable
+                  <Pressable accessibilityRole="button" accessibilityLabel="Edytuj posiłek"
                     onPress={() => openEditMeal(meal)}
                     style={[styles.iconBtn, { backgroundColor: colors.primary + "1a" }]}
                     testID={`button-edit-meal-${meal.id}`}
                   >
                     <Ionicons name="pencil-outline" size={15} color={colors.primary} />
                   </Pressable>
-                  <Pressable
+                  <Pressable accessibilityRole="button" accessibilityLabel="Usuń posiłek"
                     onPress={() => confirmDeleteMeal(meal.id)}
                     style={[styles.iconBtn, { backgroundColor: colors.destructive + "1a" }]}
                     testID={`button-delete-meal-${meal.id}`}
@@ -758,14 +758,14 @@ export default function DietPlanDetailScreen() {
                 </View>
               </View>
               <View style={styles.mealActions}>
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityLabel="Edytuj suplement"
                   onPress={() => openEditSupp(s)}
                   style={[styles.iconBtn, { backgroundColor: colors.primary + "1a" }]}
                   testID={`button-edit-supplement-${s.id}`}
                 >
                   <Ionicons name="pencil-outline" size={15} color={colors.primary} />
                 </Pressable>
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityLabel="Usuń suplement"
                   onPress={() => confirmDeleteSupp(s.id)}
                   style={[styles.iconBtn, { backgroundColor: colors.destructive + "1a" }]}
                   testID={`button-delete-supplement-${s.id}`}

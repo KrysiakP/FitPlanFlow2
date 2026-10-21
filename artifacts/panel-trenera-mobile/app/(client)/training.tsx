@@ -215,7 +215,7 @@ function ExerciseRow({
               {index + 1}. {exercise.name}
             </Text>
             {!!exercise.videoUrl && (
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel="Otwórz film z ćwiczeniem"
                 onPress={() => void Linking.openURL(exercise.videoUrl!)}
                 hitSlop={8}
                 style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, marginLeft: 6 })}
@@ -445,7 +445,7 @@ function TrainingStatusBanner({ isResting, seconds, totalSeconds, onSkip, colors
         <Text style={[restStyles.time, { color: timeColor, opacity: isResting ? 1 : 0 }]}>
           {isResting ? formatTimer(seconds) : "0:00"}
         </Text>
-        <Pressable
+        <Pressable accessibilityRole="button" accessibilityLabel="Pomiń odpoczynek"
           style={[restStyles.skipBtn, { borderColor: colors.border, opacity: isResting ? 1 : 0 }]}
           onPress={isResting ? onSkip : undefined}
           testID="button-skip-rest"
@@ -1102,7 +1102,7 @@ export default function TrainingScreen() {
           <Text style={[styles.trainerSyncText, { color: colors.foreground }]}>
             Twój trener zalogował wspólny trening. Twój postęp został zaktualizowany.
           </Text>
-          <Pressable
+          <Pressable accessibilityRole="button" accessibilityLabel="Zamknij komunikat"
             onPress={() => {
               setDismissedTrainerSessionIds((prev) => new Set(prev).add(latestTrainerSession.id));
               void queryClient.invalidateQueries({ queryKey: ["client-assignment"] });

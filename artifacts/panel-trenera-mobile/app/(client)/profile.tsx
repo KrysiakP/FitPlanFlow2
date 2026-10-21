@@ -244,7 +244,7 @@ export default function ClientProfileScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel="Zamknij"
               onPress={() => !saving && setEditVisible(false)}
               style={({ pressed }) => [styles.modalClose, { opacity: pressed ? 0.6 : 1 }]}
               testID="button-edit-close"
@@ -271,7 +271,7 @@ export default function ClientProfileScreen() {
                   <Text style={[styles.successText, { color: colors.destructive, flex: 1 }]}>
                     Nie udało się wczytać aktualnych danych profilu. Zapisywanie jest wyłączone, żeby nic nie nadpisać.
                   </Text>
-                  <Pressable onPress={openEditModal} testID="button-edit-retry-load">
+                  <Pressable accessibilityRole="button" accessibilityLabel="Spróbuj ponownie" onPress={openEditModal} testID="button-edit-retry-load">
                     <Ionicons name="refresh" size={20} color={colors.destructive} />
                   </Pressable>
                 </View>
@@ -435,7 +435,7 @@ function TrainerReviewSection({ colors }: { colors: ReturnType<typeof useColors>
           </Text>
           <View style={{ flexDirection: "row", gap: 4, marginBottom: 10 }}>
             {[1, 2, 3, 4, 5].map((n) => (
-              <Pressable key={n} onPress={() => setRating(n)} testID={`button-rate-trainer-${n}`}>
+              <Pressable key={n} accessibilityRole="button" accessibilityLabel={`Ocena ${n} z 5`} onPress={() => setRating(n)} testID={`button-rate-trainer-${n}`}>
                 <Ionicons
                   name={n <= rating ? "star" : "star-outline"}
                   size={28}

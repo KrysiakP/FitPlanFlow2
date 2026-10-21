@@ -63,7 +63,7 @@ export default function ForgotPasswordScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Pressable
+          <Pressable accessibilityRole="button" accessibilityLabel="Wróć"
             onPress={() => router.back()}
             style={styles.backBtn}
             testID="button-back"

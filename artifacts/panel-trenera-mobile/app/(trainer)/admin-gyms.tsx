@@ -300,7 +300,7 @@ export default function AdminGymsScreen() {
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>
                 {editId ? "Edytuj siłownię" : "Nowa siłownia"}
               </Text>
-              <Pressable onPress={() => setModal(false)}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Zamknij" onPress={() => setModal(false)}>
                 <Ionicons name="close" size={24} color={colors.foreground} />
               </Pressable>
             </View>

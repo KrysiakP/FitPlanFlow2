@@ -206,7 +206,7 @@ export default function TrainerLedWorkoutScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.stickyHeader, { paddingTop: topPad + 8, backgroundColor: colors.background }]}>
-        <Pressable
+        <Pressable accessibilityRole="button" accessibilityLabel="Wróć"
           onPress={() => {
             if (!sessionActive) {
               router.back();
@@ -348,7 +348,7 @@ export default function TrainerLedWorkoutScreen() {
                             placeholderTextColor={colors.mutedForeground}
                             testID={`input-set-load-${ex.id}`}
                           />
-                          <Pressable
+                          <Pressable accessibilityRole="button" accessibilityLabel="Potwierdź serię"
                             onPress={confirmSet}
                             disabled={logSetMutation.isPending}
                             style={[styles.confirmSetBtn, { backgroundColor: colors.primary }]}

@@ -547,7 +547,7 @@ function ProfileDetailsSection({ colors }: { colors: ReturnType<typeof useColors
           <Text style={{ color: colors.destructive, fontSize: 12.5, flex: 1 }}>
             Nie udało się wczytać danych profilu. Edycja jest wyłączona, żeby nic nie nadpisać.
           </Text>
-          <Pressable onPress={() => refetch()} testID="button-retry-profile-details">
+          <Pressable accessibilityRole="button" accessibilityLabel="Spróbuj ponownie" onPress={() => refetch()} testID="button-retry-profile-details">
             <Ionicons name="refresh" size={18} color={colors.destructive} />
           </Pressable>
         </View>

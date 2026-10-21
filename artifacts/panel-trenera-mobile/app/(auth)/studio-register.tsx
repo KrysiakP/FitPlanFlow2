@@ -110,7 +110,7 @@ export default function StudioRegisterScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Pressable onPress={() => router.back()} style={styles.backBtn} testID="button-back">
+          <Pressable accessibilityRole="button" accessibilityLabel="Wróć" onPress={() => router.back()} style={styles.backBtn} testID="button-back">
             <Ionicons name="arrow-back" size={22} color={colors.foreground} />
           </Pressable>
           <Text style={[styles.title, { color: colors.foreground }]}>Załóż studio</Text>
@@ -143,7 +143,7 @@ export default function StudioRegisterScreen() {
                 style={[styles.input, { color: colors.foreground }]}
                 testID="input-password"
               />
-              <Pressable onPress={() => setShowPass((v) => !v)} hitSlop={10}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Pokaż lub ukryj hasło" onPress={() => setShowPass((v) => !v)} hitSlop={10}>
                 <Ionicons name={showPass ? "eye-off-outline" : "eye-outline"} size={20} color={colors.mutedForeground} />
               </Pressable>
             </View>

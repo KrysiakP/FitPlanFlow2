@@ -169,7 +169,7 @@ export default function TrainerCalendarScreen() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.stickyHeader, { paddingTop: topPad + 8, backgroundColor: colors.background }]}>
         <Text style={[styles.pageTitle, { color: colors.foreground }]}>Kalendarz trenera</Text>
-        <Pressable
+        <Pressable accessibilityRole="button" accessibilityLabel="Dodaj trening do kalendarza"
           onPress={() => setModalVisible(true)}
           style={({ pressed }) => [styles.addBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
           testID="button-add-session"

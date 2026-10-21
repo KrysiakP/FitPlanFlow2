@@ -250,7 +250,7 @@ export default function ClientChatScreen() {
           blurOnSubmit={false}
           testID="input-chat-message"
         />
-        <Pressable
+        <Pressable accessibilityRole="button" accessibilityLabel="Wyślij wiadomość"
           onPress={handleSend}
           disabled={!inputText.trim() || sendMutation.isPending}
           style={({ pressed }) => [

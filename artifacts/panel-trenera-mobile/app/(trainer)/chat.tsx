@@ -228,7 +228,7 @@ export default function TrainerChatScreen() {
             { paddingTop: topPad + 12, borderBottomColor: colors.border, backgroundColor: colors.background },
           ]}
         >
-          <Pressable
+          <Pressable accessibilityRole="button" accessibilityLabel="Wróć"
             onPress={handleBack}
             style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
             testID="button-back-to-conversations"
@@ -301,7 +301,7 @@ export default function TrainerChatScreen() {
             blurOnSubmit={false}
             testID="input-chat-message"
           />
-          <Pressable
+          <Pressable accessibilityRole="button" accessibilityLabel="Wyślij wiadomość"
             onPress={handleSend}
             disabled={!inputText.trim() || sendMutation.isPending}
             style={({ pressed }) => [

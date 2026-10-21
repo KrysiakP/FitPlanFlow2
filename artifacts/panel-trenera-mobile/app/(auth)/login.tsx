@@ -165,7 +165,7 @@ export default function LoginScreen() {
                   autoCapitalize="none"
                   testID="input-password"
                 />
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityLabel="Pokaż lub ukryj hasło"
                   onPress={() => setShowPass(!showPass)}
                   style={styles.eyeBtn}
                   testID="button-toggle-password"

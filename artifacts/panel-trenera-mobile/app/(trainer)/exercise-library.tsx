@@ -337,7 +337,7 @@ export default function ExerciseLibraryScreen() {
             testID="input-exercise-search"
           />
           {search.length > 0 && (
-            <Pressable onPress={() => setSearch("")} testID="button-clear-search">
+            <Pressable accessibilityRole="button" accessibilityLabel="Wyczyść wyszukiwanie" onPress={() => setSearch("")} testID="button-clear-search">
               <Ionicons name="close-circle" size={18} color={colors.mutedForeground} />
             </Pressable>
           )}
@@ -481,7 +481,7 @@ export default function ExerciseLibraryScreen() {
                             >
                               <Ionicons name="pencil-outline" size={18} color={colors.primary} />
                             </Pressable>
-                            <Pressable
+                            <Pressable accessibilityRole="button" accessibilityLabel="Usuń ćwiczenie"
                               onPress={(e) => { e.stopPropagation?.(); confirmDelete(ex); }}
                               style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.6 : 1 }]}
                               testID={`button-delete-exercise-${ex.id}`}

@@ -22,7 +22,7 @@ export default function TermsScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + 12, borderBottomColor: colors.border, backgroundColor: colors.background }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn} testID="button-back-terms">
+        <Pressable accessibilityRole="button" accessibilityLabel="Wróć" onPress={() => router.back()} style={styles.backBtn} testID="button-back-terms">
           <Ionicons name="arrow-back" size={22} color={colors.foreground} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>Regulamin aplikacji</Text>

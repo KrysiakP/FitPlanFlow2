@@ -12,7 +12,7 @@ export function DrawerMenuButton({ style }: DrawerMenuButtonProps) {
   const colors = useColors();
 
   return (
-    <Pressable
+    <Pressable accessibilityRole="button" accessibilityLabel="Otwórz menu"
       onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())}
       style={({ pressed }) => [
         {

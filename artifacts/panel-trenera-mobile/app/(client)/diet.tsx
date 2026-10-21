@@ -497,6 +497,9 @@ export default function DietScreen() {
                   {/* Meal header */}
                   <View style={styles.mealHeader}>
                     <Pressable
+                      accessibilityRole="checkbox"
+                      accessibilityLabel={`Posiłek zjedzony: ${meal.name}`}
+                      accessibilityState={{ checked: !!ms.checked, disabled: !isTodayTab }}
                       onPress={() => isTodayTab && toggleMeal(meal.id)}
                       disabled={!isTodayTab}
                       style={[
@@ -521,6 +524,8 @@ export default function DietScreen() {
                     )}
                     {isTodayTab && (
                     <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={ms.expanded ? "Zwiń szczegóły posiłku" : "Zapisz, co zjadłeś"}
                       onPress={() => toggleExpand(meal.id)}
                       style={[styles.expandBtn, { backgroundColor: (ms.expanded || hasEaten) ? colors.primary + "15" : colors.accent }]}
                     >
@@ -593,6 +598,8 @@ export default function DietScreen() {
         </View>
         <View style={styles.waterControls}>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Mniej wody"
             onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setWaterMl((p) => Math.max(0, p - WATER_STEP_ML)); }}
             style={[styles.waterBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
           >
@@ -604,6 +611,8 @@ export default function DietScreen() {
             </View>
           </View>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Więcej wody"
             onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setWaterMl((p) => p + WATER_STEP_ML); }}
             style={[styles.waterBtn, { backgroundColor: "#2563eb" }]}
           >

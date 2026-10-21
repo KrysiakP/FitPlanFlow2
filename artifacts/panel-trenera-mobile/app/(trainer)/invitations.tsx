@@ -329,7 +329,7 @@ function InvitationCard({ invitation, colors, onShare, onResend, resending, onCa
         </View>
         {invitation.status === "pending" && (
           <View style={{ flexDirection: "row", gap: 4 }}>
-            <Pressable onPress={onShare} style={styles.shareBtn} testID="button-share-invitation">
+            <Pressable accessibilityRole="button" accessibilityLabel="Udostępnij zaproszenie" onPress={onShare} style={styles.shareBtn} testID="button-share-invitation">
               <Ionicons name="share-outline" size={20} color={colors.primary} />
             </Pressable>
             {onResend && (

@@ -214,7 +214,7 @@ export default function GymTrainers() {
           <View style={[styles.modalSheet, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>Zaproś trenera</Text>
-              <Pressable onPress={() => setModalVisible(false)} testID="button-close-invite-modal">
+              <Pressable accessibilityRole="button" accessibilityLabel="Zamknij" onPress={() => setModalVisible(false)} testID="button-close-invite-modal">
                 <Ionicons name="close" size={24} color={colors.foreground} />
               </Pressable>
             </View>
@@ -356,7 +356,7 @@ function TrainerCard({
             <Ionicons name="mail-outline" size={22} color={colors.primary} />
           </Pressable>
         )}
-        <Pressable
+        <Pressable accessibilityRole="button" accessibilityLabel="Usuń trenera ze studia"
           onPress={onRemove}
           style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.6 : 1 }]}
           testID={`button-remove-trainer-${row.id}`}

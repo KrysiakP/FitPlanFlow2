@@ -75,7 +75,7 @@ export default function HelpScreen() {
           },
         ]}
       >
-        <Pressable onPress={() => router.back()} style={styles.backBtn} testID="button-back-help">
+        <Pressable accessibilityRole="button" accessibilityLabel="Wróć" onPress={() => router.back()} style={styles.backBtn} testID="button-back-help">
           <Ionicons name="arrow-back" size={22} color={colors.foreground} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>Pomoc i kontakt</Text>

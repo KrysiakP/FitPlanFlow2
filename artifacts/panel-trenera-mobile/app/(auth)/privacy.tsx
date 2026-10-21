@@ -33,7 +33,7 @@ export default function PrivacyScreen() {
           },
         ]}
       >
-        <Pressable onPress={() => router.back()} style={styles.backBtn} testID="button-back-privacy">
+        <Pressable accessibilityRole="button" accessibilityLabel="Wróć" onPress={() => router.back()} style={styles.backBtn} testID="button-back-privacy">
           <Ionicons name="arrow-back" size={22} color={colors.foreground} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>Prywatność i RODO</Text>

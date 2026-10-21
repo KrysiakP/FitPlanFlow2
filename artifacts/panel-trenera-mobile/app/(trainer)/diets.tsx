@@ -249,7 +249,7 @@ export default function TrainerDietsScreen() {
                   >
                     <Ionicons name="copy-outline" size={16} color={colors.primary} />
                   </Pressable>
-                  <Pressable
+                  <Pressable accessibilityRole="button" accessibilityLabel="Usuń plan"
                     onPress={(e) => {
                       e.stopPropagation();
                       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -274,7 +274,7 @@ export default function TrainerDietsScreen() {
       </ScrollView>
 
       {/* FAB */}
-      <Pressable
+      <Pressable accessibilityRole="button" accessibilityLabel="Nowy plan diety"
         onPress={openNewModal}
         style={[styles.fab, { backgroundColor: colors.primary, bottom: insets.bottom + 24 }]}
         testID="button-new-diet-plan"

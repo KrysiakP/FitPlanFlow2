@@ -146,7 +146,7 @@ function PaymentCard({ payment, clientName, colors, onMarkPaid, onDelete, markin
             )}
           </Pressable>
         )}
-        <Pressable
+        <Pressable accessibilityRole="button" accessibilityLabel="Usuń"
           onPress={onDelete}
           disabled={deleting}
           style={({ pressed }) => [

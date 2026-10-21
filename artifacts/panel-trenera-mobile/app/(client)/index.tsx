@@ -215,7 +215,7 @@ export default function ClientDashboard() {
                   </Text>
                 </View>
                 <View style={styles.invActions}>
-                  <Pressable
+                  <Pressable accessibilityRole="button" accessibilityLabel="Odrzuć zaproszenie"
                     onPress={() => confirmReject(inv.id, trainerName)}
                     disabled={isAccepting || isRejecting}
                     style={({ pressed }) => [

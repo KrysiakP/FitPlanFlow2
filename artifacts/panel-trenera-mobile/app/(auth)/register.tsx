@@ -147,7 +147,7 @@ export default function RegisterScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel="Wróć"
               onPress={() => router.back()}
               style={styles.backBtn}
               testID="button-back"
@@ -364,7 +364,7 @@ export default function RegisterScreen() {
                   autoCapitalize="none"
                   testID="input-password"
                 />
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityLabel="Pokaż lub ukryj hasło"
                   onPress={() => setShowPass(!showPass)}
                   style={styles.eyeBtn}
                   testID="button-toggle-password"
@@ -392,7 +392,7 @@ export default function RegisterScreen() {
                   autoCapitalize="none"
                   testID="input-confirm-password"
                 />
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityLabel="Pokaż lub ukryj hasło"
                   onPress={() => setShowConfirmPass(!showConfirmPass)}
                   style={styles.eyeBtn}
                   testID="button-toggle-confirm-password"
