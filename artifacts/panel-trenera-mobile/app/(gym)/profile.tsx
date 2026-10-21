@@ -22,6 +22,7 @@ import { useAuth } from "@/context/AuthContext";
 import { apiGet, apiPatch } from "@/lib/api";
 import * as Haptics from "expo-haptics";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
+import { ExportDataButton } from "@/components/ExportDataButton";
 
 const APP_VERSION = Constants.expoConfig?.version ?? "";
 
@@ -266,6 +267,8 @@ export default function GymProfile() {
       )}
       <MenuRow icon="shield-checkmark-outline" label="Prywatność i RODO" desc="Zarządzaj zgodami i danymi" colors={colors} onPress={() => router.push("/(auth)/privacy")} />
       <MenuRow icon="help-circle-outline" label="Pomoc i kontakt" desc="FAQ i support techniczny" colors={colors} onPress={() => router.push("/(auth)/help")} />
+
+      <ExportDataButton />
 
       <DeleteAccountButton />
 

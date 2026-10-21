@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Trash2, CheckCircle, AlertTriangle, LogIn } from "lucide-react";
+import { ArrowLeft, Trash2, CheckCircle, AlertTriangle, Download, LogIn } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { PublicHeader } from "@/components/public-header";
 import { useAuth } from "@/hooks/useAuth";
@@ -146,6 +146,18 @@ export default function DeleteAccount() {
                     </ul>
                     <p className="mt-2">Operacja jest <strong>nieodwracalna</strong>.</p>
                   </div>
+                </div>
+
+                <div className="rounded-lg border p-4 space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Zanim usuniesz konto, możesz pobrać kopię swoich danych (konto, profil, treningi, raporty, płatności) jako plik JSON.
+                  </p>
+                  <Button asChild variant="outline" className="w-full" data-testid="button-export-data">
+                    <a href="/api/account/export" download>
+                      <Download className="w-4 h-4 mr-2" />
+                      Pobierz moje dane
+                    </a>
+                  </Button>
                 </div>
 
                 <div className="space-y-4">

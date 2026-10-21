@@ -148,6 +148,27 @@ test("a set that beats the history is flagged as a personal record", async () =>
   assert.equal(viaTrainer[0].exercise, "Przysiad");
 });
 
+test("everyone can download their own data, without secrets or other people's records", async () => {
+  const res = await call(client, "GET", "/api/account/export");
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("content-disposition") ?? "", /attachment; filename="panel-trenera-moje-dane-\d{4}-\d{2}-\d{2}\.json"/);
+  const text = await res.text();
+  const mine = JSON.parse(text);
+  assert.equal(mine.account.id, client.id);
+  assert.ok(mine.exerciseLogs.length >= 1, "the logged sets are in the export");
+  assert.ok(!/"password"|passwordResetToken|emailVerificationToken|stripeCustomerId/.test(text), "no secrets");
+
+  const trainerRes = await call(trainer, "GET", "/api/account/export");
+  assert.equal(trainerRes.status, 200);
+  const theirs = await trainerRes.json();
+  assert.equal(theirs.account.id, trainer.id);
+  assert.ok(theirs.plans.some((plan) => plan.workouts?.some((workout) => workout.exercises?.length)), "plans come with workouts and exercises");
+  const listed = theirs.clients.find((item) => item.id === client.id);
+  assert.deepEqual(Object.keys(listed).sort(), ["firstName", "id", "lastName"], "clients are listed by name only");
+
+  assert.equal((await fetch(`${API_URL}/api/account/export`)).status, 401, "anonymous download is refused");
+});
+
 test("the trainer reads the identity of their own client, and nothing sensitive", async () => {
   const res = await call(trainer, "GET", `/api/clients/${client.id}`);
   assert.equal(res.status, 200);

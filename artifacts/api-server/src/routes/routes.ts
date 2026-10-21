@@ -65,6 +65,7 @@ import { checkPaymentNotifications } from "../services/paymentNotifications";
 import { sendSessionReminders } from "../services/sessionReminders";
 import { sendWeeklySummaries } from "../services/weeklySummary";
 import { evaluatePersonalRecord } from "../lib/personalRecord";
+import { buildAccountExport, exportFileName } from "../lib/accountExport";
 import { buildExerciseHistory } from "../lib/exerciseHistory";
 import { buildAttentionList } from "../lib/attention";
 import { deleteTestClient } from "../testClientService";
@@ -1339,6 +1340,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error in forgot password:", error);
       res.status(500).json({ message: "Wystąpił błąd podczas przetwarzania żądania" });
+    }
+  });
+
+  // Authenticated: download of the user's own data as JSON (GDPR data portability)
+  app.get("/api/account/export", isAuthenticated, authRateLimit, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(404).json({ message: "Nie znaleziono konta." });
+
+      const sections: Record<string, unknown> = { profile: (await storage.getUserProfile(user.id)) ?? null };
+      if (user.role === "client") {
+        const [progress, weeklyReports, exerciseLogs, workoutSessions, sessionBookings, payments] = await Promise.all([
+          storage.getClientProgress(user.id),
+          storage.getClientWeeklyReports(user.id),
+          storage.getAllClientExerciseLogs(user.id),
+          storage.getClientWorkoutSessions(user.id),
+          storage.getClientSessionBookings(user.id),
+          storage.getClientPayments(user.id, "client"),
+        ]);
+        Object.assign(sections, { progress: progress ?? null, weeklyReports, exerciseLogs, workoutSessions, sessionBookings, payments });
+      } else if (user.role === "trainer") {
+        const plans = await storage.getTrainerPlans(user.id);
+        const plansWithWorkouts = await Promise.all(
+          plans.map(async (plan) => {
+            const workouts = await storage.getWorkoutsByPlanId(plan.id);
+            return {
+              ...plan,
+              workouts: await Promise.all(
+                workouts.map(async (workout) => ({ ...workout, exercises: await storage.getExercisesByWorkoutId(workout.id) })),
+              ),
+            };
+          }),
+        );
+        const [exerciseLibrary, clients, payments, sessionBookings, reviews] = await Promise.all([
+          storage.getTrainerExerciseLibrary(user.id),
+          storage.getTrainerClients(user.id),
+          storage.getClientPayments(user.id, "trainer"),
+          storage.getTrainerSessionBookings(user.id),
+          storage.getTrainerReviews(user.id),
+        ]);
+        Object.assign(sections, {
+          plans: plansWithWorkouts,
+          exerciseLibrary,
+          // other people's data stays with them: names only
+          clients: clients.map((client) => ({ id: client.id, firstName: client.firstName, lastName: client.lastName })),
+          payments,
+          sessionBookings,
+          reviews,
+        });
+      }
+      sections.notifications = await storage.getPushNotificationHistoryForUser(user.id, 500);
+
+      const now = new Date();
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="${exportFileName(now)}"`);
+      res.setHeader("Cache-Control", "no-store");
+      res.send(JSON.stringify(buildAccountExport(user as unknown as Record<string, unknown>, sections, now), null, 2));
+    } catch (error) {
+      console.error("Error exporting account data:", error);
+      res.status(500).json({ message: "Nie udało się przygotować eksportu danych." });
     }
   });
 

@@ -26,6 +26,7 @@ import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPost } from "@/lib/api";
 import { apiFetch } from "@/context/AuthContext";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
+import { ExportDataButton } from "@/components/ExportDataButton";
 
 const APP_VERSION = Constants.expoConfig?.version ?? "";
 
@@ -213,6 +214,8 @@ export default function ClientProfileScreen() {
         />
         <MenuRow icon="shield-checkmark-outline" label="Prywatność i RODO" desc="Zarządzaj zgodami i danymi" colors={colors} onPress={() => router.push("/(auth)/privacy")} testID="button-privacy" />
         <MenuRow icon="help-circle-outline" label="Pomoc i kontakt" desc="FAQ i kontakt z supportem" colors={colors} onPress={() => router.push("/(auth)/help")} testID="button-help" />
+
+        <ExportDataButton />
 
         <DeleteAccountButton />
 

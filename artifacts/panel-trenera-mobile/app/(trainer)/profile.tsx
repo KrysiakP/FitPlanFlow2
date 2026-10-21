@@ -22,6 +22,7 @@ import * as Haptics from "expo-haptics";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
+import { ExportDataButton } from "@/components/ExportDataButton";
 import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
 
 const APP_VERSION = Constants.expoConfig?.version ?? "";
@@ -376,6 +377,8 @@ export default function TrainerProfileScreen() {
       )}
       <MenuRow icon="shield-checkmark-outline" label="Prywatność i RODO" desc="Zarządzaj zgodami i danymi" colors={colors} onPress={() => router.push("/(auth)/privacy")} testID="button-privacy" />
       <MenuRow icon="help-circle-outline" label="Pomoc i kontakt" desc="FAQ i support techniczny" colors={colors} onPress={() => router.push("/(auth)/help")} testID="button-help" />
+
+      <ExportDataButton />
 
       <DeleteAccountButton />
 
