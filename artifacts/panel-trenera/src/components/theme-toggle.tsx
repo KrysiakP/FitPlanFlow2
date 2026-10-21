@@ -13,6 +13,7 @@ export function ThemeToggle() {
           variant="ghost"
           size="icon"
           onClick={toggleTheme}
+          aria-label={theme === "dark" ? "Przełącz na tryb jasny" : "Przełącz na tryb ciemny"}
           data-testid="button-theme-toggle"
         >
           {theme === "dark" ? (

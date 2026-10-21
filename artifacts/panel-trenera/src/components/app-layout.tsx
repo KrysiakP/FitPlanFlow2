@@ -281,6 +281,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     variant="ghost" 
                     size="icon" 
                     className="relative"
+                    aria-label={unreadNotificationsCount > 0 ? `Powiadomienia, nieprzeczytane: ${unreadNotificationsCount}` : "Powiadomienia"}
                     data-testid="button-notifications"
                   >
                     <Bell className="w-5 h-5" />

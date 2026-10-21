@@ -1375,14 +1375,14 @@ export default function Clients() {
       <div className="w-full lg:w-[400px] shrink-0 flex flex-col border-r overflow-hidden">
         <div className="p-4 space-y-4 border-b">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="font-heading font-bold text-lg" data-testid="text-clients-count">
+            <h1 className="font-heading font-bold text-lg" data-testid="text-clients-count">
               {realClients.length}{stats?.maxClients !== undefined && stats.maxClients !== -1 && `/${stats.maxClients}`} {realClients.length === 1 ? "podopieczny" : "podopiecznych"}
               <span className="text-muted-foreground font-normal text-sm ml-1">
                 ({clientsWithPlan} z planem)
               </span>
-            </h2>
+            </h1>
             <Button asChild size="icon" variant="ghost" data-testid="button-invite-client-header">
-              <Link href="/invite">
+              <Link href="/invite" aria-label="Zaproś podopiecznego">
                 <UserPlus className="w-4 h-4" />
               </Link>
             </Button>
@@ -1396,6 +1396,7 @@ export default function Clients() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 pr-8"
+              aria-label="Szukaj podopiecznych"
               data-testid="input-search-clients"
             />
             {searchQuery && (

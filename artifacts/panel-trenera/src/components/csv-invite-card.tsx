@@ -71,6 +71,7 @@ export function CsvInviteCard() {
           onChange={(event) => void onFile(event.target.files?.[0])}
           disabled={sending}
           className="text-sm"
+          aria-label="Plik CSV z adresami podopiecznych"
           data-testid="input-csv-file"
         />
 
