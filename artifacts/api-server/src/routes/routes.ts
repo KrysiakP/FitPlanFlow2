@@ -68,6 +68,7 @@ import { sendReportReminders } from "../services/reportReminders";
 import { isOptionalNotificationType, optionalNotifications, sanitizeMutedTypes } from "../lib/notificationPreferences";
 import { evaluatePersonalRecord } from "../lib/personalRecord";
 import { buildAccountExport, exportFileName } from "../lib/accountExport";
+import { deadPushTokens, withPushType } from "../lib/expoPush";
 import { buildExerciseHistory } from "../lib/exerciseHistory";
 import { buildAttentionList } from "../lib/attention";
 import { deleteTestClient } from "../testClientService";
@@ -113,15 +114,18 @@ function getCheckoutReturnOrigin(req: Request): string {
   return configuredDomain ? `https://${configuredDomain}` : "http://localhost:5000";
 }
 
-async function sendExpoPush(tokens: string[], title: string, body: string, data?: Record<string, string>) {
+async function sendExpoPush(userId: string, tokens: string[], title: string, body: string, data?: Record<string, string>) {
   if (tokens.length === 0) return;
   const messages = tokens.map((to) => ({ to, sound: "default" as const, title, body, data: data ?? {} }));
   try {
-    await fetch("https://exp.host/--/api/v2/push/send", {
+    const response = await fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json", "accept-encoding": "gzip, deflate" },
       body: JSON.stringify(messages),
     });
+    // forget tokens of uninstalled apps so they are not pushed to forever
+    const dead = deadPushTokens(tokens, await response.json().catch(() => null));
+    await Promise.all(dead.map((token) => storage.deletePushToken(userId, token).catch(() => undefined)));
   } catch (err) {
     console.error("Push send error:", err);
   }
@@ -152,7 +156,7 @@ async function sendPushToUserAndRecord(
     }).catch((err: unknown) => console.error("Failed to record push history:", err)),
   ]);
   if (tokens.length > 0) {
-    void sendExpoPush(tokens.map((t) => t.token), title, body, data);
+    void sendExpoPush(userId, tokens.map((t) => t.token), title, body, withPushType(data, notificationType));
   }
 }
 
