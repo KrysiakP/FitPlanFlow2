@@ -123,9 +123,9 @@ export default function DeleteAccount() {
                 <div className="p-4 rounded-full bg-green-500/10">
                   <CheckCircle className="w-10 h-10 text-green-500" />
                 </div>
-                <h3 className="text-xl font-semibold">Prośba wysłana</h3>
+                <h3 className="text-xl font-semibold">Konto usunięte</h3>
                 <p className="text-muted-foreground max-w-md">
-                  Otrzymaliśmy Twoją prośbę o usunięcie konta <strong>{user.email}</strong>. Usuniemy konto i wszystkie dane w ciągu <strong>30 dni</strong>.
+                  Konto <strong>{user.email}</strong> zostało usunięte, a wraz z nim wszystkie dane <strong>od razu</strong>. Kopie zapasowe wygasają w ciągu <strong>30 dni</strong>.
                 </p>
                 <p className="text-muted-foreground text-sm max-w-md">
                   Jeśli masz aktywną subskrypcję, pamiętaj o jej anulowaniu przed upływem tego okresu.
@@ -199,7 +199,7 @@ export default function DeleteAccount() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Na pewno usunąć konto {user.email}?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Konto, plany, historia treningów, raporty i płatności zostaną trwale usunięte w ciągu 30 dni. Tej operacji nie można cofnąć.
+                          Konto, plany, historia treningów, raporty i płatności zostaną usunięte natychmiast i trwale (kopie zapasowe wygasają w ciągu 30 dni). Tej operacji nie można cofnąć.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -216,7 +216,7 @@ export default function DeleteAccount() {
                   </AlertDialog>
 
                   <p className="text-xs text-muted-foreground text-center">
-                    Po otrzymaniu prośby usuniemy konto w ciągu 30 dni. W sprawach pilnych skontaktuj się z nami pod adresem{" "}
+                    Konto zostanie usunięte od razu, a kopie zapasowe wygasają w ciągu 30 dni. W razie pytań skontaktuj się z nami pod adresem{" "}
                     <a href="mailto:kontakt@paneltrenera.pl" className="underline hover:text-foreground">
                       kontakt@paneltrenera.pl
                     </a>

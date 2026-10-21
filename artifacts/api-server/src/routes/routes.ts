@@ -1472,6 +1472,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Capture user info before deletion
       const { email, firstName, lastName, role } = user;
 
+      // A deleted account must not keep being charged: end the Stripe subscription first.
+      // If Stripe fails we still delete (the user asked for it) and tell the admin to cancel it by hand.
+      let stripeNote = "";
+      if (user.stripeSubscriptionId) {
+        try {
+          await stripe.subscriptions.cancel(user.stripeSubscriptionId);
+          stripeNote = `Subskrypcja Stripe ${user.stripeSubscriptionId} została anulowana.`;
+        } catch (stripeErr) {
+          req.log.error({ stripeErr, userId }, "[DELETE_ACCOUNT] Could not cancel the Stripe subscription");
+          stripeNote = `UWAGA: nie udało się anulować subskrypcji Stripe ${user.stripeSubscriptionId}. Anuluj ją ręcznie w panelu Stripe.`;
+        }
+      }
+
       // Delete the account — cascades to all related tables (plans, sessions, tokens, etc.)
       await storage.deleteUser(userId);
 
@@ -1508,7 +1521,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   <li><strong>ID:</strong> ${userId}</li>
   <li><strong>Rola:</strong> ${role}</li>
 </ul>
-<p>Wszystkie dane zostały trwale usunięte z bazy danych.</p>`,
+<p>Wszystkie dane zostały trwale usunięte z bazy danych.</p>
+${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
           }),
         ]);
       } catch (emailErr) {

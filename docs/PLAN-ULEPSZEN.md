@@ -87,7 +87,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 67. [~] „Wyloguj ze wszystkich urządzeń" (API, web, mobile, testy); lista urządzeń do zrobienia
 68. [ ] Dziennik dostępu do danych podopiecznego
 69. [ ] Zgody RODO per cel
-70. [ ] Automatyczne usuwanie konta po 30 dniach
+70. [x] Okazało się, że usuwanie konta działa od razu (nie po 30 dniach, jak sugerował tekst): poprawiłem teksty (web, mobile, pomoc) i dodałem anulowanie subskrypcji Stripe przy usunięciu konta (wcześniej usunięty trener mógł być dalej obciążany)
 71. [ ] Aktualizacje zależności z lukami
 
 ## 8. Jakość i utrzymanie

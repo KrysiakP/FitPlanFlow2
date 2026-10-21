@@ -38,7 +38,7 @@ const FAQS: FAQ[] = [
   },
   {
     q: "Jak usunac konto?",
-    a: "Aby usunac konto, skontaktuj sie z nami: support@paneltrenera.pl. Usuniemy Twoje konto i dane w ciagu 30 dni roboczych.",
+    a: "Konto usuniesz sam w aplikacji: Profil → Usuń konto. Zostanie usuniete od razu, a kopie zapasowe wygasaja w ciagu 30 dni. W razie problemow napisz: support@paneltrenera.pl.",
   },
   {
     q: "Czy aplikacja dziala offline?",

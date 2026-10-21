@@ -15,7 +15,7 @@ export function DeleteAccountButton() {
   function handlePress() {
     Alert.alert(
       "Usuń konto",
-      "Czy na pewno chcesz usunąć swoje konto? Ta operacja jest nieodwracalna. Twoje dane zostaną usunięte w ciągu 30 dni.",
+      "Czy na pewno chcesz usunąć swoje konto? Ta operacja jest nieodwracalna. Konto i dane zostaną usunięte od razu (kopie zapasowe wygasają w ciągu 30 dni).",
       [
         { text: "Anuluj", style: "cancel" },
         {
@@ -33,8 +33,8 @@ export function DeleteAccountButton() {
       await apiPost("/api/account/delete-request", {});
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
-        "Prośba przyjęta",
-        "Twoja prośba o usunięcie konta została zarejestrowana. Konto zostanie usunięte w ciągu 30 dni. Zostaniesz teraz wylogowany.",
+        "Konto usunięte",
+        "Twoje konto zostało usunięte. Kopie zapasowe wygasają w ciągu 30 dni. Zostaniesz teraz wylogowany.",
         [
           {
             text: "OK",
