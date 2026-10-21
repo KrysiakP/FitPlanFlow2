@@ -13,8 +13,11 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { prefillFromReports } from "@/lib/reportPrefill";
+import { parseDraft, serializeDraft } from "@/lib/reportDraft";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "@/context/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -140,6 +143,8 @@ export default function WeeklyReportScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ReportFormData>(EMPTY_FORM);
+  const { user } = useAuth();
+  const draftKey = user?.id ? `report-draft:${user.id}` : null;
   const [reportDate, setReportDate] = useState(getThisMonday());
 
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -198,6 +203,7 @@ export default function WeeklyReportScreen() {
     onSuccess: ({ photoError }) => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ["client-reports"] });
+      if (draftKey) void AsyncStorage.removeItem(draftKey).catch(() => {});
       closeModal();
       if (photoError) {
         Alert.alert(
@@ -297,10 +303,18 @@ export default function WeeklyReportScreen() {
     setPhotoRemoved(true);
   }
 
-  function openNew() {
+  // A new report is saved locally as the user types, so a closed app does not lose it
+  useEffect(() => {
+    if (!draftKey || !modalVisible || editingId) return;
+    const raw = serializeDraft(form as unknown as Record<string, unknown>);
+    if (raw) void AsyncStorage.setItem(draftKey, raw).catch(() => {});
+  }, [form, modalVisible, editingId, draftKey]);
+
+  async function openNew() {
     setEditingId(null);
     // measurements and supplements carry over from earlier reports
-    setForm({ ...EMPTY_FORM, ...prefillFromReports(reports) });
+    const draft = draftKey ? parseDraft(await AsyncStorage.getItem(draftKey).catch(() => null)) : null;
+    setForm({ ...EMPTY_FORM, ...prefillFromReports(reports), ...(draft ?? {}) });
     setReportDate(getThisMonday());
     setPhotoUri(null);
     setHasNewUpload(false);

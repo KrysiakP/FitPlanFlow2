@@ -18,6 +18,8 @@ import { pl } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 import { CARRIED_FIELDS, prefillFromReports } from "@/lib/reportPrefill";
+import { DRAFT_FIELDS, parseDraft, serializeDraft } from "@/lib/reportDraft";
+import { useAuth } from "@/hooks/useAuth";
 // Object Storage uploader - code adapted from javascript_object_storage blueprint
 import { ObjectUploader } from "@/components/ObjectUploader";
 import type { UploadResult } from "@uppy/core";
@@ -52,6 +54,22 @@ function calculateReportStreak(reportDates: (string | Date)[]): number {
 
 export default function WeeklyReport() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const draftKey = user?.id ? `report-draft:${user.id}` : null;
+  const readDraft = () => {
+    try {
+      return draftKey ? parseDraft(localStorage.getItem(draftKey)) : null;
+    } catch {
+      return null;
+    }
+  };
+  const clearDraft = () => {
+    try {
+      if (draftKey) localStorage.removeItem(draftKey);
+    } catch {
+      // storage can be blocked; the draft is only a convenience
+    }
+  };
   const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState<string>("");
   const [tempObjectPath, setTempObjectPath] = useState<string>("");
   const [tempPreviewUrl, setTempPreviewUrl] = useState<string>("");
@@ -137,6 +155,7 @@ export default function WeeklyReport() {
           : "Twój cotygodniowy raport został pomyślnie zapisany.",
       });
       
+      clearDraft();
       // Reset hasNewUpload flag after successful save
       setHasNewUpload(false);
       
@@ -291,11 +310,35 @@ export default function WeeklyReport() {
     }
   };
   useEffect(() => {
-    if (prefilled.current || !reports || editingReportId) return;
+    if (prefilled.current || !reports || editingReportId || !user) return;
     prefilled.current = true;
     applyPrefill();
+    // what was typed last time wins over the carried-over values
+    const draft = readDraft();
+    if (draft) {
+      for (const field of DRAFT_FIELDS) {
+        const value = draft[field];
+        if (value) form.setValue(field, value);
+      }
+      toast({ title: "Przywrócono szkic raportu", description: "Dokończ i zapisz albo nadpisz to, co chcesz zmienić." });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reports, editingReportId]);
+  }, [reports, editingReportId, user]);
+
+  // Every change of a new (not edited) report is kept locally as a draft
+  useEffect(() => {
+    if (!draftKey || editingReportId) return;
+    const subscription = form.watch((values) => {
+      const raw = serializeDraft(values as Record<string, unknown>);
+      try {
+        if (raw) localStorage.setItem(draftKey, raw);
+      } catch {
+        // storage can be blocked; the draft is only a convenience
+      }
+    });
+    return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey, editingReportId]);
 
   const sortedReports = reports
     ? [...reports].sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime())

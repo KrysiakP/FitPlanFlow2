@@ -31,7 +31,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 21. [x] Porównanie zdjęć przed/po (web: podopieczny i trener; wybór dowolnych dwóch raportów ze zdjęciem; mobile jeszcze nie)
 22. [x] Wykresy obwodów z trendem: wykres 5 obwodów (był) + karty zmian przed/po, teraz także udo (web)
 23. [x] Cel wagowy z terminem i paskiem postępu (API + testy, web na stronie progresu; ocena względem prostej linii start→termin; mobile jeszcze nie)
-24. [ ] Raport tygodniowy w kreatorze + szkic
+24. [~] Szkic raportu tygodniowego: wpisane pola zapisują się lokalnie (web: localStorage, mobile: AsyncStorage), wracają po zamknięciu (do 14 dni), znikają po zapisie raportu; kreatora krok po kroku jeszcze nie ma
 25. [x] Wstępne uzupełnianie raportu: nowy raport zaczyna z obwodami i suplementami z poprzednich (waga, nastrój, sen, zdjęcie zawsze puste); web i mobile
 26. [x] Lista zakupów z jadłospisu (web: sumuje składniki z podanymi ilościami z opisów posiłków, odhaczanie i kopiowanie; pozycje bez ilości pomija; mobile jeszcze nie)
 27. [ ] Zamienniki posiłków (do zatwierdzenia)
