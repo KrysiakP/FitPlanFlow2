@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
 import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -153,6 +155,10 @@ export default function MyProgress() {
           Śledź swoje postępy w treningu i transformacji
         </p>
       </div>
+
+      <Button asChild variant="outline" className="w-fit" data-testid="link-monthly-report">
+        <Link href="/my-progress/monthly">Raport miesięczny (do wydruku)</Link>
+      </Button>
 
       <GoalCard />
 

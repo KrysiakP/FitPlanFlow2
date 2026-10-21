@@ -49,7 +49,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 37. [x] Przypomnienia trenera o podopiecznym z datą (API, push w dniu terminu przez cron, testy, web na karcie podopiecznego; mobile jeszcze nie)
 38. [x] Import podopiecznych z CSV (web, strona zaproszeń: podgląd, raport błędów, limit 100; testy parsera)
 39. [x] Etykiety podopiecznych (prywatne dla trenera, do 5 po 24 znaki; edytor na karcie, chipy na liście, wyszukiwanie po etykiecie; API + testy; mobile jeszcze nie)
-40. [ ] Raport miesięczny PDF
+40. [~] Raport miesięczny (web, klient): strona „Raport miesięczny" z wyborem miesiąca (treningi, czas, średnia trudność, raporty, zmiany ciała i siły), przycisk „Drukuj / zapisz PDF" przez drukowanie przeglądarki; wersji dla trenera jeszcze nie ma, wydruku nie sprawdzono w podglądzie druku
 41. [x] Kalendarz .ics (`GET /api/sessions/calendar.ics`, przyciski w web dla trenera i podopiecznego; subskrypcja na żywo wymagałaby tokenu w adresie, więc na razie plik do pobrania)
 42. [ ] Wolne terminy i zapisy przez podopiecznego
 43. [x] Odwołanie terminu przez podopiecznego najpóźniej 24 h przed (API 409 po terminie, push do trenera; przycisk na webie i w aplikacji)
