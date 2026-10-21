@@ -1,7 +1,7 @@
 // node --test tests/   (Node 24 runs the TypeScript helper directly)
 import assert from "node:assert/strict";
 import test from "node:test";
-import { weekWord, weeklyStreak, weightSeries, workoutsThisWeek } from "../lib/progressInsights.ts";
+import { metricSeries, weekWord, weeklyStreak, weightSeries, workoutsThisWeek } from "../lib/progressInsights.ts";
 
 // Wednesday 21 Oct 2026, noon
 const NOW = new Date(2026, 9, 21, 12, 0, 0);
@@ -60,6 +60,18 @@ test("several reports on one day count as a single point", () => {
   ]);
   assert.equal(series.length, 2);
   assert.equal(series[1].kg, 70.4);
+});
+
+test("other body measurements work the same way and are independent of weight", () => {
+  const reports = [
+    { reportDate: day(-14), weight: "80", waist: "92,5 cm" },
+    { reportDate: day(-7), weight: "79", waist: "91" },
+    { reportDate: day(0), weight: "", waist: "89.8", chest: "101" },
+  ];
+  assert.deepEqual(metricSeries(reports, "waist").map((p) => p.value), [92.5, 91, 89.8]);
+  assert.equal(metricSeries(reports, "weight").length, 2);
+  assert.equal(metricSeries(reports, "chest").length, 1);
+  assert.equal(metricSeries(reports, "hips").length, 0);
 });
 
 test("Polish plural of 'tydzień'", () => {

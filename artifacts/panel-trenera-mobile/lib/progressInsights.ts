@@ -4,10 +4,26 @@ export interface InsightSession {
   completedAt: string;
 }
 
+export type BodyMetric = "weight" | "waist" | "chest" | "hips" | "arm" | "leg";
+
 export interface InsightReport {
   reportDate: string;
   weight?: string | null;
+  waist?: string | null;
+  chest?: string | null;
+  hips?: string | null;
+  arm?: string | null;
+  leg?: string | null;
 }
+
+export const BODY_METRICS: { key: BodyMetric; label: string; unit: string }[] = [
+  { key: "weight", label: "Waga", unit: "kg" },
+  { key: "waist", label: "Talia", unit: "cm" },
+  { key: "chest", label: "Klatka", unit: "cm" },
+  { key: "hips", label: "Biodra", unit: "cm" },
+  { key: "arm", label: "Ramię", unit: "cm" },
+  { key: "leg", label: "Udo", unit: "cm" },
+];
 
 function startOfWeek(date: Date): Date {
   const d = new Date(date);
@@ -35,20 +51,25 @@ export function workoutsThisWeek(sessions: InsightSession[], now: Date = new Dat
   return sessions.filter((s) => new Date(s.completedAt).getTime() >= from).length;
 }
 
-/** Weight entries in chronological order, last `limit` of them; commas and units are tolerated ("75,5 kg"). */
-export function weightSeries(reports: InsightReport[], limit = 8): { date: Date; kg: number }[] {
+/** One body measurement over time, oldest first, last `limit` days; commas and units are tolerated ("75,5 kg"). */
+export function metricSeries(reports: InsightReport[], metric: BodyMetric, limit = 8): { date: Date; value: number }[] {
   return reports
-    .map((r) => ({ date: new Date(r.reportDate), kg: parseFloat(String(r.weight ?? "").replace(",", ".")) }))
-    .filter((p) => Number.isFinite(p.kg) && p.kg > 0 && !Number.isNaN(p.date.getTime()))
+    .map((r) => ({ date: new Date(r.reportDate), value: parseFloat(String(r[metric] ?? "").replace(",", ".")) }))
+    .filter((p) => Number.isFinite(p.value) && p.value > 0 && !Number.isNaN(p.date.getTime()))
     .sort((a, b) => a.date.getTime() - b.date.getTime())
     // one point per calendar day: when several reports share a day, the last one wins
-    .reduce<{ date: Date; kg: number }[]>((points, point) => {
+    .reduce<{ date: Date; value: number }[]>((points, point) => {
       const previous = points[points.length - 1];
       if (previous && previous.date.toDateString() === point.date.toDateString()) points[points.length - 1] = point;
       else points.push(point);
       return points;
     }, [])
     .slice(-limit);
+}
+
+/** Weight entries in the same shape as before (kg instead of a generic value). */
+export function weightSeries(reports: InsightReport[], limit = 8): { date: Date; kg: number }[] {
+  return metricSeries(reports, "weight", limit).map((p) => ({ date: p.date, kg: p.value }));
 }
 
 export function weekWord(n: number): string {

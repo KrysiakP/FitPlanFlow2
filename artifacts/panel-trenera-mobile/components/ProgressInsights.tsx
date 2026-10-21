@@ -1,12 +1,15 @@
-import { StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import {
+  BODY_METRICS,
+  type BodyMetric,
   type InsightReport,
   type InsightSession,
+  metricSeries,
   weekWord,
   weeklyStreak,
-  weightSeries,
   workoutsThisWeek,
 } from "@/lib/progressInsights";
 
@@ -14,12 +17,17 @@ export function ProgressInsights({ sessions, reports }: { sessions: InsightSessi
   const colors = useColors();
   const streak = weeklyStreak(sessions);
   const thisWeek = workoutsThisWeek(sessions);
-  const series = weightSeries(reports);
+  const [selected, setSelected] = useState<BodyMetric>("weight");
 
-  const min = Math.min(...series.map((p) => p.kg));
-  const max = Math.max(...series.map((p) => p.kg));
+  // Only measurements with enough history to show a trend
+  const available = BODY_METRICS.filter((m) => metricSeries(reports, m.key).length >= 2);
+  const metric = available.find((m) => m.key === selected) ?? available[0];
+  const series = metric ? metricSeries(reports, metric.key) : [];
+
+  const min = Math.min(...series.map((p) => p.value));
+  const max = Math.max(...series.map((p) => p.value));
   const range = Math.max(max - min, 1);
-  const delta = series.length > 1 ? series[series.length - 1].kg - series[0].kg : 0;
+  const delta = series.length > 1 ? series[series.length - 1].value - series[0].value : 0;
 
   return (
     <View style={{ gap: 12, marginBottom: 20 }}>
@@ -43,24 +51,43 @@ export function ProgressInsights({ sessions, reports }: { sessions: InsightSessi
         </View>
       </View>
 
-      {series.length >= 2 && (
+      {metric && series.length >= 2 && (
         <View style={[styles.weightCard, { backgroundColor: colors.card, borderColor: colors.border }]} testID="card-weight-trend">
           <View style={styles.weightHeader}>
-            <Text style={[styles.weightTitle, { color: colors.foreground }]}>Waga</Text>
+            <Text style={[styles.weightTitle, { color: colors.foreground }]}>{metric.label}</Text>
             <Text
               style={[styles.weightDelta, { color: colors.mutedForeground }]}
-              accessibilityLabel={`Zmiana wagi od pierwszego raportu: ${delta.toFixed(1)} kilogramów`}
+              accessibilityLabel={`Zmiana od pierwszego raportu: ${delta.toFixed(1)} ${metric.unit === "kg" ? "kilogramów" : "centymetrów"}`}
             >
-              {delta === 0 ? "bez zmian" : `${delta > 0 ? "+" : "−"}${Math.abs(delta).toFixed(1)} kg od początku`}
+              {delta === 0 ? "bez zmian" : `${delta > 0 ? "+" : "−"}${Math.abs(delta).toFixed(1)} ${metric.unit} od początku`}
             </Text>
           </View>
-          <View style={styles.bars} accessibilityRole="image" accessibilityLabel="Wykres wagi z ostatnich raportów">
+          {available.length > 1 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+              {available.map((m) => {
+                const active = m.key === metric.key;
+                return (
+                  <Pressable
+                    key={m.key}
+                    onPress={() => setSelected(m.key)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    style={[styles.chip, { backgroundColor: active ? colors.primary : colors.background, borderColor: active ? colors.primary : colors.border }]}
+                    testID={`chip-metric-${m.key}`}
+                  >
+                    <Text style={{ color: active ? "#fff" : colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{m.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
+          <View style={styles.bars} accessibilityRole="image" accessibilityLabel={`Wykres: ${metric.label}`}>
             {series.map((point) => {
-              const height = 18 + ((point.kg - min) / range) * 52;
+              const height = 18 + ((point.value - min) / range) * 52;
               const isLast = point === series[series.length - 1];
               return (
                 <View key={point.date.getTime()} style={styles.barCol}>
-                  <Text style={[styles.barValue, { color: colors.mutedForeground }]}>{point.kg.toFixed(1)}</Text>
+                  <Text style={[styles.barValue, { color: colors.mutedForeground }]}>{point.value.toFixed(1)}</Text>
                   <View
                     style={[
                       styles.bar,
@@ -89,6 +116,8 @@ const styles = StyleSheet.create({
   weightHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 },
   weightTitle: { fontSize: 15, fontFamily: "Inter_700Bold" },
   weightDelta: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  chips: { gap: 6, paddingBottom: 10 },
+  chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   bars: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 6, height: 110 },
   barCol: { flex: 1, alignItems: "center", justifyContent: "flex-end", gap: 3 },
   bar: { width: "70%", borderRadius: 6 },
