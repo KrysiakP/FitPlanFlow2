@@ -10,6 +10,7 @@ import * as Notifications from "expo-notifications";
 import { Stack, router, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useRef } from "react";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -41,6 +42,33 @@ const queryClient = new QueryClient({
   },
 });
 
+/**
+ * Tapping a push opens the screen it is about (also when the tap started the app).
+ * Waits until the user has landed on their home screen so the normal start-up redirect cannot override it.
+ * Native only: expo-notifications has no last-response API on web.
+ */
+function NotificationTapHandler() {
+  const { user, isLoading } = useAuth();
+  const segments = useSegments();
+  const lastResponse = Notifications.useLastNotificationResponse();
+  const handledResponse = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!lastResponse || !user || isLoading) return;
+    const group = segments[0] as string | undefined;
+    if (group !== "(client)" && group !== "(trainer)" && group !== "(gym)") return;
+    const id = lastResponse.notification.request.identifier;
+    if (handledResponse.current === id) return;
+    handledResponse.current = id;
+    if (lastResponse.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
+    const data = lastResponse.notification.request.content.data as { type?: unknown } | undefined;
+    const target = notificationRoute(data?.type, user.role);
+    if (target) router.push(target as never);
+  }, [lastResponse, user, isLoading, segments]);
+
+  return null;
+}
+
 function RootLayoutNav() {
   const { user, isLoading } = useAuth();
   const queryClient = useQueryClient();
@@ -65,31 +93,17 @@ function RootLayoutNav() {
     }
   }, [user, isLoading, segments]);
 
-  // Tapping a push opens the screen it is about (also when the tap started the app).
-  // Waits until the user has landed on their home screen so the normal start-up redirect cannot override it.
-  const lastResponse = Notifications.useLastNotificationResponse();
-  const handledResponse = useRef<string | null>(null);
-  useEffect(() => {
-    if (!lastResponse || !user || isLoading) return;
-    const group = segments[0] as string | undefined;
-    if (group !== "(client)" && group !== "(trainer)" && group !== "(gym)") return;
-    const id = lastResponse.notification.request.identifier;
-    if (handledResponse.current === id) return;
-    handledResponse.current = id;
-    if (lastResponse.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
-    const data = lastResponse.notification.request.content.data as { type?: unknown } | undefined;
-    const target = notificationRoute(data?.type, user.role);
-    if (target) router.push(target as never);
-  }, [lastResponse, user, isLoading, segments]);
-
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(client)" />
-      <Stack.Screen name="(trainer)" />
-      <Stack.Screen name="notifications" />
-    </Stack>
+    <>
+      {Platform.OS !== "web" && <NotificationTapHandler />}
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(client)" />
+        <Stack.Screen name="(trainer)" />
+        <Stack.Screen name="notification-settings" />
+      </Stack>
+    </>
   );
 }
 

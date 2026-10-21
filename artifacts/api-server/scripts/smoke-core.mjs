@@ -271,6 +271,32 @@ test("clients without a recent weekly report get one reminder", { skip: !process
   assert.equal((await fetch(`${API_URL}/api/cron/payment-notifications?forceReports=1`, { method: "POST" })).status, 401, "cron needs its token");
 });
 
+test("optional notifications can be switched off per role, and a muted one is not delivered", { skip: !process.env.CRON_JOB_TOKEN }, async () => {
+  const options = async (who) => (await (await call(who, "GET", "/api/notification-preferences")).json()).options;
+  assert.deepEqual((await options(client)).map((o) => o.type), ["session_reminder", "report_reminder"]);
+  assert.ok((await options(trainer)).every((o) => ["weekly_summary", "studio_announcement"].includes(o.type)), "trainers see their own list");
+
+  const bad = await call(client, "PUT", "/api/notification-preferences", { muted: "report_reminder" });
+  assert.equal(bad.status, 400);
+  // transactional and foreign types are ignored
+  assert.equal((await call(client, "PUT", "/api/notification-preferences", { muted: ["report_reminder", "plan_assigned", "weekly_summary"] })).status, 200);
+  const after = await options(client);
+  assert.equal(after.find((o) => o.type === "report_reminder").enabled, false);
+  assert.equal(after.find((o) => o.type === "session_reminder").enabled, true);
+  assert.equal(after.length, 2, "nothing else became switchable");
+  assert.equal((await options(trainer)).every((o) => o.enabled), true, "another user is unaffected");
+
+  const count = async () => JSON.stringify(await (await call(client, "GET", "/api/notifications/mine")).json()).split("Raport tygodniowy").length - 1;
+  const before = await count();
+  const res = await fetch(`${API_URL}/api/cron/payment-notifications?forceReports=1`, { method: "POST", headers: { Authorization: `Bearer ${process.env.CRON_JOB_TOKEN}` } });
+  assert.equal(res.status, 200);
+  assert.equal(await count(), before, "a muted reminder is not delivered");
+
+  assert.equal((await call(client, "PUT", "/api/notification-preferences", { muted: [] })).status, 200);
+  assert.ok((await options(client)).every((o) => o.enabled), "everything is on again");
+  assert.equal((await fetch(`${API_URL}/api/notification-preferences`)).status, 401);
+});
+
 test("trainers get a weekly summary once", { skip: !process.env.CRON_JOB_TOKEN }, async () => {
   const runCron = async () => {
     const res = await fetch(`${API_URL}/api/cron/payment-notifications?forceWeekly=1`, {
@@ -282,8 +308,9 @@ test("trainers get a weekly summary once", { skip: !process.env.CRON_JOB_TOKEN }
   };
   const first = await runCron();
   assert.ok(first.trainers >= 1);
-  const feed = JSON.stringify(await (await call(trainer, "GET", "/api/notifications/mine")).json());
-  assert.ok(feed.includes("Twój tydzień z podopiecznymi"), "the trainer received the summary");
+  const feed = JSON.stringify(await (await call(trainer, "GET", "/api/notifications/mine?limit=100")).json());
+  // earlier runs may already have sent this week's summary (one per 5 days, and old ones scroll out of the feed)
+  assert.ok(feed.includes("Twój tydzień z podopiecznymi") || first.skipped >= 1, "the trainer received the summary, or already had one");
   const second = await runCron();
   assert.equal(second.sent, 0, "no second summary within five days");
   // without force the job only sends on Mondays; either way it must answer cleanly

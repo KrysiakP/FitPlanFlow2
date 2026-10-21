@@ -169,6 +169,16 @@ export default function NotificationHistoryScreen() {
               <Text style={styles.badgeText}>{unreadCount > 99 ? "99+" : unreadCount}</Text>
             </View>
           )}
+          <Pressable
+            onPress={() => router.push("/notification-settings")}
+            hitSlop={10}
+            style={{ marginLeft: "auto" }}
+            accessibilityRole="button"
+            accessibilityLabel="Ustawienia powiadomień"
+            testID="button-notification-settings"
+          >
+            <Ionicons name="settings-outline" size={22} color={colors.primary} />
+          </Pressable>
         </View>
         {unreadCount > 0 && (
           <Pressable

@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import * as Notifications from "expo-notifications";
 import { useColors } from "@/hooks/useColors";
 import { apiFetch } from "@/context/AuthContext";
@@ -33,8 +34,16 @@ const NOTIF_TYPES: NotifType[] = [
   { icon: "trophy-outline", title: "Osiągnięcia i postępy", desc: "Gratulacje za osiągnięte cele" },
 ];
 
+interface PreferenceOption {
+  type: string;
+  label: string;
+  description: string;
+  enabled: boolean;
+}
+
 export default function NotificationSettingsScreen() {
   const colors = useColors();
+  const [options, setOptions] = useState<PreferenceOption[]>([]);
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
 
@@ -54,6 +63,35 @@ export default function NotificationSettingsScreen() {
   useEffect(() => {
     void checkPermission();
   }, [checkPermission]);
+
+  // Optional notification kinds the user can switch off (the list depends on the role and comes from the server)
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch("/api/notification-preferences")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body: { options?: PreferenceOption[] } | null) => {
+        if (!cancelled && body?.options) setOptions(body.options);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function toggleOption(type: string, enabled: boolean) {
+    const previous = options;
+    const next = options.map((option) => (option.type === type ? { ...option, enabled } : option));
+    setOptions(next);
+    try {
+      const res = await apiFetch("/api/notification-preferences", {
+        method: "PUT",
+        body: JSON.stringify({ muted: next.filter((option) => !option.enabled).map((option) => option.type) }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch {
+      setOptions(previous);
+    }
+  }
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState: AppStateStatus) => {
@@ -178,12 +216,49 @@ export default function NotificationSettingsScreen() {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.pageTitle, { color: colors.foreground }]}>Powiadomienia</Text>
+      <Pressable
+        onPress={() => router.back()}
+        hitSlop={10}
+        style={styles.backBtn}
+        accessibilityRole="button"
+        accessibilityLabel="Wróć"
+        testID="button-back"
+      >
+        <Ionicons name="chevron-back" size={22} color={colors.primary} />
+        <Text style={[styles.backText, { color: colors.primary }]}>Wstecz</Text>
+      </Pressable>
+      <Text style={[styles.pageTitle, { color: colors.foreground }]}>Ustawienia powiadomień</Text>
       <Text style={[styles.pageSubtitle, { color: colors.mutedForeground }]}>
         Zarządzaj powiadomieniami push na tym urządzeniu
       </Text>
 
       <StatusRow />
+
+      {options.length > 0 && (
+        <>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Przypomnienia i podsumowania</Text>
+          {options.map((option) => (
+            <View
+              key={option.type}
+              style={[styles.notifRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
+              <View style={styles.notifInfo}>
+                <Text style={[styles.notifTitle, { color: colors.foreground }]}>{option.label}</Text>
+                <Text style={[styles.notifDesc, { color: colors.mutedForeground }]}>{option.description}</Text>
+              </View>
+              <Switch
+                value={option.enabled}
+                onValueChange={(value) => void toggleOption(option.type, value)}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={option.enabled ? colors.primaryForeground : colors.mutedForeground}
+                accessibilityLabel={option.label}
+                testID={`switch-pref-${option.type}`}
+              />
+            </View>
+          ))}
+          <View style={{ height: 20 }} />
+        </>
+      )}
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Rodzaje powiadomień</Text>
 
@@ -221,6 +296,8 @@ export default function NotificationSettingsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingHorizontal: 20, gap: 0 },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8, alignSelf: "flex-start" },
+  backText: { fontSize: 15, fontFamily: "Inter_500Medium" },
   pageTitle: { fontSize: 22, fontFamily: "Inter_700Bold", marginBottom: 4 },
   pageSubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 24 },
   statusCard: { borderRadius: 16, borderWidth: 1, padding: 20, marginBottom: 28, gap: 16 },

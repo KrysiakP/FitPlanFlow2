@@ -1231,6 +1231,13 @@ export const gymAnnouncements = pgTable("gym_announcements", {
 
 export type GymAnnouncement = typeof gymAnnouncements.$inferSelect;
 
+// Optional push notification types a user has switched off (see api-server/src/lib/notificationPreferences.ts)
+export const notificationPreferences = pgTable("notification_preferences", {
+  userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  mutedTypes: text("muted_types").array().notNull().default(sql`'{}'::text[]`),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const insertGymSchema = createInsertSchema(gyms).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertGymTrainerSchema = createInsertSchema(gymTrainers).omit({ id: true, createdAt: true, invitedAt: true });
 

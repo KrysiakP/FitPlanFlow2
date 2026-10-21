@@ -2,6 +2,7 @@ import {
   users,
   gyms,
   gymTrainers,
+  notificationPreferences,
   trainingPlans,
   workouts,
   exercises,
@@ -340,6 +341,8 @@ export interface IStorage {
   hasPushNotification(userId: string, type: string, body: string, since: Date): Promise<boolean>;
   hasRecentPushOfType(userId: string, type: string, since: Date): Promise<boolean>;
   getClientIdsWithoutRecentReport(since: Date): Promise<string[]>;
+  getMutedNotificationTypes(userId: string): Promise<string[]>;
+  setMutedNotificationTypes(userId: string, types: string[]): Promise<void>;
   getStudioWeeklyStats(since: Date): Promise<{ ownerId: string; gymName: string; activeTrainers: number; sessions: number; reports: number; overduePayments: number }[]>;
   getTrainerWeeklyStats(since: Date): Promise<{ trainerId: string; activeClients: number; sessions: number; reports: number; overduePayments: number }[]>;
   getPushNotificationHistoryForUser(userId: string, limit?: number): Promise<PushNotificationHistory[]>;
@@ -3220,6 +3223,18 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(pushNotificationHistory.userId, userId), eq(pushNotificationHistory.type, type), gte(pushNotificationHistory.createdAt, since)))
       .limit(1);
     return !!row;
+  }
+
+  async getMutedNotificationTypes(userId: string): Promise<string[]> {
+    const [row] = await db.select({ muted: notificationPreferences.mutedTypes }).from(notificationPreferences).where(eq(notificationPreferences.userId, userId));
+    return row?.muted ?? [];
+  }
+
+  async setMutedNotificationTypes(userId: string, types: string[]): Promise<void> {
+    await db
+      .insert(notificationPreferences)
+      .values({ userId, mutedTypes: types })
+      .onConflictDoUpdate({ target: notificationPreferences.userId, set: { mutedTypes: types, updatedAt: new Date() } });
   }
 
   // Clients of an active trainer (not demo accounts) who have not sent a weekly report since `since`

@@ -65,6 +65,7 @@ import { checkPaymentNotifications } from "../services/paymentNotifications";
 import { sendSessionReminders } from "../services/sessionReminders";
 import { sendWeeklySummaries } from "../services/weeklySummary";
 import { sendReportReminders } from "../services/reportReminders";
+import { isOptionalNotificationType, optionalNotifications, sanitizeMutedTypes } from "../lib/notificationPreferences";
 import { evaluatePersonalRecord } from "../lib/personalRecord";
 import { buildAccountExport, exportFileName } from "../lib/accountExport";
 import { buildExerciseHistory } from "../lib/exerciseHistory";
@@ -133,6 +134,14 @@ async function sendPushToUserAndRecord(
   data?: Record<string, string>,
   notificationType?: string
 ): Promise<void> {
+  // Optional kinds (reminders, summaries) respect the user's choice; everything else is always delivered
+  const optionalType = notificationType ?? data?.type;
+  if (isOptionalNotificationType(optionalType)) {
+    // a failed lookup (e.g. the table is not migrated yet) must never block the notification itself
+    const muted = await storage.getMutedNotificationTypes(userId).catch(() => [] as string[]);
+    if (muted.includes(optionalType!)) return;
+  }
+
   const [tokens] = await Promise.all([
     storage.getPushTokensByUser(userId),
     storage.createPushNotificationHistory({
@@ -1341,6 +1350,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error in forgot password:", error);
       res.status(500).json({ message: "Wystąpił błąd podczas przetwarzania żądania" });
+    }
+  });
+
+  // Which optional push notifications the user receives (the app renders the list as returned)
+  app.get("/api/notification-preferences", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(404).json({ message: "Nie znaleziono konta." });
+      const muted = new Set(await storage.getMutedNotificationTypes(user.id));
+      res.json({ options: optionalNotifications(user.role).map((option) => ({ ...option, enabled: !muted.has(option.type) })) });
+    } catch (error) {
+      console.error("Error loading notification preferences:", error);
+      res.status(500).json({ message: "Nie udało się pobrać ustawień powiadomień" });
+    }
+  });
+
+  app.put("/api/notification-preferences", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) return res.status(404).json({ message: "Nie znaleziono konta." });
+      if (!Array.isArray(req.body?.muted)) return res.status(400).json({ message: "Pole muted musi być listą" });
+      await storage.setMutedNotificationTypes(user.id, sanitizeMutedTypes(req.body.muted, user.role));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error saving notification preferences:", error);
+      res.status(500).json({ message: "Nie udało się zapisać ustawień powiadomień" });
     }
   });
 
