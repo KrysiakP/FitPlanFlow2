@@ -1,7 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { useMutation } from "@tanstack/react-query";
+import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
+import { apiPost } from "@/lib/api";
 
 export interface AttentionItem {
   clientId: string;
@@ -21,6 +25,20 @@ const REASON_STYLE: Record<string, { icon: keyof typeof Ionicons.glyphMap; color
 /** The few clients who need the trainer today, most urgent first. */
 export function AttentionList({ items, limit = 5 }: { items: AttentionItem[]; limit?: number }) {
   const colors = useColors();
+  const [reminded, setReminded] = useState<Set<string>>(new Set());
+
+  const remindMutation = useMutation({
+    mutationFn: (clientId: string) => apiPost<{ sent: number }>(`/api/trainer/clients/${clientId}/remind`, {}),
+    onSuccess: (result, clientId) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setReminded((prev) => new Set(prev).add(clientId));
+      if (result?.sent === 0) {
+        Alert.alert("Przypomnienie zapisane", "Ten podopieczny nie ma włączonych powiadomień push, więc zobaczy je dopiero w aplikacji.");
+      }
+    },
+    onError: () => Alert.alert("Nie udało się wysłać", "Podopieczny może mieć wyłączone powiadomienia. Spróbuj ponownie później."),
+  });
+
   if (items.length === 0) return null;
   const shown = items.slice(0, limit);
 
@@ -32,7 +50,11 @@ export function AttentionList({ items, limit = 5 }: { items: AttentionItem[]; li
           <Text style={{ color: colors.primary, fontSize: 12, fontFamily: "Inter_700Bold" }}>{items.length}</Text>
         </View>
       </View>
-      {shown.map((item) => (
+      {shown.map((item) => {
+        const canRemind = item.reasons.some((r) => r.type === "inactive" || r.type === "never_trained");
+        const wasReminded = reminded.has(item.clientId);
+        const isSending = remindMutation.isPending && remindMutation.variables === item.clientId;
+        return (
         <Pressable
           key={item.clientId}
           onPress={() => router.push(`/client/${item.clientId}`)}
@@ -52,10 +74,32 @@ export function AttentionList({ items, limit = 5 }: { items: AttentionItem[]; li
                 </View>
               );
             })}
+            {canRemind && (
+              <Pressable
+                onPress={() => remindMutation.mutate(item.clientId)}
+                disabled={wasReminded || isSending}
+                accessibilityRole="button"
+                accessibilityLabel={wasReminded ? "Przypomnienie wysłane" : `Przypomnij o treningu: ${item.name}`}
+                style={[styles.remindBtn, { borderColor: colors.primary, opacity: wasReminded ? 0.6 : 1 }]}
+                testID={`button-attention-remind-${item.clientId}`}
+              >
+                {isSending ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <>
+                    <Ionicons name={wasReminded ? "checkmark" : "notifications-outline"} size={14} color={colors.primary} />
+                    <Text style={{ color: colors.primary, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>
+                      {wasReminded ? "Przypomnienie wysłane" : "Przypomnij o treningu"}
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            )}
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
         </Pressable>
-      ))}
+        );
+      })}
       {items.length > shown.length && (
         <Pressable onPress={() => router.push("/clients")} accessibilityRole="button" testID="button-attention-all">
           <Text style={[styles.more, { color: colors.primary }]}>I jeszcze {items.length - shown.length} — zobacz podopiecznych</Text>
@@ -73,5 +117,6 @@ const styles = StyleSheet.create({
   name: { fontSize: 15, fontFamily: "Inter_700Bold" },
   reasonRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   reason: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  remindBtn: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, marginTop: 2 },
   more: { fontSize: 13, fontFamily: "Inter_600SemiBold", paddingVertical: 4 },
 });
