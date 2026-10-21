@@ -1251,6 +1251,20 @@ export const gymAnnouncementReads = pgTable("gym_announcement_reads", {
 
 export type GymAnnouncement = typeof gymAnnouncements.$inferSelect;
 
+// A trainer's private reminder about a client ("zapytaj o kolano"); the trainer gets a push on the due day
+export const clientReminders = pgTable("client_reminders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  trainerId: varchar("trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  text: varchar("text", { length: 200 }).notNull(),
+  dueDate: timestamp("due_date").notNull(),
+  notifiedAt: timestamp("notified_at"),
+  doneAt: timestamp("done_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  trainerDueIdx: index("client_reminders_trainer_due_idx").on(table.trainerId, table.dueDate),
+}));
+
 // A client's body-weight goal ("76 kg by June"); progress is judged from the weekly reports
 export const clientGoals = pgTable("client_goals", {
   clientId: varchar("client_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),

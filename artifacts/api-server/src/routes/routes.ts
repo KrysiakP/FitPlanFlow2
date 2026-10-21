@@ -79,6 +79,8 @@ import { sanitizeLabels } from "../lib/clientLabels";
 import { computeAchievements } from "../lib/achievements";
 import { computeRetention } from "../lib/retention";
 import { goalProgress } from "../lib/goalProgress";
+import { sanitizeReminderText } from "../lib/clientReminder";
+import { sendClientReminders } from "../services/clientReminders";
 import { buildExerciseHistory } from "../lib/exerciseHistory";
 import { buildAttentionList } from "../lib/attention";
 import { deleteTestClient } from "../testClientService";
@@ -3587,6 +3589,65 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
     }
   });
 
+  // A trainer's private reminders about clients ("zapytaj o kolano"), pushed on the due day by the daily job
+  app.get("/api/trainer/reminders", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
+      res.json(await storage.getOpenClientReminders(user.id));
+    } catch (error) {
+      console.error("Error listing reminders:", error);
+      res.status(500).json({ message: "Nie udało się pobrać przypomnień" });
+    }
+  });
+
+  app.post("/api/trainer/clients/:clientId/reminders", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
+      const clientId = String(req.params.clientId);
+      if (isDemoId(clientId)) return res.status(400).json({ message: "Podopieczny demonstracyjny nie ma przypomnień" });
+      if (!(await storage.hasActiveClientRelationship(user.id, clientId))) {
+        return res.status(403).json({ message: "Brak aktywnej współpracy z tym podopiecznym" });
+      }
+      const text = sanitizeReminderText(req.body?.text);
+      if (!text) return res.status(400).json({ message: "Wpisz treść przypomnienia" });
+      const dueDate = new Date(req.body?.dueDate);
+      if (Number.isNaN(dueDate.getTime()) || dueDate.getTime() < Date.now() - 86400000 || dueDate.getTime() > Date.now() + 366 * 86400000) {
+        return res.status(400).json({ message: "Podaj datę z najbliższego roku" });
+      }
+      const created = await storage.createClientReminder(user.id, clientId, text, dueDate);
+      res.status(201).json({ id: created.id, text, dueDate });
+    } catch (error) {
+      console.error("Error creating reminder:", error);
+      res.status(500).json({ message: "Nie udało się zapisać przypomnienia" });
+    }
+  });
+
+  app.post("/api/trainer/reminders/:id/done", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
+      if (!(await storage.completeClientReminder(user.id, String(req.params.id)))) return res.status(404).json({ message: "Przypomnienie nie istnieje" });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error completing reminder:", error);
+      res.status(500).json({ message: "Nie udało się zakończyć przypomnienia" });
+    }
+  });
+
+  app.delete("/api/trainer/reminders/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
+      if (!(await storage.deleteClientReminder(user.id, String(req.params.id)))) return res.status(404).json({ message: "Przypomnienie nie istnieje" });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting reminder:", error);
+      res.status(500).json({ message: "Nie udało się usunąć przypomnienia" });
+    }
+  });
+
   // How long clients stay: active/ended counts, average length and 90-day retention
   app.get("/api/trainer/retention", isAuthenticated, async (req, res) => {
     try {
@@ -6254,6 +6315,11 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         return { checked: 0, sent: 0, skipped: 0, errors: 1 };
       });
 
+      const clientReminders = await sendClientReminders(storage, sendPushToUserAndRecord).catch((err) => {
+        console.error("[CRON] Client reminders failed:", err);
+        return { due: 0, sent: 0, errors: 1 };
+      });
+
       res.json({
         success: true,
         timestamp: new Date().toISOString(),
@@ -6263,6 +6329,7 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         reportReminders,
         trialReminders,
         reviewRequests,
+        clientReminders,
       });
     } catch (error) {
       console.error("[CRON] Error running payment notifications:", error);

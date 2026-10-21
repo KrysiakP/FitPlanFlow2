@@ -71,6 +71,7 @@ import {
 import { Link, useLocation } from "wouter";
 import { StrengthProgressCard } from "@/components/strength-progress-card";
 import { ClientLabelsEditor } from "@/components/client-labels-editor";
+import { ClientReminders } from "@/components/client-reminders";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
@@ -684,6 +685,8 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
       )}
 
       <Separator />
+
+      {!client.isDemo && <ClientReminders clientId={client.id} />}
 
       {!client.isDemo && (
         <div className="space-y-2">

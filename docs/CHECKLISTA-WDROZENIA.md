@@ -13,7 +13,7 @@ Rzeczy, które wymagają Twojej akcji (kod jest już gotowy i wypchnięty na Git
    curl -s -i -X PATCH https://paneltrenera.pl/api/gym/me | head -1                    # oczekiwane: 401 (a nie 404)
    ```
 
-**Uwaga — migracja bazy:** ta wersja dodaje pięć nowych tabel: `gym_announcements` (ogłoszenia studia), `notification_preferences` (które przypomnienia użytkownik wyłączył) `data_access_log` (kto oglądał dane podopiecznego) `client_labels` (etykiety trenera) i `client_goals` (cele wagowe podopiecznych); tylko dodanie, nic nie jest usuwane. Podczas publikacji Replit pokaże zmiany w bazie produkcyjnej — zatwierdź je. Bez tego endpointy ogłoszeń i ustawień powiadomień zwrócą błąd (reszta aplikacji działa, przypomnienia nadal będą wysyłane).
+**Uwaga — migracja bazy:** ta wersja dodaje sześć nowych tabel: `gym_announcements` (ogłoszenia studia), `notification_preferences` (które przypomnienia użytkownik wyłączył) `data_access_log` (kto oglądał dane podopiecznego) `client_labels` (etykiety trenera) `client_goals` (cele wagowe podopiecznych) i `client_reminders` (przypomnienia trenera); tylko dodanie, nic nie jest usuwane. Podczas publikacji Replit pokaże zmiany w bazie produkcyjnej — zatwierdź je. Bez tego endpointy ogłoszeń i ustawień powiadomień zwrócą błąd (reszta aplikacji działa, przypomnienia nadal będą wysyłane).
 
 W tej publikacji: poprawka luki XSS w wysyłaniu plików, limity prób dla kodów, zabezpieczenia dostępu,
 powiadomienia o terminach, edycja studia, zaproszenia jednym kliknięciem.
@@ -30,7 +30,7 @@ Dziś zadanie **nie działa**: `POST /api/cron/payment-notifications` odpowiada 
    - nagłówek: `Authorization: Bearer <ten token>`
 4. Sprawdź: zapytanie bez tokenu powinno dać **401** (a nie 500).
 
-To samo codzienne wywołanie wysyła też: przypomnienia o treningach (podopiecznym, <24 h przed terminem), **poniedziałkowe podsumowanie tygodnia** dla trenerów i właścicieli studiów **prośbę o opinię o trenerze po miesiącu współpracy**, **przypomnienie dla trenerów na 3 dni przed końcem okresu próbnego** oraz **niedzielne przypomnienie o raporcie tygodniowym** dla podopiecznych, którzy nie wysłali raportu od 6 dni (każde najwyżej raz na 5 dni).
+To samo codzienne wywołanie wysyła też: przypomnienia o treningach (podopiecznym, <24 h przed terminem), **poniedziałkowe podsumowanie tygodnia** dla trenerów i właścicieli studiów **przypomnienia trenera o podopiecznych w dniu terminu**, **prośbę o opinię o trenerze po miesiącu współpracy**, **przypomnienie dla trenerów na 3 dni przed końcem okresu próbnego** oraz **niedzielne przypomnienie o raporcie tygodniowym** dla podopiecznych, którzy nie wysłali raportu od 6 dni (każde najwyżej raz na 5 dni).
 
 ## 3. Zbuduj aplikacje mobilne
 

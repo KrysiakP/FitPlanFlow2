@@ -246,6 +246,37 @@ test("clients set a weight goal that is judged against their reports", async () 
   assert.equal((await fetch(`${API_URL}/api/client/goal`)).status, 401);
 });
 
+test("trainers keep private reminders about clients and are pushed on the due day", { skip: !process.env.CRON_JOB_TOKEN }, async () => {
+  const yesterday = new Date(Date.now() - 12 * 3600000).toISOString();
+  const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString();
+  const base = `/api/trainer/clients/${client.id}/reminders`;
+  assert.equal((await call(client, "POST", base, { text: "x", dueDate: nextWeek })).status, 403, "clients cannot create them");
+  assert.equal((await call(trainer, "POST", base, { text: "   ", dueDate: nextWeek })).status, 400);
+  assert.equal((await call(trainer, "POST", base, { text: "x", dueDate: "not a date" })).status, 400);
+  assert.equal((await call(trainer, "POST", base, { text: "x", dueDate: "2001-01-01" })).status, 400, "a date long past is refused");
+
+  const unique = `Zapytaj o kolano ${Date.now()}`;
+  const due = await (await call(trainer, "POST", base, { text: unique, dueDate: yesterday })).json();
+  const later = await (await call(trainer, "POST", base, { text: `Za tydzień ${Date.now()}`, dueDate: nextWeek })).json();
+  try {
+    assert.ok((await (await call(trainer, "GET", "/api/trainer/reminders")).json()).some((item) => item.id === due.id && item.clientFirstName));
+    assert.equal((await (await call(client, "GET", "/api/trainer/reminders")).status), 403);
+
+    const run = async () => (await (await fetch(`${API_URL}/api/cron/payment-notifications`, { method: "POST", headers: { Authorization: `Bearer ${process.env.CRON_JOB_TOKEN}` } })).json()).clientReminders;
+    const feed = async () => JSON.stringify(await (await call(trainer, "GET", "/api/notifications/mine?limit=100")).json());
+    const first = await run();
+    assert.ok(first.sent >= 1, "the due reminder was pushed");
+    assert.ok((await feed()).includes(unique), "it reached the trainer's feed");
+    assert.ok(!(await feed()).includes(later.text), "a reminder for next week is not pushed yet");
+    assert.equal((await run()).sent, 0, "each reminder is pushed once");
+  } finally {
+    assert.equal((await call(trainer, "POST", `/api/trainer/reminders/${due.id}/done`)).status, 200);
+    assert.equal((await call(trainer, "DELETE", `/api/trainer/reminders/${later.id}`)).status, 200);
+  }
+  assert.ok(!(await (await call(trainer, "GET", "/api/trainer/reminders")).json()).some((item) => item.id === due.id), "finished ones leave the list");
+  assert.equal((await call(trainer, "DELETE", `/api/trainer/reminders/${later.id}`)).status, 404, "already gone");
+});
+
 test("the health endpoint answers without a login", async () => {
   const res = await fetch(`${API_URL}/api/health`);
   assert.equal(res.status, 200);

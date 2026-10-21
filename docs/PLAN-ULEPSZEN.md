@@ -40,13 +40,13 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 30. [Ty] Widżet ekranu głównego (wymaga natywnego buildu i testu na telefonie)
 
 ## 3. Trener: codzienna praca
-31. [ ] Akcje zbiorcze na liście „wymaga uwagi"
+31. [x] Przycisk „Przypomnij o treningu (N)" na liście „wymaga uwagi" (web): jednym kliknięciem do wszystkich nieaktywnych
 32. [ ] Szablony i biblioteka gotowych planów
 33. [ ] Automatyczna progresja obciążeń
 34. [ ] Edycja planu w trakcie bez gubienia historii
 35. [ ] Komentarz trenera do treningu/zdjęcia
 36. [ ] Szablony odpowiedzi w czacie
-37. [ ] Notatki z przypomnieniem na datę
+37. [x] Przypomnienia trenera o podopiecznym z datą (API, push w dniu terminu przez cron, testy, web na karcie podopiecznego; mobile jeszcze nie)
 38. [x] Import podopiecznych z CSV (web, strona zaproszeń: podgląd, raport błędów, limit 100; testy parsera)
 39. [x] Etykiety podopiecznych (prywatne dla trenera, do 5 po 24 znaki; edytor na karcie, chipy na liście, wyszukiwanie po etykiecie; API + testy; mobile jeszcze nie)
 40. [ ] Raport miesięczny PDF

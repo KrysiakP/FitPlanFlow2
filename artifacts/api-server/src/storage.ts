@@ -6,6 +6,7 @@ import {
   dataAccessLog,
   clientLabels,
   clientGoals,
+  clientReminders,
   trainingPlans,
   workouts,
   exercises,
@@ -345,6 +346,12 @@ export interface IStorage {
   hasPushNotification(userId: string, type: string, body: string, since: Date): Promise<boolean>;
   hasRecentPushOfType(userId: string, type: string, since: Date): Promise<boolean>;
   getClientIdsWithoutRecentReport(since: Date): Promise<string[]>;
+  createClientReminder(trainerId: string, clientId: string, text: string, dueDate: Date): Promise<{ id: string }>;
+  getOpenClientReminders(trainerId: string): Promise<{ id: string; clientId: string; text: string; dueDate: Date; clientFirstName: string; clientLastName: string }[]>;
+  completeClientReminder(trainerId: string, id: string): Promise<boolean>;
+  deleteClientReminder(trainerId: string, id: string): Promise<boolean>;
+  getDueUnnotifiedReminders(upTo: Date): Promise<{ id: string; trainerId: string; clientId: string; text: string; clientFirstName: string; clientLastName: string }[]>;
+  markReminderNotified(id: string): Promise<void>;
   getClientGoal(clientId: string): Promise<{ startKg: number; targetKg: number; targetDate: Date | null; createdAt: Date } | null>;
   setClientGoal(clientId: string, goal: { startKg: number; targetKg: number; targetDate: Date | null }): Promise<void>;
   deleteClientGoal(clientId: string): Promise<void>;
@@ -3369,6 +3376,44 @@ export class DatabaseStorage implements IStorage {
 
   async deleteClientGoal(clientId: string): Promise<void> {
     await db.delete(clientGoals).where(eq(clientGoals.clientId, clientId));
+  }
+
+  async createClientReminder(trainerId: string, clientId: string, text: string, dueDate: Date) {
+    const [row] = await db.insert(clientReminders).values({ trainerId, clientId, text, dueDate }).returning({ id: clientReminders.id });
+    return row;
+  }
+
+  async getOpenClientReminders(trainerId: string) {
+    return db
+      .select({ id: clientReminders.id, clientId: clientReminders.clientId, text: clientReminders.text, dueDate: clientReminders.dueDate, clientFirstName: users.firstName, clientLastName: users.lastName })
+      .from(clientReminders)
+      .innerJoin(users, eq(users.id, clientReminders.clientId))
+      .where(and(eq(clientReminders.trainerId, trainerId), isNull(clientReminders.doneAt)))
+      .orderBy(asc(clientReminders.dueDate))
+      .limit(100);
+  }
+
+  // Only the owner can finish or delete a reminder; false means "not found (for this trainer)"
+  async completeClientReminder(trainerId: string, id: string): Promise<boolean> {
+    const rows = await db.update(clientReminders).set({ doneAt: new Date() }).where(and(eq(clientReminders.id, id), eq(clientReminders.trainerId, trainerId))).returning({ id: clientReminders.id });
+    return rows.length > 0;
+  }
+
+  async deleteClientReminder(trainerId: string, id: string): Promise<boolean> {
+    const rows = await db.delete(clientReminders).where(and(eq(clientReminders.id, id), eq(clientReminders.trainerId, trainerId))).returning({ id: clientReminders.id });
+    return rows.length > 0;
+  }
+
+  async getDueUnnotifiedReminders(upTo: Date) {
+    return db
+      .select({ id: clientReminders.id, trainerId: clientReminders.trainerId, clientId: clientReminders.clientId, text: clientReminders.text, clientFirstName: users.firstName, clientLastName: users.lastName })
+      .from(clientReminders)
+      .innerJoin(users, eq(users.id, clientReminders.clientId))
+      .where(and(isNull(clientReminders.notifiedAt), isNull(clientReminders.doneAt), lte(clientReminders.dueDate, upTo)));
+  }
+
+  async markReminderNotified(id: string): Promise<void> {
+    await db.update(clientReminders).set({ notifiedAt: new Date() }).where(eq(clientReminders.id, id));
   }
 
   // Clients of an active trainer (not demo accounts) who have not sent a weekly report since `since`
