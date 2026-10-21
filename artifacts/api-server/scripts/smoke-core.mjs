@@ -548,8 +548,8 @@ test("clients without a recent weekly report get one reminder", { skip: !process
 
 test("optional notifications can be switched off per role, and a muted one is not delivered", { skip: !process.env.CRON_JOB_TOKEN }, async () => {
   const options = async (who) => (await (await call(who, "GET", "/api/notification-preferences")).json()).options;
-  assert.deepEqual((await options(client)).map((o) => o.type), ["session_reminder", "report_reminder", "review_request"]);
-  assert.ok((await options(trainer)).every((o) => ["daily_summary", "weekly_summary", "studio_announcement"].includes(o.type)), "trainers see their own list");
+  assert.deepEqual((await options(client)).map((o) => o.type), ["session_reminder", "report_reminder", "review_request", "email_fallback"]);
+  assert.ok((await options(trainer)).every((o) => ["daily_summary", "weekly_summary", "studio_announcement", "email_fallback"].includes(o.type)), "trainers see their own list");
 
   const bad = await call(client, "PUT", "/api/notification-preferences", { muted: "report_reminder" });
   assert.equal(bad.status, 400);
@@ -558,7 +558,8 @@ test("optional notifications can be switched off per role, and a muted one is no
   const after = await options(client);
   assert.equal(after.find((o) => o.type === "report_reminder").enabled, false);
   assert.equal(after.find((o) => o.type === "session_reminder").enabled, true);
-  assert.equal(after.length, 3, "nothing else became switchable");
+  assert.equal(after.length, 4, "nothing else became switchable");
+  assert.equal(after.find((o) => o.type === "email_fallback").enabled, true, "the e-mail fallback is on by default");
   assert.equal((await options(trainer)).every((o) => o.enabled), true, "another user is unaffected");
 
   const count = async () => JSON.stringify(await (await call(client, "GET", "/api/notifications/mine")).json()).split("Raport tygodniowy").length - 1;

@@ -716,3 +716,50 @@ export async function sendStudioInvitationEmail({ email, studioName, inviteCode 
     return false;
   }
 }
+
+interface SendNotificationEmailParams {
+  email: string;
+  firstName: string;
+  title: string;
+  body: string;
+}
+
+/** A plain copy of an important notification for people without the phone app (see lib/emailFallback). */
+export async function sendNotificationEmail({ email, firstName, title, body }: SendNotificationEmailParams): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    const baseUrl = getBaseUrl();
+    const result = await client.emails.send({
+      from: fromEmail,
+      to: email,
+      subject: `${title} - Panel Trenera`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${escapeHtml(title)}</title></head>
+        <body style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;"><h1 style="color: #0d9488; margin: 0; font-size: 28px;">Panel Trenera</h1></div>
+          <div style="background-color: #f8fafc; border-radius: 8px; padding: 30px; margin-bottom: 20px;">
+            <h2 style="color: #1e293b; margin-top: 0;">Cześć ${escapeHtml(firstName)}!</h2>
+            <p><strong>${escapeHtml(title)}</strong></p>
+            <p>${escapeHtml(body)}</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${baseUrl}" style="display: inline-block; background-color: #0d9488; color: white; text-decoration: none; padding: 14px 30px; border-radius: 8px; font-weight: 600; font-size: 16px;">Otwórz Panel Trenera</a>
+            </div>
+            <p style="color: #64748b; font-size: 13px;">Dostajesz tę wiadomość e-mailem, bo nie masz aplikacji na telefonie. Możesz to wyłączyć w ustawieniach powiadomień.</p>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `Cześć ${firstName}!\n\n${title}\n${body}\n\nOtwórz Panel Trenera: ${baseUrl}\n\nDostajesz tę wiadomość e-mailem, bo nie masz aplikacji na telefonie. Możesz to wyłączyć w ustawieniach powiadomień.`,
+    });
+    if (result.error) {
+      console.error('[EMAIL] Resend API returned error:', result.error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('[EMAIL] Failed to send notification email:', error);
+    return false;
+  }
+}

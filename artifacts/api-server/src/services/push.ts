@@ -2,6 +2,8 @@ import { storage } from "../storage";
 import { deadPushTokens, withPushType } from "../lib/expoPush";
 import { isOptionalNotificationType } from "../lib/notificationPreferences";
 import { isQuietNow } from "../lib/quietHours";
+import { shouldEmailFallback } from "../lib/emailFallback";
+import { sendNotificationEmail } from "../email";
 
 /** Records a push in the user's history and delivers it (respecting muted kinds and quiet hours); see docs/ARCHITEKTURA.md. */
 async function sendExpoPush(userId: string, tokens: string[], title: string, body: string, data?: Record<string, string>) {
@@ -46,5 +48,13 @@ export async function sendPushToUserAndRecord(
   ]);
   if (tokens.length > 0 && !quiet) {
     void sendExpoPush(userId, tokens.map((t) => t.token), title, body, withPushType(data, notificationType));
+  }
+
+  // No phone app: an important notice goes to the (verified) e-mail instead. Never from automated tests.
+  if (tokens.length === 0 && process.env.NODE_ENV !== "test") {
+    const user = await storage.getUser(userId).catch(() => undefined);
+    if (user && shouldEmailFallback({ type: optionalType, pushTokenCount: 0, muted: preferences?.muted ?? [], emailVerified: user.emailVerified, hasEmail: !!user.email })) {
+      void sendNotificationEmail({ email: user.email!, firstName: user.firstName || "", title, body });
+    }
   }
 }

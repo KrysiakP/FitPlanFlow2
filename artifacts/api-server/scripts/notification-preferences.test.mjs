@@ -4,7 +4,7 @@ import test from "node:test";
 import { isOptionalNotificationType, optionalNotifications, sanitizeMutedTypes } from "../src/lib/notificationPreferences.ts";
 
 test("each role sees only its own optional notifications", () => {
-  assert.deepEqual(optionalNotifications("client").map((o) => o.type), ["session_reminder", "report_reminder", "review_request"]);
+  assert.deepEqual(optionalNotifications("client").map((o) => o.type), ["session_reminder", "report_reminder", "review_request", "email_fallback"]);
   assert.deepEqual(optionalNotifications("gym_owner").map((o) => o.type), ["weekly_summary"]);
   assert.deepEqual(optionalNotifications(null), []);
   assert.deepEqual(optionalNotifications("admin"), []);

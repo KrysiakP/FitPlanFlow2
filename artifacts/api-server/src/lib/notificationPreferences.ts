@@ -16,11 +16,13 @@ const OPTIONS: Record<PreferenceRole, OptionalNotification[]> = {
     { type: "session_reminder", label: "Przypomnienia o treningu", description: "Dzień przed umówioną sesją z trenerem" },
     { type: "report_reminder", label: "Przypomnienie o raporcie", description: "W niedzielę, jeśli nie wysłano raportu tygodniowego" },
     { type: "review_request", label: "Prośba o opinię", description: "Raz, po miesiącu współpracy z trenerem" },
+    { type: "email_fallback", label: "E-mail, gdy nie masz aplikacji", description: "Ważne wiadomości (terminy, plany) przyjdą e-mailem, jeśli nie masz aplikacji na telefonie" },
   ],
   trainer: [
     { type: "daily_summary", label: "Twój dzień", description: "Rano: sesje w kalendarzu i nieotwarte raporty (tylko gdy coś jest)" },
     { type: "weekly_summary", label: "Podsumowanie tygodnia", description: "W poniedziałek: treningi, raporty i zaległe płatności" },
     { type: "studio_announcement", label: "Ogłoszenia studia", description: "Wiadomości od właściciela studia" },
+    { type: "email_fallback", label: "E-mail, gdy nie masz aplikacji", description: "Ważne wiadomości (terminy, plany) przyjdą e-mailem, jeśli nie masz aplikacji na telefonie" },
   ],
   gym_owner: [{ type: "weekly_summary", label: "Podsumowanie tygodnia", description: "W poniedziałek: statystyki całego studia" }],
 };

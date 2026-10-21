@@ -74,7 +74,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 
 ## 6. Powiadomienia i komunikacja
 58. [x] Cichy tryb (presety godzin, czas polski; historia zachowana, telefon nie dzwoni)
-59. [ ] E-mail jako kanał zapasowy
+59. [x] E-mail jako kanał zapasowy: ważne powiadomienia (termin, odwołanie, przypomnienie, nowy plan, zaakceptowane zaproszenie) przychodzą e-mailem, gdy użytkownik nie ma tokenu push i ma zweryfikowany adres; wyłączane w ustawieniach powiadomień („E-mail, gdy nie masz aplikacji"); wymaga działającego Resend (klucz już jest używany do reszty maili)
 60. [x] Dzienne podsumowanie trenera: push „Twój dzień" (sesje dziś + nieotwarte raporty, tylko gdy coś jest, raz na 18 h, można wyciszyć); z crona
 61. [~] Czat: „Przeczytano" pod ostatnią przeczytaną wiadomością (web + aplikacja klienta i trenera, testy); załączniki jeszcze nie
 62. [~] Głębsze linki z powiadomień: web ma mapę rodzaj → strona (testy); aplikacja miała już własną; brakuje przejścia do konkretnego podopiecznego/rozmowy
