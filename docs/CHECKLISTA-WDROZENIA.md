@@ -30,6 +30,8 @@ Dziś zadanie **nie działa**: `POST /api/cron/payment-notifications` odpowiada 
    - nagłówek: `Authorization: Bearer <ten token>`
 4. Sprawdź: zapytanie bez tokenu powinno dać **401** (a nie 500).
 
+To samo codzienne wywołanie wysyła też: przypomnienia o treningach (podopiecznym, <24 h przed terminem) i **poniedziałkowe podsumowanie tygodnia dla trenerów** (raz na 5 dni, tylko w poniedziałek czasu polskiego).
+
 ## 3. Zbuduj aplikacje mobilne
 
 Zmiany w aplikacji: rejestracja i panel studia, tryb offline, wylogowanie po wygaśnięciu sesji, kalendarz po polsku,

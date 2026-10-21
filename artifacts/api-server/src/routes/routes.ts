@@ -63,6 +63,7 @@ import express from "express";
 import { authRateLimit, lookupRateLimit } from "../app";
 import { checkPaymentNotifications } from "../services/paymentNotifications";
 import { sendSessionReminders } from "../services/sessionReminders";
+import { sendWeeklySummaries } from "../services/weeklySummary";
 import { evaluatePersonalRecord } from "../lib/personalRecord";
 import { buildExerciseHistory } from "../lib/exerciseHistory";
 import { buildAttentionList } from "../lib/attention";
@@ -5855,11 +5856,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return { checked: 0, sent: 0, skipped: 0, errors: 1 };
       });
       
+      const weeklySummaries = await sendWeeklySummaries(storage, sendPushToUserAndRecord, { force: req.query.forceWeekly === "1" }).catch((err) => {
+        console.error("[CRON] Weekly summaries failed:", err);
+        return { trainers: 0, sent: 0, skipped: 0, errors: 1 };
+      });
+
       res.json({
         success: true,
         timestamp: new Date().toISOString(),
         stats,
         sessionReminders,
+        weeklySummaries,
       });
     } catch (error) {
       console.error("[CRON] Error running payment notifications:", error);

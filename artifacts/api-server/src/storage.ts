@@ -336,6 +336,8 @@ export interface IStorage {
   createPushNotificationHistory(data: InsertPushNotificationHistory): Promise<PushNotificationHistory>;
   getScheduledSessionsBetween(from: Date, to: Date): Promise<SessionBooking[]>;
   hasPushNotification(userId: string, type: string, body: string, since: Date): Promise<boolean>;
+  hasRecentPushOfType(userId: string, type: string, since: Date): Promise<boolean>;
+  getTrainerWeeklyStats(since: Date): Promise<{ trainerId: string; activeClients: number; sessions: number; reports: number; overduePayments: number }[]>;
   getPushNotificationHistoryForUser(userId: string, limit?: number): Promise<PushNotificationHistory[]>;
   markPushNotificationRead(id: string, userId: string): Promise<PushNotificationHistory>;
   markAllPushNotificationsRead(userId: string): Promise<void>;
@@ -3181,6 +3183,54 @@ export class DatabaseStorage implements IStorage {
       )
       .limit(1);
     return !!row;
+  }
+
+  async hasRecentPushOfType(userId: string, type: string, since: Date): Promise<boolean> {
+    const [row] = await db
+      .select({ id: pushNotificationHistory.id })
+      .from(pushNotificationHistory)
+      .where(and(eq(pushNotificationHistory.userId, userId), eq(pushNotificationHistory.type, type), gte(pushNotificationHistory.createdAt, since)))
+      .limit(1);
+    return !!row;
+  }
+
+  // Per trainer with at least one active client: finished workouts and received reports since `since`, and unpaid overdue payments now
+  async getTrainerWeeklyStats(since: Date): Promise<{ trainerId: string; activeClients: number; sessions: number; reports: number; overduePayments: number }[]> {
+    const active = eq(clientRelationships.status, "active");
+    const [clients, sessionRows, reportRows, overdueRows] = await Promise.all([
+      db
+        .select({ trainerId: clientRelationships.trainerId, count: sql<number>`count(*)::int` })
+        .from(clientRelationships)
+        .where(active)
+        .groupBy(clientRelationships.trainerId),
+      db
+        .select({ trainerId: clientRelationships.trainerId, count: sql<number>`count(${workoutSessions.id})::int` })
+        .from(workoutSessions)
+        .innerJoin(clientRelationships, and(eq(clientRelationships.clientId, workoutSessions.clientId), active))
+        .where(gte(workoutSessions.completedAt, since))
+        .groupBy(clientRelationships.trainerId),
+      db
+        .select({ trainerId: clientRelationships.trainerId, count: sql<number>`count(${weeklyReports.id})::int` })
+        .from(weeklyReports)
+        .innerJoin(clientRelationships, and(eq(clientRelationships.clientId, weeklyReports.clientId), active))
+        .where(gte(weeklyReports.createdAt, since))
+        .groupBy(clientRelationships.trainerId),
+      db
+        .select({ trainerId: clientPayments.trainerId, count: sql<number>`count(*)::int` })
+        .from(clientPayments)
+        .where(and(eq(clientPayments.isPaid, false), lte(clientPayments.dueDate, new Date())))
+        .groupBy(clientPayments.trainerId),
+    ]);
+    const sessions = new Map(sessionRows.map((r) => [r.trainerId, r.count]));
+    const reports = new Map(reportRows.map((r) => [r.trainerId, r.count]));
+    const overdue = new Map(overdueRows.map((r) => [r.trainerId, r.count]));
+    return clients.map((c) => ({
+      trainerId: c.trainerId,
+      activeClients: c.count,
+      sessions: sessions.get(c.trainerId) ?? 0,
+      reports: reports.get(c.trainerId) ?? 0,
+      overduePayments: overdue.get(c.trainerId) ?? 0,
+    }));
   }
 
   async getPushNotificationHistoryForUser(userId: string, limit: number = 50): Promise<PushNotificationHistory[]> {

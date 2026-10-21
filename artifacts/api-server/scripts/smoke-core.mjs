@@ -209,6 +209,26 @@ test("session reminders go out once for sessions starting within 24 hours", { sk
   assert.equal((await fetch(`${API_URL}/api/cron/payment-notifications`, { method: "POST" })).status, 401, "cron needs its token");
 });
 
+test("trainers get a weekly summary once", { skip: !process.env.CRON_JOB_TOKEN }, async () => {
+  const runCron = async () => {
+    const res = await fetch(`${API_URL}/api/cron/payment-notifications?forceWeekly=1`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.CRON_JOB_TOKEN}` },
+    });
+    assert.equal(res.status, 200);
+    return (await res.json()).weeklySummaries;
+  };
+  const first = await runCron();
+  assert.ok(first.trainers >= 1);
+  const feed = JSON.stringify(await (await call(trainer, "GET", "/api/notifications/mine")).json());
+  assert.ok(feed.includes("Twój tydzień z podopiecznymi"), "the trainer received the summary");
+  const second = await runCron();
+  assert.equal(second.sent, 0, "no second summary within five days");
+  // without force the job only sends on Mondays; either way it must answer cleanly
+  const plain = await fetch(`${API_URL}/api/cron/payment-notifications`, { method: "POST", headers: { Authorization: `Bearer ${process.env.CRON_JOB_TOKEN}` } });
+  assert.equal(plain.status, 200);
+});
+
 test("cleanup: archive the relationship and delete the plan", async () => {
   assert.equal((await call(client, "POST", `/api/clients/${client.id}/archive`)).status, 403, "client cannot archive");
   await call(trainer, "DELETE", `/api/assignments/client/${client.id}`);
