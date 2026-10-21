@@ -18,6 +18,7 @@ import { router } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { nextWorkout } from "@/lib/nextWorkout";
+import { groupSlotsByDay, slotTimeLabel, type Slot } from "@/lib/slots";
 import { apiGet, apiPost } from "@/lib/api";
 
 type Colors = ReturnType<typeof useColors>;
@@ -115,6 +116,34 @@ export default function ClientDashboard() {
     },
   });
 
+  // The trainer's free slots: one tap on a time, one confirmation, and it is booked
+  const { data: slotData } = useQuery<{ trainerName: string | null; slots: Slot[] }>({
+    queryKey: ["client-trainer-slots"],
+    queryFn: () => apiGet<{ trainerName: string | null; slots: Slot[] }>("/api/client/trainer-slots"),
+  });
+  const slotDays = groupSlotsByDay(slotData?.slots ?? [], 5);
+
+  const bookSlotMutation = useMutation({
+    mutationFn: (slot: Slot) => apiPost("/api/client/book-slot", { startsAt: slot.startsAt }),
+    onSuccess: () => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ["client-trainer-slots"] });
+      qc.invalidateQueries({ queryKey: ["client-sessions"] });
+    },
+    onError: (error: Error) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Nie udało się zarezerwować", error.message);
+      qc.invalidateQueries({ queryKey: ["client-trainer-slots"] });
+    },
+  });
+
+  function confirmBook(slot: Slot, dayLabel: string) {
+    Alert.alert("Zarezerwować termin?", `${dayLabel}, ${slotTimeLabel(slot.startsAt)} (${slot.durationMinutes} min)`, [
+      { text: "Anuluj", style: "cancel" },
+      { text: "Zarezerwuj", onPress: () => bookSlotMutation.mutate(slot) },
+    ]);
+  }
+
   const cancelSessionMutation = useMutation({
     mutationFn: (id: string) => apiPost(`/api/client/sessions/${id}/cancel`, {}),
     onSuccess: () => {
@@ -178,6 +207,38 @@ export default function ClientDashboard() {
           </Text>
         </View>
       </View>
+
+      {slotDays.length > 0 && (
+        <View style={[styles.sessionCard, { backgroundColor: colors.card, borderColor: colors.border }]} testID="card-book-slot">
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+            <Text style={[styles.sessionCardTitle, { color: colors.foreground }]}>Umów trening</Text>
+          </View>
+          <Text style={{ fontSize: 12, color: colors.mutedForeground, marginBottom: 8 }}>
+            Wolne terminy trenera{slotData?.trainerName ? ` ${slotData.trainerName}` : ""}. Odwołać możesz najpóźniej 24 h przed.
+          </Text>
+          {slotDays.map((day) => (
+            <View key={day.key} style={{ marginTop: 8 }}>
+              <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.foreground, textTransform: "capitalize" }}>{day.label}</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+                {day.slots.map((slot) => (
+                  <Pressable
+                    key={slot.startsAt}
+                    onPress={() => confirmBook(slot, day.label)}
+                    disabled={bookSlotMutation.isPending}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Zarezerwuj ${day.label}, ${slotTimeLabel(slot.startsAt)}`}
+                    style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}
+                    testID={`slot-${slot.startsAt}`}
+                  >
+                    <Text style={{ fontSize: 13, color: colors.foreground }}>{slotTimeLabel(slot.startsAt)}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
 
       {(upcomingSessions ?? []).length > 0 && (
         <View style={[styles.sessionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
