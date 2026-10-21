@@ -363,6 +363,52 @@ test("a finished workout can carry a 1-10 difficulty rating that the trainer see
   assert.ok(seen.some((item) => item.rpe === 8), "the trainer sees the rating");
 });
 
+test("editing a diet keeps what the client already ticked off", async () => {
+  const meal = (dayOfWeek, orderIndex, name, extra = {}) => ({ dayOfWeek, orderIndex, name, calories: 500, protein: 30, fat: 15, carbs: 60, ...extra });
+  const created = await call(trainer, "POST", "/api/diets/plans", { name: "Dieta do edycji", clientId: client.id, mode: "full_plan", targetCalories: 2000, targetProtein: 150, targetFat: 60, targetCarbs: 200, mealsPerDay: 3 });
+  assert.equal(created.status, 201);
+  const planId = (await created.json()).id;
+  try {
+    const first = await call(trainer, "PUT", `/api/diets/plans/${planId}/meals/sync`, { meals: [meal(1, 1, "Owsianka"), meal(1, 2, "Kurczak z ryżem"), meal(2, 1, "Owsianka")] });
+    assert.equal(first.status, 200);
+    const saved = await first.json();
+    assert.equal(saved.length, 3);
+    const porridgeMonday = saved.find((item) => item.dayOfWeek === 1 && item.name === "Owsianka");
+    const chicken = saved.find((item) => item.name === "Kurczak z ryżem");
+    const today = new Date().toISOString().slice(0, 10);
+
+    const ticked = await call(client, "POST", "/api/client/diet/log", {
+      date: today, planId, waterLiters: "2", mealCheckmarks: [{ mealId: porridgeMonday.id, completed: true, eatenCalories: 480 }, { mealId: chicken.id, completed: true, eatenCalories: 520 }],
+    });
+    assert.equal(ticked.status, 200, "the client ticks two meals");
+    const logsOf = async () => (await (await call(client, "GET", `/api/client/diet/logs?planId=${planId}&startDate=${today}&endDate=${today}`)).json());
+    assert.equal((await logsOf())[0].checkmarks.length, 2);
+
+    // edit: rename nothing, change a macro, add a meal and drop the Tuesday porridge; ids come from the saved rows
+    const edit = await call(trainer, "PUT", `/api/diets/plans/${planId}/meals/sync`, {
+      meals: [meal(1, 1, "Owsianka", { id: porridgeMonday.id, calories: 450 }), meal(1, 2, "Kurczak z ryżem", { id: chicken.id }), meal(1, 3, "Kolacja")],
+    });
+    assert.equal(edit.status, 200);
+    const after = await edit.json();
+    assert.equal(after.length, 3, "Tuesday's meal was removed, a new one added");
+    assert.equal(after.find((item) => item.id === porridgeMonday.id)?.calories, 450, "the kept meal was updated in place");
+    assert.equal((await logsOf())[0].checkmarks.length, 2, "both ticked meals are still in the client's history");
+
+    // without ids the same meal is found by day and name (the same name on another day is a different meal)
+    const byName = await call(trainer, "PUT", `/api/diets/plans/${planId}/meals/sync`, { meals: [meal(1, 1, "Owsianka"), meal(1, 2, "Kurczak z ryżem")] });
+    assert.equal(byName.status, 200);
+    assert.equal((await logsOf())[0].checkmarks.length, 2, "history survived the edit without ids too");
+
+    assert.equal((await call(trainer, "PUT", `/api/diets/plans/${planId}/meals/sync`, { meals: "nie lista" })).status, 400);
+    assert.equal((await call(trainer, "PUT", `/api/diets/plans/${planId}/meals/sync`, { meals: [{ dayOfWeek: 1, orderIndex: 1, name: "" }] })).status, 400, "an invalid meal rejects the whole save");
+    assert.equal((await logsOf())[0].checkmarks.length, 2, "and nothing was lost by the rejected save");
+    assert.equal((await call(client, "PUT", `/api/diets/plans/${planId}/meals/sync`, { meals: [] })).status, 403, "clients cannot edit");
+    assert.ok((await call(outsider, "PUT", `/api/diets/plans/${planId}/meals/sync`, { meals: [] })).status >= 400, "and neither can another account");
+  } finally {
+    await call(trainer, "DELETE", `/api/diets/plans/${planId}`);
+  }
+});
+
 test("a trainer starts a plan from a template and gets a plan of their own", async () => {
   assert.equal((await call(client, "GET", "/api/plan-templates")).status, 403, "trainers only");
   const templates = await (await call(trainer, "GET", "/api/plan-templates")).json();

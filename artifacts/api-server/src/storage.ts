@@ -249,6 +249,7 @@ export interface IStorage {
   updateDietMeal(id: string, updates: Partial<InsertDietMeal>): Promise<DietMeal>;
   deleteDietMeal(id: string): Promise<void>;
   deleteDietMealsByPlanId(planId: string): Promise<void>;
+  syncDietMeals(planId: string, meals: (InsertDietMeal & { id?: string })[]): Promise<DietMeal[]>;
   
   // Diet Supplements
   getDietSupplementById(id: string): Promise<DietSupplement | null>;
@@ -2192,6 +2193,32 @@ export class DatabaseStorage implements IStorage {
       .where(eq(dietMeals.id, id));
   }
   
+  // The whole week of meals in one go, in place: meals that stay keep their row, so the client's eaten-meal history
+  // (checkmarks and macros hang on the meal row) is not lost when the trainer edits the plan.
+  async syncDietMeals(planId: string, meals: (InsertDietMeal & { id?: string })[]): Promise<DietMeal[]> {
+    return await db.transaction(async (tx) => {
+      const existing = await tx.select().from(dietMeals).where(eq(dietMeals.planId, planId));
+      const removedIds: string[] = [];
+      for (let day = 1; day <= 7; day += 1) {
+        const existingDay = existing.filter((meal) => (meal.dayOfWeek ?? 1) === day);
+        const incomingDay = meals.filter((meal) => (meal.dayOfWeek ?? 1) === day);
+        const match = matchExisting(existingDay, incomingDay);
+        for (let index = 0; index < incomingDay.length; index += 1) {
+          const { id: _incomingId, ...data } = incomingDay[index];
+          const current = match.matches[index];
+          if (current) {
+            await tx.update(dietMeals).set({ ...data, planId }).where(eq(dietMeals.id, current.id));
+          } else {
+            await tx.insert(dietMeals).values({ ...data, planId });
+          }
+        }
+        removedIds.push(...match.removed.map((meal) => meal.id));
+      }
+      if (removedIds.length > 0) await tx.delete(dietMeals).where(inArray(dietMeals.id, removedIds));
+      return await tx.select().from(dietMeals).where(eq(dietMeals.planId, planId)).orderBy(asc(dietMeals.dayOfWeek), asc(dietMeals.orderIndex));
+    });
+  }
+
   async deleteDietMealsByPlanId(planId: string): Promise<void> {
     await db
       .delete(dietMeals)

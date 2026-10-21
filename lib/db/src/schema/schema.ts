@@ -1104,6 +1104,9 @@ export const insertDietMealSchema = createInsertSchema(dietMeals).omit({
   carbs: z.coerce.number().int().nullish(),
 });
 
+// A meal in a whole-week save: meals that already exist carry their id, so they are updated in place
+export const syncDietMealSchema = insertDietMealSchema.extend({ id: z.string().optional() });
+
 export const insertDailyHabitLogSchema = createInsertSchema(dailyHabitLogs).omit({
   id: true,
   clientId: true,

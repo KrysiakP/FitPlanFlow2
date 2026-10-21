@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import type { DietPlan, DietMeal, User, DietSupplement } from "@shared/schema";
 
 const mealSchema = z.object({
+  id: z.string().optional(), // set for meals that already exist, so editing keeps the client's eaten-meal history
   name: z.string().min(1, "Nazwa posiłku jest wymagana"),
   description: z.string().default(""),
   dayOfWeek: z.number().min(1).max(7),
@@ -245,6 +246,7 @@ export default function DietPlanForm() {
           const day = meal.dayOfWeek || 1;
           if (!mealsGrouped[day]) mealsGrouped[day] = [];
           mealsGrouped[day].push({
+            id: meal.id,
             name: meal.name,
             description: meal.description || "",
             dayOfWeek: day,
@@ -310,13 +312,14 @@ export default function DietPlanForm() {
       }
 
       if (planId && data.mode === 'full_plan') {
-        await apiRequest("DELETE", `/api/diets/plans/${planId}/meals`);
-        
+        // One call saves the whole week in place, so meals that stay keep the client's history
+        const meals = [];
         for (let dayOfWeek = 1; dayOfWeek <= 7; dayOfWeek++) {
           const dayMeals = weeklyMeals[dayOfWeek] || [];
           for (let i = 0; i < dayMeals.length; i++) {
             const meal = dayMeals[i];
-            await apiRequest("POST", `/api/diets/plans/${planId}/meals`, {
+            meals.push({
+              id: meal.id,
               dayOfWeek,
               orderIndex: i + 1,
               name: meal.name,
@@ -329,6 +332,7 @@ export default function DietPlanForm() {
             });
           }
         }
+        await apiRequest("PUT", `/api/diets/plans/${planId}/meals/sync`, { meals });
       }
 
       if (planId) {

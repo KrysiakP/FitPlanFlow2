@@ -33,6 +33,7 @@ import {
   insertCharityDonationSchema,
   insertDietPlanSchema,
   insertDietMealSchema,
+  syncDietMealSchema,
   insertDietSupplementSchema,
   insertDailyHabitLogSchema,
   insertMealCheckmarkSchema,
@@ -5179,6 +5180,34 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
     } catch (error) {
       console.error("Error creating diet meal:", error);
       res.status(500).json({ message: "Nie udało się utworzyć posiłku" });
+    }
+  });
+
+  // Saves the whole week of meals at once, keeping the rows that stay (and with them the client's eaten-meal history)
+  app.put("/api/diets/plans/:planId/meals/sync", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      const planId = String(req.params.planId);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy mogą zmieniać posiłki" });
+      const plan = await storage.getDietPlanById(planId);
+      if (!plan) return res.status(404).json({ message: "Plan dietetyczny nie został znaleziony" });
+      if (plan.trainerId !== userId) return res.status(403).json({ message: "Nie masz uprawnień do tego planu" });
+
+      const rows = Array.isArray(req.body?.meals) ? req.body.meals : null;
+      if (!rows || rows.length > 100) return res.status(400).json({ message: "Brak listy posiłków" });
+      const meals: Parameters<typeof storage.syncDietMeals>[1] = [];
+      for (const row of rows) {
+        const parsed = syncDietMealSchema.safeParse({ ...row, planId });
+        if (!parsed.success) {
+          return res.status(400).json({ message: "Nieprawidłowe dane wejściowe", errors: parsed.error.issues });
+        }
+        meals.push({ ...parsed.data, id: typeof parsed.data.id === "string" ? parsed.data.id : undefined });
+      }
+      res.json(await storage.syncDietMeals(planId, meals));
+    } catch (error) {
+      console.error("Error syncing diet meals:", error);
+      res.status(500).json({ message: "Nie udało się zapisać posiłków" });
     }
   });
 
