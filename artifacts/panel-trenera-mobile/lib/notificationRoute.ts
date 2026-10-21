@@ -10,6 +10,7 @@ const ROUTES: Record<NotificationRole, Record<string, string>> = {
     session_cancelled: "/(client)",
     session_reminder: "/(client)",
     report_reminder: "/(client)/weekly-report",
+    review_request: "/(client)/profile",
   },
   trainer: {
     invitation_accepted: "/(trainer)/clients",

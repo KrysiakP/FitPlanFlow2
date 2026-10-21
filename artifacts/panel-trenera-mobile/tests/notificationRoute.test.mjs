@@ -32,3 +32,7 @@ test("a trainer whose trial is ending is taken to the profile (subscription)", (
   assert.equal(notificationRoute("trial_ending", "trainer"), "/(trainer)/profile");
   assert.equal(notificationRoute("trial_ending", "client"), "/(client)/notifications");
 });
+
+test("the review request opens the profile, where the trainer is rated", () => {
+  assert.equal(notificationRoute("review_request", "client"), "/(client)/profile");
+});

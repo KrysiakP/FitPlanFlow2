@@ -115,4 +115,4 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 89. [Ty] Wejście na sklepy (konta deweloperskie, zrzuty ekranu)
 90. [ ] Zaproszenie linkiem z podglądem
 91. [ ] Program poleceń widoczny od pierwszego dnia
-92. [ ] Ankieta po 30 dniach współpracy
+92. [x] Prośba o opinię po 30 dniach współpracy (cron, raz, tylko jeśli nie ma opinii; można wyłączyć w ustawieniach powiadomień; kliknięcie otwiera profil, gdzie jest ocena)

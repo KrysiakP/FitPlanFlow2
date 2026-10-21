@@ -15,6 +15,7 @@ const OPTIONS: Record<PreferenceRole, OptionalNotification[]> = {
   client: [
     { type: "session_reminder", label: "Przypomnienia o treningu", description: "Dzień przed umówioną sesją z trenerem" },
     { type: "report_reminder", label: "Przypomnienie o raporcie", description: "W niedzielę, jeśli nie wysłano raportu tygodniowego" },
+    { type: "review_request", label: "Prośba o opinię", description: "Raz, po miesiącu współpracy z trenerem" },
   ],
   trainer: [
     { type: "weekly_summary", label: "Podsumowanie tygodnia", description: "W poniedziałek: treningi, raporty i zaległe płatności" },

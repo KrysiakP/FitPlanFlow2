@@ -95,6 +95,7 @@ import {
 } from "@workspace/db";
 import { db } from "./db";
 import { eq, and, desc, or, isNull, sql, gte, lte, asc, inArray } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { createHash, randomUUID } from "crypto";
 
 export interface IStorage {
@@ -343,6 +344,7 @@ export interface IStorage {
   hasPushNotification(userId: string, type: string, body: string, since: Date): Promise<boolean>;
   hasRecentPushOfType(userId: string, type: string, since: Date): Promise<boolean>;
   getClientIdsWithoutRecentReport(since: Date): Promise<string[]>;
+  getReviewRequestCandidates(createdFrom: Date, createdTo: Date): Promise<{ clientId: string; trainerId: string; trainerFirstName: string | null }[]>;
   getClientLabelsForTrainer(trainerId: string): Promise<Record<string, string[]>>;
   setClientLabels(trainerId: string, clientId: string, labels: string[]): Promise<void>;
   getTrainersWithTrialEndingBetween(from: Date, to: Date): Promise<{ id: string; trialEndsAt: Date }[]>;
@@ -3316,6 +3318,26 @@ export class DatabaseStorage implements IStorage {
         await tx.insert(clientLabels).values(labels.map((label, index) => ({ trainerId, clientId, label, createdAt: new Date(base + index) })));
       }
     });
+  }
+
+  // Active collaborations that started in the window, where the client has not reviewed the trainer yet
+  async getReviewRequestCandidates(createdFrom: Date, createdTo: Date): Promise<{ clientId: string; trainerId: string; trainerFirstName: string | null }[]> {
+    const clientUsers = alias(users, "client_users");
+    const rows = await db
+      .select({ clientId: clientRelationships.clientId, trainerId: clientRelationships.trainerId, trainerFirstName: users.firstName })
+      .from(clientRelationships)
+      .innerJoin(users, eq(users.id, clientRelationships.trainerId))
+      .innerJoin(clientUsers, eq(clientUsers.id, clientRelationships.clientId))
+      .where(
+        and(
+          eq(clientRelationships.status, "active"),
+          eq(clientUsers.isTestUser, false),
+          gte(clientRelationships.createdAt, createdFrom),
+          lte(clientRelationships.createdAt, createdTo),
+          sql`not exists (select 1 from ${trainerReviews} where ${trainerReviews.trainerId} = ${clientRelationships.trainerId} and ${trainerReviews.clientId} = ${clientRelationships.clientId})`,
+        ),
+      );
+    return rows;
   }
 
   // Clients of an active trainer (not demo accounts) who have not sent a weekly report since `since`
