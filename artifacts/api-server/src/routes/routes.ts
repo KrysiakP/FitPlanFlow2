@@ -78,6 +78,7 @@ import { deadPushTokens, withPushType } from "../lib/expoPush";
 import { accessFromRequest, ACTION_LABELS } from "../lib/accessAudit";
 import { isQuietNow, QUIET_PRESETS, sanitizeQuietHours } from "../lib/quietHours";
 import { chatPushPreview } from "../lib/chatPush";
+import { freeSlots, validateWindows } from "../lib/availability";
 import { proposeProgression } from "../lib/progression";
 import { findPlanTemplate, PLAN_TEMPLATES, planFromTemplate } from "../lib/planTemplates";
 import { CANCELLATION_NOTICE_HOURS, cancellableUntil, canClientCancel } from "../lib/sessionCancellation";
@@ -3285,6 +3286,85 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
     } catch (error) {
       console.error("Error fetching client sessions:", error);
       res.status(500).json({ message: "Nie udało się pobrać sesji" });
+    }
+  });
+
+  // ── Booking by the client: the trainer's weekly windows become free slots ───────────────────────────────────
+  const BOOKING_HORIZON_DAYS = 14;
+  const MAX_UPCOMING_BOOKINGS = 3;
+
+  app.get("/api/trainer/availability", isAuthenticated, async (req, res) => {
+    const user = await storage.getUser(req.session.userId!);
+    if (user?.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy" });
+    res.json({ windows: await storage.getTrainerAvailability(user.id) });
+  });
+
+  app.put("/api/trainer/availability", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy" });
+      const windows = validateWindows(req.body?.windows);
+      if (!windows) return res.status(400).json({ message: "Nieprawidłowe godziny dostępności" });
+      await storage.replaceTrainerAvailability(user.id, windows);
+      res.json({ windows: await storage.getTrainerAvailability(user.id) });
+    } catch (error) {
+      console.error("Error saving availability:", error);
+      res.status(500).json({ message: "Nie udało się zapisać dostępności" });
+    }
+  });
+
+  const slotsOfTrainer = async (trainerId: string) => {
+    const now = new Date();
+    const [windows, booked] = await Promise.all([
+      storage.getTrainerAvailability(trainerId),
+      storage.getTrainerScheduledBetween(trainerId, now, new Date(now.getTime() + (BOOKING_HORIZON_DAYS + 1) * 24 * 60 * 60 * 1000)),
+    ]);
+    return freeSlots(windows, booked, now, BOOKING_HORIZON_DAYS);
+  };
+
+  app.get("/api/client/trainer-slots", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "client") return res.status(403).json({ message: "Tylko podopieczni" });
+      const trainer = await storage.getTrainerForClient(user.id);
+      if (!trainer) return res.json({ trainerName: null, slots: [] });
+      res.json({ trainerName: [trainer.firstName, trainer.lastName].filter(Boolean).join(" "), slots: await slotsOfTrainer(trainer.id) });
+    } catch (error) {
+      console.error("Error listing free slots:", error);
+      res.status(500).json({ message: "Nie udało się pobrać wolnych terminów" });
+    }
+  });
+
+  app.post("/api/client/book-slot", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "client") return res.status(403).json({ message: "Tylko podopieczni" });
+      const trainer = await storage.getTrainerForClient(user.id);
+      if (!trainer) return res.status(404).json({ message: "Nie masz jeszcze trenera" });
+      const startsAt = typeof req.body?.startsAt === "string" ? new Date(req.body.startsAt) : null;
+      if (!startsAt || Number.isNaN(startsAt.getTime())) return res.status(400).json({ message: "Brak terminu" });
+
+      if ((await storage.getClientSessionBookings(user.id)).length >= MAX_UPCOMING_BOOKINGS) {
+        return res.status(409).json({ message: `Masz już ${MAX_UPCOMING_BOOKINGS} zaplanowane terminy. Odwołaj któryś albo poczekaj, aż się odbędzie.` });
+      }
+      // The slot must still be on the trainer's free list (taken in the meantime, or never offered: refused)
+      const slot = (await slotsOfTrainer(trainer.id)).find((item) => new Date(item.startsAt).getTime() === startsAt.getTime());
+      if (!slot) return res.status(409).json({ message: "Ten termin jest już zajęty albo niedostępny. Wybierz inny." });
+
+      const booking = await storage.createSessionBooking(trainer.id, { clientId: user.id, scheduledAt: startsAt, durationMinutes: slot.durationMinutes });
+      res.status(201).json(booking);
+
+      const who = [user.firstName, user.lastName].filter(Boolean).join(" ") || "Podopieczny";
+      void sendPushToUserAndRecord(
+        trainer.id,
+        "Nowa rezerwacja",
+        `${who} zarezerwował(a) termin: ${formatSessionTime(booking.scheduledAt)}.`,
+        { type: "session_booked", sessionId: booking.id },
+        "session_booked"
+      ).catch((err) => console.error("Failed to push booking:", err));
+    } catch (error) {
+      console.error("Error booking a slot:", error);
+      res.status(500).json({ message: "Nie udało się zarezerwować terminu" });
     }
   });
 

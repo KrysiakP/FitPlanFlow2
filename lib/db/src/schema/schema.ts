@@ -231,6 +231,20 @@ export const trainerReviews = pgTable("trainer_reviews", {
   trainerIdx: index("trainer_reviews_trainer_idx").on(table.trainerId),
 }));
 
+// Weekly windows in which a trainer takes bookings from their clients (Warsaw time; minutes after midnight)
+export const trainerAvailability = pgTable("trainer_availability", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  trainerId: varchar("trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  dayOfWeek: integer("day_of_week").notNull(), // 1 = poniedziałek ... 7 = niedziela
+  startMinute: integer("start_minute").notNull(),
+  endMinute: integer("end_minute").notNull(),
+  slotMinutes: integer("slot_minutes").notNull().default(60),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  trainerIdx: index("trainer_availability_trainer_idx").on(table.trainerId),
+}));
+export type TrainerAvailability = typeof trainerAvailability.$inferSelect;
+
 // Session bookings - scheduled training sessions between trainer and client
 export const sessionBookings = pgTable("session_bookings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

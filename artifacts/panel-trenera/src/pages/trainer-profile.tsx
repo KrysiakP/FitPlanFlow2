@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { StudioMembershipCard } from "@/components/studio-membership-card";
+import { AvailabilityCard } from "@/components/availability-card";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -408,6 +409,7 @@ export default function TrainerProfile() {
                   </Card>
                 )}
 
+                <AvailabilityCard />
                 <StudioMembershipCard />
 
                 <Card>

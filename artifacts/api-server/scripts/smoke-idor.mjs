@@ -123,6 +123,28 @@ test("a trainer cannot comment on another trainer's client's workout", async () 
   assert.equal(seen.find((item) => item.id === id)?.trainerComment, null, "nothing was written");
 });
 
+test("a client books only from their own trainer's slots", async () => {
+  const everyDay = [1, 2, 3, 4, 5, 6, 7].map((dayOfWeek) => ({ dayOfWeek, startMinute: 9 * 60, endMinute: 21 * 60, slotMinutes: 60 }));
+  let bookedId;
+  try {
+    assert.equal((await call(t2, "PUT", "/api/trainer/availability", { windows: everyDay })).status, 200);
+    const t2Slots = (await (await call(c2, "GET", "/api/client/trainer-slots")).json()).slots;
+    assert.ok(t2Slots.length > 0, "client 2 sees trainer 2's slots");
+    const c1Slots = (await (await call(c1, "GET", "/api/client/trainer-slots")).json()).slots;
+    assert.deepEqual(c1Slots, [], "client 1 does not see them: their trainer has no windows");
+    assert.equal((await call(c1, "POST", "/api/client/book-slot", { startsAt: t2Slots[0].startsAt })).status, 409, "and cannot book a time from another trainer's list");
+    const mine = await call(c2, "POST", "/api/client/book-slot", { startsAt: t2Slots[0].startsAt });
+    assert.equal(mine.status, 201);
+    bookedId = (await mine.json()).id;
+    const booking = await (await call(t2, "GET", "/api/sessions")).json().catch(() => []);
+    assert.ok(Array.isArray(booking));
+    await assertDenied("trainer 1 cancels trainer 2's booking", call(t1, "DELETE", `/api/sessions/${bookedId}`));
+  } finally {
+    if (bookedId) await call(t2, "DELETE", `/api/sessions/${bookedId}`);
+    await call(t2, "PUT", "/api/trainer/availability", { windows: [] });
+  }
+});
+
 test("the attention list never mentions another trainer's clients", async () => {
   const list = await (await call(t2, "GET", "/api/trainer/attention")).json();
   assert.ok(!list.some((item) => item.clientId === c1.id), "trainer 2 sees trainer 1's client");

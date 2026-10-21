@@ -690,6 +690,63 @@ test("a chat message notifies the recipient, with the sender and a preview", asy
   assert.ok(preview && preview.body.length <= 100, "a long message is cut for the lock screen");
 });
 
+test("a client books a free slot from the trainer's weekly windows, once, and within the limits", async () => {
+  const everyDay = [1, 2, 3, 4, 5, 6, 7].map((dayOfWeek) => ({ dayOfWeek, startMinute: 9 * 60, endMinute: 21 * 60, slotMinutes: 60 }));
+  const booked = [];
+  try {
+    assert.equal((await call(client, "PUT", "/api/trainer/availability", { windows: everyDay })).status, 403, "only trainers set availability");
+    assert.equal((await call(trainer, "PUT", "/api/trainer/availability", { windows: [{ dayOfWeek: 9, startMinute: 0, endMinute: 60, slotMinutes: 60 }] })).status, 400, "an invalid window is refused");
+    assert.equal((await call(trainer, "PUT", "/api/trainer/availability", { windows: "nie lista" })).status, 400);
+
+    assert.deepEqual((await (await call(client, "GET", "/api/client/trainer-slots")).json()).slots, [], "no windows, no slots");
+    const saved = await call(trainer, "PUT", "/api/trainer/availability", { windows: everyDay });
+    assert.equal(saved.status, 200);
+    assert.equal((await saved.json()).windows.length, 7);
+    assert.equal((await call(trainer, "GET", "/api/trainer/availability")).status, 200);
+    assert.equal((await call(client, "GET", "/api/trainer/availability")).status, 403);
+
+    const offered = await (await call(client, "GET", "/api/client/trainer-slots")).json();
+    assert.ok(offered.trainerName, "the trainer is named");
+    assert.ok(offered.slots.length >= 12, "slots for the next two weeks");
+    assert.ok(offered.slots.every((slot) => new Date(slot.startsAt) > new Date(Date.now() + 2 * 3600000)), "never closer than two hours");
+    assert.equal((await call(trainer, "GET", "/api/client/trainer-slots")).status, 403, "trainers use their own calendar");
+
+    // the first booking
+    const slot = offered.slots[5];
+    const first = await call(client, "POST", "/api/client/book-slot", { startsAt: slot.startsAt });
+    assert.equal(first.status, 201);
+    booked.push((await first.json()).id);
+    const after = await (await call(client, "GET", "/api/client/trainer-slots")).json();
+    assert.ok(!after.slots.some((item) => item.startsAt === slot.startsAt), "the booked slot is gone");
+    assert.equal((await call(client, "POST", "/api/client/book-slot", { startsAt: slot.startsAt })).status, 409, "the same slot cannot be booked twice");
+    assert.equal((await call(client, "POST", "/api/client/book-slot", { startsAt: new Date(Date.now() + 400 * 86400000).toISOString() })).status, 409, "a time that was never offered");
+    assert.equal((await call(client, "POST", "/api/client/book-slot", { startsAt: "wczoraj" })).status, 400);
+    assert.equal((await call(trainer, "POST", "/api/client/book-slot", { startsAt: slot.startsAt })).status, 403);
+
+    // the trainer hears about it
+    let heard = false;
+    for (let i = 0; i < 20 && !heard; i += 1) {
+      const feed = await (await call(trainer, "GET", "/api/notifications/mine?limit=100")).json();
+      heard = feed.notifications.some((item) => item.title === "Nowa rezerwacja");
+      if (!heard) await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    assert.ok(heard, "the trainer got a notification");
+
+    // at most three upcoming sessions at a time
+    for (const index of [8, 9]) {
+      const next = await call(client, "POST", "/api/client/book-slot", { startsAt: (await (await call(client, "GET", "/api/client/trainer-slots")).json()).slots[index].startsAt });
+      assert.equal(next.status, 201);
+      booked.push((await next.json()).id);
+    }
+    const fourth = await call(client, "POST", "/api/client/book-slot", { startsAt: (await (await call(client, "GET", "/api/client/trainer-slots")).json()).slots[10].startsAt });
+    assert.equal(fourth.status, 409, "a fourth upcoming booking is refused");
+    assert.match((await fourth.json()).message, /3/);
+  } finally {
+    for (const id of booked) await call(trainer, "DELETE", `/api/sessions/${id}`);
+    await call(trainer, "PUT", "/api/trainer/availability", { windows: [] });
+  }
+});
+
 test("a client cancels their own session up to 24 hours before it, and the trainer hears about it", async () => {
   const book = async (hoursAhead) => {
     const res = await call(trainer, "POST", "/api/sessions", {

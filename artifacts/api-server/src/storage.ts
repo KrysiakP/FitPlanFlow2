@@ -90,6 +90,7 @@ import {
   type PushNotificationHistory,
   type InsertPushNotificationHistory,
   sessionBookings,
+  trainerAvailability,
   type SessionBooking,
   type InsertSessionBookingInput,
   trainerReviews,
@@ -194,6 +195,9 @@ export interface IStorage {
   cancelSessionBooking(id: string, trainerId: string): Promise<SessionBooking | null>;
   getClientSessionBooking(id: string, clientId: string): Promise<SessionBooking | null>;
   cancelSessionByClient(id: string, clientId: string): Promise<SessionBooking | null>;
+  getTrainerAvailability(trainerId: string): Promise<{ dayOfWeek: number; startMinute: number; endMinute: number; slotMinutes: number }[]>;
+  replaceTrainerAvailability(trainerId: string, windows: { dayOfWeek: number; startMinute: number; endMinute: number; slotMinutes: number }[]): Promise<void>;
+  getTrainerScheduledBetween(trainerId: string, from: Date, to: Date): Promise<SessionBooking[]>;
 
   // Weekly reports operations
   createWeeklyReport(clientId: string, data: Omit<InsertWeeklyReport, 'clientId'>): Promise<WeeklyReport>;
@@ -1349,6 +1353,28 @@ export class DatabaseStorage implements IStorage {
         ),
       )
       .orderBy(asc(sessionBookings.scheduledAt));
+  }
+
+  async getTrainerAvailability(trainerId: string) {
+    return await db
+      .select({ dayOfWeek: trainerAvailability.dayOfWeek, startMinute: trainerAvailability.startMinute, endMinute: trainerAvailability.endMinute, slotMinutes: trainerAvailability.slotMinutes })
+      .from(trainerAvailability)
+      .where(eq(trainerAvailability.trainerId, trainerId))
+      .orderBy(asc(trainerAvailability.dayOfWeek), asc(trainerAvailability.startMinute));
+  }
+
+  async replaceTrainerAvailability(trainerId: string, windows: { dayOfWeek: number; startMinute: number; endMinute: number; slotMinutes: number }[]): Promise<void> {
+    await db.transaction(async (tx) => {
+      await tx.delete(trainerAvailability).where(eq(trainerAvailability.trainerId, trainerId));
+      if (windows.length > 0) await tx.insert(trainerAvailability).values(windows.map((window) => ({ ...window, trainerId })));
+    });
+  }
+
+  async getTrainerScheduledBetween(trainerId: string, from: Date, to: Date): Promise<SessionBooking[]> {
+    return await db
+      .select()
+      .from(sessionBookings)
+      .where(and(eq(sessionBookings.trainerId, trainerId), eq(sessionBookings.status, "scheduled"), gte(sessionBookings.scheduledAt, from), lt(sessionBookings.scheduledAt, to)));
   }
 
   async getClientSessionBooking(id: string, clientId: string): Promise<SessionBooking | null> {

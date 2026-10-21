@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { nextWorkout } from "@/lib/nextWorkout";
+import { BookSlotCard } from "@/components/book-slot-card";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -234,6 +235,8 @@ export default function ClientDashboard() {
           </CardContent>
         </Card>
       )}
+
+      <BookSlotCard />
 
       {upNext && (
         <Card className="border-primary/30" data-testid="card-today-workout">
