@@ -17,9 +17,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
-import { apiDelete, apiGet, apiPost } from "@/lib/api";
+import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 
-type Announcement = { id: string; title: string; body: string; createdAt: string };
+type Announcement = { id: string; title: string; body: string; createdAt: string; pinned: boolean; readCount: number; totalTrainers: number };
 
 const formatDate = (value: string) =>
   new Date(value).toLocaleString("pl-PL", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
@@ -57,6 +57,12 @@ export default function GymAnnouncements() {
     mutationFn: (id: string) => apiDelete(`/api/gym/announcements/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["gym-announcements"] }),
     onError: () => Alert.alert("Błąd", "Nie udało się usunąć ogłoszenia."),
+  });
+
+  const pinMutation = useMutation({
+    mutationFn: ({ id, pinned }: { id: string; pinned: boolean }) => apiPatch(`/api/gym/announcements/${id}`, { pinned }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["gym-announcements"] }),
+    onError: () => Alert.alert("Błąd", "Nie udało się zmienić przypięcia."),
   });
 
   function confirmDelete(item: Announcement) {
@@ -120,8 +126,20 @@ export default function GymAnnouncements() {
               <View style={{ flex: 1 }}>
                 <Text style={[styles.cardTitle, { color: colors.foreground }]}>{item.title}</Text>
                 <Text style={[styles.cardBody, { color: colors.mutedForeground }]}>{item.body}</Text>
-                <Text style={[styles.cardDate, { color: colors.mutedForeground }]}>{formatDate(item.createdAt)}</Text>
+                <Text style={[styles.cardDate, { color: colors.mutedForeground }]}>
+                  {formatDate(item.createdAt)} · przeczytało {item.readCount} z {item.totalTrainers}
+                </Text>
               </View>
+              <Pressable
+                onPress={() => pinMutation.mutate({ id: item.id, pinned: !item.pinned })}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={item.pinned ? "Odepnij ogłoszenie" : "Przypnij ogłoszenie"}
+                testID={`button-pin-announcement-${item.id}`}
+                style={{ marginRight: 12 }}
+              >
+                <Ionicons name={item.pinned ? "pin" : "pin-outline"} size={20} color={item.pinned ? colors.primary : colors.mutedForeground} />
+              </Pressable>
               <Pressable
                 onPress={() => confirmDelete(item)}
                 hitSlop={10}

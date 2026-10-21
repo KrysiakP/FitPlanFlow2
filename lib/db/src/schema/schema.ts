@@ -1233,9 +1233,20 @@ export const gymAnnouncements = pgTable("gym_announcements", {
   authorId: varchar("author_id").references(() => users.id, { onDelete: "set null" }),
   title: varchar("title", { length: 150 }).notNull(),
   body: text("body").notNull(),
+  pinned: boolean("pinned").default(false).notNull(), // pinned announcements stay on top
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
   gymCreatedIdx: index("gym_announcements_gym_created_idx").on(table.gymId, table.createdAt),
+}));
+
+// Which trainer has opened which announcement (the owner sees "read by 3 of 5")
+export const gymAnnouncementReads = pgTable("gym_announcement_reads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  announcementId: varchar("announcement_id").notNull().references(() => gymAnnouncements.id, { onDelete: "cascade" }),
+  trainerId: varchar("trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  readAt: timestamp("read_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueRead: uniqueIndex("gym_announcement_reads_unique").on(table.announcementId, table.trainerId),
 }));
 
 export type GymAnnouncement = typeof gymAnnouncements.$inferSelect;

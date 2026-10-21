@@ -43,6 +43,7 @@ import {
   gyms,
   gymTrainers,
   gymAnnouncements,
+  gymAnnouncementReads,
   planAssignments,
   insertGymSchema,
   clientRelationships,
@@ -7026,7 +7027,7 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
     }
   });
 
-  // GET /api/gym/announcements — owner's sent announcements, newest first
+  // GET /api/gym/announcements — owner's sent announcements, pinned first then newest, with how many trainers have read each
   app.get("/api/gym/announcements", isAuthenticated, requireGymOwner, async (req, res) => {
     try {
       const user = (req as any).user;
@@ -7036,11 +7037,46 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         .select()
         .from(gymAnnouncements)
         .where(eq(gymAnnouncements.gymId, gym.id))
-        .orderBy(desc(gymAnnouncements.createdAt))
+        .orderBy(desc(gymAnnouncements.pinned), desc(gymAnnouncements.createdAt))
         .limit(30);
-      res.json(rows);
+      const members = await db
+        .select({ trainerId: gymTrainers.trainerId })
+        .from(gymTrainers)
+        .where(and(eq(gymTrainers.gymId, gym.id), eq(gymTrainers.status, "active")));
+      const activeTrainerIds = new Set(members.map((member) => member.trainerId).filter((id): id is string => !!id));
+      const reads = rows.length
+        ? await db.select().from(gymAnnouncementReads).where(inArray(gymAnnouncementReads.announcementId, rows.map((row) => row.id)))
+        : [];
+      res.json(
+        rows.map((row) => ({
+          ...row,
+          totalTrainers: activeTrainerIds.size,
+          // only trainers who are still members count, so "read by 3 of 2" cannot happen
+          readCount: reads.filter((read) => read.announcementId === row.id && activeTrainerIds.has(read.trainerId)).length,
+        })),
+      );
     } catch (error) {
       console.error("Error listing studio announcements:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // PATCH /api/gym/announcements/:id — pin or unpin
+  app.patch("/api/gym/announcements/:id", isAuthenticated, requireGymOwner, async (req, res) => {
+    try {
+      if (typeof req.body?.pinned !== "boolean") return res.status(400).json({ message: "Pole pinned musi być true lub false" });
+      const user = (req as any).user;
+      const gym = await getOwnerGym(user.id);
+      if (!gym) return res.status(404).json({ message: "Siłownia nie znaleziona" });
+      const [updated] = await db
+        .update(gymAnnouncements)
+        .set({ pinned: req.body.pinned })
+        .where(and(eq(gymAnnouncements.id, String(req.params.id)), eq(gymAnnouncements.gymId, gym.id)))
+        .returning();
+      if (!updated) return res.status(404).json({ message: "Ogłoszenie nie istnieje" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error pinning studio announcement:", error);
       res.status(500).json({ message: "Błąd serwera" });
     }
   });
@@ -7063,7 +7099,7 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
     }
   });
 
-  // GET /api/trainer/gym/announcements — what the trainer's studio has announced (active members only)
+  // GET /api/trainer/gym/announcements — what the trainer's studio has announced (active members only), pinned first
   app.get("/api/trainer/gym/announcements", isAuthenticated, async (req, res) => {
     try {
       const user = await storage.getUser(req.session.userId!);
@@ -7075,14 +7111,46 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         .limit(1);
       if (!membership) return res.json([]);
       const rows = await db
-        .select({ id: gymAnnouncements.id, title: gymAnnouncements.title, body: gymAnnouncements.body, createdAt: gymAnnouncements.createdAt })
+        .select({
+          id: gymAnnouncements.id,
+          title: gymAnnouncements.title,
+          body: gymAnnouncements.body,
+          pinned: gymAnnouncements.pinned,
+          createdAt: gymAnnouncements.createdAt,
+          readAt: gymAnnouncementReads.readAt,
+        })
         .from(gymAnnouncements)
+        .leftJoin(gymAnnouncementReads, and(eq(gymAnnouncementReads.announcementId, gymAnnouncements.id), eq(gymAnnouncementReads.trainerId, user.id)))
         .where(eq(gymAnnouncements.gymId, membership.gymId))
-        .orderBy(desc(gymAnnouncements.createdAt))
+        .orderBy(desc(gymAnnouncements.pinned), desc(gymAnnouncements.createdAt))
         .limit(10);
-      res.json(rows);
+      res.json(rows.map(({ readAt, ...row }) => ({ ...row, read: !!readAt })));
     } catch (error) {
       console.error("Error fetching studio announcements:", error);
+      res.status(500).json({ message: "Błąd serwera" });
+    }
+  });
+
+  // POST /api/trainer/gym/announcements/:id/read — the trainer opened it (only announcements of their own studio)
+  app.post("/api/trainer/gym/announcements/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy" });
+      const [membership] = await db
+        .select({ gymId: gymTrainers.gymId })
+        .from(gymTrainers)
+        .where(and(eq(gymTrainers.trainerId, user.id), eq(gymTrainers.status, "active")))
+        .limit(1);
+      if (!membership) return res.status(404).json({ message: "Ogłoszenie nie istnieje" });
+      const [announcement] = await db
+        .select({ id: gymAnnouncements.id })
+        .from(gymAnnouncements)
+        .where(and(eq(gymAnnouncements.id, String(req.params.id)), eq(gymAnnouncements.gymId, membership.gymId)));
+      if (!announcement) return res.status(404).json({ message: "Ogłoszenie nie istnieje" });
+      await db.insert(gymAnnouncementReads).values({ announcementId: announcement.id, trainerId: user.id }).onConflictDoNothing();
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking studio announcement as read:", error);
       res.status(500).json({ message: "Błąd serwera" });
     }
   });

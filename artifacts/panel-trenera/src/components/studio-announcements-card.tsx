@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Megaphone, Trash2 } from "lucide-react";
+import { Megaphone, Pin, PinOff, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +14,9 @@ interface Announcement {
   title: string;
   body: string;
   createdAt: string;
+  pinned: boolean;
+  readCount: number;
+  totalTrainers: number;
 }
 
 const formatDate = (value: string) =>
@@ -48,6 +51,12 @@ export function StudioAnnouncementsCard() {
     mutationFn: async (id: string) => apiRequest("DELETE", `/api/gym/announcements/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/gym/announcements"] }),
     onError: () => toast({ title: "Błąd", description: "Nie udało się usunąć ogłoszenia.", variant: "destructive" }),
+  });
+
+  const pinMutation = useMutation({
+    mutationFn: async ({ id, pinned }: { id: string; pinned: boolean }) => apiRequest("PATCH", `/api/gym/announcements/${id}`, { pinned }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/gym/announcements"] }),
+    onError: () => toast({ title: "Błąd", description: "Nie udało się zmienić przypięcia.", variant: "destructive" }),
   });
 
   const items = listQuery.data ?? [];
@@ -90,8 +99,20 @@ export function StudioAnnouncementsCard() {
                 <div className="min-w-0">
                   <p className="font-medium">{item.title}</p>
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{item.body}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{formatDate(item.createdAt)}</p>
+                  <p className="text-xs text-muted-foreground mt-1" data-testid={`text-announcement-meta-${item.id}`}>
+                    {formatDate(item.createdAt)} · przeczytało {item.readCount} z {item.totalTrainers}
+                  </p>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={item.pinned ? "Odepnij ogłoszenie" : "Przypnij ogłoszenie"}
+                  disabled={pinMutation.isPending}
+                  onClick={() => pinMutation.mutate({ id: item.id, pinned: !item.pinned })}
+                  data-testid={`button-pin-announcement-${item.id}`}
+                >
+                  {item.pinned ? <Pin className="w-4 h-4 text-primary" /> : <PinOff className="w-4 h-4" />}
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"

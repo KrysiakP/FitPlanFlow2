@@ -68,7 +68,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 52. [ ] Role w studiu
 53. [ ] Wspólna biblioteka ćwiczeń studia
 54. [ ] Porównanie trenerów (bez danych osobowych)
-55. [ ] Ogłoszenia: potwierdzenie odczytu i przypięcie
+55. [x] Ogłoszenia studia: przypinanie i „przeczytało X z Y" (API, testy, web, mobile)
 56. [ ] Grafik sal i zasobów
 57. [ ] Zaproszenia trenerów linkiem
 

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Building2 } from "lucide-react";
+import { Building2, Pin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -49,6 +49,8 @@ interface StudioAnnouncement {
   title: string;
   body: string;
   createdAt: string;
+  pinned: boolean;
+  read: boolean;
 }
 
 export function StudioMembershipCard() {
@@ -60,6 +62,17 @@ export function StudioMembershipCard() {
     queryKey: ["/api/trainer/gym/announcements"],
     enabled: !!data?.gym && data.status === "active",
   });
+
+  // Announcements that are on screen count as read: tell the studio once (never retried in a loop), then refresh the list
+  const reportedRead = useRef(new Set<string>());
+  useEffect(() => {
+    const unread = (announcementsQuery.data ?? []).slice(0, 3).filter((item) => !item.read && !reportedRead.current.has(item.id));
+    if (unread.length === 0) return;
+    unread.forEach((item) => reportedRead.current.add(item.id));
+    void Promise.all(unread.map((item) => apiRequest("POST", `/api/trainer/gym/announcements/${item.id}/read`).catch(() => undefined))).then(() =>
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/gym/announcements"] }),
+    );
+  }, [announcementsQuery.data]);
 
   const invitationsQuery = useQuery<StudioInvitation[]>({
     queryKey: ["/api/trainer/gym/invitations"],
@@ -114,7 +127,10 @@ export function StudioMembershipCard() {
                 <p className="text-sm font-medium">Ogłoszenia studia</p>
                 {(announcementsQuery.data ?? []).slice(0, 3).map((item) => (
                   <div key={item.id} className="rounded-md border p-3">
-                    <p className="font-medium text-sm">{item.title}</p>
+                    <p className="font-medium text-sm flex items-center gap-1.5">
+                      {item.pinned && <Pin className="w-3.5 h-3.5 text-primary" aria-label="Przypięte" />}
+                      {item.title}
+                    </p>
                     <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{item.body}</p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {new Date(item.createdAt).toLocaleString("pl-PL", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}

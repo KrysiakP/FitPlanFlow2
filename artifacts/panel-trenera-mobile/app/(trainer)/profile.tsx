@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
 import type { ComponentProps } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -413,11 +413,22 @@ function StudioMembershipSection({ colors }: { colors: ReturnType<typeof useColo
     queryFn: () => apiGet("/api/trainer/gym"),
   });
 
-  const announcementsQuery = useQuery<{ id: string; title: string; body: string; createdAt: string }[]>({
+  const announcementsQuery = useQuery<{ id: string; title: string; body: string; createdAt: string; pinned: boolean; read: boolean }[]>({
     queryKey: ["trainer-gym-announcements"],
     queryFn: () => apiGet("/api/trainer/gym/announcements"),
     enabled: !!data?.gym && data.status === "active",
   });
+
+  // Announcements on screen count as read: tell the studio once (never retried in a loop), then refresh
+  const reportedRead = useRef(new Set<string>());
+  useEffect(() => {
+    const unread = (announcementsQuery.data ?? []).slice(0, 3).filter((item) => !item.read && !reportedRead.current.has(item.id));
+    if (unread.length === 0) return;
+    unread.forEach((item) => reportedRead.current.add(item.id));
+    void Promise.all(unread.map((item) => apiPost(`/api/trainer/gym/announcements/${item.id}/read`, {}).catch(() => undefined))).then(() =>
+      announcementsQuery.refetch(),
+    );
+  }, [announcementsQuery.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const invitationsQuery = useQuery<{ id: string; gymName: string; inviteCode: string }[]>({
     queryKey: ["trainer-gym-invitations"],
@@ -466,7 +477,10 @@ function StudioMembershipSection({ colors }: { colors: ReturnType<typeof useColo
           </Text>
           {(announcementsQuery.data ?? []).slice(0, 3).map((item) => (
             <View key={item.id} style={{ gap: 2, paddingTop: 6 }}>
-              <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold" }}>{item.title}</Text>
+              <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_600SemiBold" }}>
+                {item.pinned ? "Przypięte · " : ""}
+                {item.title}
+              </Text>
               <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 18 }}>{item.body}</Text>
               <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
                 {new Date(item.createdAt).toLocaleString("pl-PL", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
