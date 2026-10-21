@@ -99,6 +99,17 @@ test("analytics show aggregate numbers only", async () => {
   }
 });
 
+test("the studio owner gets the weekly summary of the whole studio", { skip: !process.env.CRON_JOB_TOKEN }, async () => {
+  const res = await fetch(`${API_URL}/api/cron/payment-notifications?forceWeekly=1`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.CRON_JOB_TOKEN}` },
+  });
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).weeklySummaries.errors, 0);
+  const feed = JSON.stringify(await (await call(studio, "GET", "/api/notifications/mine")).json());
+  assert.ok(feed.includes("tydzień w studiu"), "the owner received the studio summary");
+});
+
 test("announcements reach active trainers only", async () => {
   assert.equal((await call(studio, "POST", "/api/gym/announcements", { title: "", body: "x" })).status, 400);
   assert.equal((await call(trainer, "POST", "/api/gym/announcements", { title: "Hack", body: "x" })).status, 403);

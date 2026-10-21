@@ -1,5 +1,7 @@
 import {
   users,
+  gyms,
+  gymTrainers,
   trainingPlans,
   workouts,
   exercises,
@@ -337,6 +339,7 @@ export interface IStorage {
   getScheduledSessionsBetween(from: Date, to: Date): Promise<SessionBooking[]>;
   hasPushNotification(userId: string, type: string, body: string, since: Date): Promise<boolean>;
   hasRecentPushOfType(userId: string, type: string, since: Date): Promise<boolean>;
+  getStudioWeeklyStats(since: Date): Promise<{ ownerId: string; gymName: string; activeTrainers: number; sessions: number; reports: number; overduePayments: number }[]>;
   getTrainerWeeklyStats(since: Date): Promise<{ trainerId: string; activeClients: number; sessions: number; reports: number; overduePayments: number }[]>;
   getPushNotificationHistoryForUser(userId: string, limit?: number): Promise<PushNotificationHistory[]>;
   markPushNotificationRead(id: string, userId: string): Promise<PushNotificationHistory>;
@@ -3183,6 +3186,30 @@ export class DatabaseStorage implements IStorage {
       )
       .limit(1);
     return !!row;
+  }
+
+  async getStudioWeeklyStats(since: Date): Promise<{ ownerId: string; gymName: string; activeTrainers: number; sessions: number; reports: number; overduePayments: number }[]> {
+    const members = await db
+      .select({ gymId: gyms.id, gymName: gyms.name, ownerId: gyms.ownerId, trainerId: gymTrainers.trainerId })
+      .from(gymTrainers)
+      .innerJoin(gyms, eq(gyms.id, gymTrainers.gymId))
+      .where(and(eq(gymTrainers.status, "active"), sql`${gymTrainers.trainerId} IS NOT NULL`));
+    if (members.length === 0) return [];
+
+    const perTrainer = new Map((await this.getTrainerWeeklyStats(since)).map((w) => [w.trainerId, w]));
+    const studios = new Map<string, { ownerId: string; gymName: string; activeTrainers: number; sessions: number; reports: number; overduePayments: number }>();
+    for (const member of members) {
+      const studio = studios.get(member.gymId) ?? { ownerId: member.ownerId, gymName: member.gymName, activeTrainers: 0, sessions: 0, reports: 0, overduePayments: 0 };
+      studio.activeTrainers += 1;
+      const week = perTrainer.get(member.trainerId as string);
+      if (week) {
+        studio.sessions += week.sessions;
+        studio.reports += week.reports;
+        studio.overduePayments += week.overduePayments;
+      }
+      studios.set(member.gymId, studio);
+    }
+    return [...studios.values()];
   }
 
   async hasRecentPushOfType(userId: string, type: string, since: Date): Promise<boolean> {

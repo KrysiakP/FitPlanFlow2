@@ -1,7 +1,7 @@
 // node --test scripts/weekly-summary.test.mjs
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatWeeklySummary, isMondayInWarsaw } from "../src/lib/weeklySummary.ts";
+import { formatStudioSummary, formatWeeklySummary, isMondayInWarsaw } from "../src/lib/weeklySummary.ts";
 
 const week = (over = {}) => ({ trainerId: "t", activeClients: 3, sessions: 12, reports: 3, overduePayments: 0, ...over });
 
@@ -35,4 +35,13 @@ test("Monday is decided in Warsaw time", () => {
   assert.equal(isMondayInWarsaw(new Date("2026-10-18T23:30:00Z")), true); // already Monday 01:30 in Warsaw
   assert.equal(isMondayInWarsaw(new Date("2026-10-19T23:30:00Z")), false); // Tuesday 01:30 in Warsaw
   assert.equal(isMondayInWarsaw(new Date("2026-10-21T09:00:00Z")), false);
+});
+
+test("the studio owner gets the totals of the whole studio", () => {
+  const studio = { ownerId: "o", gymName: "Klub Fit", activeTrainers: 5, sessions: 48, reports: 12, overduePayments: 1 };
+  const message = formatStudioSummary(studio);
+  assert.equal(message.title, "Klub Fit: tydzień w studiu");
+  assert.equal(message.body, "Ostatnie 7 dni (5 aktywnych trenerów): 48 treningów, 12 nowych raportów, 1 zaległa płatność.");
+  assert.match(formatStudioSummary({ ...studio, activeTrainers: 1, overduePayments: 0 }).body, /\(1 aktywny trener\)/);
+  assert.equal(formatStudioSummary({ ...studio, activeTrainers: 0 }), null, "an empty studio gets nothing");
 });

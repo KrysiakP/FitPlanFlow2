@@ -39,3 +39,28 @@ export function formatWeeklySummary(week: TrainerWeek): { title: string; body: s
       : `Ostatnie 7 dni: ${parts.join(", ")}.`,
   };
 }
+
+export interface StudioWeek {
+  ownerId: string;
+  gymName: string;
+  activeTrainers: number;
+  sessions: number;
+  reports: number;
+  overduePayments: number;
+}
+
+/** Same Monday message for the studio owner, summed over the studio's active trainers. */
+export function formatStudioSummary(week: StudioWeek): { title: string; body: string } | null {
+  if (week.activeTrainers === 0) return null;
+  const parts = [
+    `${week.sessions} ${plural(week.sessions, "trening", "treningi", "treningów")}`,
+    `${week.reports} ${plural(week.reports, "nowy raport", "nowe raporty", "nowych raportów")}`,
+  ];
+  if (week.overduePayments > 0) {
+    parts.push(`${week.overduePayments} ${plural(week.overduePayments, "zaległa płatność", "zaległe płatności", "zaległych płatności")}`);
+  }
+  return {
+    title: `${week.gymName}: tydzień w studiu`,
+    body: `Ostatnie 7 dni (${week.activeTrainers} ${plural(week.activeTrainers, "aktywny trener", "aktywnych trenerów", "aktywnych trenerów")}): ${parts.join(", ")}.`,
+  };
+}

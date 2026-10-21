@@ -1,5 +1,5 @@
 import type { IStorage } from "../storage";
-import { formatWeeklySummary, isMondayInWarsaw } from "../lib/weeklySummary";
+import { formatStudioSummary, formatWeeklySummary, isMondayInWarsaw } from "../lib/weeklySummary";
 
 type SendPush = (userId: string, title: string, body: string, data: Record<string, string>, type: string) => Promise<void>;
 
@@ -37,6 +37,23 @@ export async function sendWeeklySummaries(
       stats.sent += 1;
     } catch (error) {
       console.error("[WEEKLY_SUMMARY] Failed for trainer", week.trainerId, error);
+      stats.errors += 1;
+    }
+  }
+
+  // Studio owners get the same summary for the whole studio
+  for (const studio of await storage.getStudioWeeklyStats(new Date(now.getTime() - WEEK_MS))) {
+    const message = formatStudioSummary(studio);
+    if (!message) continue;
+    try {
+      if (await storage.hasRecentPushOfType(studio.ownerId, SUMMARY_TYPE, new Date(now.getTime() - DEDUPE_MS))) {
+        stats.skipped += 1;
+        continue;
+      }
+      await sendPush(studio.ownerId, message.title, message.body, { type: SUMMARY_TYPE }, SUMMARY_TYPE);
+      stats.sent += 1;
+    } catch (error) {
+      console.error("[WEEKLY_SUMMARY] Failed for studio owner", studio.ownerId, error);
       stats.errors += 1;
     }
   }
