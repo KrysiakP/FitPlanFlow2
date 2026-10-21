@@ -316,18 +316,18 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
           <p className="text-muted-foreground text-sm md:text-base mt-1 truncate" data-testid={`text-client-email-${client.id}`}>
             {client.email}
           </p>
-          {(client.phone || client.goal) && (
+          {(clientProfile?.phone || clientProgress?.goal) && (
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
-              {client.phone && (
-                <span className="flex items-center gap-1 text-sm text-muted-foreground" data-testid={`text-client-phone-${client.id}`}>
+              {clientProfile?.phone && (
+                <a href={`tel:${clientProfile.phone}`} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground" data-testid={`text-client-phone-${client.id}`}>
                   <Phone className="w-3.5 h-3.5" />
-                  {client.phone}
-                </span>
+                  {clientProfile.phone}
+                </a>
               )}
-              {client.goal && (
+              {clientProgress?.goal && (
                 <span className="flex items-center gap-1 text-sm text-muted-foreground" data-testid={`text-client-goal-${client.id}`}>
                   <Target className="w-3.5 h-3.5" />
-                  {client.goal}
+                  {clientProgress.goal}
                 </span>
               )}
             </div>

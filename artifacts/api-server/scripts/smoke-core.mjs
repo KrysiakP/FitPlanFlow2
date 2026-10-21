@@ -148,6 +148,14 @@ test("a set that beats the history is flagged as a personal record", async () =>
   assert.equal(viaTrainer[0].exercise, "Przysiad");
 });
 
+test("the health endpoint answers without a login", async () => {
+  const res = await fetch(`${API_URL}/api/health`);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.status, "ok");
+  assert.ok(!("password" in body) && !JSON.stringify(body).includes("postgres"), "no secrets or connection strings");
+});
+
 test("everyone can download their own data, without secrets or other people's records", async () => {
   const res = await call(client, "GET", "/api/account/export");
   assert.equal(res.status, 200);

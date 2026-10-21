@@ -8,8 +8,8 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 2. [Ty] Sekret `CRON_JOB_TOKEN` + codzienny harmonogram
 3. [Ty] Nowe buildy EAS iOS/Android
 4. [Ty] Sekrety i ceny Stripe
-5. [ ] Skrypt kontrolny produkcji (tylko odczyt)
-6. [ ] Endpoint zdrowia + alert gdy harmonogram milczy
+5. [x] Skrypt kontrolny produkcji: `scripts/check-production.sh` (obecnie wskazuje, że produkcja jest starsza niż repo)
+6. [x] `GET /api/health` (baza + `cronLastRunAt`); [Ty] podłącz do darmowego monitora (np. UptimeRobot), który zgłosi awarię
 7. [Ty] Prywatne zdjęcia raportów na prawdziwym magazynie (patrz 64)
 
 ## 1. Podopieczny: trening
@@ -96,8 +96,8 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 74. [ ] Testy mobilne na symulatorze
 75. [~] Typy w aplikacji web (80 → 32 błędów)
 76. [ ] Podział `routes.ts` na moduły
-77. [ ] Usunięcie martwego kodu
-78. [ ] Dokument architektury i uruchamiania lokalnie
+77. [x] Usunięty nieużywany `dla-trenera.tsx`; telefon i cel na karcie podopiecznego działają z prawdziwych danych
+78. [x] `docs/ARCHITEKTURA.md`
 79. [ ] Migracje bazy jako pliki
 80. [Ty] Kopie zapasowe bazy (dostęp do Replit/hostingu)
 
@@ -110,7 +110,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 86. [ ] Wersja angielska (przygotowanie tłumaczeń)
 
 ## 10. Marketing i wzrost
-87. [ ] Strona dla trenerów podłączona do routera
+87. [x] Zamiast osobnej strony: karty funkcji na stronie głównej (strona `dla-trenera` usunięta jako zbędna)
 88. [ ] Blog SEO (artykuły)
 89. [Ty] Wejście na sklepy (konta deweloperskie, zrzuty ekranu)
 90. [ ] Zaproszenie linkiem z podglądem

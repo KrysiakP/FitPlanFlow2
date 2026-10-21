@@ -114,6 +114,8 @@ function getCheckoutReturnOrigin(req: Request): string {
   return configuredDomain ? `https://${configuredDomain}` : "http://localhost:5000";
 }
 
+let cronLastRunAt: string | null = null;
+
 async function sendExpoPush(userId: string, tokens: string[], title: string, body: string, data?: Record<string, string>) {
   if (tokens.length === 0) return;
   const messages = tokens.map((to) => ({ to, sound: "default" as const, title, body, data: data ?? {} }));
@@ -5940,6 +5942,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
    *   curl -X POST https://your-app.replit.app/api/cron/payment-notifications \
    *     -H "Authorization: Bearer YOUR_CRON_JOB_TOKEN"
    */
+  // Liveness for uptime monitors: answers 200 only when the database answers too. `cronLastRunAt` is kept in memory,
+  // so it is empty after a restart; a monitor should only worry when it stays older than ~36 hours.
+  app.get("/api/health", async (_req, res) => {
+    try {
+      await db.execute(sql`select 1`);
+      res.json({ status: "ok", time: new Date().toISOString(), cronLastRunAt, cronConfigured: !!process.env.CRON_JOB_TOKEN });
+    } catch (error) {
+      console.error("Health check failed:", error);
+      res.status(503).json({ status: "database unavailable" });
+    }
+  });
+
   app.post("/api/cron/payment-notifications", async (req, res) => {
     try {
       // Verify cron job token
@@ -5972,6 +5986,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Token valid - run payment notification check
       console.log("[CRON] Running payment notifications check...");
+      cronLastRunAt = new Date().toISOString();
       const stats = await checkPaymentNotifications(storage);
       const sessionReminders = await sendSessionReminders(storage, sendPushToUserAndRecord).catch((err) => {
         console.error("[CRON] Session reminders failed:", err);
