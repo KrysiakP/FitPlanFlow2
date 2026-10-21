@@ -165,6 +165,7 @@ export interface IStorage {
   // Exercise logs operations
   logExercise(clientId: string, exerciseId: string, data: { reps: number, load?: string, notes?: string, setNumber?: number, loggedByUserId?: string }): Promise<ExerciseLog>;
   getExerciseLogs(clientId: string, exerciseId: string): Promise<ExerciseLog[]>;
+  getClientLogsByExerciseName(clientId: string, exerciseName: string): Promise<{ load: string | null; reps: number }[]>;
   getAllClientExerciseLogs(clientId: string): Promise<ExerciseLog[]>;
   getLatestExerciseLog(clientId: string, exerciseId: string): Promise<ExerciseLog | undefined>;
   getLatestExerciseLogsBySet(clientId: string, exerciseId: string): Promise<ExerciseLog[]>;
@@ -1110,6 +1111,15 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(exerciseLogs.loggedAt);
+  }
+
+  // Every earlier set of an exercise with this name (plans come and go, the exercise's identity is its name)
+  async getClientLogsByExerciseName(clientId: string, exerciseName: string): Promise<{ load: string | null; reps: number }[]> {
+    return await db
+      .select({ load: exerciseLogs.load, reps: exerciseLogs.reps })
+      .from(exerciseLogs)
+      .innerJoin(exercises, eq(exercises.id, exerciseLogs.exerciseId))
+      .where(and(eq(exerciseLogs.clientId, clientId), sql`lower(${exercises.name}) = lower(${exerciseName})`));
   }
 
   async getAllClientExerciseLogs(clientId: string): Promise<ExerciseLog[]> {

@@ -14,7 +14,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,6 +22,7 @@ import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPatch, apiPost } from "@/lib/api";
+import { RecordToast, type PersonalRecordInfo } from "@/components/RecordToast";
 
 const SESSION_SNAPSHOT_KEY = "training-session-snapshot";
 
@@ -639,9 +640,18 @@ export default function TrainingScreen() {
     },
   });
 
+  const [recordToast, setRecordToast] = useState<PersonalRecordInfo | null>(null);
+  const hideRecordToast = useCallback(() => setRecordToast(null), []);
+
   const logMutation = useMutation({
     mutationFn: async ({ exerciseId, setNumber, reps, load }: { exerciseId: string; setNumber: number; reps: number; load: string }) => {
-      return apiPost(`/api/exercises/${exerciseId}/log`, { reps, load: load || undefined, setNumber });
+      return apiPost<{ personalRecord?: PersonalRecordInfo }>(`/api/exercises/${exerciseId}/log`, { reps, load: load || undefined, setNumber });
+    },
+    onSuccess: (data) => {
+      if (data?.personalRecord) {
+        setRecordToast(data.personalRecord);
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
     },
     onError: (error) => {
       const msg = error instanceof Error ? error.message : "Spróbuj ponownie.";
@@ -1082,6 +1092,7 @@ export default function TrainingScreen() {
   const isSaving = sessionMutation.isPending;
 
   return (
+    <>
     <ScrollView
       style={[styles.root, { backgroundColor: colors.background }]}
       contentContainerStyle={[
@@ -1264,6 +1275,8 @@ export default function TrainingScreen() {
         </>
       )}
     </ScrollView>
+    <RecordToast record={recordToast} onHide={hideRecordToast} />
+    </>
   );
 }
 

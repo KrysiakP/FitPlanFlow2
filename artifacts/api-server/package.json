@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:smoke-studio": "node --test scripts/smoke-studio.mjs",
     "test:smoke": "node --test --test-concurrency=1 scripts/smoke-studio.mjs scripts/smoke-core.mjs scripts/smoke-idor.mjs scripts/smoke-idor-data.mjs scripts/smoke-upload.mjs",
-    "test:stripe": "node --test scripts/smoke-stripe-webhook.mjs"
+    "test:stripe": "node --test scripts/smoke-stripe-webhook.mjs",
+    "test:unit": "node --test scripts/personal-record.test.mjs"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",

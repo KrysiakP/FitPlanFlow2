@@ -108,6 +108,21 @@ test("the client sees the assigned plan and may only change reps and load", asyn
   assert.equal((await call(outsider, "GET", `/api/plans/${state.planId}`)).status, 403);
 });
 
+test("a set that beats the history is flagged as a personal record", async () => {
+  const log = async (reps, load, setNumber) => {
+    const res = await call(client, "POST", `/api/exercises/${state.exerciseId}/log`, { reps, load, setNumber });
+    assert.equal(res.status, 200, `log ${load}x${reps}`);
+    return res.json();
+  };
+  assert.equal((await log(5, "100", 1)).personalRecord, undefined, "the first set only sets the baseline");
+  const record = await log(5, "110", 2);
+  assert.ok(record.personalRecord, "a heavier set is a record");
+  assert.equal(record.personalRecord.exercise, "Przysiad");
+  assert.ok(record.personalRecord.estimatedOneRepMax > record.personalRecord.previousBest);
+  assert.equal((await log(5, "105", 3)).personalRecord, undefined, "a weaker set is not");
+  assert.equal((await log(5, "", 4)).personalRecord, undefined, "no load, no record");
+});
+
 test("the client is notified when a session is booked or cancelled", async () => {
   const feed = async () => JSON.stringify(await (await call(client, "GET", "/api/notifications/mine")).json());
   const waitFor = async (text) => {

@@ -61,6 +61,7 @@ import express from "express";
 import { authRateLimit, lookupRateLimit } from "../app";
 import { checkPaymentNotifications } from "../services/paymentNotifications";
 import { sendSessionReminders } from "../services/sessionReminders";
+import { evaluatePersonalRecord } from "../lib/personalRecord";
 import { deleteTestClient } from "../testClientService";
 import { getDemoClient, getDemoTrainingPlans, getDemoWeeklyReports, getDemoDietPlan, getDemoPayments, isDemoId, DEMO_CLIENT_ID } from "../demoDataService";
 
@@ -3774,6 +3775,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { reps, load, notes, setNumber } = validationResult.data;
+      // Read the history first, so the new set is compared with what came before it
+      const previousSets = await storage.getClientLogsByExerciseName(clientId, exercise.name);
       const log = await storage.logExercise(clientId, exerciseId, {
         reps,
         load: load ?? undefined,
@@ -3781,7 +3784,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         setNumber: setNumber ?? 1,
         loggedByUserId: isTrainer ? userId : undefined,
       });
-      res.json(log);
+      const record = evaluatePersonalRecord(previousSets, { load, reps });
+      res.json(record.isRecord ? { ...log, personalRecord: { exercise: exercise.name, estimatedOneRepMax: record.estimatedOneRepMax, previousBest: record.previousBest } } : log);
     } catch (error) {
       console.error("Error logging exercise:", error);
       res.status(500).json({ message: "Nie udało się zapisać wykonania ćwiczenia" });
