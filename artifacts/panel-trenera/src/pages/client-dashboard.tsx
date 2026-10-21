@@ -21,6 +21,7 @@ import { startOfWeek, endOfWeek, isWithinInterval, format } from "date-fns";
 import { pl } from "date-fns/locale";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { TrainingStreakCard } from "@/components/training-streak-card";
 import type { PlanAssignment, TrainingPlan, Workout, Exercise, WeeklyReport, PlanInvitation, User, SessionBooking } from "@shared/schema";
 
 type AssignmentWithPlan = PlanAssignment & {
@@ -174,6 +175,8 @@ export default function ClientDashboard() {
           </CardContent>
         </Card>
       )}
+
+      <TrainingStreakCard />
 
       {showWeeklyReportReminder && (
         <Alert data-testid="alert-weekly-report-reminder">
