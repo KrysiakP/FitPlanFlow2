@@ -4075,6 +4075,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { clientId } = req.params;
 
+      // The demo client has no workout history
+      if (isDemoId(clientId)) {
+        return res.json([]);
+      }
+
       // Verify the client belongs to this trainer
       const isOwnClient = await storage.hasActiveClientRelationship(userId, clientId);
       if (!isOwnClient) {

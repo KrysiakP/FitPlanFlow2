@@ -16,6 +16,7 @@ import {
 import { useState } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ProgressInsights } from "@/components/ProgressInsights";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -903,6 +904,7 @@ export default function ClientDetailScreen() {
 
         {activeTab === "progress" && (
           <>
+            <ProgressInsights sessions={workoutSessions ?? []} reports={clientReports ?? []} />
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Aktualne dane</Text>
             {loadingProgress ? (
               <ActivityIndicator color={colors.primary} />
