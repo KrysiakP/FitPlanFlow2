@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/useAuth";
+import { nextWorkout } from "@/lib/nextWorkout";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -42,6 +43,11 @@ export default function ClientDashboard() {
   const { data: assignment, isError: assignmentError } = useQuery<AssignmentWithPlan>({
     queryKey: ["/api/client/assignment"],
   });
+
+  const { data: finishedSessions } = useQuery<{ workoutId: string; completedAt: string }[]>({
+    queryKey: ["/api/workout-sessions"],
+  });
+  const upNext = assignment?.plan.workouts ? nextWorkout(assignment.plan.workouts, finishedSessions ?? []) : null;
 
   const { data: reports, isError: reportsError } = useQuery<WeeklyReport[]>({
     queryKey: ["/api/reports"],
@@ -225,6 +231,29 @@ export default function ClientDashboard() {
                 </p>
               );
             })()}
+          </CardContent>
+        </Card>
+      )}
+
+      {upNext && (
+        <Card className="border-primary/30" data-testid="card-today-workout">
+          <CardHeader className="pb-2">
+            <CardTitle className="font-heading flex items-center gap-2 text-lg">
+              <Dumbbell className="w-5 h-5 text-primary" />
+              {upNext.trainedToday ? "Dziś już po treningu" : "Dziś w planie"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="font-medium" data-testid="text-today-workout-name">
+              {upNext.trainedToday ? "Następny: " : ""}
+              {upNext.workout.name}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {(upNext.workout.exercises?.length ?? 0) > 0 ? `${upNext.workout.exercises!.length} ćwiczeń` : "Plan: " + assignment!.plan.name}
+            </p>
+            <Button asChild size="sm" className="mt-3" data-testid="button-start-today-workout">
+              <Link href={`/my-plan?workout=${upNext.workout.id}`}>{upNext.trainedToday ? "Zobacz następny trening" : "Zacznij trening"}</Link>
+            </Button>
           </CardContent>
         </Card>
       )}
