@@ -243,6 +243,34 @@ test("session reminders go out once for sessions starting within 24 hours", { sk
   assert.equal((await fetch(`${API_URL}/api/cron/payment-notifications`, { method: "POST" })).status, 401, "cron needs its token");
 });
 
+test("clients without a recent weekly report get one reminder", { skip: !process.env.CRON_JOB_TOKEN }, async () => {
+  const runCron = async () => {
+    const res = await fetch(`${API_URL}/api/cron/payment-notifications?forceReports=1`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.CRON_JOB_TOKEN}` },
+    });
+    assert.equal(res.status, 200);
+    return (await res.json()).reportReminders;
+  };
+  // Other suites leave weekly reports (and earlier runs leave reminders) behind, so compare the feed before and after
+  const reports = await (await call(client, "GET", "/api/reports")).json();
+  const hasRecentReport = reports.some((report) => Date.now() - new Date(report.createdAt).getTime() < 6 * 86400000);
+  const reminders = async () => JSON.stringify(await (await call(client, "GET", "/api/notifications/mine")).json()).split("Raport tygodniowy").length - 1;
+  const before = await reminders();
+  const first = await runCron();
+  const after = await reminders();
+  if (hasRecentReport) {
+    assert.equal(after, before, "a client who sent a report this week is left alone");
+  } else if (before === 0) {
+    assert.ok(first.sent >= 1, "the client with no report was reminded");
+    assert.equal(after, 1);
+    assert.equal((await runCron()).sent, 0, "no second reminder within 5 days");
+  } else {
+    assert.equal(after, before, "already reminded in the last 5 days: no duplicate");
+  }
+  assert.equal((await fetch(`${API_URL}/api/cron/payment-notifications?forceReports=1`, { method: "POST" })).status, 401, "cron needs its token");
+});
+
 test("trainers get a weekly summary once", { skip: !process.env.CRON_JOB_TOKEN }, async () => {
   const runCron = async () => {
     const res = await fetch(`${API_URL}/api/cron/payment-notifications?forceWeekly=1`, {

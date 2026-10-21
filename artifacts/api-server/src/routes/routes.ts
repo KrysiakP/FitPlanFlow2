@@ -64,6 +64,7 @@ import { authRateLimit, lookupRateLimit } from "../app";
 import { checkPaymentNotifications } from "../services/paymentNotifications";
 import { sendSessionReminders } from "../services/sessionReminders";
 import { sendWeeklySummaries } from "../services/weeklySummary";
+import { sendReportReminders } from "../services/reportReminders";
 import { evaluatePersonalRecord } from "../lib/personalRecord";
 import { buildAccountExport, exportFileName } from "../lib/accountExport";
 import { buildExerciseHistory } from "../lib/exerciseHistory";
@@ -5943,12 +5944,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return { trainers: 0, sent: 0, skipped: 0, errors: 1 };
       });
 
+      const reportReminders = await sendReportReminders(storage, sendPushToUserAndRecord, { force: req.query.forceReports === "1" }).catch((err) => {
+        console.error("[CRON] Report reminders failed:", err);
+        return { checked: 0, sent: 0, skipped: 0, errors: 1 };
+      });
+
       res.json({
         success: true,
         timestamp: new Date().toISOString(),
         stats,
         sessionReminders,
         weeklySummaries,
+        reportReminders,
       });
     } catch (error) {
       console.error("[CRON] Error running payment notifications:", error);

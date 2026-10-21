@@ -339,6 +339,7 @@ export interface IStorage {
   getScheduledSessionsBetween(from: Date, to: Date): Promise<SessionBooking[]>;
   hasPushNotification(userId: string, type: string, body: string, since: Date): Promise<boolean>;
   hasRecentPushOfType(userId: string, type: string, since: Date): Promise<boolean>;
+  getClientIdsWithoutRecentReport(since: Date): Promise<string[]>;
   getStudioWeeklyStats(since: Date): Promise<{ ownerId: string; gymName: string; activeTrainers: number; sessions: number; reports: number; overduePayments: number }[]>;
   getTrainerWeeklyStats(since: Date): Promise<{ trainerId: string; activeClients: number; sessions: number; reports: number; overduePayments: number }[]>;
   getPushNotificationHistoryForUser(userId: string, limit?: number): Promise<PushNotificationHistory[]>;
@@ -3219,6 +3220,22 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(pushNotificationHistory.userId, userId), eq(pushNotificationHistory.type, type), gte(pushNotificationHistory.createdAt, since)))
       .limit(1);
     return !!row;
+  }
+
+  // Clients of an active trainer (not demo accounts) who have not sent a weekly report since `since`
+  async getClientIdsWithoutRecentReport(since: Date): Promise<string[]> {
+    const rows = await db
+      .selectDistinct({ clientId: clientRelationships.clientId })
+      .from(clientRelationships)
+      .innerJoin(users, eq(users.id, clientRelationships.clientId))
+      .where(
+        and(
+          eq(clientRelationships.status, "active"),
+          eq(users.isTestUser, false),
+          sql`not exists (select 1 from ${weeklyReports} where ${weeklyReports.clientId} = ${clientRelationships.clientId} and ${weeklyReports.createdAt} >= ${since})`,
+        ),
+      );
+    return rows.map((row) => row.clientId);
   }
 
   // Per trainer with at least one active client: finished workouts and received reports since `since`, and unpaid overdue payments now
