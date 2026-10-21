@@ -16,6 +16,7 @@ import { router } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { apiGet } from "@/lib/api";
+import { ProgressInsights } from "@/components/ProgressInsights";
 
 interface ExerciseLogItem {
   id: string;
@@ -104,6 +105,13 @@ export default function ProgressScreen() {
     staleTime: 1000 * 60 * 2,
   });
 
+  const { data: reportsData } = useQuery<{ reportDate: string; weight?: string | null }[]>({
+    queryKey: ["client-reports-weight", user?.id],
+    queryFn: () => apiGet("/api/reports"),
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
+  });
+
   const entries = data ? [data] : [];
   const latest = data ?? null;
   const sessions = sessionsData ?? [];
@@ -150,6 +158,7 @@ export default function ProgressScreen() {
         <ActivityIndicator color={colors.primary} style={styles.loader} />
       ) : (
         <>
+          <ProgressInsights sessions={sessions} reports={reportsData ?? []} />
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
             Aktywność treningowa (14 dni)
           </Text>
