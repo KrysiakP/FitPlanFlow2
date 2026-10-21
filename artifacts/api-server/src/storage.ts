@@ -48,6 +48,7 @@ import {
   type WeeklyReport,
   type InsertWeeklyReport,
   type InsertPlanWithWorkouts,
+  type UpdatePlanWithWorkouts,
   type PlanInvitation,
   type InsertPlanInvitationInput,
   type ClientRelationship,
@@ -97,6 +98,7 @@ import {
 } from "@workspace/db";
 import { db } from "./db";
 import { eq, and, desc, or, isNull, sql, gte, lte, lt, asc, inArray } from "drizzle-orm";
+import { matchExisting } from "./lib/planMatch";
 import { alias } from "drizzle-orm/pg-core";
 import { createHash, randomUUID } from "crypto";
 
@@ -120,7 +122,7 @@ export interface IStorage {
   deleteTrainingPlan(planId: string): Promise<void>;
   copyTrainingPlan(originalPlanId: string, trainerId: string): Promise<TrainingPlan>;
   createTrainingPlanWithWorkouts(trainerId: string, data: InsertPlanWithWorkouts): Promise<TrainingPlan>;
-  updateTrainingPlanWithWorkouts(planId: string, trainerId: string, data: InsertPlanWithWorkouts): Promise<TrainingPlan>;
+  updateTrainingPlanWithWorkouts(planId: string, trainerId: string, data: UpdatePlanWithWorkouts): Promise<TrainingPlan>;
   
   // Workout operations
   getWorkoutsByPlanId(planId: string): Promise<Workout[]>;
@@ -719,39 +721,59 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async updateTrainingPlanWithWorkouts(planId: string, trainerId: string, data: InsertPlanWithWorkouts): Promise<TrainingPlan> {
+  async updateTrainingPlanWithWorkouts(planId: string, trainerId: string, data: UpdatePlanWithWorkouts): Promise<TrainingPlan> {
     return await db.transaction(async (tx) => {
       const { workouts: workoutsData, ...planData } = data;
-      
+
       const [updatedPlan] = await tx.update(trainingPlans)
         .set({ ...planData, updatedAt: new Date() })
         .where(eq(trainingPlans.id, planId))
         .returning();
-      
-      await tx.delete(workouts).where(eq(workouts.planId, planId));
-      
-      for (const workout of workoutsData) {
-        const { exercises: exercisesData, ...workoutData } = workout;
-        
-        const [newWorkout] = await tx.insert(workouts).values({
-          id: randomUUID(),
-          ...workoutData,
-          planId: updatedPlan.id,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }).returning();
-        
-        if (exercisesData.length > 0) {
-          await tx.insert(exercises).values(
-            exercisesData.map(ex => ({
-              id: randomUUID(),
-              ...ex,
-              workoutId: newWorkout.id
-            }))
-          );
+
+      // Rows that already exist are updated in place: clients' logged sets and finished workouts hang on them
+      const existingWorkouts = await tx.select().from(workouts).where(eq(workouts.planId, planId));
+      const workoutMatch = matchExisting(existingWorkouts, workoutsData);
+
+      for (let index = 0; index < workoutsData.length; index += 1) {
+        const { exercises: exercisesData, id: _incomingId, ...workoutData } = workoutsData[index];
+        const existing = workoutMatch.matches[index];
+
+        let workoutId: string;
+        if (existing) {
+          workoutId = existing.id;
+          await tx.update(workouts).set({ ...workoutData, updatedAt: new Date() }).where(eq(workouts.id, existing.id));
+        } else {
+          const [created] = await tx.insert(workouts).values({
+            id: randomUUID(),
+            ...workoutData,
+            planId: updatedPlan.id,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }).returning();
+          workoutId = created.id;
+        }
+
+        const existingExercises = existing ? await tx.select().from(exercises).where(eq(exercises.workoutId, workoutId)) : [];
+        const exerciseMatch = matchExisting(existingExercises, exercisesData);
+        for (let i = 0; i < exercisesData.length; i += 1) {
+          const { id: _exerciseId, ...exerciseData } = exercisesData[i];
+          const current = exerciseMatch.matches[i];
+          if (current) {
+            await tx.update(exercises).set(exerciseData).where(eq(exercises.id, current.id));
+          } else {
+            await tx.insert(exercises).values({ id: randomUUID(), ...exerciseData, workoutId });
+          }
+        }
+        if (exerciseMatch.removed.length > 0) {
+          await tx.delete(exercises).where(inArray(exercises.id, exerciseMatch.removed.map((row) => row.id)));
         }
       }
-      
+
+      // Only what the trainer really took out of the plan is deleted
+      if (workoutMatch.removed.length > 0) {
+        await tx.delete(workouts).where(inArray(workouts.id, workoutMatch.removed.map((row) => row.id)));
+      }
+
       return updatedPlan;
     });
   }

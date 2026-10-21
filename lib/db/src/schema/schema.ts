@@ -967,6 +967,15 @@ export const insertPlanWithWorkoutsSchema = insertTrainingPlanSchema.extend({
   }))
 });
 
+// Editing a plan: rows the trainer already had carry their id, so they are updated in place and the clients' history stays
+export const updatePlanWithWorkoutsSchema = insertTrainingPlanSchema.extend({
+  workouts: z.array(insertWorkoutSchema.omit({ planId: true }).extend({
+    id: z.string().optional(),
+    exercises: z.array(insertExerciseSchema.extend({ id: z.string().optional() }))
+  }))
+});
+export type UpdatePlanWithWorkouts = z.infer<typeof updatePlanWithWorkoutsSchema>;
+
 export const insertPlanAssignmentSchema = createInsertSchema(planAssignments).omit({
   id: true,
   assignedAt: true,

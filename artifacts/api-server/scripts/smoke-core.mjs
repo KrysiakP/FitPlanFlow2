@@ -363,6 +363,63 @@ test("a finished workout can carry a 1-10 difficulty rating that the trainer see
   assert.ok(seen.some((item) => item.rpe === 8), "the trainer sees the rating");
 });
 
+test("editing a plan keeps the history of what was not removed", async () => {
+  const exercise = (name, orderIndex, extra = {}) => ({ name, sets: 3, reps: 5, load: "50", restTime: 60, orderIndex, ...extra });
+  const created = await call(trainer, "POST", "/api/plans/bulk", {
+    name: "Plan do edycji",
+    workouts: [{ name: "A", orderIndex: 0, exercises: [exercise("Przysiad", 0), exercise("Wyciskanie", 1)] }, { name: "B", orderIndex: 1, exercises: [exercise("Martwy ciąg", 0)] }],
+  });
+  assert.ok([200, 201].includes(created.status), `plan created (${created.status})`);
+  const planId = (await created.json()).id;
+  const load = async () => (await (await call(trainer, "GET", `/api/plans/${planId}`)).json());
+  try {
+    const before = await load();
+    const [workoutA, workoutB] = before.workouts;
+    const [squat, bench] = workoutA.exercises;
+    assert.equal((await call(trainer, "DELETE", `/api/assignments/client/${client.id}`)).status < 500, true);
+    assert.equal((await call(trainer, "POST", "/api/assignments/bulk", { planId, clientIds: [client.id] })).status, 200);
+
+    assert.equal((await call(client, "POST", `/api/exercises/${squat.id}/log`, { reps: 5, load: "100", setNumber: 1 })).status, 200);
+    assert.equal((await call(client, "POST", `/api/exercises/${bench.id}/log`, { reps: 5, load: "60", setNumber: 1 })).status, 200);
+    assert.equal((await call(client, "POST", "/api/workout-sessions", { workoutId: workoutA.id, planId, exercisesCompleted: 2, totalExercises: 2 })).status, 201);
+    const logsOf = async (id) => (await (await call(client, "GET", `/api/exercises/${id}/logs`)).json());
+
+    // edit with ids: change a rep count, rename one exercise, add a new one, drop workout B
+    const edit = await call(trainer, "PUT", `/api/plans/${planId}/bulk`, {
+      name: "Plan do edycji (po zmianach)",
+      workouts: [{ id: workoutA.id, name: "A", orderIndex: 0, exercises: [exercise("Przysiad", 0, { id: squat.id, reps: 8 }), exercise("Wyciskanie hantli", 1, { id: bench.id }), exercise("Wiosłowanie", 2)] }],
+    });
+    assert.equal(edit.status, 200);
+    const after = await load();
+    assert.equal(after.workouts.length, 1, "workout B was removed");
+    assert.equal(after.workouts[0].id, workoutA.id, "workout A is the same row");
+    const ids = after.workouts[0].exercises.map((item) => item.id);
+    assert.ok(ids.includes(squat.id) && ids.includes(bench.id), "existing exercises keep their ids, also when renamed");
+    assert.equal(after.workouts[0].exercises.find((item) => item.id === squat.id).reps, 8, "and are updated");
+    assert.equal((await logsOf(squat.id)).length, 1, "the squat history survived the edit");
+    assert.equal((await logsOf(bench.id)).length, 1, "so did the renamed bench history");
+    const mySessions = await (await call(client, "GET", "/api/workout-sessions")).json();
+    assert.ok(mySessions.some((item) => item.workoutId === workoutA.id), "the finished workout survived");
+
+    // an edit without ids (an older page) still matches by name
+    const byName = await call(trainer, "PUT", `/api/plans/${planId}/bulk`, {
+      name: "Plan do edycji",
+      workouts: [{ name: "A", orderIndex: 0, exercises: [exercise("Przysiad", 0, { reps: 6 }), exercise("Wyciskanie hantli", 1)] }],
+    });
+    assert.equal(byName.status, 200);
+    const final = await load();
+    assert.equal(final.workouts[0].id, workoutA.id);
+    assert.ok(final.workouts[0].exercises.some((item) => item.id === squat.id && item.reps === 6));
+    assert.equal(final.workouts[0].exercises.some((item) => item.name === "Wiosłowanie"), false, "the dropped exercise is gone");
+    assert.equal((await logsOf(squat.id)).length, 1, "history survived the edit without ids as well");
+  } finally {
+    await call(trainer, "DELETE", `/api/assignments/client/${client.id}`);
+    await call(trainer, "DELETE", `/api/plans/${planId}`);
+    // the shared plan of the other tests belongs to the client again
+    await call(trainer, "POST", "/api/assignments/bulk", { planId: state.planId, clientIds: [client.id] });
+  }
+});
+
 test("the trainer comments on a finished workout and the client sees and hears about it", async () => {
   const created = await call(client, "POST", "/api/workout-sessions", { workoutId: state.workoutId, planId: state.planId, exercisesCompleted: 3, totalExercises: 3, durationSeconds: 1200 });
   assert.equal(created.status, 201);

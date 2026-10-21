@@ -43,7 +43,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 31. [x] Przycisk „Przypomnij o treningu (N)" na liście „wymaga uwagi" (web): jednym kliknięciem do wszystkich nieaktywnych
 32. [ ] Szablony i biblioteka gotowych planów
 33. [ ] Automatyczna progresja obciążeń
-34. [ ] Edycja planu w trakcie bez gubienia historii
+34. [x] Edycja planu bez gubienia historii: zapis edycji aktualizuje treningi i ćwiczenia w miejscu (dopasowanie po id, awaryjnie po nazwie), usuwa tylko to, co trener faktycznie wyjął z planu. Wcześniej każda edycja kasowała i tworzyła plan od nowa, a razem z nim serie, rekordy, historię siły i ukończone treningi podopiecznych (kaskada)
 35. [~] Komentarz trenera do ukończonego treningu (do 1000 znaków; push do klienta; web i mobile po obu stronach; kolumny `trainer_comment`, `trainer_commented_at` wymagają migracji); komentarza do zdjęcia jeszcze nie ma
 36. [x] Szablony odpowiedzi w czacie trenera: 5 gotowych (web i mobile, wstawiane do pola wiadomości), w web własne szablony zapisywane w przeglądarce („Zapisz jako szablon”, do 8); zaplanowane wiadomości jeszcze nie
 37. [x] Przypomnienia trenera o podopiecznym z datą (API, push w dniu terminu przez cron, testy, web na karcie podopiecznego; mobile jeszcze nie)

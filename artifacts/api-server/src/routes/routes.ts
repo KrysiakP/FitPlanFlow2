@@ -28,6 +28,7 @@ import {
   registerSchema,
   loginSchema,
   insertPlanWithWorkoutsSchema,
+  updatePlanWithWorkoutsSchema,
   insertPlanInvitationSchema,
   insertCharityDonationSchema,
   insertDietPlanSchema,
@@ -2196,7 +2197,7 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         return res.status(403).json({ message: "Access denied" });
       }
 
-      const validationResult = insertPlanWithWorkoutsSchema.safeParse(req.body);
+      const validationResult = updatePlanWithWorkoutsSchema.safeParse(req.body);
       if (!validationResult.success) {
         return res.status(400).json({ 
           message: "Nieprawidłowe dane wejściowe",

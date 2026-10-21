@@ -20,6 +20,7 @@ import { useLocation, useParams, Link } from "wouter";
 import type { TrainingPlan, Workout, Exercise, ExerciseLibrary } from "@shared/schema";
 
 const exerciseSchema = z.object({
+  id: z.string().optional(), // set for exercises that already exist, so editing keeps the clients' history
   name: z.string().min(1, "Nazwa ćwiczenia jest wymagana"),
   sets: z.coerce.number().min(1, "Minimum 1 seria"),
   reps: z.coerce.number().min(1, "Minimum 1 powtórzenie"),
@@ -34,6 +35,7 @@ const exerciseSchema = z.object({
 });
 
 const workoutSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(1, "Nazwa treningu jest wymagana"),
   description: z.string().optional(),
   exercises: z.array(exerciseSchema).min(1, "Dodaj przynajmniej jedno ćwiczenie"),
@@ -103,9 +105,11 @@ export default function PlanForm() {
       name: existingPlan.name,
       description: existingPlan.description || "",
       workouts: existingPlan.workouts.map((workout) => ({
+        id: workout.id,
         name: workout.name,
         description: workout.description || "",
         exercises: workout.exercises.map((ex) => ({
+          id: ex.id,
           name: ex.name,
           sets: ex.sets,
           reps: ex.reps,
@@ -232,6 +236,7 @@ export default function PlanForm() {
     const exerciseToDuplicate = currentExercises[exerciseIndex];
     const newExercise = {
       ...exerciseToDuplicate,
+      id: undefined, // a copy is a new exercise
       orderIndex: currentExercises.length,
     };
     form.setValue(
