@@ -435,6 +435,41 @@ test("the client is notified when a session is booked or cancelled", async () =>
   assert.ok(await waitFor("Trening odwołany"), "client got the cancellation notification");
 });
 
+test("a client cancels their own session up to 24 hours before it, and the trainer hears about it", async () => {
+  const book = async (hoursAhead) => {
+    const res = await call(trainer, "POST", "/api/sessions", {
+      clientId: client.id, scheduledAt: new Date(Date.now() + hoursAhead * 3600000).toISOString(), durationMinutes: 60,
+    });
+    assert.equal(res.status, 201);
+    return (await res.json()).id;
+  };
+  const far = await book(72);
+  const near = await book(5);
+  const listed = await (await call(client, "GET", "/api/client/sessions")).json();
+  const farRow = listed.find((row) => row.id === far);
+  assert.ok(farRow?.cancellableUntil, "the list says until when the client may cancel");
+  assert.ok(new Date(farRow.cancellableUntil) > new Date(), "still open for the far session");
+  assert.ok(new Date(listed.find((row) => row.id === near).cancellableUntil) < new Date(), "already closed for the near one");
+
+  const tooLate = await call(client, "POST", `/api/client/sessions/${near}/cancel`);
+  assert.equal(tooLate.status, 409);
+  assert.match((await tooLate.json()).message, /24/);
+  assert.equal((await call(trainer, "POST", `/api/client/sessions/${far}/cancel`)).status, 404, "only the booked client may use it");
+
+  assert.equal((await call(client, "POST", `/api/client/sessions/${far}/cancel`)).status, 200);
+  assert.equal((await call(client, "POST", `/api/client/sessions/${far}/cancel`)).status, 404, "cancelling twice finds nothing");
+  const after = await (await call(client, "GET", "/api/client/sessions")).json();
+  assert.ok(!after.some((row) => row.id === far), "the cancelled session is gone from the list");
+
+  let heard = false;
+  for (let i = 0; i < 20 && !heard; i += 1) {
+    heard = JSON.stringify(await (await call(trainer, "GET", "/api/notifications/mine")).json()).includes("Odwołany termin");
+    if (!heard) await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.ok(heard, "the trainer got a notification");
+  await call(trainer, "DELETE", `/api/sessions/${near}`);
+});
+
 test("the client's upcoming sessions never include past ones", async () => {
   const past = await call(trainer, "POST", "/api/sessions", {
     clientId: client.id, scheduledAt: new Date(Date.now() - 3 * 86400000).toISOString(), durationMinutes: 60, location: "Wczoraj",

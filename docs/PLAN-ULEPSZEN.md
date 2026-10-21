@@ -52,7 +52,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 40. [ ] Raport miesięczny PDF
 41. [x] Kalendarz .ics (`GET /api/sessions/calendar.ics`, przyciski w web dla trenera i podopiecznego; subskrypcja na żywo wymagałaby tokenu w adresie, więc na razie plik do pobrania)
 42. [ ] Wolne terminy i zapisy przez podopiecznego
-43. [ ] Zasada odwołania do 24 h
+43. [x] Odwołanie terminu przez podopiecznego najpóźniej 24 h przed (API 409 po terminie, push do trenera; przycisk na webie i w aplikacji)
 44. [x] Statystyki biznesowe: przychód i zaległości (były) + retencja 90 dni, średni czas współpracy i zakończone współprace (nowe, web; w aplikacji mobilnej jeszcze nie)
 45. [ ] Strona wizytówka trenera z opiniami
 

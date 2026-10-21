@@ -91,6 +91,22 @@ export default function ClientDashboard() {
     },
   });
 
+  const cancelSessionMutation = useMutation({
+    mutationFn: async (sessionId: string) => apiRequest("POST", `/api/client/sessions/${sessionId}/cancel`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/client/sessions"] });
+      toast({ title: "Termin odwołany", description: "Trener dostał powiadomienie" });
+    },
+    onError: (error: unknown) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/client/sessions"] });
+      toast({
+        title: "Nie udało się odwołać terminu",
+        description: error instanceof Error ? error.message.replace(/^\d+:\s*/, "") : undefined,
+        variant: "destructive",
+      });
+    },
+  });
+
   const rejectMutation = useMutation({
     mutationFn: async (invitationId: string) => {
       return await apiRequest("POST", `/api/invitations/${invitationId}/reject`, {});
@@ -178,6 +194,37 @@ export default function ClientDashboard() {
                 Dodaj do kalendarza
               </a>
             </Button>
+            {(() => {
+              const next = upcomingSessions[0] as SessionBooking & { cancellableUntil?: string };
+              if (next.cancellableUntil && new Date(next.cancellableUntil) > new Date()) {
+                return (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="mt-3 ml-2 text-destructive" data-testid="button-cancel-session">
+                        Odwołaj termin
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Odwołać termin?</AlertDialogTitle>
+                        <AlertDialogDescription>Trener dostanie powiadomienie o odwołaniu.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Zostaw</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => cancelSessionMutation.mutate(next.id)} data-testid="button-confirm-cancel-session">
+                          Odwołaj termin
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                );
+              }
+              return (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Termin można odwołać do 24 h przed jego początkiem — później napisz do trenera.
+                </p>
+              );
+            })()}
           </CardContent>
         </Card>
       )}

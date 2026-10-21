@@ -103,6 +103,15 @@ test("trainer 2 cannot touch trainer 1's plan or assign to trainer 1's client", 
   await assertDenied("assign foreign plan", call(t2, "POST", "/api/assignments/bulk", { planId: state.planId, clientIds: [c2.id] }));
 });
 
+test("a client cannot cancel another client's session", async () => {
+  const res = await call(t1, "POST", "/api/sessions", { clientId: c1.id, scheduledAt: new Date(Date.now() + 96 * 3600000).toISOString(), durationMinutes: 60 });
+  assert.equal(res.status, 201);
+  const id = (await res.json()).id;
+  await assertDenied("foreign client cancels", call(c2, "POST", `/api/client/sessions/${id}/cancel`));
+  await assertDenied("foreign trainer cancels via client route", call(t2, "POST", `/api/client/sessions/${id}/cancel`));
+  assert.equal((await call(t1, "DELETE", `/api/sessions/${id}`)).status, 200);
+});
+
 test("the attention list never mentions another trainer's clients", async () => {
   const list = await (await call(t2, "GET", "/api/trainer/attention")).json();
   assert.ok(!list.some((item) => item.clientId === c1.id), "trainer 2 sees trainer 1's client");

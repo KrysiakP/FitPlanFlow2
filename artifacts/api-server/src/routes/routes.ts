@@ -74,6 +74,7 @@ import { buildAccountExport, exportFileName } from "../lib/accountExport";
 import { deadPushTokens, withPushType } from "../lib/expoPush";
 import { accessFromRequest, ACTION_LABELS } from "../lib/accessAudit";
 import { isQuietNow, QUIET_PRESETS, sanitizeQuietHours } from "../lib/quietHours";
+import { CANCELLATION_NOTICE_HOURS, cancellableUntil, canClientCancel } from "../lib/sessionCancellation";
 import { buildIcs, type IcsEvent } from "../lib/ics";
 import { sanitizeLabels } from "../lib/clientLabels";
 import { computeAchievements } from "../lib/achievements";
@@ -3236,10 +3237,41 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
     try {
       const userId = req.session.userId!;
       const sessions = await storage.getClientSessionBookings(userId);
-      res.json(sessions);
+      // The app shows a cancel button only while the client may still cancel on their own
+      res.json(sessions.map((session) => ({ ...session, cancellableUntil: cancellableUntil(session.scheduledAt).toISOString() })));
     } catch (error) {
       console.error("Error fetching client sessions:", error);
       res.status(500).json({ message: "Nie udało się pobrać sesji" });
+    }
+  });
+
+  // The client cancels their own booking; allowed up to 24 hours before the start, later it is the trainer's call
+  app.post("/api/client/sessions/:id/cancel", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const id = String(req.params.id);
+      const booking = await storage.getClientSessionBooking(id, userId);
+      if (!booking) return res.status(404).json({ message: "Nie znaleziono sesji" });
+      if (!canClientCancel(booking.scheduledAt)) {
+        return res.status(409).json({
+          message: `Termin można odwołać najpóźniej ${CANCELLATION_NOTICE_HOURS} godziny przed jego początkiem. Napisz do trenera.`,
+        });
+      }
+      const cancelled = await storage.cancelSessionByClient(id, userId);
+      if (!cancelled) return res.status(404).json({ message: "Nie znaleziono sesji" });
+      res.json({ success: true });
+      const client = await storage.getUser(userId);
+      const who = [client?.firstName, client?.lastName].filter(Boolean).join(" ") || "Podopieczny";
+      void sendPushToUserAndRecord(
+        cancelled.trainerId,
+        "Odwołany termin",
+        `${who} odwołuje termin ${formatSessionTime(cancelled.scheduledAt)}.`,
+        { type: "session_cancelled", sessionId: cancelled.id },
+        "session_cancelled"
+      ).catch((err) => console.error("Failed to push client cancellation:", err));
+    } catch (error) {
+      console.error("Error cancelling session by client:", error);
+      res.status(500).json({ message: "Nie udało się odwołać terminu" });
     }
   });
 

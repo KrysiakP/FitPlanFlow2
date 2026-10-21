@@ -42,6 +42,7 @@ interface ClientSession {
   scheduledAt: string;
   durationMinutes: number;
   location?: string | null;
+  cancellableUntil?: string; // until then the client may cancel on their own (24 h before the start)
 }
 
 interface PendingInvitation {
@@ -114,6 +115,26 @@ export default function ClientDashboard() {
     },
   });
 
+  const cancelSessionMutation = useMutation({
+    mutationFn: (id: string) => apiPost(`/api/client/sessions/${id}/cancel`, {}),
+    onSuccess: () => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ["client-sessions"] });
+    },
+    onError: (error: Error) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Nie udało się odwołać", error.message);
+      qc.invalidateQueries({ queryKey: ["client-sessions"] });
+    },
+  });
+
+  function confirmCancelSession(sessionId: string) {
+    Alert.alert("Odwołać termin?", "Trener dostanie powiadomienie o odwołaniu.", [
+      { text: "Zostaw", style: "cancel" },
+      { text: "Odwołaj termin", style: "destructive", onPress: () => cancelSessionMutation.mutate(sessionId) },
+    ]);
+  }
+
   function confirmReject(invitationId: string, trainerName: string) {
     Alert.alert(
       "Odrzucić zaproszenie?",
@@ -178,6 +199,24 @@ export default function ClientDashboard() {
               {upcomingSessions![0].location}
             </Text>
           ) : null}
+          {upcomingSessions![0].cancellableUntil && new Date(upcomingSessions![0].cancellableUntil) > new Date() ? (
+            <Pressable
+              onPress={() => confirmCancelSession(upcomingSessions![0].id)}
+              disabled={cancelSessionMutation.isPending}
+              accessibilityRole="button"
+              accessibilityLabel="Odwołaj najbliższy termin"
+              style={{ alignSelf: "flex-start", marginTop: 8, paddingVertical: 6 }}
+              testID="button-cancel-session"
+            >
+              <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#dc2626" }}>
+                Odwołaj termin
+              </Text>
+            </Pressable>
+          ) : (
+            <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 8 }}>
+              Termin można odwołać do 24 h przed jego początkiem — później napisz do trenera.
+            </Text>
+          )}
           {upcomingSessions!.slice(1, 3).map((next) => (
             <Text key={next.id} style={{ fontSize: 13, color: colors.mutedForeground, marginTop: 6 }}>
               Potem:{" "}
