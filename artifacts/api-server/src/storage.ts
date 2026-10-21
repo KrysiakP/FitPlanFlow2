@@ -179,7 +179,7 @@ export interface IStorage {
   createSessionBooking(trainerId: string, data: InsertSessionBookingInput): Promise<SessionBooking>;
   getTrainerSessionBookings(trainerId: string): Promise<SessionBooking[]>;
   getClientSessionBookings(clientId: string): Promise<SessionBooking[]>;
-  cancelSessionBooking(id: string, trainerId: string): Promise<boolean>;
+  cancelSessionBooking(id: string, trainerId: string): Promise<SessionBooking | null>;
 
   // Weekly reports operations
   createWeeklyReport(clientId: string, data: Omit<InsertWeeklyReport, 'clientId'>): Promise<WeeklyReport>;
@@ -1250,13 +1250,13 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(sessionBookings.scheduledAt));
   }
 
-  async cancelSessionBooking(id: string, trainerId: string): Promise<boolean> {
-    const result = await db
+  async cancelSessionBooking(id: string, trainerId: string): Promise<SessionBooking | null> {
+    const [cancelled] = await db
       .update(sessionBookings)
       .set({ status: "cancelled" })
       .where(and(eq(sessionBookings.id, id), eq(sessionBookings.trainerId, trainerId)))
       .returning();
-    return result.length > 0;
+    return cancelled ?? null;
   }
 
   async getClientWeeklyReports(clientId: string): Promise<WeeklyReport[]> {

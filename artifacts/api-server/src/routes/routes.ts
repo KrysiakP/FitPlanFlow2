@@ -139,6 +139,18 @@ async function sendPushToUserAndRecord(
 }
 
 // Helper function to extract tier from Stripe subscription
+// "wtorek, 21 października, 18:30" in the studio's timezone, for push texts
+function formatSessionTime(value: Date | string): string {
+  return new Date(value).toLocaleString("pl-PL", {
+    timeZone: "Europe/Warsaw",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function getTierFromSubscription(subscription: Stripe.Subscription): string {
   // First check metadata
   if (subscription.metadata?.tier) {
@@ -2943,6 +2955,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const booking = await storage.createSessionBooking(userId, validationResult.data);
       res.status(201).json(booking);
+      if (booking.clientId) {
+        const trainerName = `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || "Twój trener";
+        void sendPushToUserAndRecord(
+          booking.clientId,
+          "Nowy termin treningu",
+          `${trainerName} zaplanował(a) trening: ${formatSessionTime(booking.scheduledAt)}.`,
+          { type: "session_booked", sessionId: booking.id },
+          "session_booked"
+        ).catch((err) => console.error("Failed to push session booking:", err));
+      }
     } catch (error) {
       console.error("Error creating session booking:", error);
       res.status(500).json({ message: "Nie udało się zaplanować sesji" });
@@ -2984,6 +3006,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Nie znaleziono sesji lub brak uprawnień" });
       }
       res.json({ success: true });
+      if (cancelled.clientId) {
+        void sendPushToUserAndRecord(
+          cancelled.clientId,
+          "Trening odwołany",
+          `Termin ${formatSessionTime(cancelled.scheduledAt)} został odwołany przez trenera.`,
+          { type: "session_cancelled", sessionId: cancelled.id },
+          "session_cancelled"
+        ).catch((err) => console.error("Failed to push session cancellation:", err));
+      }
     } catch (error) {
       console.error("Error cancelling session booking:", error);
       res.status(500).json({ message: "Nie udało się anulować sesji" });

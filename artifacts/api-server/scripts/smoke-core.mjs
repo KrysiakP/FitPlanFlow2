@@ -107,6 +107,25 @@ test("the client sees the assigned plan and may only change reps and load", asyn
   assert.equal((await call(outsider, "GET", `/api/plans/${state.planId}`)).status, 403);
 });
 
+test("the client is notified when a session is booked or cancelled", async () => {
+  const feed = async () => JSON.stringify(await (await call(client, "GET", "/api/notifications/mine")).json());
+  const waitFor = async (text) => {
+    for (let i = 0; i < 20; i += 1) {
+      if ((await feed()).includes(text)) return true;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return false;
+  };
+  const created = await call(trainer, "POST", "/api/sessions", {
+    clientId: client.id, scheduledAt: new Date(Date.now() + 2 * 86400000).toISOString(), durationMinutes: 60,
+  });
+  assert.equal(created.status, 201);
+  const id = (await created.json()).id;
+  assert.ok(await waitFor("Nowy termin treningu"), "client got the booking notification");
+  assert.equal((await call(trainer, "DELETE", `/api/sessions/${id}`)).status, 200);
+  assert.ok(await waitFor("Trening odwołany"), "client got the cancellation notification");
+});
+
 test("cleanup: archive the relationship and delete the plan", async () => {
   assert.equal((await call(client, "POST", `/api/clients/${client.id}/archive`)).status, 403, "client cannot archive");
   await call(trainer, "DELETE", `/api/assignments/client/${client.id}`);

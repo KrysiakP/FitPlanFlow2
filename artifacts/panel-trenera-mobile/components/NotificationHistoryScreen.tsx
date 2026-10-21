@@ -39,6 +39,8 @@ const TYPE_ICON: Record<string, { name: keyof typeof Ionicons.glyphMap; color: s
   new_message: { name: "chatbubble-outline", color: "#10b981" },
   invitation_accepted: { name: "person-add-outline", color: "#3b82f6" },
   payment: { name: "card-outline", color: "#ef4444" },
+  session_booked: { name: "calendar-outline", color: "#0846ab" },
+  session_cancelled: { name: "calendar-clear-outline", color: "#ef4444" },
 };
 
 function getTypeIconConfig(type: string | null) {
