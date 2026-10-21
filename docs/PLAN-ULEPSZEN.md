@@ -14,7 +14,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 
 ## 1. Podopieczny: trening
 8. [x] Karta „Dziś w planie" na pulpicie klienta (web): kolejny trening z planu wg ostatnio zrobionego, przycisk otwiera go od razu
-9. [ ] Timer przerwy: wibracja/dźwięk, praca w tle
+9. [~] Timer przerwy między seriami (aplikacja klienta): liczy do terminu zamiast sekunda po sekundzie, więc po blokadzie telefonu pokazuje właściwy czas; na końcu trzy mocne wibracje (oprócz haptyki), a gdy aplikacja jest w tle, przychodzi lokalne powiadomienie „Koniec przerwy" z dźwiękiem. Sprawdzono typami i testami logiki, nie na urządzeniu (potrzebny nowy build EAS)
 10. [x] Podpowiedź obciążenia w formularzu serii (mobile): z ostatniej serii i zakresu powtórzeń w planie („Ostatnio 80 kg × 10: spróbuj 82,5 kg”); zasada podwójnej progresji, krok 2,5 kg (5 kg od 100 kg); testy; web jeszcze nie
 11. [x] Już było: formularz serii wypełnia się wynikiem poprzedniej serii z tego treningu lub ostatniego treningu (powtórzenia i ciężar)
 12. [x] Notatka do serii (do 500 znaków) widoczna dla trenera: pole w aplikacji klienta, sekcja „Uwagi z treningów" na webie i w aplikacji trenera

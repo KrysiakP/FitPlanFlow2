@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Linking,
   Platform,
+  Vibration,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -19,6 +20,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as Notifications from "expo-notifications";
+import { REST_END_VIBRATION, remainingSeconds, restDeadline } from "@/lib/restTimer";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPatch, apiPost } from "@/lib/api";
@@ -520,6 +523,8 @@ export default function TrainingScreen() {
   const [restTotalSeconds, setRestTotalSeconds] = useState(0);
   const [isResting, setIsResting] = useState(false);
   const restIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const restDeadlineRef = useRef<number | null>(null); // the rest ends at this moment, whatever the app did in between
+  const restNotificationRef = useRef<string | null>(null); // a local notification scheduled while the app is in the background
   // Stable ref to latest handleStartLog so timer callbacks can call it without staleness
   const handleStartLogRef = useRef<(exerciseId: string, setNumber: number) => Promise<void>>(
     async () => { /* placeholder, overwritten before first use */ }
@@ -643,6 +648,8 @@ export default function TrainingScreen() {
       clearInterval(restIntervalRef.current);
       restIntervalRef.current = null;
     }
+    restDeadlineRef.current = null;
+    cancelRestNotification();
     setIsResting(false);
     setRestSeconds(0);
     if (elapsedIntervalRef.current) {
@@ -707,32 +714,50 @@ export default function TrainingScreen() {
       apiPatch(`/api/client/exercises/${exerciseId}`, { reps, load }),
   });
 
+  function cancelRestNotification() {
+    const id = restNotificationRef.current;
+    restNotificationRef.current = null;
+    if (id && Platform.OS !== "web") void Notifications.cancelScheduledNotificationAsync(id).catch(() => undefined);
+  }
+
+  // The rest is over: stop counting, buzz, and move on to the next set
+  function finishRest() {
+    if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+    restIntervalRef.current = null;
+    restDeadlineRef.current = null;
+    cancelRestNotification();
+    setIsResting(false);
+    setRestSeconds(0);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    if (Platform.OS !== "web") Vibration.vibrate(REST_END_VIBRATION);
+    const nextSet = pendingNextSetRef.current;
+    if (nextSet) {
+      pendingNextSetRef.current = null;
+      if (nextSet.mode === "auto") {
+        setTimeout(() => void handleAutoLogRef.current(nextSet.exerciseId, nextSet.setNumber), 300);
+      } else {
+        setTimeout(() => void handleStartLogRef.current(nextSet.exerciseId, nextSet.setNumber), 300);
+      }
+    }
+  }
+
+  // Counts from the deadline, so it is right again straight after the phone was locked or the app was in the background
+  function tickRest() {
+    const deadline = restDeadlineRef.current;
+    if (deadline === null) return;
+    const left = remainingSeconds(deadline, Date.now());
+    if (left <= 0) finishRest();
+    else setRestSeconds(left);
+  }
+
   function startRestTimer(seconds: number) {
     if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+    cancelRestNotification();
+    restDeadlineRef.current = restDeadline(seconds, Date.now());
     setRestSeconds(seconds);
     setRestTotalSeconds(seconds);
     setIsResting(true);
-    restIntervalRef.current = setInterval(() => {
-      setRestSeconds((prev) => {
-        if (prev <= 1) {
-          clearInterval(restIntervalRef.current!);
-          restIntervalRef.current = null;
-          setIsResting(false);
-          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          const nextSet = pendingNextSetRef.current;
-          if (nextSet) {
-            pendingNextSetRef.current = null;
-            if (nextSet.mode === "auto") {
-              setTimeout(() => void handleAutoLogRef.current(nextSet.exerciseId, nextSet.setNumber), 300);
-            } else {
-              setTimeout(() => void handleStartLogRef.current(nextSet.exerciseId, nextSet.setNumber), 300);
-            }
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    restIntervalRef.current = setInterval(tickRest, 500);
   }
 
   function stopRestTimer(autoAdvance = false) {
@@ -740,6 +765,8 @@ export default function TrainingScreen() {
       clearInterval(restIntervalRef.current);
       restIntervalRef.current = null;
     }
+    restDeadlineRef.current = null;
+    cancelRestNotification();
     setIsResting(false);
     setRestSeconds(0);
     if (autoAdvance) {
@@ -761,14 +788,29 @@ export default function TrainingScreen() {
     return () => {
       if (restIntervalRef.current) clearInterval(restIntervalRef.current);
       if (elapsedIntervalRef.current) clearInterval(elapsedIntervalRef.current);
+      cancelRestNotification();
     };
   }, []);
 
-  // Resync elapsed timer when app returns from background
+  // Back from the background: resync both timers. Going to the background mid-rest: a local notification tells when it ends.
   useEffect(() => {
     const sub = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "active" && sessionStartTime) {
-        setElapsedSeconds(Math.floor((Date.now() - sessionStartTime) / 1000));
+      if (nextState === "active") {
+        if (sessionStartTime) setElapsedSeconds(Math.floor((Date.now() - sessionStartTime) / 1000));
+        cancelRestNotification();
+        tickRest();
+      } else if (nextState === "background" && restDeadlineRef.current !== null && Platform.OS !== "web") {
+        const seconds = remainingSeconds(restDeadlineRef.current, Date.now());
+        if (seconds > 0) {
+          void Notifications.scheduleNotificationAsync({
+            content: { title: "Koniec przerwy", body: "Czas na kolejną serię.", sound: "default" },
+            trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds, repeats: false },
+          })
+            .then((id) => {
+              restNotificationRef.current = id;
+            })
+            .catch(() => undefined);
+        }
       }
     });
     return () => sub.remove();
