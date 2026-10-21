@@ -53,7 +53,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 41. [x] Kalendarz .ics (`GET /api/sessions/calendar.ics`, przyciski w web dla trenera i podopiecznego; subskrypcja na żywo wymagałaby tokenu w adresie, więc na razie plik do pobrania)
 42. [ ] Wolne terminy i zapisy przez podopiecznego
 43. [ ] Zasada odwołania do 24 h
-44. [~] Przychód z 6 miesięcy i zaległości są już na pulpicie web i w aplikacji; retencja do dodania
+44. [x] Statystyki biznesowe: przychód i zaległości (były) + retencja 90 dni, średni czas współpracy i zakończone współprace (nowe, web; w aplikacji mobilnej jeszcze nie)
 45. [ ] Strona wizytówka trenera z opiniami
 
 ## 4. Płatności
@@ -88,7 +88,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 68. [x] Dziennik wyświetleń danych podopiecznego (tabela `data_access_log`, jeden wpis na godzinę), widoczny dla podopiecznego w web i mobile („Kto oglądał moje dane")
 69. [Ty] Zgody RODO per cel: potrzebne brzmienie od prawnika (dane o zdrowiu); po dostarczeniu tekstu dopiszę zapis zgód z datą
 70. [x] Okazało się, że usuwanie konta działa od razu (nie po 30 dniach, jak sugerował tekst): poprawiłem teksty (web, mobile, pomoc) i dodałem anulowanie subskrypcji Stripe przy usunięciu konta (wcześniej usunięty trener mógł być dalej obciążany)
-71. [ ] Aktualizacje zależności z lukami
+71. [~] Audyt zależności: 0 krytycznych; zostają 2 wysokie i 1 umiarkowana bez wydanej poprawki (narzędzia buildowe: node-forge, braces, sprintf-js), do ponownego sprawdzenia przy następnej aktualizacji
 
 ## 8. Jakość i utrzymanie
 72. [x] Kontrola przed wypchnięciem: `scripts/check.sh` + hook `scripts/install-hooks.sh` (typy, buildy, testy). [Ty] GitHub Actions: token nie ma zakresu `workflow`; gotowy plik w `docs/ci-github-actions.yml.example`, wystarczy go skopiować do `.github/workflows/ci.yml`

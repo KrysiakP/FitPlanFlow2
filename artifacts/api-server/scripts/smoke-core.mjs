@@ -215,6 +215,16 @@ test("clients see their achievements, nobody else does", async () => {
   assert.equal((await fetch(`${API_URL}/api/client/achievements`)).status, 401);
 });
 
+test("trainers see how long their clients stay", async () => {
+  const res = await call(trainer, "GET", "/api/trainer/retention");
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.ok(body.activeClients >= 1, "the linked client counts as active");
+  assert.ok(body.averageMonths === null || body.averageMonths >= 0);
+  assert.ok(body.retention90 === null || (body.retention90 >= 0 && body.retention90 <= 100));
+  assert.equal((await call(client, "GET", "/api/trainer/retention")).status, 403);
+});
+
 test("the health endpoint answers without a login", async () => {
   const res = await fetch(`${API_URL}/api/health`);
   assert.equal(res.status, 200);

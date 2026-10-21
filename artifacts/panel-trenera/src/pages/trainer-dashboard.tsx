@@ -11,6 +11,7 @@ import type { ClientPayment } from "@shared/schema";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { TrainerAttentionCard } from "@/components/trainer-attention-card";
+import { RetentionStats } from "@/components/retention-stats";
 
 export default function TrainerDashboard() {
   const { user } = useAuth();
@@ -349,6 +350,8 @@ export default function TrainerDashboard() {
             </Card>
           </Link>
         </div>
+
+        <RetentionStats />
 
         <Card data-testid="card-revenue-chart">
           <CardHeader>

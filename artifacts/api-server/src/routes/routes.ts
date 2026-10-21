@@ -77,6 +77,7 @@ import { isQuietNow, QUIET_PRESETS, sanitizeQuietHours } from "../lib/quietHours
 import { buildIcs, type IcsEvent } from "../lib/ics";
 import { sanitizeLabels } from "../lib/clientLabels";
 import { computeAchievements } from "../lib/achievements";
+import { computeRetention } from "../lib/retention";
 import { buildExerciseHistory } from "../lib/exerciseHistory";
 import { buildAttentionList } from "../lib/attention";
 import { deleteTestClient } from "../testClientService";
@@ -3582,6 +3583,18 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
     } catch (error) {
       console.error("Error fetching trainer clients:", error);
       res.status(500).json({ message: "Failed to fetch clients" });
+    }
+  });
+
+  // How long clients stay: active/ended counts, average length and 90-day retention
+  app.get("/api/trainer/retention", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
+      res.json(computeRetention(await storage.getTrainerRelationshipRows(user.id)));
+    } catch (error) {
+      console.error("Error computing retention:", error);
+      res.status(500).json({ message: "Nie udało się policzyć retencji" });
     }
   });
 

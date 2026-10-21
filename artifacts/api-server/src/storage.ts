@@ -344,6 +344,7 @@ export interface IStorage {
   hasPushNotification(userId: string, type: string, body: string, since: Date): Promise<boolean>;
   hasRecentPushOfType(userId: string, type: string, since: Date): Promise<boolean>;
   getClientIdsWithoutRecentReport(since: Date): Promise<string[]>;
+  getTrainerRelationshipRows(trainerId: string): Promise<{ createdAt: Date; archivedAt: Date | null; status: string }[]>;
   getReviewRequestCandidates(createdFrom: Date, createdTo: Date): Promise<{ clientId: string; trainerId: string; trainerFirstName: string | null }[]>;
   getClientLabelsForTrainer(trainerId: string): Promise<Record<string, string[]>>;
   setClientLabels(trainerId: string, clientId: string, labels: string[]): Promise<void>;
@@ -3338,6 +3339,15 @@ export class DatabaseStorage implements IStorage {
         ),
       );
     return rows;
+  }
+
+  // All collaborations of a trainer (active and ended), without demo/test clients
+  async getTrainerRelationshipRows(trainerId: string): Promise<{ createdAt: Date; archivedAt: Date | null; status: string }[]> {
+    return db
+      .select({ createdAt: clientRelationships.createdAt, archivedAt: clientRelationships.archivedAt, status: clientRelationships.status })
+      .from(clientRelationships)
+      .innerJoin(users, eq(users.id, clientRelationships.clientId))
+      .where(and(eq(clientRelationships.trainerId, trainerId), eq(users.isTestUser, false)));
   }
 
   // Clients of an active trainer (not demo accounts) who have not sent a weekly report since `since`
