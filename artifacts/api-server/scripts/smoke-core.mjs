@@ -163,6 +163,27 @@ test("clients can see which trainer opened their data", async () => {
   assert.equal((await fetch(`${API_URL}/api/account/access-log`)).status, 401);
 });
 
+test("upcoming sessions can be downloaded as a calendar file by each side", async () => {
+  const created = await call(trainer, "POST", "/api/sessions", {
+    clientId: client.id, scheduledAt: new Date(Date.now() + 2 * 86400000).toISOString(), durationMinutes: 50, location: "Sala, nr 3",
+  });
+  assert.equal(created.status, 201);
+  const sessionId = (await created.json()).id;
+  try {
+    for (const who of [trainer, client]) {
+      const res = await call(who, "GET", "/api/sessions/calendar.ics");
+      assert.equal(res.status, 200);
+      assert.match(res.headers.get("content-type") ?? "", /text\/calendar/);
+      const ics = await res.text();
+      assert.ok(ics.startsWith("BEGIN:VCALENDAR") && ics.includes(`UID:${sessionId}@paneltrenera.pl`), "the session is in the file");
+      assert.ok(ics.includes("LOCATION:Sala\\, nr 3"), "the location is escaped");
+    }
+    assert.equal((await fetch(`${API_URL}/api/sessions/calendar.ics`)).status, 401);
+  } finally {
+    await call(trainer, "DELETE", `/api/sessions/${sessionId}`);
+  }
+});
+
 test("the health endpoint answers without a login", async () => {
   const res = await fetch(`${API_URL}/api/health`);
   assert.equal(res.status, 200);

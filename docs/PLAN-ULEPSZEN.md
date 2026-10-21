@@ -50,7 +50,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 38. [ ] Import podopiecznych z CSV
 39. [ ] Etykiety/grupy podopiecznych
 40. [ ] Raport miesięczny PDF
-41. [ ] Kalendarz .ics
+41. [x] Kalendarz .ics (`GET /api/sessions/calendar.ics`, przyciski w web dla trenera i podopiecznego; subskrypcja na żywo wymagałaby tokenu w adresie, więc na razie plik do pobrania)
 42. [ ] Wolne terminy i zapisy przez podopiecznego
 43. [ ] Zasada odwołania do 24 h
 44. [ ] Statystyki biznesowe (przychód, retencja)

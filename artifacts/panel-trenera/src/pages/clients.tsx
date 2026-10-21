@@ -835,10 +835,18 @@ function ClientDetails({ client }: { client: ClientWithAssignment }) {
             <Calendar className="w-4 h-4" />
             Nadchodzące sesje
           </CardTitle>
-          <Button size="sm" className="gap-2" onClick={() => setIsScheduleDialogOpen(true)} data-testid={`button-schedule-session-${client.id}`}>
-            <Plus className="w-4 h-4" />
-            Zaplanuj sesję
-          </Button>
+          <div className="flex gap-2 flex-wrap justify-end">
+            <Button asChild size="sm" variant="outline" className="gap-2" data-testid={`button-export-calendar-${client.id}`}>
+              <a href="/api/sessions/calendar.ics" download>
+                <Calendar className="w-4 h-4" />
+                Kalendarz (.ics)
+              </a>
+            </Button>
+            <Button size="sm" className="gap-2" onClick={() => setIsScheduleDialogOpen(true)} data-testid={`button-schedule-session-${client.id}`}>
+              <Plus className="w-4 h-4" />
+              Zaplanuj sesję
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {clientBookings.length === 0 ? (

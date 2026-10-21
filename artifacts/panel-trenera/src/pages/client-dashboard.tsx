@@ -172,6 +172,12 @@ export default function ClientDashboard() {
             {upcomingSessions[0].location && (
               <p className="text-sm text-muted-foreground mt-1">{upcomingSessions[0].location}</p>
             )}
+            <Button asChild variant="outline" size="sm" className="mt-3" data-testid="button-add-to-calendar">
+              <a href="/api/sessions/calendar.ics" download>
+                <Calendar className="w-4 h-4 mr-2" />
+                Dodaj do kalendarza
+              </a>
+            </Button>
           </CardContent>
         </Card>
       )}

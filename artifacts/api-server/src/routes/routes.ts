@@ -71,6 +71,7 @@ import { buildAccountExport, exportFileName } from "../lib/accountExport";
 import { deadPushTokens, withPushType } from "../lib/expoPush";
 import { accessFromRequest, ACTION_LABELS } from "../lib/accessAudit";
 import { isQuietNow, QUIET_PRESETS, sanitizeQuietHours } from "../lib/quietHours";
+import { buildIcs, type IcsEvent } from "../lib/ics";
 import { buildExerciseHistory } from "../lib/exerciseHistory";
 import { buildAttentionList } from "../lib/attention";
 import { deleteTestClient } from "../testClientService";
@@ -3168,6 +3169,45 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
     } catch (error) {
       console.error("Error fetching trainer sessions:", error);
       res.status(500).json({ message: "Nie udało się pobrać sesji" });
+    }
+  });
+
+  // Upcoming training sessions as an .ics file (Google / Apple / Outlook calendar), for the signed-in trainer or client
+  app.get("/api/sessions/calendar.ics", isAuthenticated, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (user?.role !== "trainer" && user?.role !== "client") return res.status(403).json({ message: "Tylko trenerzy i podopieczni" });
+      const fullName = (person?: { firstName: string; lastName: string } | null) => (person ? `${person.firstName} ${person.lastName}`.trim() : "");
+      let events: IcsEvent[];
+      if (user.role === "trainer") {
+        const names = new Map((await storage.getTrainerClients(user.id)).map((client) => [client.id, fullName(client)]));
+        events = (await storage.getTrainerSessionBookings(user.id))
+          .filter((booking) => booking.scheduledAt.getTime() > Date.now() - 3600000)
+          .map((booking) => ({
+            uid: booking.id,
+            start: booking.scheduledAt,
+            durationMinutes: booking.durationMinutes,
+            title: `Trening: ${(booking.clientId && names.get(booking.clientId)) || booking.guestName || "podopieczny"}`,
+            location: booking.location,
+            description: booking.notes,
+          }));
+      } else {
+        const trainerName = fullName(await storage.getTrainerForClient(user.id));
+        events = (await storage.getClientSessionBookings(user.id)).map((booking) => ({
+          uid: booking.id,
+          start: booking.scheduledAt,
+          durationMinutes: booking.durationMinutes,
+          title: trainerName ? `Trening z ${trainerName}` : "Trening",
+          location: booking.location,
+        }));
+      }
+      res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+      res.setHeader("Content-Disposition", 'attachment; filename="sesje-panel-trenera.ics"');
+      res.setHeader("Cache-Control", "no-store");
+      res.send(buildIcs(events));
+    } catch (error) {
+      console.error("Error building calendar file:", error);
+      res.status(500).json({ message: "Nie udało się przygotować kalendarza" });
     }
   });
 
