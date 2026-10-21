@@ -1056,7 +1056,7 @@ export const insertDietPlanSchema = createInsertSchema(dietPlans).omit({
   createdAt: true,
 }).extend({
   mode: z.enum(['macro_only', 'full_plan'], { 
-    errorMap: () => ({ message: "Tryb diety musi być: macro_only lub full_plan" }) 
+    message: "Tryb diety musi być: macro_only lub full_plan" 
   }).default('macro_only'),
   mealsPerDay: z.coerce.number().int().min(3, "Liczba posiłków musi być między 3 a 6").max(6, "Liczba posiłków musi być między 3 a 6").optional(),
   recommendedProducts: z.string().optional(),

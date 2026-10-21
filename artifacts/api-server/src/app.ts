@@ -90,7 +90,10 @@ app.use(express.urlencoded({ extended: true }));
 // Serve uploaded files (local multer uploads) — matches original app behavior
 // Files uploaded before extensions were derived from the MIME type may still be active content: never serve those
 app.use('/attached_assets', (req, res, next) => {
-  if (/\.(html?|xhtml|svg|xml|js|mjs|css)$/i.test(req.path)) return res.status(404).end();
+  if (/\.(html?|xhtml|svg|xml|js|mjs|css)$/i.test(req.path)) {
+    res.status(404).end();
+    return;
+  }
   next();
 });
 app.use('/attached_assets', express.static(path.join(process.cwd(), 'attached_assets')));
