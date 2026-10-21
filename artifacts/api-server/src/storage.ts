@@ -346,6 +346,7 @@ export interface IStorage {
   hasPushNotification(userId: string, type: string, body: string, since: Date): Promise<boolean>;
   hasRecentPushOfType(userId: string, type: string, since: Date): Promise<boolean>;
   getClientIdsWithoutRecentReport(since: Date): Promise<string[]>;
+  getReportPhotoOwner(objectPath: string): Promise<string | null>;
   setTotpSecret(userId: string, sealedSecret: string): Promise<void>;
   enableTotp(userId: string, backupCodeHashes: string[]): Promise<void>;
   disableTotp(userId: string): Promise<void>;
@@ -3441,6 +3442,12 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(users.id, userId), sql`${hash} = any(${users.totpBackupCodes})`))
       .returning({ id: users.id });
     return rows.length > 0;
+  }
+
+  // The client a weekly-report photo belongs to (null when the file is not a report photo)
+  async getReportPhotoOwner(objectPath: string): Promise<string | null> {
+    const [row] = await db.select({ clientId: weeklyReports.clientId }).from(weeklyReports).where(eq(weeklyReports.photoUrl, objectPath)).limit(1);
+    return row?.clientId ?? null;
   }
 
   // Clients of an active trainer (not demo accounts) who have not sent a weekly report since `since`

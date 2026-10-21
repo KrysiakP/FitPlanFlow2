@@ -82,6 +82,7 @@ import { goalProgress } from "../lib/goalProgress";
 import { sanitizeReminderText } from "../lib/clientReminder";
 import { sendClientReminders } from "../services/clientReminders";
 import { stripSecrets } from "../lib/publicUser";
+import { canOpenObject } from "../lib/objectAccess";
 import { generateBackupCodes, generateTotpSecret, hashBackupCode, openSecret, otpauthUrl, sealSecret, verifyTotp } from "../lib/totp";
 import { buildExerciseHistory } from "../lib/exerciseHistory";
 import { buildAttentionList } from "../lib/attention";
@@ -621,23 +622,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.path,
       );
       
-      // FIX: Check ACL policy first to allow public objects without ownership check
-      // This allows trainers to see client photos when visibility is "public"
+      // Progress photos are body photos: only the client and their trainer may open them here, whatever the file's ACL says
+      // (older photos were stored as "public"). Other files follow their ACL.
       const aclPolicy = await objectStorageService.getObjectAclPolicy(objectFile);
-      
-      // If the object has public visibility, allow READ access without additional checks
-      // This enables trainers to view client photos marked as public
-      if (aclPolicy?.visibility === "public") {
-        return objectStorageService.downloadObject(objectFile, res);
-      }
-      
-      // For private objects, perform full ACL check including ownership
-      const canAccess = await objectStorageService.canAccessObjectEntity({
-        objectFile,
-        userId: userId,
-        requestedPermission: ObjectPermission.READ,
+      const reportPhotoOwnerId = await storage.getReportPhotoOwner(req.path).catch((error) => {
+        console.error("Could not look up the report photo owner:", error);
+        return null;
       });
-      if (!canAccess) {
+      const ownerId = reportPhotoOwnerId ?? aclPolicy?.owner;
+      const requester = userId ? await storage.getUser(userId) : undefined;
+      const userIsTrainerOfOwner = !!(requester?.role === "trainer" && ownerId && (await storage.hasActiveClientRelationship(requester.id, ownerId)));
+      if (!canOpenObject({ userId, visibility: aclPolicy?.visibility, ownerId: aclPolicy?.owner, reportPhotoOwnerId, userIsTrainerOfOwner })) {
         return res.sendStatus(401);
       }
       objectStorageService.downloadObject(objectFile, res);
@@ -760,7 +755,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.body.photoUrl,
         {
           owner: report.clientId, // CRITICAL: Always use report.clientId
-          visibility: "public",
+          visibility: "private", // body photos: the client and their trainer only (see canOpenObject)
         }
       );
       

@@ -10,7 +10,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 4. [Ty] Sekrety i ceny Stripe
 5. [x] Skrypt kontrolny produkcji: `scripts/check-production.sh` (obecnie wskazuje, że produkcja jest starsza niż repo)
 6. [x] `GET /api/health` (baza + `cronLastRunAt`); [Ty] podłącz do darmowego monitora (np. UptimeRobot), który zgłosi awarię
-7. [Ty] Prywatne zdjęcia raportów na prawdziwym magazynie (patrz 64)
+7. [Ty] Po publikacji: otwórz zdjęcie z raportu jako podopieczny, jako jego trener i jako obcy użytkownik (powinno: tak, tak, odmowa)
 
 ## 1. Podopieczny: trening
 8. [ ] Widok „dziś w planie" z przyciskiem startu (web)
@@ -81,7 +81,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 63. [ ] Centrum powiadomień na web
 
 ## 7. Bezpieczeństwo i prywatność
-64. [ ] Prywatne zdjęcia raportów (kod; test na prawdziwym magazynie po wdrożeniu)
+64. [~] Zdjęcia raportów: nowe są zapisywane jako prywatne, a odczyt przez `/objects/...` ma regułę „tylko podopieczny i jego trener” także dla starych zdjęć oznaczonych jako publiczne (reguła przetestowana jednostkowo). Zostaje do sprawdzenia na prawdziwym magazynie po publikacji; stare adresy podpisane (7 dni) działają jak dotychczas
 65. [~] Pliki wysyłane przez użytkowników są serwowane z restrykcyjnym CSP (`sandbox`, bez skryptów). Pełne CSP strony webowej [Ty]: strona jest serwowana osobno (hosting statyczny), nagłówek trzeba ustawić tam
 66. [x] Logowanie dwuskładnikowe (aplikacja uwierzytelniająca, RFC 6238, kody zapasowe, sekret zaszyfrowany w bazie): włączanie i wyłączanie w web (strona konta), pole kodu przy logowaniu w web i w aplikacji mobilnej; konfiguracja tylko w web (bez kodu QR, klucz do wpisania). Przy okazji odpowiedzi API (logowanie, /api/auth/user i inne) nie zawierają już tokenów resetu hasła ani weryfikacji e-mail
 67. [~] „Wyloguj ze wszystkich urządzeń" (API, web, mobile, testy); lista urządzeń do zrobienia
