@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Pencil, Trash2, Users, Copy, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Link } from "wouter";
+import { PlanTemplatesDialog } from "@/components/plan-templates-dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { TrainingPlan, Exercise, Workout } from "@shared/schema";
@@ -90,12 +91,15 @@ export default function TrainingPlans() {
           </h1>
           <p className="text-muted-foreground text-sm md:text-base">Zarządzaj swoimi planami treningowymi</p>
         </div>
-        <Button asChild data-testid="button-create-plan">
-          <Link href="/plans/new">
-            <Plus className="w-4 h-4 mr-2" />
-            Utwórz plan
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <PlanTemplatesDialog />
+          <Button asChild data-testid="button-create-plan">
+            <Link href="/plans/new">
+              <Plus className="w-4 h-4 mr-2" />
+              Utwórz plan
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {isError ? (
@@ -114,12 +118,15 @@ export default function TrainingPlans() {
               <p className="text-muted-foreground text-sm md:text-base mb-4">
                 Utwórz swój pierwszy plan treningowy dla podopiecznych
               </p>
-              <Button asChild data-testid="button-create-first-plan">
-                <Link href="/plans/new">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Utwórz pierwszy plan
-                </Link>
-              </Button>
+              <div className="flex flex-wrap gap-2 justify-center">
+                <PlanTemplatesDialog label="Zacznij od szablonu" />
+                <Button asChild variant="outline" data-testid="button-create-first-plan">
+                  <Link href="/plans/new">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Utwórz pierwszy plan
+                  </Link>
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

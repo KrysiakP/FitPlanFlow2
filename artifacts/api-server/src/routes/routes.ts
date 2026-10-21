@@ -77,6 +77,7 @@ import { deadPushTokens, withPushType } from "../lib/expoPush";
 import { accessFromRequest, ACTION_LABELS } from "../lib/accessAudit";
 import { isQuietNow, QUIET_PRESETS, sanitizeQuietHours } from "../lib/quietHours";
 import { chatPushPreview } from "../lib/chatPush";
+import { findPlanTemplate, PLAN_TEMPLATES, planFromTemplate } from "../lib/planTemplates";
 import { CANCELLATION_NOTICE_HOURS, cancellableUntil, canClientCancel } from "../lib/sessionCancellation";
 import { buildIcs, type IcsEvent } from "../lib/ics";
 import { sanitizeLabels } from "../lib/clientLabels";
@@ -2175,6 +2176,43 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
     } catch (error) {
       console.error("Error creating plan with workouts:", error);
       res.status(500).json({ message: "Failed to create plan with workouts" });
+    }
+  });
+
+  // Ready-made plans to start from
+  app.get("/api/plan-templates", isAuthenticated, async (req, res) => {
+    const user = await storage.getUser(req.session.userId!);
+    if (user?.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy" });
+    res.json(
+      PLAN_TEMPLATES.map((template) => ({
+        key: template.key,
+        name: template.name,
+        description: template.description,
+        level: template.level,
+        daysPerWeek: template.daysPerWeek,
+        workouts: template.workouts.map((workout) => ({ name: workout.name, exercises: workout.exercises.map((exercise) => exercise.name) })),
+      })),
+    );
+  });
+
+  app.post("/api/plans/from-template/:key", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy mogą tworzyć plany" });
+      const template = findPlanTemplate(String(req.params.key));
+      if (!template) return res.status(404).json({ message: "Nie ma takiego szablonu" });
+      const name = typeof req.body?.name === "string" ? req.body.name.slice(0, 200) : undefined;
+      const validationResult = insertPlanWithWorkoutsSchema.safeParse(planFromTemplate(template, name));
+      if (!validationResult.success) {
+        console.error("Plan template does not validate:", template.key, validationResult.error.issues);
+        return res.status(500).json({ message: "Szablon jest uszkodzony" });
+      }
+      const plan = await storage.createTrainingPlanWithWorkouts(userId, validationResult.data);
+      res.status(201).json(plan);
+    } catch (error) {
+      console.error("Error creating plan from template:", error);
+      res.status(500).json({ message: "Nie udało się utworzyć planu z szablonu" });
     }
   });
 

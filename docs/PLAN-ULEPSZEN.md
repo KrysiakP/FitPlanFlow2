@@ -41,7 +41,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 
 ## 3. Trener: codzienna praca
 31. [x] Przycisk „Przypomnij o treningu (N)" na liście „wymaga uwagi" (web): jednym kliknięciem do wszystkich nieaktywnych
-32. [ ] Szablony i biblioteka gotowych planów
+32. [~] Gotowe plany: 4 szablony (FBW 3 dni, Push/Pull/Legs, Góra/Dół 4 dni, trening w domu), przycisk „Z szablonu" na liście planów tworzy własną kopię i otwiera ją do edycji (web); własnych szablonów trenera (zapis planu jako szablonu) jeszcze nie ma
 33. [ ] Automatyczna progresja obciążeń
 34. [x] Edycja planu bez gubienia historii: zapis edycji aktualizuje treningi i ćwiczenia w miejscu (dopasowanie po id, awaryjnie po nazwie), usuwa tylko to, co trener faktycznie wyjął z planu. Wcześniej każda edycja kasowała i tworzyła plan od nowa, a razem z nim serie, rekordy, historię siły i ukończone treningi podopiecznych (kaskada)
 35. [~] Komentarz trenera do ukończonego treningu (do 1000 znaków; push do klienta; web i mobile po obu stronach; kolumny `trainer_comment`, `trainer_commented_at` wymagają migracji); komentarza do zdjęcia jeszcze nie ma

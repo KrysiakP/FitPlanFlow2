@@ -363,6 +363,32 @@ test("a finished workout can carry a 1-10 difficulty rating that the trainer see
   assert.ok(seen.some((item) => item.rpe === 8), "the trainer sees the rating");
 });
 
+test("a trainer starts a plan from a template and gets a plan of their own", async () => {
+  assert.equal((await call(client, "GET", "/api/plan-templates")).status, 403, "trainers only");
+  const templates = await (await call(trainer, "GET", "/api/plan-templates")).json();
+  assert.ok(templates.length >= 4);
+  assert.ok(templates.every((item) => item.key && item.name && item.workouts.length > 0));
+  const created = [];
+  try {
+    for (const template of templates) {
+      const res = await call(trainer, "POST", `/api/plans/from-template/${template.key}`, template.key === templates[0].key ? { name: "Mój FBW" } : {});
+      assert.equal(res.status, 201, `${template.key} creates a plan`);
+      const plan = await res.json();
+      created.push(plan.id);
+      const full = await (await call(trainer, "GET", `/api/plans/${plan.id}`)).json();
+      assert.equal(full.workouts.length, template.workouts.length, `${template.key}: all workouts`);
+      assert.equal(full.workouts[0].exercises.length, template.workouts[0].exercises.length);
+      if (template.key === templates[0].key) assert.equal(full.name, "Mój FBW", "a custom name is used");
+    }
+    assert.equal((await call(trainer, "POST", "/api/plans/from-template/nie-ma", {})).status, 404);
+    assert.equal((await call(client, "POST", `/api/plans/from-template/${templates[0].key}`, {})).status, 403);
+    // the copy belongs to the trainer alone
+    assert.equal((await call(outsider, "GET", `/api/plans/${created[0]}`)).status >= 400, true);
+  } finally {
+    for (const id of created) await call(trainer, "DELETE", `/api/plans/${id}`);
+  }
+});
+
 test("editing a plan keeps the history of what was not removed", async () => {
   const exercise = (name, orderIndex, extra = {}) => ({ name, sets: 3, reps: 5, load: "50", restTime: 60, orderIndex, ...extra });
   const created = await call(trainer, "POST", "/api/plans/bulk", {
