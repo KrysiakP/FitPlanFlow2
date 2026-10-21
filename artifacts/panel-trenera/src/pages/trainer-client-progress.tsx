@@ -50,6 +50,7 @@ import {
 import { useMemo } from "react";
 import { StrengthProgressCard } from "@/components/strength-progress-card";
 import { ExerciseNotesCard } from "@/components/exercise-notes-card";
+import { SessionComment } from "@/components/session-comment";
 import { PhotoCompareCard } from "@/components/photo-compare-card";
 
 function parseNumericValue(value: string | null | undefined): number {
@@ -992,6 +993,7 @@ export default function TrainerClientProgress() {
                               <span className="text-sm font-medium w-10 text-right">{completionPct}%</span>
                             </div>
                           </div>
+                          <SessionComment sessionId={session.id} clientId={clientId} comment={(session as { trainerComment?: string | null }).trainerComment} />
                         </CardContent>
                       </Card>
                     );

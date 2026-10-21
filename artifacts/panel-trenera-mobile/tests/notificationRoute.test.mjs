@@ -49,3 +49,7 @@ test("a partner id that is not a plain id is never put into the route", () => {
   assert.equal(notificationRoute("new_message", "trainer", { partnerId: "x?y=1&z" }), "/(trainer)/chat");
   assert.equal(notificationRoute("new_message", "trainer", { partnerId: 42 }), "/(trainer)/chat");
 });
+
+test("a trainer's comment on a workout opens the client's progress", () => {
+  assert.equal(notificationRoute("trainer_comment", "client"), "/(client)/progress");
+});

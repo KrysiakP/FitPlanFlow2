@@ -112,6 +112,16 @@ test("a client cannot cancel another client's session", async () => {
   assert.equal((await call(t1, "DELETE", `/api/sessions/${id}`)).status, 200);
 });
 
+test("a trainer cannot comment on another trainer's client's workout", async () => {
+  const session = await call(c1, "POST", "/api/workout-sessions", { workoutId: state.workoutId, planId: state.planId, exercisesCompleted: 1, totalExercises: 1 });
+  assert.equal(session.status, 201);
+  const id = (await session.json()).id;
+  await assertDenied("foreign trainer comments", call(t2, "PUT", `/api/trainer/workout-sessions/${id}/comment`, { comment: "przejęte" }));
+  await assertDenied("foreign client comments", call(c2, "PUT", `/api/trainer/workout-sessions/${id}/comment`, { comment: "x" }));
+  const seen = await (await call(c1, "GET", "/api/workout-sessions")).json();
+  assert.equal(seen.find((item) => item.id === id)?.trainerComment, null, "nothing was written");
+});
+
 test("the attention list never mentions another trainer's clients", async () => {
   const list = await (await call(t2, "GET", "/api/trainer/attention")).json();
   assert.ok(!list.some((item) => item.clientId === c1.id), "trainer 2 sees trainer 1's client");

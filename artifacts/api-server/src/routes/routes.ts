@@ -4665,6 +4665,39 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
     }
   });
 
+  // The trainer's comment under a finished workout; the client is told and sees it next to that workout
+  app.put("/api/trainer/workout-sessions/:sessionId/comment", isAuthenticated, async (req, res) => {
+    try {
+      const trainer = await storage.getUser(req.session.userId!);
+      if (trainer?.role !== "trainer") return res.status(403).json({ message: "Dostęp tylko dla trenerów" });
+      const session = await storage.getWorkoutSessionById(String(req.params.sessionId));
+      // not found and not yours look the same
+      if (!session || !(await storage.hasActiveClientRelationship(trainer.id, session.clientId))) {
+        return res.status(404).json({ message: "Nie znaleziono treningu" });
+      }
+      const raw = req.body?.comment;
+      if (raw !== null && typeof raw !== "string") return res.status(400).json({ message: "Komentarz musi być tekstem" });
+      const comment = typeof raw === "string" ? raw.trim() : "";
+      if (comment.length > 1000) return res.status(400).json({ message: "Komentarz może mieć najwyżej 1000 znaków" });
+      const changed = comment !== "" && comment !== (session.trainerComment ?? "");
+      const updated = await storage.setSessionTrainerComment(session.id, comment === "" ? null : comment);
+      res.json({ trainerComment: updated?.trainerComment ?? null, trainerCommentedAt: updated?.trainerCommentedAt ?? null });
+      if (changed) {
+        const name = [trainer.firstName, trainer.lastName].filter(Boolean).join(" ") || "Twój trener";
+        void sendPushToUserAndRecord(
+          session.clientId,
+          `${name} skomentował(a) Twój trening`,
+          chatPushPreview(comment),
+          { type: "trainer_comment", sessionId: session.id },
+          "trainer_comment"
+        ).catch((err) => console.error("Failed to push trainer comment:", err));
+      }
+    } catch (error) {
+      console.error("Error saving trainer comment:", error);
+      res.status(500).json({ message: "Nie udało się zapisać komentarza" });
+    }
+  });
+
   // Weekly reports endpoints
   app.post("/api/reports", isAuthenticated, async (req, res) => {
     try {

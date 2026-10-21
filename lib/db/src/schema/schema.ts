@@ -498,6 +498,8 @@ export const workoutSessions = pgTable("workout_sessions", {
   totalExercises: integer("total_exercises").notNull().default(0),
   durationSeconds: integer("duration_seconds"),
   rpe: integer("rpe"), // jak ciężki był trening w skali 1-10 (ocena podopiecznego, opcjonalna)
+  trainerComment: text("trainer_comment"), // komentarz trenera do tego treningu (widzi go podopieczny)
+  trainerCommentedAt: timestamp("trainer_commented_at"),
   completedAt: timestamp("completed_at").defaultNow().notNull(),
   loggedByUserId: varchar("logged_by_user_id").references(() => users.id), // null = zalogowane przez samego podopiecznego; ustawione = trener zalogował wspólny trening
 }, (table) => ({
@@ -1359,6 +1361,8 @@ export const insertWorkoutSessionSchema = createInsertSchema(workoutSessions).om
   clientId: true,
   completedAt: true,
   loggedByUserId: true,
+  trainerComment: true,
+  trainerCommentedAt: true,
 });
 export type InsertWorkoutSession = z.infer<typeof insertWorkoutSessionSchema>;
 export type WorkoutSession = typeof workoutSessions.$inferSelect;

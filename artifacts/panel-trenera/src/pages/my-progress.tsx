@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { TrainerCommentsCard } from "@/components/trainer-comments-card";
 import { Button } from "@/components/ui/button";
 import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -139,6 +140,7 @@ export default function MyProgress() {
         </Alert>
 
         {/* these come from logged workouts, not from reports */}
+        <TrainerCommentsCard />
         <StrengthProgressCard />
         <AchievementsCard />
       </div>
@@ -161,6 +163,8 @@ export default function MyProgress() {
       </Button>
 
       <GoalCard />
+
+      <TrainerCommentsCard />
 
       <StrengthProgressCard />
 

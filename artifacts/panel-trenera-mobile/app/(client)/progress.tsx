@@ -33,6 +33,7 @@ interface WorkoutSessionItem {
   totalExercises: number;
   durationSeconds: number | null;
   completedAt: string;
+  trainerComment?: string | null;
 }
 
 type Colors = ReturnType<typeof useColors>;
@@ -373,6 +374,12 @@ export default function ProgressScreen() {
                   <Text style={[sessionStyles.exercises, { color: colors.mutedForeground }]}>
                     {session.exercisesCompleted}/{session.totalExercises} ćwiczeń ukończonych
                   </Text>
+                  {session.trainerComment ? (
+                    <View style={{ marginTop: 8, padding: 10, borderRadius: 8, backgroundColor: colors.accent }} testID={`trainer-comment-${session.id}`}>
+                      <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: colors.foreground, marginBottom: 2 }}>Komentarz trenera</Text>
+                      <Text style={{ fontSize: 13, color: colors.foreground }}>{session.trainerComment}</Text>
+                    </View>
+                  ) : null}
                 </View>
               );
             })

@@ -340,6 +340,8 @@ export interface IStorage {
 
   // Workout sessions
   createWorkoutSession(clientId: string, data: InsertWorkoutSession, loggedByUserId?: string): Promise<WorkoutSession>;
+  getWorkoutSessionById(id: string): Promise<WorkoutSession | null>;
+  setSessionTrainerComment(id: string, comment: string | null): Promise<WorkoutSession | null>;
   getClientWorkoutSessions(clientId: string): Promise<(WorkoutSession & { workoutName: string | null })[]>;
 
   // Push notification history
@@ -3191,6 +3193,20 @@ export class DatabaseStorage implements IStorage {
     return session;
   }
 
+  async getWorkoutSessionById(id: string): Promise<WorkoutSession | null> {
+    const [row] = await db.select().from(workoutSessions).where(eq(workoutSessions.id, id));
+    return row ?? null;
+  }
+
+  async setSessionTrainerComment(id: string, comment: string | null): Promise<WorkoutSession | null> {
+    const [row] = await db
+      .update(workoutSessions)
+      .set({ trainerComment: comment, trainerCommentedAt: comment ? new Date() : null })
+      .where(eq(workoutSessions.id, id))
+      .returning();
+    return row ?? null;
+  }
+
   async getClientWorkoutSessions(clientId: string): Promise<(WorkoutSession & { workoutName: string | null })[]> {
     const rows = await db
       .select({
@@ -3202,6 +3218,8 @@ export class DatabaseStorage implements IStorage {
         totalExercises: workoutSessions.totalExercises,
         durationSeconds: workoutSessions.durationSeconds,
         rpe: workoutSessions.rpe,
+        trainerComment: workoutSessions.trainerComment,
+        trainerCommentedAt: workoutSessions.trainerCommentedAt,
         completedAt: workoutSessions.completedAt,
         loggedByUserId: workoutSessions.loggedByUserId,
         workoutName: workouts.name,

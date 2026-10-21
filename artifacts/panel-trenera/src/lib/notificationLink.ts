@@ -7,6 +7,7 @@ const CLIENT_LINKS: Record<string, string> = {
   session_cancelled: "/",
   session_reminder: "/",
   report_reminder: "/weekly-report",
+  trainer_comment: "/my-progress",
   review_request: "/my-trainer",
   new_message: "/chat",
   payment: "/payment-schedule",

@@ -363,6 +363,40 @@ test("a finished workout can carry a 1-10 difficulty rating that the trainer see
   assert.ok(seen.some((item) => item.rpe === 8), "the trainer sees the rating");
 });
 
+test("the trainer comments on a finished workout and the client sees and hears about it", async () => {
+  const created = await call(client, "POST", "/api/workout-sessions", { workoutId: state.workoutId, planId: state.planId, exercisesCompleted: 3, totalExercises: 3, durationSeconds: 1200 });
+  assert.equal(created.status, 201);
+  const sessionId = (await created.json()).id;
+  const text = `Dobra robota, dołóż 2,5 kg ${Date.now()}`;
+
+  assert.equal((await call(client, "PUT", `/api/trainer/workout-sessions/${sessionId}/comment`, { comment: "sam sobie" })).status, 403, "clients cannot comment");
+  assert.equal((await call(trainer, "PUT", `/api/trainer/workout-sessions/${sessionId}/comment`, { comment: 5 })).status, 400);
+  assert.equal((await call(trainer, "PUT", `/api/trainer/workout-sessions/${sessionId}/comment`, { comment: "x".repeat(1001) })).status, 400, "capped at 1000 characters");
+  assert.equal((await call(trainer, "PUT", "/api/trainer/workout-sessions/00000000-0000-0000-0000-000000000000/comment", { comment: "x" })).status, 404);
+
+  const saved = await call(trainer, "PUT", `/api/trainer/workout-sessions/${sessionId}/comment`, { comment: `  ${text}  ` });
+  assert.equal(saved.status, 200);
+  assert.equal((await saved.json()).trainerComment, text, "trimmed");
+
+  const mine = await (await call(client, "GET", "/api/workout-sessions")).json();
+  assert.equal(mine.find((item) => item.id === sessionId)?.trainerComment, text, "the client sees it next to the workout");
+  const theirs = await (await call(trainer, "GET", `/api/trainer/clients/${client.id}/workout-sessions`)).json();
+  assert.equal(theirs.find((item) => item.id === sessionId)?.trainerComment, text);
+
+  let heard = false;
+  for (let i = 0; i < 20 && !heard; i += 1) {
+    const feed = await (await call(client, "GET", "/api/notifications/mine?limit=20")).json();
+    heard = feed.notifications.some((item) => item.type === "trainer_comment" && item.body === text);
+    if (!heard) await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.ok(heard, "the client got a notification");
+
+  // an empty comment removes it
+  assert.equal((await call(trainer, "PUT", `/api/trainer/workout-sessions/${sessionId}/comment`, { comment: "" })).status, 200);
+  const cleared = await (await call(client, "GET", "/api/workout-sessions")).json();
+  assert.equal(cleared.find((item) => item.id === sessionId)?.trainerComment, null);
+});
+
 test("notes written next to a set reach the trainer, and only the right trainer", async () => {
   const text = `Kolano pobolewa ${Date.now()}`;
   const logged = await call(client, "POST", `/api/exercises/${state.exerciseId}/log`, { reps: 5, load: "60", setNumber: 21, notes: text });

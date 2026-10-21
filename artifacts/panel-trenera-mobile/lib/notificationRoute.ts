@@ -12,6 +12,7 @@ const ROUTES: Record<NotificationRole, Record<string, string>> = {
     report_reminder: "/(client)/weekly-report",
     review_request: "/(client)/profile",
     new_message: "/(client)/chat",
+    trainer_comment: "/(client)/progress",
   },
   trainer: {
     invitation_accepted: "/(trainer)/clients",

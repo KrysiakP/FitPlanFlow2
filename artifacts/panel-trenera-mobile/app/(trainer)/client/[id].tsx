@@ -24,7 +24,7 @@ import * as Haptics from "expo-haptics";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useColors } from "@/hooks/useColors";
 import { StatsCard } from "@/components/StatsCard";
-import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
+import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from "@/lib/api";
 
 function formatDateLocal(d: Date): string {
   const y = d.getFullYear();
@@ -268,6 +268,7 @@ interface WorkoutSession {
   totalExercises: number;
   durationSeconds: number;
   rpe?: number | null;
+  trainerComment?: string | null;
   completedAt: string;
 }
 
@@ -303,6 +304,8 @@ export default function ClientDetailScreen() {
   const [assignModalVisible, setAssignModalVisible] = useState(false);
   const [remindModalVisible, setRemindModalVisible] = useState(false);
   const [notesModalVisible, setNotesModalVisible] = useState(false);
+  const [commentSession, setCommentSession] = useState<WorkoutSession | null>(null);
+  const [commentText, setCommentText] = useState("");
   const [customMessage, setCustomMessage] = useState("");
   const [notesText, setNotesText] = useState("");
   const [activeTab, setActiveTab] = useState<"plans" | "diet" | "progress" | "reports">("plans");
@@ -482,6 +485,19 @@ export default function ClientDetailScreen() {
     },
     onError: () => {
       Alert.alert("Błąd", "Nie udało się zapisać notatek.");
+    },
+  });
+
+  const commentMutation = useMutation({
+    mutationFn: ({ sessionId, comment }: { sessionId: string; comment: string }) =>
+      apiPut(`/api/trainer/workout-sessions/${sessionId}/comment`, { comment }),
+    onSuccess: () => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ["client-workout-sessions", id] });
+      setCommentSession(null);
+    },
+    onError: () => {
+      Alert.alert("Błąd", "Nie udało się zapisać komentarza.");
     },
   });
 
@@ -1048,6 +1064,19 @@ export default function ClientDetailScreen() {
                       </View>
                     )}
                   </View>
+                  {session.trainerComment ? (
+                    <Text style={{ fontSize: 13, color: colors.foreground, paddingLeft: 24 }}>{session.trainerComment}</Text>
+                  ) : null}
+                  <Pressable
+                    onPress={() => { setCommentSession(session); setCommentText(session.trainerComment ?? ""); }}
+                    accessibilityRole="button"
+                    style={{ paddingLeft: 24, paddingVertical: 4 }}
+                    testID={`button-comment-${session.id}`}
+                  >
+                    <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.primary }}>
+                      {session.trainerComment ? "Edytuj komentarz" : "Skomentuj trening"}
+                    </Text>
+                  </Pressable>
                 </View>
               ))
             )}
@@ -1321,6 +1350,47 @@ export default function ClientDetailScreen() {
               <Text style={styles.remindSendBtnText}>
                 {remindMutation.isPending ? "Wysyłanie…" : "Wyślij przypomnienie"}
               </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={commentSession !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { if (!commentMutation.isPending) setCommentSession(null); }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.modalTitleRow}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Komentarz do treningu</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Zamknij" onPress={() => { if (!commentMutation.isPending) setCommentSession(null); }}>
+                <Ionicons name="close" size={22} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+            <Text style={[styles.remindModalHint, { color: colors.mutedForeground }]}>
+              Podopieczny dostanie powiadomienie i zobaczy komentarz przy tym treningu. Pusty tekst usuwa komentarz.
+            </Text>
+            <TextInput
+              style={[styles.remindInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, minHeight: 100 }]}
+              placeholder="Np. dobra robota, dołóż 2,5 kg"
+              placeholderTextColor={colors.mutedForeground}
+              value={commentText}
+              onChangeText={setCommentText}
+              multiline
+              numberOfLines={4}
+              maxLength={1000}
+              testID="input-session-comment"
+            />
+            <Pressable
+              onPress={() => { if (commentSession && !commentMutation.isPending) commentMutation.mutate({ sessionId: commentSession.id, comment: commentText.trim() }); }}
+              disabled={commentMutation.isPending}
+              style={({ pressed }) => [styles.remindSendBtn, { backgroundColor: colors.primary, opacity: (commentMutation.isPending || pressed) ? 0.75 : 1 }]}
+              testID="button-save-session-comment"
+            >
+              {commentMutation.isPending ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="send-outline" size={16} color="#fff" />}
+              <Text style={styles.remindSendBtnText}>{commentMutation.isPending ? "Zapisywanie…" : "Zapisz komentarz"}</Text>
             </Pressable>
           </View>
         </View>
