@@ -40,7 +40,7 @@ but `localhost`, and they never need production credentials.
 | File                        | Checks                                                                 |
 |-----------------------------|------------------------------------------------------------------------|
 | `smoke-studio.mjs`          | studio registration, invitations, joining, analytics, editing, leaving |
-| `smoke-core.mjs`            | plans, workouts, exercises, assignment, what a client may change       |
+| `smoke-core.mjs`            | plans, workouts, exercises, assignment, what a client may change, session push + reminders (reminders need `CRON_JOB_TOKEN` = the API's value) |
 | `smoke-idor.mjs`            | a second trainer/client cannot reach another pair's plans and data     |
 | `smoke-idor-data.mjs`       | same for payments, diets, reports, chat and sessions                   |
 | `smoke-upload.mjs`          | uploads: allow-list, content check, nothing served as active content   |

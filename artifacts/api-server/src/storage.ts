@@ -332,6 +332,8 @@ export interface IStorage {
 
   // Push notification history
   createPushNotificationHistory(data: InsertPushNotificationHistory): Promise<PushNotificationHistory>;
+  getScheduledSessionsBetween(from: Date, to: Date): Promise<SessionBooking[]>;
+  hasPushNotification(userId: string, type: string, body: string, since: Date): Promise<boolean>;
   getPushNotificationHistoryForUser(userId: string, limit?: number): Promise<PushNotificationHistory[]>;
   markPushNotificationRead(id: string, userId: string): Promise<PushNotificationHistory>;
   markAllPushNotificationsRead(userId: string): Promise<void>;
@@ -3123,6 +3125,36 @@ export class DatabaseStorage implements IStorage {
   async createPushNotificationHistory(data: InsertPushNotificationHistory): Promise<PushNotificationHistory> {
     const [record] = await db.insert(pushNotificationHistory).values(data).returning();
     return record;
+  }
+
+  async getScheduledSessionsBetween(from: Date, to: Date): Promise<SessionBooking[]> {
+    return db
+      .select()
+      .from(sessionBookings)
+      .where(
+        and(
+          eq(sessionBookings.status, "scheduled"),
+          sql`${sessionBookings.clientId} IS NOT NULL`,
+          gte(sessionBookings.scheduledAt, from),
+          lte(sessionBookings.scheduledAt, to),
+        ),
+      );
+  }
+
+  async hasPushNotification(userId: string, type: string, body: string, since: Date): Promise<boolean> {
+    const [row] = await db
+      .select({ id: pushNotificationHistory.id })
+      .from(pushNotificationHistory)
+      .where(
+        and(
+          eq(pushNotificationHistory.userId, userId),
+          eq(pushNotificationHistory.type, type),
+          eq(pushNotificationHistory.body, body),
+          gte(pushNotificationHistory.createdAt, since),
+        ),
+      )
+      .limit(1);
+    return !!row;
   }
 
   async getPushNotificationHistoryForUser(userId: string, limit: number = 50): Promise<PushNotificationHistory[]> {

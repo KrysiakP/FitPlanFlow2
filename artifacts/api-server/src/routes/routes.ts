@@ -60,6 +60,7 @@ import Stripe from "stripe";
 import express from "express";
 import { authRateLimit, lookupRateLimit } from "../app";
 import { checkPaymentNotifications } from "../services/paymentNotifications";
+import { sendSessionReminders } from "../services/sessionReminders";
 import { deleteTestClient } from "../testClientService";
 import { getDemoClient, getDemoTrainingPlans, getDemoWeeklyReports, getDemoDietPlan, getDemoPayments, isDemoId, DEMO_CLIENT_ID } from "../demoDataService";
 
@@ -5764,11 +5765,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Token valid - run payment notification check
       console.log("[CRON] Running payment notifications check...");
       const stats = await checkPaymentNotifications(storage);
+      const sessionReminders = await sendSessionReminders(storage, sendPushToUserAndRecord).catch((err) => {
+        console.error("[CRON] Session reminders failed:", err);
+        return { checked: 0, sent: 0, skipped: 0, errors: 1 };
+      });
       
       res.json({
         success: true,
         timestamp: new Date().toISOString(),
         stats,
+        sessionReminders,
       });
     } catch (error) {
       console.error("[CRON] Error running payment notifications:", error);

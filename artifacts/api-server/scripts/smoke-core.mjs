@@ -6,6 +6,7 @@
 //
 // Accounts must exist with verified e-mail; the client must not have a trainer yet.
 // Start the API with NODE_ENV=test (skips the auth rate limiter).
+// Optional: set CRON_JOB_TOKEN (the API's value) to also test the session reminders.
 // The test cleans up after itself (plan deleted, relationship archived).
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -124,6 +125,31 @@ test("the client is notified when a session is booked or cancelled", async () =>
   assert.ok(await waitFor("Nowy termin treningu"), "client got the booking notification");
   assert.equal((await call(trainer, "DELETE", `/api/sessions/${id}`)).status, 200);
   assert.ok(await waitFor("Trening odwołany"), "client got the cancellation notification");
+});
+
+test("session reminders go out once for sessions starting within 24 hours", { skip: !process.env.CRON_JOB_TOKEN }, async () => {
+  const runCron = async () => {
+    const res = await fetch(`${API_URL}/api/cron/payment-notifications`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.CRON_JOB_TOKEN}` },
+    });
+    assert.equal(res.status, 200);
+    return (await res.json()).sessionReminders;
+  };
+  const created = await call(trainer, "POST", "/api/sessions", {
+    clientId: client.id, scheduledAt: new Date(Date.now() + 5 * 3600000).toISOString(), durationMinutes: 45, location: "Siłownia Testowa",
+  });
+  assert.equal(created.status, 201);
+  const id = (await created.json()).id;
+
+  const first = await runCron();
+  assert.ok(first.sent >= 1, "a reminder was sent");
+  const feed = JSON.stringify(await (await call(client, "GET", "/api/notifications/mine")).json());
+  assert.ok(feed.includes("Trening już wkrótce"));
+  const second = await runCron();
+  assert.equal(second.sent, 0, "no duplicate reminder on a second run");
+  await call(trainer, "DELETE", `/api/sessions/${id}`);
+  assert.equal((await fetch(`${API_URL}/api/cron/payment-notifications`, { method: "POST" })).status, 401, "cron needs its token");
 });
 
 test("cleanup: archive the relationship and delete the plan", async () => {
