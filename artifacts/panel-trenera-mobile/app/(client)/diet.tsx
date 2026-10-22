@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPost, ApiError } from "@/lib/api";
+import { SwapNote } from "@/components/SwapNote";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -554,6 +555,8 @@ export default function DietScreen() {
                       {meal.fat != null && <MacroSmall label="T" value={`${meal.fat}g`} color="#7c3aed" />}
                     </View>
                   )}
+
+                  <SwapNote kind="meal" targetId={meal.id} />
 
                   {/* Eaten intake (expandable) */}
                   {ms.expanded && isTodayTab && (

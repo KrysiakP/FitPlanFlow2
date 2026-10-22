@@ -27,6 +27,7 @@ import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPatch, apiPost } from "@/lib/api";
 import { RecordToast, type PersonalRecordInfo } from "@/components/RecordToast";
 import { RpeModal } from "@/components/RpeModal";
+import { SwapNote } from "@/components/SwapNote";
 import { suggestLoad } from "@/lib/loadSuggestion";
 
 const SESSION_SNAPSHOT_KEY = "training-session-snapshot";
@@ -262,6 +263,7 @@ function ExerciseRow({
               {exercise.description}
             </Text>
           )}
+          <SwapNote kind="exercise" targetId={exercise.id} />
         </View>
       </View>
 

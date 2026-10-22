@@ -10,6 +10,7 @@ import { useColors } from "@/hooks/useColors";
 import { apiGet } from "@/lib/api";
 import { StatsCard } from "@/components/StatsCard";
 import { AttentionList, type AttentionItem } from "@/components/AttentionList";
+import { SwapRequestsList } from "@/components/SwapRequestsList";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 
 type Colors = ReturnType<typeof useColors>;
@@ -166,6 +167,7 @@ export default function TrainerPanelScreen() {
       <OnboardingChecklist steps={onboardingSteps} ready={plansLoaded && invitationsLoaded && !loadingClients} />
 
       <AttentionList items={attention ?? []} />
+      <SwapRequestsList />
 
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Szybki dostęp</Text>
       <View style={styles.quickGrid}>
