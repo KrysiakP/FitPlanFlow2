@@ -1325,6 +1325,24 @@ export const exerciseSwapRequests = pgTable("exercise_swap_requests", {
 }));
 export type ExerciseSwapRequest = typeof exerciseSwapRequests.$inferSelect;
 
+// The same for a meal of the client's diet: the trainer approves a replacement meal for that client only
+export const mealSwapRequests = pgTable("meal_swap_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  trainerId: varchar("trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  mealId: varchar("meal_id").notNull().references(() => dietMeals.id, { onDelete: "cascade" }),
+  reason: varchar("reason", { length: 300 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, approved, rejected
+  replacementName: varchar("replacement_name", { length: 255 }),
+  trainerNote: varchar("trainer_note", { length: 300 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  decidedAt: timestamp("decided_at"),
+}, (table) => ({
+  trainerStatusIdx: index("meal_swap_requests_trainer_status_idx").on(table.trainerId, table.status),
+  clientIdx: index("meal_swap_requests_client_idx").on(table.clientId),
+}));
+export type MealSwapRequest = typeof mealSwapRequests.$inferSelect;
+
 // A trainer's private reminder about a client ("zapytaj o kolano"); the trainer gets a push on the due day
 export const clientReminders = pgTable("client_reminders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

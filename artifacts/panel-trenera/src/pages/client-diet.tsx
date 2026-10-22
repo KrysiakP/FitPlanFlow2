@@ -1,3 +1,4 @@
+import { MealSwap } from "@/components/meal-swap";
 import { useState, useEffect, useMemo } from "react";
 import { ShoppingListDialog } from "@/components/shopping-list-dialog";
 import { MacroCalculatorDialog } from "@/components/macro-calculator-dialog";
@@ -376,6 +377,7 @@ export default function ClientDiet() {
                                         {meal.description}
                                       </p>
                                     )}
+                                    <MealSwap mealId={meal.id} />
                                     {(meal.calories || meal.protein || meal.fat || meal.carbs) && (
                                       <div className="flex gap-3 flex-wrap text-xs" data-testid={`meal-macros-${meal.id}`}>
                                         {meal.calories && (

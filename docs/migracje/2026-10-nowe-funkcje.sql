@@ -107,6 +107,19 @@ CREATE TABLE IF NOT EXISTS "exercise_swap_requests" (
 	"decided_at" timestamp
 );
 
+CREATE TABLE IF NOT EXISTS "meal_swap_requests" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"client_id" varchar NOT NULL,
+	"trainer_id" varchar NOT NULL,
+	"meal_id" varchar NOT NULL,
+	"reason" varchar(300) NOT NULL,
+	"status" varchar(20) DEFAULT 'pending' NOT NULL,
+	"replacement_name" varchar(255),
+	"trainer_note" varchar(300),
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"decided_at" timestamp
+);
+
 -- 2. Nowe kolumny w istniejących tabelach
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "totp_secret" text;
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "totp_enabled" boolean DEFAULT false NOT NULL;
@@ -187,6 +200,18 @@ DO $$ BEGIN
   ALTER TABLE "exercise_swap_requests" ADD CONSTRAINT "exercise_swap_requests_exercise_id_exercises_id_fk" FOREIGN KEY ("exercise_id") REFERENCES "public"."exercises"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+DO $$ BEGIN
+  ALTER TABLE "meal_swap_requests" ADD CONSTRAINT "meal_swap_requests_client_id_users_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE "meal_swap_requests" ADD CONSTRAINT "meal_swap_requests_trainer_id_users_id_fk" FOREIGN KEY ("trainer_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE "meal_swap_requests" ADD CONSTRAINT "meal_swap_requests_meal_id_diet_meals_id_fk" FOREIGN KEY ("meal_id") REFERENCES "public"."diet_meals"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 4. Indeksy
 CREATE UNIQUE INDEX IF NOT EXISTS "client_labels_unique" ON "client_labels" USING btree ("trainer_id","client_id","label");
@@ -208,5 +233,7 @@ CREATE INDEX IF NOT EXISTS "trainer_availability_trainer_idx" ON "trainer_availa
 CREATE INDEX IF NOT EXISTS "gym_exercises_gym_idx" ON "gym_exercises" USING btree ("gym_id");
 CREATE INDEX IF NOT EXISTS "exercise_swap_requests_trainer_status_idx" ON "exercise_swap_requests" USING btree ("trainer_id","status");
 CREATE INDEX IF NOT EXISTS "exercise_swap_requests_client_idx" ON "exercise_swap_requests" USING btree ("client_id");
+CREATE INDEX IF NOT EXISTS "meal_swap_requests_trainer_status_idx" ON "meal_swap_requests" USING btree ("trainer_id","status");
+CREATE INDEX IF NOT EXISTS "meal_swap_requests_client_idx" ON "meal_swap_requests" USING btree ("client_id");
 
 COMMIT;

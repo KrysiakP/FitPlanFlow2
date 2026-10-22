@@ -750,6 +750,48 @@ test("a client asks for a substitute exercise and the trainer answers; the plan 
   assert.equal(planAfter, planBefore, "the shared plan was not touched");
 });
 
+test("a client asks for a substitute meal and the trainer answers, for that client only", async () => {
+  const created = await call(trainer, "POST", "/api/diets/plans", { name: "Dieta do zamiennika", clientId: client.id, mode: "full_plan", targetCalories: 2000, targetProtein: 150, targetFat: 60, targetCarbs: 200, mealsPerDay: 3 });
+  assert.equal(created.status, 201);
+  const planId = (await created.json()).id;
+  try {
+    const meals = await (await call(trainer, "PUT", `/api/diets/plans/${planId}/meals/sync`, { meals: [{ dayOfWeek: 1, orderIndex: 1, name: "Owsianka", calories: 400 }, { dayOfWeek: 1, orderIndex: 2, name: "Kurczak z ryżem", calories: 600 }] })).json();
+    const porridge = meals.find((item) => item.name === "Owsianka");
+
+    assert.equal((await call(client, "POST", "/api/client/meal-swaps", { mealId: porridge.id, reason: "x" })).status, 400, "a reason is required");
+    assert.equal((await call(client, "POST", "/api/client/meal-swaps", { mealId: "00000000-0000-0000-0000-000000000000", reason: "uczulenie na płatki" })).status, 404);
+    assert.equal((await call(trainer, "POST", "/api/client/meal-swaps", { mealId: porridge.id, reason: "uczulenie na płatki" })).status, 403, "clients only");
+
+    const asked = await call(client, "POST", "/api/client/meal-swaps", { mealId: porridge.id, reason: "uczulenie na płatki" });
+    assert.equal(asked.status, 201);
+    const request = await asked.json();
+    assert.equal((await call(client, "POST", "/api/client/meal-swaps", { mealId: porridge.id, reason: "jeszcze raz" })).status, 409, "one open request per meal");
+
+    const inbox = await (await call(trainer, "GET", "/api/trainer/meal-swaps")).json();
+    const row = inbox.find((item) => item.id === request.id);
+    assert.ok(row && row.meal === "Owsianka" && row.clientFirstName, "the trainer sees it with the meal and the client");
+    assert.equal((await call(client, "GET", "/api/trainer/meal-swaps")).status, 403);
+    assert.equal((await call(outsider, "GET", "/api/trainer/meal-swaps")).status, 403);
+
+    const answer = (body) => call(trainer, "PUT", `/api/trainer/meal-swaps/${request.id}`, body);
+    assert.equal((await answer({ decision: "approve" })).status, 400, "an approval names the replacement meal");
+    assert.equal((await call(client, "PUT", `/api/trainer/meal-swaps/${request.id}`, { decision: "approve", replacementName: "sam sobie" })).status, 403);
+    assert.equal((await answer({ decision: "approve", replacementName: "Jajecznica z warzywami", note: "Podobne kalorie" })).status, 200);
+    assert.equal((await answer({ decision: "reject" })).status, 409, "answered once");
+
+    const mine = (await (await call(client, "GET", "/api/client/meal-swaps")).json()).find((item) => item.id === request.id);
+    assert.equal(mine.status, "approved");
+    assert.equal(mine.replacementName, "Jajecznica z warzywami");
+    assert.equal(mine.meal, "Owsianka");
+
+    // the diet itself is unchanged
+    const after = await (await call(trainer, "GET", `/api/diets/plans/${planId}/meals`)).json();
+    assert.deepEqual(after.map((item) => item.name).sort(), ["Kurczak z ryżem", "Owsianka"]);
+  } finally {
+    await call(trainer, "DELETE", `/api/diets/plans/${planId}`);
+  }
+});
+
 test("a client books a free slot from the trainer's weekly windows, once, and within the limits", async () => {
   const everyDay = [1, 2, 3, 4, 5, 6, 7].map((dayOfWeek) => ({ dayOfWeek, startMinute: 9 * 60, endMinute: 21 * 60, slotMinutes: 60 }));
   const booked = [];

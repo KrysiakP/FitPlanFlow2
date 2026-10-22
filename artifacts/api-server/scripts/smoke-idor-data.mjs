@@ -98,6 +98,20 @@ test("diet plans stay with the owning trainer and their client", async () => {
   assert.ok(!JSON.stringify(mine).includes(s.dietId), "trainer 2 sees trainer 1's diet plan");
 });
 
+test("substitute meal requests stay between a client and their own trainer", async () => {
+  const synced = await call(t1, "PUT", `/api/diets/plans/${s.dietId}/meals/sync`, { meals: [{ dayOfWeek: 1, orderIndex: 1, name: "Śniadanie" }] });
+  assert.equal(synced.status, 200);
+  const meal = (await synced.json())[0];
+  await assertDenied("client 2 asks about client 1's meal", call(c2, "POST", "/api/client/meal-swaps", { mealId: meal.id, reason: "podgląd cudzej diety" }));
+  const asked = await call(c1, "POST", "/api/client/meal-swaps", { mealId: meal.id, reason: "nie lubię" });
+  assert.equal(asked.status, 201);
+  const request = await asked.json();
+  assert.equal((await (await call(t2, "GET", "/api/trainer/meal-swaps")).json()).some((item) => item.id === request.id), false, "trainer 2 does not see it");
+  await assertDenied("trainer 2 answers", call(t2, "PUT", `/api/trainer/meal-swaps/${request.id}`, { decision: "reject" }));
+  assert.equal((await (await call(c2, "GET", "/api/client/meal-swaps")).json()).some((item) => item.id === request.id), false);
+  assert.equal((await call(t1, "PUT", `/api/trainer/meal-swaps/${request.id}`, { decision: "reject" })).status, 200);
+});
+
 test("weekly reports are visible only to their client and the client's trainer", async () => {
   const own = await call(c1, "GET", `/api/reports/${s.reportId}`);
   assert.equal(own.status, 200);

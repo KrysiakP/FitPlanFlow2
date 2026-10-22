@@ -4,7 +4,7 @@ Legenda: `[ ]` do zrobienia, `[x]` zrobione, `[Ty]` wymaga właściciela (konta,
 Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 → 2 → 4 → 5 → 9 → 10.
 
 ## 0. Wdrożenie
-1. [Ty] Publikacja API w Replit z zatwierdzeniem zmian w bazie (10 nowych tabel, 11 kolumn, indeksy) albo uruchomienie `docs/migracje/2026-10-nowe-funkcje.sql` w konsoli bazy
+1. [Ty] Publikacja API w Replit z zatwierdzeniem zmian w bazie (11 nowych tabel, 11 kolumn, indeksy) albo uruchomienie `docs/migracje/2026-10-nowe-funkcje.sql` w konsoli bazy
 2. [Ty] Sekret `CRON_JOB_TOKEN` + codzienny harmonogram
 3. [Ty] Nowe buildy EAS iOS/Android
 4. [Ty] Sekrety i ceny Stripe
@@ -34,7 +34,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 24. [~] Szkic raportu tygodniowego: wpisane pola zapisują się lokalnie (web: localStorage, mobile: AsyncStorage), wracają po zamknięciu (do 14 dni), znikają po zapisie raportu; kreatora krok po kroku jeszcze nie ma
 25. [x] Wstępne uzupełnianie raportu: nowy raport zaczyna z obwodami i suplementami z poprzednich (waga, nastrój, sen, zdjęcie zawsze puste); web i mobile
 26. [x] Lista zakupów z jadłospisu (web: sumuje składniki z podanymi ilościami z opisów posiłków, odhaczanie i kopiowanie; pozycje bez ilości pomija; mobile jeszcze nie)
-27. [ ] Zamienniki posiłków (do zatwierdzenia)
+27. [~] Zamienniki posiłków za zgodą trenera (API + web): jak przy ćwiczeniach (poz. 16): klient prosi pod posiłkiem w diecie, trener zatwierdza z posiłkiem zastępczym albo zostawia bez zmian w tej samej karcie „Prośby o zamiennik" na pulpicie; dotyczy tylko tego klienta, dieta się nie zmienia. Nowa tabela `meal_swap_requests`. Aplikacja mobilna: tylko trasy powiadomień. Widok klienta w diecie sprawdzony tylko typami
 28. [x] Sen (godziny na dobę) i woda (litry na dobę) w raporcie tygodniowym: formularz i podsumowanie w web i mobile, widok trenera w web i mobile, API (test w kontroli dostępu raportów)
 29. [x] Kalkulator kalorii i makroskładników (web, strona diety: wzór Mifflina–St Jeora, cel redukcja/utrzymanie/masa, walidacja, adnotacja że to punkt wyjścia; bez zapisu w profilu; mobile jeszcze nie)
 30. [Ty] Widżet ekranu głównego (wymaga natywnego buildu i testu na telefonie)
