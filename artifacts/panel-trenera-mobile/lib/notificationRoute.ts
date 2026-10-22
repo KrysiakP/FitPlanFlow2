@@ -13,6 +13,7 @@ const ROUTES: Record<NotificationRole, Record<string, string>> = {
     review_request: "/(client)/profile",
     new_message: "/(client)/chat",
     trainer_comment: "/(client)/progress",
+    swap_answer: "/(client)/training",
   },
   trainer: {
     invitation_accepted: "/(trainer)/clients",
@@ -25,6 +26,7 @@ const ROUTES: Record<NotificationRole, Record<string, string>> = {
     client_reminder: "/(trainer)/clients",
     new_message: "/(trainer)/chat",
     payment_due: "/(trainer)/payments",
+    swap_request: "/(trainer)/clients",
   },
   gym_owner: {
     weekly_summary: "/(gym)/analytics",

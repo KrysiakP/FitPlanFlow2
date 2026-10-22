@@ -1306,6 +1306,25 @@ export const gymExercises = pgTable("gym_exercises", {
 export type GymExercise = typeof gymExercises.$inferSelect;
 
 
+// A client asks for a substitute for an exercise of their plan (injury, no equipment); the trainer approves with a
+// replacement or rejects. Approval is per client: the shared plan row is never changed.
+export const exerciseSwapRequests = pgTable("exercise_swap_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  trainerId: varchar("trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  exerciseId: varchar("exercise_id").notNull().references(() => exercises.id, { onDelete: "cascade" }),
+  reason: varchar("reason", { length: 300 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, approved, rejected
+  replacementName: varchar("replacement_name", { length: 255 }),
+  trainerNote: varchar("trainer_note", { length: 300 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  decidedAt: timestamp("decided_at"),
+}, (table) => ({
+  trainerStatusIdx: index("exercise_swap_requests_trainer_status_idx").on(table.trainerId, table.status),
+  clientIdx: index("exercise_swap_requests_client_idx").on(table.clientId),
+}));
+export type ExerciseSwapRequest = typeof exerciseSwapRequests.$inferSelect;
+
 // A trainer's private reminder about a client ("zapytaj o kolano"); the trainer gets a push on the due day
 export const clientReminders = pgTable("client_reminders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

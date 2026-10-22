@@ -145,6 +145,17 @@ test("a client books only from their own trainer's slots", async () => {
   }
 });
 
+test("substitute requests stay between a client and their own trainer", async () => {
+  const asked = await call(c1, "POST", "/api/client/exercise-swaps", { exerciseId: state.exerciseId, reason: "kolano boli" });
+  assert.equal(asked.status, 201);
+  const request = await asked.json();
+  await assertDenied("client 2 asks about client 1's plan", call(c2, "POST", "/api/client/exercise-swaps", { exerciseId: state.exerciseId, reason: "podgląd cudzego planu" }));
+  assert.equal((await (await call(t2, "GET", "/api/trainer/exercise-swaps")).json()).some((item) => item.id === request.id), false, "trainer 2 does not see it");
+  await assertDenied("trainer 2 answers it", call(t2, "PUT", `/api/trainer/exercise-swaps/${request.id}`, { decision: "reject" }));
+  assert.equal((await (await call(c2, "GET", "/api/client/exercise-swaps")).json()).some((item) => item.id === request.id), false, "client 2 does not see it");
+  assert.equal((await call(t1, "PUT", `/api/trainer/exercise-swaps/${request.id}`, { decision: "reject" })).status, 200, "the right trainer can");
+});
+
 test("the attention list never mentions another trainer's clients", async () => {
   const list = await (await call(t2, "GET", "/api/trainer/attention")).json();
   assert.ok(!list.some((item) => item.clientId === c1.id), "trainer 2 sees trainer 1's client");

@@ -23,3 +23,8 @@ test("unknown or missing kinds lead nowhere", () => {
 test("a payment notice leads the trainer to the payment schedule", () => {
   assert.equal(notificationLink("payment_due", "trainer"), "/payment-schedule");
 });
+
+test("substitute exercise requests and answers have their pages", () => {
+  assert.equal(notificationLink("swap_answer", "client"), "/my-plan");
+  assert.equal(notificationLink("swap_request", "trainer"), "/");
+});

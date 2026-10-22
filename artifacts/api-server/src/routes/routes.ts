@@ -93,6 +93,7 @@ import { stripSecrets } from "../lib/publicUser";
 import { requireAdmin } from "../middlewares/requireAdmin";
 import { sendPushToUserAndRecord } from "../services/push";
 import { registerGymRoutes } from "./gym";
+import { registerSwapRoutes } from "./swaps";
 import { canOpenObject } from "../lib/objectAccess";
 import { generateBackupCodes, generateTotpSecret, hashBackupCode, openSecret, otpauthUrl, sealSecret, verifyTotp } from "../lib/totp";
 import { buildExerciseHistory } from "../lib/exerciseHistory";
@@ -6737,6 +6738,7 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
   broadcastMessageFn = broadcastMessage;
 
   registerGymRoutes(app);
+  registerSwapRoutes(app);
 
   // ─────────────────────────────────────────────────────────────────────────
   // DEMO SEED — Apple App Review

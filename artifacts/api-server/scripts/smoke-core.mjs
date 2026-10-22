@@ -690,6 +690,66 @@ test("a chat message notifies the recipient, with the sender and a preview", asy
   assert.ok(preview && preview.body.length <= 100, "a long message is cut for the lock screen");
 });
 
+test("a client asks for a substitute exercise and the trainer answers; the plan itself never changes", async () => {
+  const feed = async (who, title) => {
+    for (let i = 0; i < 20; i += 1) {
+      const list = await (await call(who, "GET", "/api/notifications/mine?limit=100")).json();
+      const found = list.notifications.find((item) => item.title === title);
+      if (found) return found;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return null;
+  };
+  const planBefore = JSON.stringify((await (await call(trainer, "GET", `/api/plans/${state.planId}`)).json()).workouts.map((w) => w.exercises.map((e) => [e.id, e.name])));
+
+  assert.equal((await call(client, "POST", "/api/client/exercise-swaps", { exerciseId: state.exerciseId, reason: "ab" })).status, 400, "a reason is required");
+  assert.equal((await call(client, "POST", "/api/client/exercise-swaps", { exerciseId: "00000000-0000-0000-0000-000000000000", reason: "kolano boli" })).status, 404, "not an exercise of the plan");
+  assert.equal((await call(trainer, "POST", "/api/client/exercise-swaps", { exerciseId: state.exerciseId, reason: "kolano boli" })).status, 403, "clients only");
+
+  const asked = await call(client, "POST", "/api/client/exercise-swaps", { exerciseId: state.exerciseId, reason: "  kolano   boli  " });
+  assert.equal(asked.status, 201);
+  const request = await asked.json();
+  assert.equal(request.reason, "kolano boli");
+  assert.equal(request.status, "pending");
+  assert.equal((await call(client, "POST", "/api/client/exercise-swaps", { exerciseId: state.exerciseId, reason: "jeszcze raz" })).status, 409, "one open request per exercise");
+  assert.ok(await feed(trainer, "Prośba o zamiennik ćwiczenia"), "the trainer is told");
+
+  const inbox = await (await call(trainer, "GET", "/api/trainer/exercise-swaps")).json();
+  const mine = inbox.find((item) => item.id === request.id);
+  assert.ok(mine, "the trainer sees it");
+  assert.ok(mine.clientFirstName, "with the client's name");
+  assert.equal(mine.exercise, "Przysiad");
+  assert.equal((await call(client, "GET", "/api/trainer/exercise-swaps")).status, 403);
+  assert.equal((await call(outsider, "GET", "/api/trainer/exercise-swaps")).status, 403);
+
+  const answer = (id, body) => call(trainer, "PUT", `/api/trainer/exercise-swaps/${id}`, body);
+  assert.equal((await answer(request.id, { decision: "maybe" })).status, 400);
+  assert.equal((await answer(request.id, { decision: "approve" })).status, 400, "an approval names the replacement");
+  assert.equal((await answer(request.id, { decision: "approve", replacementName: "Przysiad na suwnicy", note: "x".repeat(301) })).status, 400, "the note is capped");
+  assert.equal((await call(client, "PUT", `/api/trainer/exercise-swaps/${request.id}`, { decision: "approve", replacementName: "sam sobie" })).status, 403);
+  const approved = await answer(request.id, { decision: "approve", replacementName: "Przysiad na suwnicy", note: "Uważaj na kolano" });
+  assert.equal(approved.status, 200);
+  assert.equal((await answer(request.id, { decision: "reject" })).status, 409, "answered once");
+  assert.ok(await feed(client, "Zamiennik zatwierdzony"), "the client is told");
+
+  const theirs = await (await call(client, "GET", "/api/client/exercise-swaps")).json();
+  const decided = theirs.find((item) => item.id === request.id);
+  assert.equal(decided.status, "approved");
+  assert.equal(decided.replacementName, "Przysiad na suwnicy");
+  assert.equal(decided.trainerNote, "Uważaj na kolano");
+  assert.equal(decided.exercise, "Przysiad");
+
+  // after the answer the client may ask again; a rejection keeps the exercise as it was
+  const again = await (await call(client, "POST", "/api/client/exercise-swaps", { exerciseId: state.exerciseId, reason: "maszyna zajęta" })).json();
+  assert.equal((await answer(again.id, { decision: "reject", note: "Poczekaj chwilę" })).status, 200);
+  assert.equal((await (await call(client, "GET", "/api/client/exercise-swaps")).json()).find((item) => item.id === again.id).status, "rejected");
+  assert.ok(!(await (await call(trainer, "GET", "/api/trainer/exercise-swaps")).json()).some((item) => item.id === request.id), "answered requests leave the inbox");
+  assert.ok((await (await call(trainer, "GET", "/api/trainer/exercise-swaps?status=all")).json()).some((item) => item.id === request.id), "but stay in the full list");
+
+  const planAfter = JSON.stringify((await (await call(trainer, "GET", `/api/plans/${state.planId}`)).json()).workouts.map((w) => w.exercises.map((e) => [e.id, e.name])));
+  assert.equal(planAfter, planBefore, "the shared plan was not touched");
+});
+
 test("a client books a free slot from the trainer's weekly windows, once, and within the limits", async () => {
   const everyDay = [1, 2, 3, 4, 5, 6, 7].map((dayOfWeek) => ({ dayOfWeek, startMinute: 9 * 60, endMinute: 21 * 60, slotMinutes: 60 }));
   const booked = [];

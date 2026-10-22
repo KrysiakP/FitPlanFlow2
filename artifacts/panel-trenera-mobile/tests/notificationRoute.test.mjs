@@ -57,3 +57,8 @@ test("a trainer's comment on a workout opens the client's progress", () => {
 test("a payment notice opens the trainer's payments", () => {
   assert.equal(notificationRoute("payment_due", "trainer"), "/(trainer)/payments");
 });
+
+test("substitute exercise requests and answers lead to the right place", () => {
+  assert.equal(notificationRoute("swap_request", "trainer"), "/(trainer)/clients");
+  assert.equal(notificationRoute("swap_answer", "client"), "/(client)/training");
+});

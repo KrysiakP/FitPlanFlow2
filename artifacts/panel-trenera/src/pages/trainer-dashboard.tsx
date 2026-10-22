@@ -13,6 +13,7 @@ import { AlertCircle } from "lucide-react";
 import { TrainerAttentionCard } from "@/components/trainer-attention-card";
 import { RetentionStats } from "@/components/retention-stats";
 import { ReferralPromoCard } from "@/components/referral-promo-card";
+import { SwapRequestsCard } from "@/components/swap-requests-card";
 
 export default function TrainerDashboard() {
   const { user } = useAuth();
@@ -76,6 +77,8 @@ export default function TrainerDashboard() {
       </div>
 
       <TrainerAttentionCard />
+
+      <SwapRequestsCard />
 
       <ReferralPromoCard />
 

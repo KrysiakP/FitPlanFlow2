@@ -1,3 +1,4 @@
+import { ExerciseSwap } from "@/components/exercise-swap";
 import { useQuery, useQueries, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -233,6 +234,8 @@ function CompactExerciseCard({ exercise, index }: { exercise: Exercise; index: n
             </div>
           </div>
         )}
+
+        <ExerciseSwap exerciseId={exercise.id} />
 
         <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground flex-wrap">
           {exercise.restTime && (

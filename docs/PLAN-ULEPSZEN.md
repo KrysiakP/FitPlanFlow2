@@ -4,7 +4,7 @@ Legenda: `[ ]` do zrobienia, `[x]` zrobione, `[Ty]` wymaga właściciela (konta,
 Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 → 2 → 4 → 5 → 9 → 10.
 
 ## 0. Wdrożenie
-1. [Ty] Publikacja API w Replit z zatwierdzeniem zmian w bazie (9 nowych tabel, 11 kolumn, indeksy) albo uruchomienie `docs/migracje/2026-10-nowe-funkcje.sql` w konsoli bazy
+1. [Ty] Publikacja API w Replit z zatwierdzeniem zmian w bazie (10 nowych tabel, 11 kolumn, indeksy) albo uruchomienie `docs/migracje/2026-10-nowe-funkcje.sql` w konsoli bazy
 2. [Ty] Sekret `CRON_JOB_TOKEN` + codzienny harmonogram
 3. [Ty] Nowe buildy EAS iOS/Android
 4. [Ty] Sekrety i ceny Stripe
@@ -21,7 +21,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 13. [x] Ocena trudności treningu 1-10 (RPE): okno po ukończonym treningu w aplikacji (można pominąć), zapis w sesji (API + test, walidacja 1-10), widoczna dla trenera w web i mobile (od 9 wyróżniona); podsumowanie zbiorcze jeszcze nie
 14. [ ] Trening poza planem (własne ćwiczenia)
 15. [~] Biblioteka ćwiczeń trenera (web): wyszukiwarka (bez względu na wielkość liter i polskie znaki, po nazwie, kategorii i opisie), filtry kategorii i „Tylko z filmem", licznik wyników. Ulubionych jeszcze nie ma
-16. [ ] Zamiennik ćwiczenia za zgodą trenera
+16. [~] Zamiennik ćwiczenia za zgodą trenera (API + web): klient prosi o zamiennik pod ćwiczeniem w planie z krótkim powodem, trener dostaje push i kartę z prośbami na pulpicie, zatwierdza z nazwą ćwiczenia zastępczego (opcjonalna uwaga) albo zostawia bez zmian; klient dostaje push i widzi odpowiedź pod ćwiczeniem. Zamiennik dotyczy tylko tego klienta, wspólny plan i historia serii się nie zmieniają. Nowa tabela `exercise_swap_requests`. Aplikacja mobilna: tylko trasy powiadomień, bez przycisku i widoku odpowiedzi
 17. [ ] Pełnoekranowy tryb treningu
 18. [x] Serie rozgrzewkowe: pole „Seria rozgrzewkowa” w formularzu serii (mobile), zapisywane z flagą i pomijane w rekordach, historii siły i podpowiedziach/wypełnianiu obciążenia (API + test); web nie ma jeszcze takiego pola
 19. [x] Historia ćwiczenia: wykres 1RM (był) + lista serii z ostatnich 6 dni treningowych (nowe, web; API zwraca serie dnia); karta siły widoczna też bez raportów
