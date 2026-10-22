@@ -119,11 +119,13 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 
 
 ## Stan końcowy pętli (22.10.2026)
-Zrobione 52, częściowo 18, do zrobienia 11, wymaga właściciela 11. Pozostałe `[ ]` to pozycje, których nie da się uczciwie dokończyć bez decyzji lub urządzenia:
-- 14, 16, 27 — nowe przepływy (trening poza planem, zamiennik ćwiczenia i posiłku za zgodą trenera): wymagają decyzji o modelu danych i zasadach zatwierdzania;
+Zrobione 52, częściowo 20, do zrobienia 9, wymaga właściciela 11. Pozostałe `[ ]` to pozycje, których nie da się uczciwie dokończyć bez decyzji lub urządzenia:
+- 14 — trening poza planem: wymaga zmiany modelu danych (sesje i serie są powiązane z planem i ćwiczeniem), więc najpierw decyzja, jak to ma działać;
 - 17 — pełnoekranowy tryb treningu: ekran w aplikacji, trzeba go sprawdzić na urządzeniu;
 - 51 — kody rabatowe i saldo bonusów: dotyka rozliczeń i Stripe;
 - 52, 56 — role w studiu i grafik sal: niedookreślone zasady;
-- 73, 74 — testy przeglądarkowe i na symulatorze: potrzebna infrastruktura (przeglądarka/Playwright, zbudowana aplikacja);
+- 73, 74 — testy przeglądarkowe i na symulatorze: potrzebna infrastruktura (Playwright/pobranie przeglądarki, zbudowana aplikacja);
 - 83 — kolejka zapisu offline: ryzykowna bez testów na telefonie;
 - 86 — wersja angielska: duży zakres, najpierw decyzja o języku i zakresie.
+
+Częściowe (`[~]`) to głównie funkcje zrobione w API i na webie, a w aplikacji mobilnej sprawdzone tylko typami i testami logiki: warto je obejrzeć po nowym buildzie EAS.
