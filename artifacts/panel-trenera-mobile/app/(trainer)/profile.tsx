@@ -24,6 +24,7 @@ import { useColors } from "@/hooks/useColors";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 import { ExportDataButton } from "@/components/ExportDataButton";
 import { LogoutEverywhereButton } from "@/components/LogoutEverywhereButton";
+import { DevicesList } from "@/components/DevicesList";
 import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
 
 const APP_VERSION = Constants.expoConfig?.version ?? "";
@@ -381,6 +382,7 @@ export default function TrainerProfileScreen() {
 
       <ExportDataButton />
 
+      <DevicesList />
       <LogoutEverywhereButton />
 
       <DeleteAccountButton />

@@ -78,6 +78,7 @@ import { deadPushTokens, withPushType } from "../lib/expoPush";
 import { accessFromRequest, ACTION_LABELS } from "../lib/accessAudit";
 import { isQuietNow, QUIET_PRESETS, sanitizeQuietHours } from "../lib/quietHours";
 import { chatPushPreview } from "../lib/chatPush";
+import { deviceInfo } from "../lib/deviceLabel";
 import { freeSlots, validateWindows } from "../lib/availability";
 import { proposeProgression } from "../lib/progression";
 import { findPlanTemplate, PLAN_TEMPLATES, planFromTemplate } from "../lib/planTemplates";
@@ -1083,6 +1084,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).json({ message: "Nie udało się zapisać sesji" });
         }
         req.session.userId = user.id;
+        const device = deviceInfo(req.headers["user-agent"]);
+        req.session.signedInAt = new Date().toISOString();
+        req.session.device = device.label;
+        req.session.deviceKind = device.kind;
 
         // Explicitly save session before responding to ensure cookie is set
         req.session.save(async (err) => {
@@ -1095,7 +1100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             const tokenValue = randomUUID();
             const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-            await storage.createMobileToken(user.id, tokenValue, expiresAt);
+            await storage.createMobileToken(user.id, tokenValue, expiresAt, device);
             return res.json({ ...userWithoutPassword, mobileToken: tokenValue });
           } catch (tokenErr) {
             console.error("[LOGIN] Failed to create mobile token:", tokenErr);
@@ -1416,6 +1421,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error signing out everywhere:", error);
       res.status(500).json({ message: "Nie udało się wylogować ze wszystkich urządzeń" });
+    }
+  });
+
+  // The devices this account is signed in on: app logins (mobile tokens) and browser sessions, each with a name and a time
+  app.get("/api/account/devices", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const bearer = req.headers.authorization?.startsWith("Bearer ") ? await storage.getMobileTokenByToken(req.headers.authorization.slice(7)).catch(() => undefined) : undefined;
+      const [apps, browsers] = await Promise.all([
+        storage.listAppDevices(userId),
+        db.execute(sql`select sid, expire, sess->>'device' as device, sess->>'signedInAt' as signed_in_at from sessions
+          where sess->>'userId' = ${userId} and sess->>'deviceKind' = 'browser' and expire > now() order by sess->>'signedInAt' desc nulls last limit 20`),
+      ]);
+      res.json({
+        devices: [
+          ...browsers.rows.map((row: any) => ({
+            id: `web:${row.sid}`,
+            kind: "browser",
+            label: row.device ?? "Przeglądarka",
+            signedInAt: row.signed_in_at ?? null,
+            current: row.sid === req.sessionID,
+          })),
+          ...apps.map((row) => ({
+            id: `app:${row.id}`,
+            kind: "app",
+            label: row.label ?? "Logowanie sprzed aktualizacji",
+            signedInAt: row.createdAt.toISOString(),
+            current: bearer?.id === row.id,
+          })),
+        ],
+      });
+    } catch (error) {
+      console.error("Error listing devices:", error);
+      res.status(500).json({ message: "Nie udało się pobrać listy urządzeń" });
+    }
+  });
+
+  // Signs one device out. Its twin (a hidden session or token that the other kind of login leaves) goes too, so nothing keeps it signed in.
+  app.delete("/api/account/devices/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const id = String(req.params.id);
+      if (id.startsWith("app:")) {
+        if (!(await storage.deleteMobileTokenById(userId, id.slice(4)))) return res.status(404).json({ message: "Nie znaleziono urządzenia" });
+        await db.delete(sessions).where(sql`sess->>'userId' = ${userId} and sess->>'deviceKind' = 'app'`);
+      } else if (id.startsWith("web:")) {
+        const removed = await db.delete(sessions).where(sql`sid = ${id.slice(4)} and sess->>'userId' = ${userId}`).returning({ sid: sessions.sid });
+        if (removed.length === 0) return res.status(404).json({ message: "Nie znaleziono urządzenia" });
+        await storage.deleteBrowserMobileTokens(userId);
+      } else {
+        return res.status(404).json({ message: "Nie znaleziono urządzenia" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error signing a device out:", error);
+      res.status(500).json({ message: "Nie udało się wylogować urządzenia" });
     }
   });
 

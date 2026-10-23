@@ -103,5 +103,8 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 declare module "express-session" {
   interface SessionData {
     userId: string;
+    signedInAt?: string; // ISO time of the login that created this session
+    device?: string; // readable name of the device (lib/deviceLabel)
+    deviceKind?: "browser" | "app";
   }
 }

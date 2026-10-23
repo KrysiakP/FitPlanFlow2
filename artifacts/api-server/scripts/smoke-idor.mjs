@@ -205,6 +205,44 @@ test("exercise logs and workouts belong to the plan's owner and assignee", async
   assert.ok([200, 201].includes(ok.status), `assignee logs a set (got ${ok.status})`);
 });
 
+test("the device list shows this account's logins only, and each can be signed out on its own", async () => {
+  const loginWith = async (email, userAgent) => {
+    const res = await fetch(`${API_URL}/api/login`, { method: "POST", headers: { "Content-Type": "application/json", "User-Agent": userAgent, "X-Forwarded-Proto": "https" }, body: JSON.stringify({ email, password: PASSWORD }) });
+    assert.equal(res.status, 200);
+    const cookie = (res.headers.getSetCookie?.() ?? []).map((value) => value.split(";")[0]).join("; ");
+    return { token: (await res.json()).mobileToken, cookie };
+  };
+  const app = await loginWith(CLIENT2_EMAIL, "okhttp/4.12.0");
+  const browser = await loginWith(CLIENT2_EMAIL, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+  assert.ok(browser.cookie, "the browser login sets a cookie");
+
+  const asApp = (path, method = "GET") => fetch(`${API_URL}${path}`, { method, headers: { Authorization: `Bearer ${app.token}` } });
+  const listed = (await (await asApp("/api/account/devices")).json()).devices;
+  const appRow = listed.find((item) => item.label === "Aplikacja na Androidzie" && item.current);
+  const browserRow = listed.find((item) => item.label === "Chrome, macOS");
+  assert.ok(appRow, "this app login is listed and marked as the current one");
+  assert.ok(browserRow && browserRow.kind === "browser" && browserRow.current === false, "the browser login is listed, not current");
+  assert.equal(listed.filter((item) => item.kind === "browser" && item.label !== "Chrome, macOS").length, 0, "no phantom browser rows from app logins");
+  assert.ok(!JSON.stringify(listed).includes(app.token) && !JSON.stringify(listed).includes(browser.cookie), "no secrets in the list");
+
+  // another account sees none of it and cannot sign these devices out
+  const other = (await (await call(t1, "GET", "/api/account/devices")).json()).devices;
+  assert.ok(!other.some((item) => item.id === appRow.id || item.id === browserRow.id), "trainer 1 does not see client 2's devices");
+  await assertDenied("foreign app device", call(t1, "DELETE", `/api/account/devices/${encodeURIComponent(appRow.id)}`));
+  await assertDenied("foreign browser device", call(t1, "DELETE", `/api/account/devices/${encodeURIComponent(browserRow.id)}`));
+  assert.equal((await fetch(`${API_URL}/api/account/devices`)).status, 401, "needs a login");
+
+  // signing out the browser ends its cookie, and nothing else
+  assert.equal((await asApp(`/api/account/devices/${encodeURIComponent(browserRow.id)}`, "DELETE")).status, 200);
+  assert.equal((await fetch(`${API_URL}/api/auth/user`, { headers: { Cookie: browser.cookie, "X-Forwarded-Proto": "https" } })).status, 401, "the browser is out");
+  assert.equal((await asApp("/api/auth/user")).status, 200, "the app is still in");
+  assert.equal((await asApp(`/api/account/devices/${encodeURIComponent(browserRow.id)}`, "DELETE")).status, 404, "already gone");
+
+  // signing out the app ends its token
+  assert.equal((await asApp(`/api/account/devices/${encodeURIComponent(appRow.id)}`, "DELETE")).status, 200);
+  assert.equal((await asApp("/api/auth/user")).status, 401, "the app is out");
+});
+
 test("signing out everywhere ends every session of that user and nobody else's", async () => {
   const phone = await login(CLIENT2_EMAIL);
   const tablet = await login(CLIENT2_EMAIL);

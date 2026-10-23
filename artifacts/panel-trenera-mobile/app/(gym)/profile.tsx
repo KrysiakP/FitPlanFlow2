@@ -24,6 +24,7 @@ import * as Haptics from "expo-haptics";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 import { ExportDataButton } from "@/components/ExportDataButton";
 import { LogoutEverywhereButton } from "@/components/LogoutEverywhereButton";
+import { DevicesList } from "@/components/DevicesList";
 
 const APP_VERSION = Constants.expoConfig?.version ?? "";
 
@@ -271,6 +272,7 @@ export default function GymProfile() {
 
       <ExportDataButton />
 
+      <DevicesList />
       <LogoutEverywhereButton />
 
       <DeleteAccountButton />

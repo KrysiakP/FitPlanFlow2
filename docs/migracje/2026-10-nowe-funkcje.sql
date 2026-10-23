@@ -130,6 +130,8 @@ ALTER TABLE "weekly_reports" ADD COLUMN IF NOT EXISTS "water_liters" varchar;
 ALTER TABLE "workout_sessions" ADD COLUMN IF NOT EXISTS "rpe" integer;
 ALTER TABLE "workout_sessions" ADD COLUMN IF NOT EXISTS "trainer_comment" text;
 ALTER TABLE "workout_sessions" ADD COLUMN IF NOT EXISTS "trainer_commented_at" timestamp;
+ALTER TABLE "mobile_tokens" ADD COLUMN IF NOT EXISTS "device_label" varchar(120);
+ALTER TABLE "mobile_tokens" ADD COLUMN IF NOT EXISTS "device_kind" varchar(10);
 
 -- 3. Klucze obce nowych tabel
 DO $$ BEGIN

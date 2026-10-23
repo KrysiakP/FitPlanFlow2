@@ -17,6 +17,7 @@ import { Link, useLocation } from "wouter";
 import { PublicHeader } from "@/components/public-header";
 import { useAuth } from "@/hooks/useAuth";
 import { TwoFactorCard } from "@/components/two-factor-card";
+import { DevicesCard } from "@/components/devices-card";
 
 export default function DeleteAccount() {
   const { user, isLoading } = useAuth();
@@ -150,6 +151,8 @@ export default function DeleteAccount() {
                 </div>
 
                 <TwoFactorCard />
+
+                <DevicesCard />
 
                 <div className="rounded-lg border p-4 space-y-3">
                   <p className="text-sm text-muted-foreground">

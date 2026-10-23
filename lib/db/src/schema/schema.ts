@@ -527,6 +527,8 @@ export const mobileTokens = pgTable("mobile_tokens", {
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  deviceLabel: varchar("device_label", { length: 120 }), // np. "Aplikacja na Androidzie"; null = logowanie sprzed listy urządzeń
+  deviceKind: varchar("device_kind", { length: 10 }), // "app" albo "browser" (token z logowania w przeglądarce nie jest używany)
 }, (table) => ({
   userIdx: index("mobile_tokens_user_idx").on(table.userId),
 }));

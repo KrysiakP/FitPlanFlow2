@@ -335,7 +335,10 @@ export interface IStorage {
   getGlobalExercises(muscleGroup?: string, search?: string): Promise<GlobalExercise[]>;
 
   // Mobile authentication tokens
-  createMobileToken(userId: string, token: string, expiresAt: Date): Promise<MobileToken>;
+  createMobileToken(userId: string, token: string, expiresAt: Date, device?: { label: string; kind: string }): Promise<MobileToken>;
+  listAppDevices(userId: string): Promise<{ id: string; label: string | null; createdAt: Date; expiresAt: Date }[]>;
+  deleteMobileTokenById(userId: string, id: string): Promise<boolean>;
+  deleteBrowserMobileTokens(userId: string): Promise<void>;
   getMobileTokenByToken(token: string): Promise<MobileToken | undefined>;
   deleteMobileToken(token: string): Promise<void>;
   deleteAllMobileTokensForUser(userId: string): Promise<void>;
@@ -3210,12 +3213,31 @@ export class DatabaseStorage implements IStorage {
     return createHash("sha256").update(token).digest("hex");
   }
 
-  async createMobileToken(userId: string, token: string, expiresAt: Date): Promise<MobileToken> {
+  async createMobileToken(userId: string, token: string, expiresAt: Date, device?: { label: string; kind: string }): Promise<MobileToken> {
     const [record] = await db
       .insert(mobileTokens)
-      .values({ userId, token: this.hashMobileToken(token), expiresAt })
+      .values({ userId, token: this.hashMobileToken(token), expiresAt, deviceLabel: device?.label ?? null, deviceKind: device?.kind ?? null })
       .returning();
     return record;
+  }
+
+  // The app logins of a user (a token made by a browser login is never used, so it is not a device)
+  async listAppDevices(userId: string) {
+    return await db
+      .select({ id: mobileTokens.id, label: mobileTokens.deviceLabel, createdAt: mobileTokens.createdAt, expiresAt: mobileTokens.expiresAt })
+      .from(mobileTokens)
+      .where(and(eq(mobileTokens.userId, userId), gte(mobileTokens.expiresAt, new Date()), or(isNull(mobileTokens.deviceKind), sql`${mobileTokens.deviceKind} <> 'browser'`)))
+      .orderBy(desc(mobileTokens.createdAt))
+      .limit(20); // the newest logins; an account that logs in daily would otherwise list hundreds
+  }
+
+  async deleteMobileTokenById(userId: string, id: string): Promise<boolean> {
+    const removed = await db.delete(mobileTokens).where(and(eq(mobileTokens.id, id), eq(mobileTokens.userId, userId))).returning({ id: mobileTokens.id });
+    return removed.length > 0;
+  }
+
+  async deleteBrowserMobileTokens(userId: string): Promise<void> {
+    await db.delete(mobileTokens).where(and(eq(mobileTokens.userId, userId), eq(mobileTokens.deviceKind, "browser")));
   }
 
   async getMobileTokenByToken(token: string): Promise<MobileToken | undefined> {
