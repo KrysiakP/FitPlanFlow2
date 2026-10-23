@@ -29,11 +29,12 @@ export default function Register() {
 
   const searchParams = new URLSearchParams(window.location.search);
   const refCode = searchParams.get('ref');
+  const invitedEmail = searchParams.get('email') ?? ''; // from the link in a trainer's invitation e-mail
 
   const form = useForm<RegisterFormInput>({
     resolver: zodResolver(registerFormSchema),
     defaultValues: {
-      email: "",
+      email: invitedEmail,
       password: "",
       firstName: "",
       lastName: "",

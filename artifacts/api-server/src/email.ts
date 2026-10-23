@@ -454,6 +454,7 @@ export async function sendClientInvitationEmail({
     const { client, fromEmail } = await getResendClient();
 
     const greeting = clientFirstName ? `Cześć ${clientFirstName}!` : 'Cześć!';
+    const joinUrl = invitationCode ? `${getBaseUrl()}/join?code=${encodeURIComponent(invitationCode)}` : null;
 
     const result = await client.emails.send({
       from: fromEmail,
@@ -491,6 +492,7 @@ export async function sendClientInvitationEmail({
               <p style="margin: 0; font-size: 32px; font-weight: 800; letter-spacing: 0.25em; color: #0846ab; font-family: 'Courier New', monospace;">${invitationCode}</p>
               <p style="margin: 12px 0 0 0; color: #475569; font-size: 12px;">Wpisz ten kod podczas rejestracji, aby automatycznie dołączyć do swojego trenera.</p>
               <p style="margin: 4px 0 0 0; color: #64748b; font-size: 12px;">Rejestracja musi być dokonana na adres: <strong>${email}</strong></p>
+              <p style="margin: 12px 0 0 0; font-size: 13px;"><a href="${joinUrl}" style="color: #0846ab;">Otwórz zaproszenie w przeglądarce</a></p>
             </div>
             ` : `<p>Pobierz aplikację i zarejestruj się przy użyciu adresu e-mail <strong>${email}</strong> — Twój trener połączy się z Tobą automatycznie.</p>`}
 
@@ -535,7 +537,7 @@ ${greeting}
 
 Twój trener ${escapeHtml(trainerName)} zaprasza Cię do korzystania z aplikacji Panel Trenera.
 
-${invitationCode ? `Twój kod zaproszenia: ${invitationCode}\nWpisz go podczas rejestracji w aplikacji. Rejestracja musi być dokonana na adres: ${email}` : `Pobierz aplikację i zarejestruj się przy użyciu adresu e-mail ${email} — Twój trener połączy się z Tobą automatycznie.`}
+${invitationCode ? `Twój kod zaproszenia: ${invitationCode}\nWpisz go podczas rejestracji w aplikacji albo otwórz zaproszenie w przeglądarce: ${joinUrl}\nRejestracja musi być dokonana na adres: ${email}` : `Pobierz aplikację i zarejestruj się przy użyciu adresu e-mail ${email} — Twój trener połączy się z Tobą automatycznie.`}
 
 iPhone / iPad (App Store):
 ${iosUrl}

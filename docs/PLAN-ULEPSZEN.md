@@ -113,7 +113,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 87. [x] Zamiast osobnej strony: karty funkcji na stronie głównej (strona `dla-trenera` usunięta jako zbędna)
 88. [x] Blog dla trenerów: `/blog` i 3 artykuły (`/blog/...`) z tytułem, opisem i danymi strukturalnymi Article, wpisy w sitemap, link w stopce, przycisk zakładania konta; testy sprawdzają unikalność adresów, długość opisów i wpisy w sitemap. [Ty] Warto przejrzeć treść artykułów pod własny głos marki i dopisać kolejne
 89. [Ty] Wejście na sklepy (konta deweloperskie, zrzuty ekranu)
-90. [~] Zaproszenie linkiem z podglądem: zrobione dla zaproszeń trenerów do studia (patrz 57); zaproszenia podopiecznych (e-mail z kodem) mają już podgląd trenera w `/api/invitations/lookup`, ale bez osobnej strony z przyciskiem
+90. [x] Zaproszenie linkiem z podglądem: trener do studia (poz. 57) i podopieczny (nowe): e-mail z zaproszeniem ma link „Otwórz zaproszenie w przeglądarce" (`/join?code=…`), strona pokazuje bez logowania, kto zaprasza i na jaki adres, a „Załóż konto" otwiera rejestrację z uzupełnionym adresem; po potwierdzeniu adresu zaproszenie czeka na pulpicie. Wysyłki maila z linkiem nie sprawdzono (brak konfiguracji Resend lokalnie), stronę tak
 91. [x] Program poleceń od pierwszego dnia: karta na pulpicie trenera (web) z przyciskiem „Kopiuj link" i licznikiem zdobytych dni bonusu, link do szczegółów; mobile jeszcze nie
 92. [x] Prośba o opinię po 30 dniach współpracy (cron, raz, tylko jeśli nie ma opinii; można wyłączyć w ustawieniach powiadomień; kliknięcie otwiera profil, gdzie jest ocena)
 
