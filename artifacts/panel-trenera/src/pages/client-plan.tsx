@@ -732,7 +732,7 @@ export default function ClientPlan() {
     return (
       <Card>
         <CardContent className="p-12 text-center">
-          <h3 className="font-heading font-semibold text-xl mb-2">Brak przypisanego planu</h3>
+          <h1 className="font-heading font-semibold text-xl mb-2">Brak przypisanego planu</h1>
           <p className="text-muted-foreground">
             Skontaktuj się z trenerem, aby otrzymać swój plan treningowy
           </p>
@@ -747,6 +747,7 @@ export default function ClientPlan() {
     return (
       <Card>
         <CardContent className="p-12 text-center">
+          <h1 className="font-heading font-semibold text-xl mb-2">{plan.name}</h1>
           <p className="text-muted-foreground">
             Ten plan nie zawiera jeszcze żadnych treningów
           </p>

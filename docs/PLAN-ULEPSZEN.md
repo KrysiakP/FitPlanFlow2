@@ -105,8 +105,8 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 81. [~] Wydajność list: lista podopiecznych i statystyki trenera nie wykonują już zapytań osobno dla każdego podopiecznego/planu (jedno zapytanie zamiast N+1); czat zwraca ostatnie 200 wiadomości (`?limit=`, do 1000) z przyciskiem „Wczytaj starsze" na webie i w aplikacji, bo aplikacja odpytywała cały czat co 5 s; pozostałe listy (serie do wykresów, płatności) bez limitu, bo wykresy i rekordy liczą się z całej historii
 82. [x] Indeksy (raporty, relacje, terminy sesji, historia powiadomień); trafią na produkcję przy publikacji
 83. [ ] Kolejka zapisu offline
-84. [~] Ciemny motyw: własny skrypt kontrastu na stronie głównej znalazł niski kontrast niebieskiego tekstu (2:1); w trybie ciemnym tekst w kolorze marki jest teraz jaśniejszy (~7:1). Przyciski bez zmian. Do sprawdzenia ekrany po zalogowaniu
-85. [~] Dostępność web (+ strona główna ma teraz jeden nagłówek H1, sekcje są H2, logo w nagłówku nie jest już H1): przejrzane główne ekrany trenera własnym skryptem (przyciski bez nazw, pole bez etykiety, brak H1): poprawione motyw, powiadomienia, zaproszenie, wyszukiwarka, nagłówek listy; do sprawdzenia ekrany podopiecznego i kontrasty
+84. [x] Ciemny motyw: własny skrypt kontrastu (z wyłączonymi animacjami) przeszedł 11 ekranów trenera i 11 ekranów klienta po zalogowaniu. Znalezione i naprawione: tekst `text-destructive` miał ok. 2:1 (komunikaty błędów, „Strefa niebezpieczna") i legendy wykresów w kolorze serii (2:1); wcześniej tekst w kolorze marki na stronie głównej. Sprawdzone tylko na webie
+85. [x] Dostępność web: audyt (obrazy bez alt, przyciski i linki bez nazwy, pola bez etykiet, liczba H1) na 14 ekranach trenera i 11 klienta po zalogowaniu. Naprawione: przyciski-ikony „usuń trening/ćwiczenie" w kreatorze planu, przyciski edycji raportu (ok. 20 bez nazwy), pole kodu studia, brak H1 na stronie konta i w pustych stanach planu; wcześniej strona główna (jeden H1). Dwa pola `select` oznaczone przez audyt to ukryte kontrolki biblioteki Radix (aria-hidden), nie błąd
 86. [ ] Wersja angielska (przygotowanie tłumaczeń)
 
 ## 10. Marketing i wzrost

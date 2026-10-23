@@ -430,6 +430,7 @@ export default function PlanForm() {
                         removeWorkout(workoutIndex);
                       }}
                       disabled={form.watch("workouts").length === 1}
+                      aria-label={`Usuń trening ${workoutIndex + 1}`}
                       data-testid={`button-remove-workout-${workoutIndex}`}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -550,6 +551,7 @@ export default function PlanForm() {
                                         size="icon"
                                         onClick={() => removeExercise(workoutIndex, exerciseIndex)}
                                         disabled={form.watch(`workouts.${workoutIndex}.exercises`).length === 1}
+                                        aria-label={`Usuń ćwiczenie ${exerciseIndex + 1} z treningu ${workoutIndex + 1}`}
                                         data-testid={`button-remove-exercise-${workoutIndex}-${exerciseIndex}`}
                                       >
                                         <Trash2 className="w-4 h-4" />

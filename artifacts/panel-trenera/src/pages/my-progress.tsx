@@ -262,7 +262,7 @@ export default function MyProgress() {
                 <XAxis dataKey="date" />
                 <YAxis />
                 <Tooltip />
-                <Legend />
+                <Legend formatter={(value) => <span className="text-foreground">{value}</span>} />
                 <Line 
                   type="monotone" 
                   dataKey="waga" 
@@ -294,7 +294,7 @@ export default function MyProgress() {
                 <XAxis dataKey="date" />
                 <YAxis />
                 <Tooltip />
-                <Legend />
+                <Legend formatter={(value) => <span className="text-foreground">{value}</span>} />
                 {measurementData.some(d => d.klatka) && (
                   <Line 
                     type="monotone" 

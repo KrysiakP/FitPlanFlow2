@@ -769,6 +769,7 @@ export default function WeeklyReport() {
                         variant="outline"
                         size="icon"
                         onClick={() => startEdit(report)}
+                        aria-label={`Edytuj raport z ${new Date(report.reportDate).toLocaleDateString("pl-PL")}`}
                         data-testid={`button-edit-report-${report.id}`}
                       >
                         <Pencil className="w-4 h-4" />

@@ -191,6 +191,7 @@ export function StudioMembershipCard() {
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               maxLength={8}
               placeholder="Kod zaproszenia, np. A1B2C3D4"
+              aria-label="Kod zaproszenia do studia"
               data-testid="input-studio-code"
             />
             <Button type="submit" disabled={code.trim().length !== 8 || joinMutation.isPending} data-testid="button-join-studio">

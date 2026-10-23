@@ -49,7 +49,7 @@ export default function DeleteAccount() {
                 <div className="p-2 rounded-full bg-destructive/10">
                   <Trash2 className="w-6 h-6 text-destructive" />
                 </div>
-                <CardTitle className="text-2xl font-heading">Usuń konto i dane</CardTitle>
+                <h1 className="text-2xl font-heading font-semibold leading-none tracking-tight">Usuń konto i dane</h1>
               </div>
             </CardHeader>
             <CardContent className="space-y-4 py-4">
@@ -112,7 +112,7 @@ export default function DeleteAccount() {
               <div className="p-2 rounded-full bg-destructive/10">
                 <Trash2 className="w-6 h-6 text-destructive" />
               </div>
-              <CardTitle className="text-2xl font-heading">Usuń konto i dane</CardTitle>
+              <h1 className="text-2xl font-heading font-semibold leading-none tracking-tight">Usuń konto i dane</h1>
             </div>
             <p className="text-muted-foreground text-sm mt-2">
               Składasz prośbę o usunięcie konta dla: <strong>{user.email}</strong>

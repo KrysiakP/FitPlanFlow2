@@ -299,3 +299,12 @@ html {
 .dark .hover\:text-primary:hover {
   color: hsl(217 91% 74%);
 }
+
+/* Same for destructive: the dark red is right as a button background but only about 2:1 as text on the dark page
+   (error messages, "danger zone" headings). A lighter red of the same hue is readable (about 7:1). */
+.dark .text-destructive {
+  color: hsl(0 84% 70%);
+}
+.dark .hover\:text-destructive:hover {
+  color: hsl(0 84% 76%);
+}
