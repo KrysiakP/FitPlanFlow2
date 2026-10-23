@@ -668,6 +668,25 @@ test("the client is notified when a session is booked or cancelled", async () =>
   assert.ok(await waitFor("Trening odwołany"), "client got the cancellation notification");
 });
 
+test("a conversation is returned as its latest messages, with a limit the apps can raise", async () => {
+  const tag = `limit-${Date.now()}`;
+  for (let index = 1; index <= 5; index += 1) {
+    assert.equal((await call(client, "POST", "/api/chat/messages", { recipientId: trainer.id, body: `${tag} ${index}` })).status, 200);
+  }
+  const read = async (query = "") => (await (await call(trainer, "GET", `/api/chat/messages/${trainer.id}/${client.id}${query}`)).json());
+  const last3 = await read("?limit=3");
+  assert.deepEqual(last3.map((item) => item.body), [`${tag} 3`, `${tag} 4`, `${tag} 5`], "the latest three, oldest first");
+  const last1 = await read("?limit=1");
+  assert.deepEqual(last1.map((item) => item.body), [`${tag} 5`]);
+  assert.ok((await read("?limit=5")).length >= 5, "more on request");
+  for (const bad of ["?limit=abc", "?limit=0", "?limit=-4"]) assert.ok((await read(bad)).some((item) => item.body === `${tag} 5`), `${bad} falls back to the default`);
+  assert.ok((await read("?limit=99999")).length <= 1000, "capped at 1000");
+  assert.ok((await read()).length <= 200, "the default is 200");
+  const all = await read();
+  const times = all.map((item) => new Date(item.createdAt).getTime());
+  assert.deepEqual(times, [...times].sort((a, b) => a - b), "always oldest first");
+});
+
 test("a chat message notifies the recipient, with the sender and a preview", async () => {
   const text = `Pytanie o technikę ${Date.now()}`;
   assert.equal((await call(client, "POST", "/api/chat/messages", { recipientId: trainer.id, body: text })).status, 200);

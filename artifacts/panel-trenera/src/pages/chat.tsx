@@ -4,6 +4,8 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   useConversations,
   useMessages,
+  messageLimit,
+  loadOlderMessages,
   useSendMessage,
   useMarkAsRead,
   useWebSocket,
@@ -214,6 +216,11 @@ export default function ChatPage() {
                 currentUserId={user.id}
                 partnerName={selectedConversation.partnerName}
                 isLoading={messagesLoading}
+                onLoadOlder={
+                  messages.length >= messageLimit(selectedConversation.trainerId, selectedConversation.clientId)
+                    ? () => loadOlderMessages(selectedConversation.trainerId, selectedConversation.clientId)
+                    : undefined
+                }
               />
 
               <div className="shrink-0">

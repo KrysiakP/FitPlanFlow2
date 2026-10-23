@@ -31,10 +31,24 @@ export function useConversations() {
   });
 }
 
+// A conversation loads its latest messages; "load older" raises the limit for that conversation (the query key stays the same,
+// because the optimistic updates below address it exactly)
+const MESSAGE_PAGE = 200;
+const messageLimits = new Map<string, number>();
+export const messageLimit = (trainerId: string | null, clientId: string | null) => messageLimits.get(`${trainerId}:${clientId}`) ?? MESSAGE_PAGE;
+
+export function useLoadOlderMessages() {
+  const qc = useQueryClient();
+  return (trainerId: string | null, clientId: string | null) => {
+    messageLimits.set(`${trainerId}:${clientId}`, messageLimit(trainerId, clientId) + MESSAGE_PAGE);
+    return qc.invalidateQueries({ queryKey: ["chat-messages", trainerId, clientId] });
+  };
+}
+
 export function useMessages(trainerId: string | null, clientId: string | null) {
   return useQuery<ChatMessage[]>({
     queryKey: ["chat-messages", trainerId, clientId],
-    queryFn: () => apiGet<ChatMessage[]>(`/api/chat/messages/${trainerId}/${clientId}`),
+    queryFn: () => apiGet<ChatMessage[]>(`/api/chat/messages/${trainerId}/${clientId}?limit=${messageLimit(trainerId, clientId)}`),
     enabled: !!trainerId && !!clientId,
     refetchInterval: 5_000,
   });

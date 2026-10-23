@@ -24,6 +24,8 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import {
   useConversations,
   useMessages,
+  useLoadOlderMessages,
+  messageLimit,
   useSendMessage,
   useMarkAsRead,
   type Conversation,
@@ -170,6 +172,8 @@ export default function TrainerChatScreen() {
     selected?.clientId ?? null
   );
   const readMarkId = lastReadOwnMessageId(messages, user?.id);
+  const loadOlder = useLoadOlderMessages();
+  const mayHaveOlder = selected ? messages.length >= messageLimit(user?.id ?? null, selected.clientId) : false;
 
   const sendMutation = useSendMessage();
   const markReadMutation = useMarkAsRead();
@@ -274,6 +278,13 @@ export default function TrainerChatScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={[styles.messageList, { paddingBottom: insets.bottom + 16 }]}
             showsVerticalScrollIndicator={false}
+            ListHeaderComponent={
+              mayHaveOlder ? (
+                <Pressable onPress={() => selected && loadOlder(user?.id ?? null, selected.clientId)} accessibilityRole="button" style={{ alignSelf: "center", paddingVertical: 8, paddingHorizontal: 14 }} testID="button-load-older">
+                  <Text style={{ color: colors.primary, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>Wczytaj starsze wiadomości</Text>
+                </Pressable>
+              ) : null
+            }
             renderItem={({ item }) => (
               <MessageBubble message={item} isOwn={item.senderId === user?.id} isRead={item.id === readMarkId} colors={colors} />
             )}

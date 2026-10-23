@@ -289,7 +289,7 @@ export interface IStorage {
     lastMessageAt: Date | null;
     unreadCount: number;
   }>>;
-  getMessages(trainerId: string, clientId: string): Promise<Message[]>;
+  getMessages(trainerId: string, clientId: string, limit?: number): Promise<Message[]>;
   createMessage(data: InsertMessage): Promise<Message>;
   markMessageAsRead(messageId: string): Promise<void>;
   markConversationAsRead(userId: string, partnerId: string): Promise<void>;
@@ -2622,8 +2622,9 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getMessages(trainerId: string, clientId: string): Promise<Message[]> {
-    return await db
+  // The latest `limit` messages of a conversation, oldest first (a chat grows for years and is polled every few seconds)
+  async getMessages(trainerId: string, clientId: string, limit: number = 200): Promise<Message[]> {
+    const latest = await db
       .select()
       .from(messages)
       .where(
@@ -2632,7 +2633,9 @@ export class DatabaseStorage implements IStorage {
           eq(messages.clientId, clientId)
         )
       )
-      .orderBy(asc(messages.createdAt));
+      .orderBy(desc(messages.createdAt))
+      .limit(limit);
+    return latest.reverse();
   }
 
   async createMessage(data: InsertMessage): Promise<Message> {

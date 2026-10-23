@@ -102,7 +102,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 80. [Ty] Kopie zapasowe bazy (dostęp do Replit/hostingu)
 
 ## 9. Wydajność i wygoda
-81. [~] Wydajność list: lista podopiecznych i statystyki trenera nie wykonują już zapytań osobno dla każdego podopiecznego/planu (jedno zapytanie zamiast N+1); właściwa paginacja do dodania przy większej liczbie danych
+81. [~] Wydajność list: lista podopiecznych i statystyki trenera nie wykonują już zapytań osobno dla każdego podopiecznego/planu (jedno zapytanie zamiast N+1); czat zwraca ostatnie 200 wiadomości (`?limit=`, do 1000) z przyciskiem „Wczytaj starsze" na webie i w aplikacji, bo aplikacja odpytywała cały czat co 5 s; pozostałe listy (serie do wykresów, płatności) bez limitu, bo wykresy i rekordy liczą się z całej historii
 82. [x] Indeksy (raporty, relacje, terminy sesji, historia powiadomień); trafią na produkcję przy publikacji
 83. [ ] Kolejka zapisu offline
 84. [~] Ciemny motyw: własny skrypt kontrastu na stronie głównej znalazł niski kontrast niebieskiego tekstu (2:1); w trybie ciemnym tekst w kolorze marki jest teraz jaśniejszy (~7:1). Przyciski bez zmian. Do sprawdzenia ekrany po zalogowaniu

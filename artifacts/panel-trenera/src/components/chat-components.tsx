@@ -116,6 +116,7 @@ interface MessageHistoryProps {
   currentUserId: string;
   partnerName: string;
   isLoading: boolean;
+  onLoadOlder?: () => void; // set when the list may be cut off at the start
 }
 
 export function MessageHistory({
@@ -123,6 +124,7 @@ export function MessageHistory({
   currentUserId,
   partnerName,
   isLoading,
+  onLoadOlder,
 }: MessageHistoryProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -175,6 +177,13 @@ export function MessageHistory({
       className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4"
       data-testid="messages-history"
     >
+      {onLoadOlder && (
+        <div className="flex justify-center">
+          <Button variant="ghost" size="sm" onClick={onLoadOlder} data-testid="button-load-older">
+            Wczytaj starsze wiadomości
+          </Button>
+        </div>
+      )}
       {messages.map((message) => {
         const isOwnMessage = message.senderId === currentUserId;
         const showReceipt = message.id === readMarkId;

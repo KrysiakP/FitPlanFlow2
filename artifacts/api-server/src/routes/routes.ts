@@ -6263,7 +6263,10 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         }
       }
 
-      const messages = await storage.getMessages(trainerId, clientId);
+      // the latest messages only; `?limit=` asks for more (up to 1000), the apps use it for "load older"
+      const asked = parseInt(String(req.query.limit ?? ""), 10);
+      const limit = Number.isFinite(asked) && asked > 0 ? Math.min(asked, 1000) : 200;
+      const messages = await storage.getMessages(trainerId, clientId, limit);
       res.json(messages);
     } catch (error) {
       console.error("Error fetching messages:", error);

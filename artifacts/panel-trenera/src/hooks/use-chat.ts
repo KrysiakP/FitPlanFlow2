@@ -27,9 +27,20 @@ export function useConversations() {
 }
 
 // Hook to fetch messages for a specific conversation
+// A conversation loads its latest messages; "load older" raises the limit for that conversation (the query key stays the same)
+const MESSAGE_PAGE = 200;
+const messageLimits = new Map<string, number>();
+export const messageLimit = (trainerId: string | null, clientId: string | null) => messageLimits.get(`${trainerId}:${clientId}`) ?? MESSAGE_PAGE;
+
+export function loadOlderMessages(trainerId: string | null, clientId: string | null) {
+  messageLimits.set(`${trainerId}:${clientId}`, messageLimit(trainerId, clientId) + MESSAGE_PAGE);
+  return queryClient.invalidateQueries({ queryKey: ["/api/chat/messages", trainerId, clientId] });
+}
+
 export function useMessages(trainerId: string | null, clientId: string | null) {
   return useQuery<Message[]>({
     queryKey: ["/api/chat/messages", trainerId, clientId],
+    queryFn: async () => (await apiRequest("GET", `/api/chat/messages/${trainerId}/${clientId}?limit=${messageLimit(trainerId, clientId)}`)) as Message[],
     enabled: !!trainerId && !!clientId,
     refetchInterval: 8_000,
   });
