@@ -1,4 +1,5 @@
 import session from "express-session";
+import { attachBearerUser } from "./lib/bearerSession";
 import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
 import bcrypt from "bcryptjs";
@@ -87,7 +88,8 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     try {
       const record = await storage.getMobileTokenByToken(token);
       if (record && record.expiresAt > new Date()) {
-        req.session.userId = record.userId;
+        // not stored: a mobile request must not write a session row of its own (see lib/bearerSession)
+        attachBearerUser(req.session, record.userId);
         return next();
       }
     } catch (err) {

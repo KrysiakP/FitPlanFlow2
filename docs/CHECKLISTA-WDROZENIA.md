@@ -58,3 +58,7 @@ Logika webhooka jest przetestowana lokalnie (`pnpm --filter @workspace/api-serve
 
 - Billing dla Studio (dziś „wycena indywidualna", kontakt mailowy).
 - Zdjęcia raportów w chmurze mają widoczność „publiczną" (dostępną po ścieżce dla zalogowanych) — do przeglądu.
+
+
+## Sesje z aplikacji mobilnej (poprawka wydajności)
+Każde żądanie aplikacji z tokenem Bearer zapisywało wcześniej w tabeli `sessions` nowy wiersz (lokalnie 21 065 wierszy przy 1 572 tokenach). Od tej wersji żądania z tokenem nie zostawiają sesji. Stare wiersze wygasną same (do 30 dni). Jeśli tabela `sessions` na produkcji jest duża, po publikacji można ją odchudzić, np. `DELETE FROM sessions WHERE expire < now();` (nie rusza aktywnych sesji).
