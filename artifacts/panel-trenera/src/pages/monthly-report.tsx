@@ -12,13 +12,18 @@ const monthLabel = (month: string) =>
   new Date(`${month}-15T12:00:00`).toLocaleDateString("pl-PL", { month: "long", year: "numeric" });
 const signed = (value: number, unit: string) => `${value > 0 ? "+" : value < 0 ? "−" : ""}${Math.abs(value).toString().replace(".", ",")} ${unit}`;
 
-/** A one-page summary of the month the client can print or save as PDF from the browser. */
-export default function MonthlyReport() {
-  const { user } = useAuth();
-  const { data: reports = [], isLoading: loadingReports } = useQuery<(MonthReport & { id: string })[]>({ queryKey: ["/api/reports"] });
-  const { data: sessions = [], isLoading: loadingSessions } = useQuery<MonthSession[]>({ queryKey: ["/api/workout-sessions"] });
-  const { data: strength = [] } = useQuery<MonthStrengthHistory[]>({ queryKey: ["/api/client/exercise-history"] });
+export interface MonthlyReportViewProps {
+  reports: (MonthReport & { id?: string })[];
+  sessions: MonthSession[];
+  strength: MonthStrengthHistory[];
+  loading: boolean;
+  person: string; // whose month it is, shown on the printed page
+  backHref: string;
+  backLabel: string;
+}
 
+/** A one-page summary of the month that can be printed or saved as PDF from the browser; used for the client and for the trainer. */
+export function MonthlyReportView({ reports, sessions, strength, loading, person, backHref, backLabel }: MonthlyReportViewProps) {
   const months = useMemo(() => monthsWithData(reports, sessions), [reports, sessions]);
   const [chosen, setChosen] = useState<string | null>(null);
   const month = chosen ?? months[0] ?? null;
@@ -41,9 +46,9 @@ export default function MonthlyReport() {
 
       <div className="print-hide space-y-4">
         <Button asChild variant="ghost" size="sm">
-          <Link href="/my-progress">
+          <Link href={backHref}>
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Mój progres
+            {backLabel}
           </Link>
         </Button>
         <h1 className="font-heading font-bold text-4xl">Raport miesięczny</h1>
@@ -63,7 +68,7 @@ export default function MonthlyReport() {
         )}
       </div>
 
-      {!summary && !loadingReports && !loadingSessions && (
+      {!summary && !loading && (
         <Alert>
           <AlertTitle>Brak danych</AlertTitle>
           <AlertDescription>Po pierwszym treningu lub raporcie tygodniowym pojawi się tu podsumowanie miesiąca.</AlertDescription>
@@ -75,7 +80,7 @@ export default function MonthlyReport() {
           <div>
             <h2 className="font-heading font-bold text-2xl capitalize">{monthLabel(summary.month)}</h2>
             <p className="text-sm text-muted-foreground">
-              {user?.firstName} {user?.lastName} · Panel Trenera
+              {person} · Panel Trenera
             </p>
           </div>
 
@@ -143,5 +148,24 @@ export default function MonthlyReport() {
         </div>
       )}
     </div>
+  );
+}
+
+/** The client's own month. */
+export default function MonthlyReport() {
+  const { user } = useAuth();
+  const { data: reports = [], isLoading: loadingReports } = useQuery<(MonthReport & { id: string })[]>({ queryKey: ["/api/reports"] });
+  const { data: sessions = [], isLoading: loadingSessions } = useQuery<MonthSession[]>({ queryKey: ["/api/workout-sessions"] });
+  const { data: strength = [] } = useQuery<MonthStrengthHistory[]>({ queryKey: ["/api/client/exercise-history"] });
+  return (
+    <MonthlyReportView
+      reports={reports}
+      sessions={sessions}
+      strength={strength}
+      loading={loadingReports || loadingSessions}
+      person={`${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim()}
+      backHref="/my-progress"
+      backLabel="Mój progres"
+    />
   );
 }

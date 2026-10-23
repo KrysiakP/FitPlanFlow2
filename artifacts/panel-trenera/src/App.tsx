@@ -40,6 +40,7 @@ import MyProgress from "@/pages/my-progress";
 import StudioJoin from "@/pages/studio-join";
 import Join from "@/pages/join";
 import MonthlyReport from "@/pages/monthly-report";
+import TrainerClientMonthly from "@/pages/trainer-client-monthly";
 import PaymentSchedule from "@/pages/payment-schedule";
 import Pomagamy from "@/pages/pomagamy";
 import Pricing from "@/pages/pricing";
@@ -150,6 +151,7 @@ function Router() {
             <Route path="/exercise-library" component={ExerciseLibrary} />
             <Route path="/clients" component={Clients} />
             <Route path="/trainer/clients/:clientId/progress" component={TrainerClientProgress} />
+            <Route path="/trainer/clients/:clientId/monthly" component={TrainerClientMonthly} />
             <Route path="/trainer/clients/:clientId/diet" component={TrainerClientDietStats} />
             <Route path="/trainer/diets/new" component={DietPlanForm} />
             <Route path="/trainer/diets/:id/edit" component={DietPlanForm} />

@@ -361,6 +361,9 @@ export default function TrainerClientProgress() {
             Śledź postępy swojego podopiecznego w treningu i transformacji
           </p>
         </div>
+        <Button asChild variant="outline" data-testid="link-client-monthly">
+          <Link href={`/trainer/clients/${clientId}/monthly`}>Raport miesięczny</Link>
+        </Button>
       </div>
 
       {!hasAnyData ? (
