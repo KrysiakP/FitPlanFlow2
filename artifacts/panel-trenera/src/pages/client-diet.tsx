@@ -4,7 +4,7 @@ import { ShoppingListDialog } from "@/components/shopping-list-dialog";
 import { MacroCalculatorDialog } from "@/components/macro-calculator-dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { schemaResolver as zodResolver } from "@/lib/formResolver";
 import { z } from "zod";
 import { format, getDay, startOfWeek, addDays } from "date-fns";
 import { pl } from "date-fns/locale";

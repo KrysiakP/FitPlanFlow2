@@ -52,12 +52,13 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: ({ className, ...props }) => (
-          <ChevronLeft className={cn("h-4 w-4", className)} {...props} />
-        ),
-        IconRight: ({ className, ...props }) => (
-          <ChevronRight className={cn("h-4 w-4", className)} {...props} />
-        ),
+        // react-day-picker 9 draws every arrow through one component (the 8.x IconLeft/IconRight no longer exist)
+        Chevron: ({ orientation, className }) =>
+          orientation === "left" ? (
+            <ChevronLeft className={cn("h-4 w-4", className)} />
+          ) : (
+            <ChevronRight className={cn("h-4 w-4", className)} />
+          ),
       }}
       {...props}
     />

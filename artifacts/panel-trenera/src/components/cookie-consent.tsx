@@ -38,6 +38,7 @@ export function CookieConsentBanner() {
       const timer = setTimeout(() => setShowBanner(true), 500);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, []);
 
   const saveConsent = (newConsent: CookieConsent) => {

@@ -33,9 +33,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { schemaResolver as zodResolver } from "@/lib/formResolver";
 import { insertClientPaymentSchema } from "@shared/schema";
-import { z } from "zod";
+import { z } from "zod/v4"; // the shared table schemas are zod 4 ones
 import { useState, useRef } from "react";
 import type { ClientPayment, User } from "@shared/schema";
 import { format } from "date-fns";

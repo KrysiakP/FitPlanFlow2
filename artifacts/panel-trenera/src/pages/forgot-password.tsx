@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { schemaResolver as zodResolver } from "@/lib/formResolver";
 import { apiRequest } from "@/lib/queryClient";
 import { Dumbbell, Mail, ArrowLeft, CheckCircle } from "lucide-react";
 import { useForm } from "react-hook-form";

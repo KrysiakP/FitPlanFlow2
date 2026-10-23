@@ -94,7 +94,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 72. [x] Kontrola przed wypchnięciem: `scripts/check.sh` + hook `scripts/install-hooks.sh` (typy, buildy, testy). [Ty] GitHub Actions: token nie ma zakresu `workflow`; gotowy plik w `docs/ci-github-actions.yml.example`, wystarczy go skopiować do `.github/workflows/ci.yml`
 73. [ ] Testy przeglądarkowe kluczowych ścieżek web
 74. [ ] Testy mobilne na symulatorze
-75. [~] Typy w aplikacji web (80 → 32 błędów)
+75. [x] Typy w aplikacji web: 80 → 0 błędów. Przy okazji wyszło, że formularze oparte na współdzielonych schematach (zod 4) nie pokazywały błędów walidacji, bo resolver z `@hookform/resolvers` 3.x rzucał wyjątek; formularz rejestracji miał dodatkowo schemat, który rzucał przy każdej walidacji. Naprawione własnym resolverem (`lib/formResolver.ts`, zod 3 i 4, testy) i poprawionym schematem rejestracji
 76. [~] Podział `routes.ts`: wydzielone `routes/gym.ts` (studia, ~950 linii), `services/push.ts` (wysyłka powiadomień) i `middlewares/requireAdmin.ts`; `routes.ts` zmalał z 7776 do 6782 linii. Kolejne bloki (płatności, diety, czat, raporty) do wydzielenia tą samą metodą, testy chronią przed błędami
 77. [x] Usunięty nieużywany `dla-trenera.tsx`; telefon i cel na karcie podopiecznego działają z prawdziwych danych
 78. [x] `docs/ARCHITEKTURA.md`

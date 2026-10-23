@@ -6,17 +6,15 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { schemaResolver as zodResolver } from "@/lib/formResolver";
 import { apiRequest } from "@/lib/queryClient";
 import { registerSchema, type RegisterInput } from "@shared/schema";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dumbbell, User, UserCheck, Mail, CheckCircle, Loader2 } from "lucide-react";
-import { z } from "zod";
+import { z } from "zod/v4"; // the shared table schemas are zod 4 ones
 
 const registerFormSchema = registerSchema.extend({
-  acceptTerms: z.literal(true, {
-    errorMap: () => ({ message: "Musisz zaakceptować regulamin" }),
-  }),
+  acceptTerms: z.literal(true, { error: "Musisz zaakceptować regulamin" }),
 });
 
 type RegisterFormInput = z.infer<typeof registerFormSchema>;
@@ -324,7 +322,7 @@ export default function Register() {
                   <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                     <FormControl>
                       <Checkbox
-                        checked={field.value}
+                        checked={field.value === true}
                         onCheckedChange={field.onChange}
                         data-testid="checkbox-accept-terms"
                       />

@@ -40,8 +40,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { schemaResolver as zodResolver } from "@/lib/formResolver";
+import { z } from "zod/v4"; // the shared table schemas are zod 4 ones
 import { useMemo, useState } from "react";
 import { filterLibrary, libraryCategories } from "@/lib/libraryFilter";
 import { StudioExercisesForTrainer } from "@/components/studio-exercises-for-trainer";
@@ -72,7 +72,8 @@ function ExerciseDialog({
   const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(exercise?.id || null);
 
   const form = useForm<ExerciseFormValues>({
-    resolver: zodResolver(insertExerciseLibrarySchema),
+    // the table schema accepts an empty name; the form must not
+    resolver: zodResolver(insertExerciseLibrarySchema.refine((value) => value.name.trim().length > 0, { message: "Nazwa ćwiczenia jest wymagana", path: ["name"] })),
     defaultValues: {
       name: exercise?.name || initialName || "",
       description: exercise?.description || "",
