@@ -5,6 +5,7 @@ import { Plus, Pencil, Trash2, Users, Copy, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Link } from "wouter";
 import { PlanTemplatesDialog } from "@/components/plan-templates-dialog";
+import { SavePlanAsTemplate } from "@/components/save-plan-as-template";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { TrainingPlan, Exercise, Workout } from "@shared/schema";
@@ -213,6 +214,7 @@ export default function TrainingPlans() {
                   <Copy className="w-4 h-4 mr-1 md:mr-2" />
                   Kopiuj
                 </Button>
+                {plan.workouts.length > 0 && <SavePlanAsTemplate planId={plan.id} planName={plan.name} />}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button

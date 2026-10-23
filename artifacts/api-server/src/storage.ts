@@ -91,6 +91,8 @@ import {
   type InsertPushNotificationHistory,
   sessionBookings,
   trainerAvailability,
+  planTemplates,
+  type PlanTemplateRow,
   type SessionBooking,
   type InsertSessionBookingInput,
   trainerReviews,
@@ -195,6 +197,10 @@ export interface IStorage {
   cancelSessionBooking(id: string, trainerId: string): Promise<SessionBooking | null>;
   getClientSessionBooking(id: string, clientId: string): Promise<SessionBooking | null>;
   cancelSessionByClient(id: string, clientId: string): Promise<SessionBooking | null>;
+  listPlanTemplates(trainerId: string): Promise<PlanTemplateRow[]>;
+  getPlanTemplate(id: string, trainerId: string): Promise<PlanTemplateRow | undefined>;
+  createPlanTemplate(trainerId: string, data: { name: string; description: string | null; payload: unknown }): Promise<PlanTemplateRow>;
+  deletePlanTemplate(id: string, trainerId: string): Promise<boolean>;
   getTrainerAvailability(trainerId: string): Promise<{ dayOfWeek: number; startMinute: number; endMinute: number; slotMinutes: number }[]>;
   replaceTrainerAvailability(trainerId: string, windows: { dayOfWeek: number; startMinute: number; endMinute: number; slotMinutes: number }[]): Promise<void>;
   getTrainerScheduledBetween(trainerId: string, from: Date, to: Date): Promise<SessionBooking[]>;
@@ -3222,6 +3228,26 @@ export class DatabaseStorage implements IStorage {
       .values({ userId, token: this.hashMobileToken(token), expiresAt, deviceLabel: device?.label ?? null, deviceKind: device?.kind ?? null })
       .returning();
     return record;
+  }
+
+  // A trainer's own plan templates (always filtered by owner)
+  async listPlanTemplates(trainerId: string) {
+    return await db.select().from(planTemplates).where(eq(planTemplates.trainerId, trainerId)).orderBy(desc(planTemplates.createdAt));
+  }
+
+  async getPlanTemplate(id: string, trainerId: string) {
+    const [row] = await db.select().from(planTemplates).where(and(eq(planTemplates.id, id), eq(planTemplates.trainerId, trainerId)));
+    return row;
+  }
+
+  async createPlanTemplate(trainerId: string, data: { name: string; description: string | null; payload: unknown }) {
+    const [row] = await db.insert(planTemplates).values({ trainerId, name: data.name, description: data.description, payload: data.payload }).returning();
+    return row;
+  }
+
+  async deletePlanTemplate(id: string, trainerId: string) {
+    const removed = await db.delete(planTemplates).where(and(eq(planTemplates.id, id), eq(planTemplates.trainerId, trainerId))).returning({ id: planTemplates.id });
+    return removed.length > 0;
   }
 
   // The app logins of a user (a token made by a browser login is never used, so it is not a device)

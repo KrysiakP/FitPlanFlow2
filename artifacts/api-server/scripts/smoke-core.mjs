@@ -505,6 +505,71 @@ test("a trainer starts a plan from a template and gets a plan of their own", asy
   }
 });
 
+test("a trainer saves a plan as their own template and starts new plans from it", async () => {
+  const exercise = (name, orderIndex) => ({ name, sets: 4, reps: 6, load: "70", restTime: 90, technique: "dropset", orderIndex });
+  const source = await (await call(trainer, "POST", "/api/plans/bulk", {
+    name: "Plan do szablonu",
+    description: "Opis szablonu",
+    workouts: [
+      { name: "Dzień B", orderIndex: 1, exercises: [exercise("Martwy ciąg", 0)] },
+      { name: "Dzień A", orderIndex: 0, exercises: [exercise("Przysiad", 1), exercise("Wyciskanie", 0)] },
+    ],
+  })).json();
+  const made = [source.id];
+  let templateKey;
+  try {
+    assert.equal((await call(client, "POST", `/api/plans/${source.id}/save-as-template`, {})).status, 403, "trainers only");
+    assert.ok((await call(outsider, "POST", `/api/plans/${source.id}/save-as-template`, {})).status >= 400, "not somebody else's plan");
+    assert.equal((await call(trainer, "POST", "/api/plans/nie-ma/save-as-template", {})).status, 404);
+    const saved = await call(trainer, "POST", `/api/plans/${source.id}/save-as-template`, { name: "  Mój szablon  " });
+    assert.equal(saved.status, 201);
+    templateKey = (await saved.json()).key;
+    assert.match(templateKey, /^own:/);
+
+    const list = await (await call(trainer, "GET", "/api/plan-templates")).json();
+    const mine = list.find((item) => item.key === templateKey);
+    assert.ok(mine && mine.own === true && mine.name === "Mój szablon");
+    assert.deepEqual(mine.workouts, [
+      { name: "Dzień A", exercises: ["Wyciskanie", "Przysiad"] },
+      { name: "Dzień B", exercises: ["Martwy ciąg"] },
+    ], "days and exercises are in plan order");
+    assert.equal(list[0].key, templateKey, "own templates come first");
+    assert.ok(list.filter((item) => !item.own).length >= 4, "the ready-made ones stay");
+
+    // the plan can change or disappear, the template keeps what was saved
+    assert.equal((await call(trainer, "DELETE", `/api/plans/${source.id}`)).status < 300, true);
+    made.length = 0;
+
+    const created = await call(trainer, "POST", `/api/plans/from-template/${templateKey}`, {});
+    assert.equal(created.status, 201);
+    const copy = await created.json();
+    made.push(copy.id);
+    const full = await (await call(trainer, "GET", `/api/plans/${copy.id}`)).json();
+    assert.equal(full.name, "Mój szablon");
+    assert.equal(full.workouts.length, 2);
+    const dayA = full.workouts.find((workout) => workout.name === "Dzień A");
+    assert.deepEqual(dayA.exercises.map((e) => e.name), ["Wyciskanie", "Przysiad"]);
+    assert.equal(dayA.exercises[0].load, "70");
+    assert.equal(dayA.exercises[0].technique, "dropset");
+    const renamed = await (await call(trainer, "POST", `/api/plans/from-template/${templateKey}`, { name: "Inna nazwa" })).json();
+    made.push(renamed.id);
+    assert.equal(renamed.name, "Inna nazwa");
+
+    // other accounts can neither use nor delete it
+    assert.ok((await call(outsider, "POST", `/api/plans/from-template/${templateKey}`, {})).status >= 400);
+    assert.ok((await call(outsider, "DELETE", `/api/plan-templates/${templateKey.slice(4)}`)).status >= 400);
+    assert.equal((await call(client, "DELETE", `/api/plan-templates/${templateKey.slice(4)}`)).status, 403);
+    assert.ok((await (await call(trainer, "GET", "/api/plan-templates")).json()).some((item) => item.key === templateKey), "still there");
+  } finally {
+    if (templateKey) {
+      assert.equal((await call(trainer, "DELETE", `/api/plan-templates/${templateKey.slice(4)}`)).status, 200);
+      assert.equal((await call(trainer, "DELETE", `/api/plan-templates/${templateKey.slice(4)}`)).status, 404, "gone");
+      assert.equal((await call(trainer, "POST", `/api/plans/from-template/${templateKey}`, {})).status, 404);
+    }
+    for (const id of made) await call(trainer, "DELETE", `/api/plans/${id}`);
+  }
+});
+
 test("editing a plan keeps the history of what was not removed", async () => {
   const exercise = (name, orderIndex, extra = {}) => ({ name, sets: 3, reps: 5, load: "50", restTime: 60, orderIndex, ...extra });
   const created = await call(trainer, "POST", "/api/plans/bulk", {

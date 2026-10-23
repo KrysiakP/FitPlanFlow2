@@ -120,6 +120,15 @@ CREATE TABLE IF NOT EXISTS "meal_swap_requests" (
 	"decided_at" timestamp
 );
 
+CREATE TABLE IF NOT EXISTS "plan_templates" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"trainer_id" varchar NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+	"name" varchar(200) NOT NULL,
+	"description" text,
+	"payload" jsonb NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+
 -- 2. Nowe kolumny w istniejących tabelach
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "totp_secret" text;
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "totp_enabled" boolean DEFAULT false NOT NULL;
@@ -237,5 +246,6 @@ CREATE INDEX IF NOT EXISTS "exercise_swap_requests_trainer_status_idx" ON "exerc
 CREATE INDEX IF NOT EXISTS "exercise_swap_requests_client_idx" ON "exercise_swap_requests" USING btree ("client_id");
 CREATE INDEX IF NOT EXISTS "meal_swap_requests_trainer_status_idx" ON "meal_swap_requests" USING btree ("trainer_id","status");
 CREATE INDEX IF NOT EXISTS "meal_swap_requests_client_idx" ON "meal_swap_requests" USING btree ("client_id");
+CREATE INDEX IF NOT EXISTS "plan_templates_trainer_idx" ON "plan_templates" USING btree ("trainer_id");
 
 COMMIT;

@@ -1308,6 +1308,19 @@ export const gymExercises = pgTable("gym_exercises", {
 export type GymExercise = typeof gymExercises.$inferSelect;
 
 
+// A trainer's own plan templates: a snapshot of a plan (workouts and exercises as JSON) to start new plans from
+export const planTemplates = pgTable("plan_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  trainerId: varchar("trainer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  payload: jsonb("payload").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  trainerIdx: index("plan_templates_trainer_idx").on(table.trainerId),
+}));
+export type PlanTemplateRow = typeof planTemplates.$inferSelect;
+
 // A client asks for a substitute for an exercise of their plan (injury, no equipment); the trainer approves with a
 // replacement or rejects. Approval is per client: the shared plan row is never changed.
 export const exerciseSwapRequests = pgTable("exercise_swap_requests", {

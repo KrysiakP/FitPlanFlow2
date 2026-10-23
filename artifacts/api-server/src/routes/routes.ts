@@ -82,6 +82,7 @@ import { deviceInfo } from "../lib/deviceLabel";
 import { freeSlots, validateWindows } from "../lib/availability";
 import { proposeProgression } from "../lib/progression";
 import { findPlanTemplate, PLAN_TEMPLATES, planFromTemplate } from "../lib/planTemplates";
+import { snapshotPlan, snapshotSummary, type PlanSnapshot } from "../lib/planSnapshot";
 import { CANCELLATION_NOTICE_HOURS, cancellableUntil, canClientCancel } from "../lib/sessionCancellation";
 import { buildIcs, type IcsEvent } from "../lib/ics";
 import { sanitizeLabels } from "../lib/clientLabels";
@@ -2244,20 +2245,34 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
     }
   });
 
-  // Ready-made plans to start from
+  // Ready-made plans and the trainer's own templates to start from
   app.get("/api/plan-templates", isAuthenticated, async (req, res) => {
     const user = await storage.getUser(req.session.userId!);
     if (user?.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy" });
-    res.json(
-      PLAN_TEMPLATES.map((template) => ({
+    const own = await storage.listPlanTemplates(user.id);
+    res.json([
+      ...own.map((row) => {
+        const snapshot = row.payload as PlanSnapshot;
+        return {
+          key: `own:${row.id}`,
+          own: true,
+          name: row.name,
+          description: row.description,
+          level: null,
+          daysPerWeek: snapshot.workouts.length,
+          workouts: snapshotSummary(snapshot),
+        };
+      }),
+      ...PLAN_TEMPLATES.map((template) => ({
         key: template.key,
+        own: false,
         name: template.name,
         description: template.description,
         level: template.level,
         daysPerWeek: template.daysPerWeek,
         workouts: template.workouts.map((workout) => ({ name: workout.name, exercises: workout.exercises.map((exercise) => exercise.name) })),
       })),
-    );
+    ]);
   });
 
   app.post("/api/plans/from-template/:key", isAuthenticated, async (req, res) => {
@@ -2265,12 +2280,22 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
       const userId = req.session.userId!;
       const user = await storage.getUser(userId);
       if (user?.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy mogą tworzyć plany" });
-      const template = findPlanTemplate(String(req.params.key));
-      if (!template) return res.status(404).json({ message: "Nie ma takiego szablonu" });
+      const key = String(req.params.key);
       const name = typeof req.body?.name === "string" ? req.body.name.slice(0, 200) : undefined;
-      const validationResult = insertPlanWithWorkoutsSchema.safeParse(planFromTemplate(template, name));
+      let payload;
+      if (key.startsWith("own:")) {
+        const row = await storage.getPlanTemplate(key.slice(4), userId);
+        if (!row) return res.status(404).json({ message: "Nie ma takiego szablonu" });
+        const snapshot = row.payload as PlanSnapshot;
+        payload = { ...snapshot, name: (name ?? "").trim() || snapshot.name };
+      } else {
+        const template = findPlanTemplate(key);
+        if (!template) return res.status(404).json({ message: "Nie ma takiego szablonu" });
+        payload = planFromTemplate(template, name);
+      }
+      const validationResult = insertPlanWithWorkoutsSchema.safeParse(payload);
       if (!validationResult.success) {
-        console.error("Plan template does not validate:", template.key, validationResult.error.issues);
+        console.error("Plan template does not validate:", key, validationResult.error.issues);
         return res.status(500).json({ message: "Szablon jest uszkodzony" });
       }
       const plan = await storage.createTrainingPlanWithWorkouts(userId, validationResult.data);
@@ -2279,6 +2304,39 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
       console.error("Error creating plan from template:", error);
       res.status(500).json({ message: "Nie udało się utworzyć planu z szablonu" });
     }
+  });
+
+  // Save an existing plan as the trainer's own template
+  app.post("/api/plans/:id/save-as-template", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy" });
+      const plan = await storage.getTrainingPlan(String(req.params.id));
+      if (!plan) return res.status(404).json({ message: "Nie znaleziono planu" });
+      if (plan.trainerId !== userId) return res.status(403).json({ message: "Brak dostępu" });
+      const existing = await storage.listPlanTemplates(userId);
+      if (existing.length >= 50) return res.status(400).json({ message: "Masz już 50 szablonów — usuń któryś, żeby dodać nowy" });
+      const name = (typeof req.body?.name === "string" ? req.body.name : plan.name).trim().slice(0, 200);
+      if (!name) return res.status(400).json({ message: "Podaj nazwę szablonu" });
+      const planWorkouts = await storage.getWorkoutsByPlanId(plan.id);
+      const withExercises = await Promise.all(planWorkouts.map(async (workout) => ({ ...workout, exercises: await storage.getExercisesByWorkoutId(workout.id) })));
+      const snapshot = snapshotPlan({ name, description: plan.description }, withExercises);
+      if (snapshot.workouts.length === 0) return res.status(400).json({ message: "Plan nie ma jeszcze żadnych dni treningowych" });
+      const row = await storage.createPlanTemplate(userId, { name, description: snapshot.description, payload: snapshot });
+      res.status(201).json({ key: `own:${row.id}`, name: row.name });
+    } catch (error) {
+      console.error("Error saving plan template:", error);
+      res.status(500).json({ message: "Nie udało się zapisać szablonu" });
+    }
+  });
+
+  app.delete("/api/plan-templates/:id", isAuthenticated, async (req, res) => {
+    const user = await storage.getUser(req.session.userId!);
+    if (user?.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy" });
+    const removed = await storage.deletePlanTemplate(String(req.params.id), user.id);
+    if (!removed) return res.status(404).json({ message: "Nie ma takiego szablonu" });
+    res.json({ ok: true });
   });
 
   app.put("/api/plans/:id/bulk", isAuthenticated, async (req, res) => {

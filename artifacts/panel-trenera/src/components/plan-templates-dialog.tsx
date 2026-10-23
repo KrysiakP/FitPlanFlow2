@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { LayoutTemplate } from "lucide-react";
+import { LayoutTemplate, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,10 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface PlanTemplate {
   key: string;
+  own: boolean;
   name: string;
-  description: string;
-  level: string;
+  description: string | null;
+  level: string | null;
   daysPerWeek: number;
   workouts: { name: string; exercises: string[] }[];
 }
@@ -35,6 +36,15 @@ export function PlanTemplatesDialog({ label = "Z szablonu" }: { label?: string }
     onError: () => toast({ title: "Nie udało się utworzyć planu", variant: "destructive" }),
   });
 
+  const remove = useMutation({
+    mutationFn: async (key: string) => apiRequest("DELETE", `/api/plan-templates/${key.replace(/^own:/, "")}`, {}),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/plan-templates"] });
+      toast({ title: "Szablon usunięty", description: "Plany utworzone z tego szablonu zostały bez zmian." });
+    },
+    onError: () => toast({ title: "Nie udało się usunąć szablonu", variant: "destructive" }),
+  });
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -45,8 +55,8 @@ export function PlanTemplatesDialog({ label = "Z szablonu" }: { label?: string }
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Gotowe plany</DialogTitle>
-          <DialogDescription>Wybierz szablon, a dostaniesz własną kopię do edycji. Nic nie zostanie przypisane podopiecznemu, dopóki tego nie zrobisz.</DialogDescription>
+          <DialogTitle>Szablony planów</DialogTitle>
+          <DialogDescription>Wybierz własny lub gotowy szablon, a dostaniesz kopię do edycji. Nic nie zostanie przypisane podopiecznemu, dopóki tego nie zrobisz.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           {templates.map((template) => (
@@ -54,9 +64,9 @@ export function PlanTemplatesDialog({ label = "Z szablonu" }: { label?: string }
               <div className="flex flex-wrap items-center gap-2">
                 <p className="font-heading font-semibold">{template.name}</p>
                 <Badge variant="secondary">{template.daysPerWeek} dni w tygodniu</Badge>
-                <Badge variant="outline">{template.level}</Badge>
+                {template.own ? <Badge>Twój szablon</Badge> : <Badge variant="outline">{template.level}</Badge>}
               </div>
-              <p className="text-sm text-muted-foreground">{template.description}</p>
+              {template.description && <p className="text-sm text-muted-foreground">{template.description}</p>}
               <ul className="text-xs text-muted-foreground space-y-0.5">
                 {template.workouts.map((workout) => (
                   <li key={workout.name}>
@@ -64,9 +74,25 @@ export function PlanTemplatesDialog({ label = "Z szablonu" }: { label?: string }
                   </li>
                 ))}
               </ul>
-              <Button size="sm" onClick={() => create.mutate(template.key)} disabled={create.isPending} data-testid={`button-use-template-${template.key}`}>
-                Użyj tego szablonu
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={() => create.mutate(template.key)} disabled={create.isPending} data-testid={`button-use-template-${template.key}`}>
+                  Użyj tego szablonu
+                </Button>
+                {template.own && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      if (window.confirm(`Usunąć szablon „${template.name}”? Plany z niego utworzone zostaną bez zmian.`)) remove.mutate(template.key);
+                    }}
+                    disabled={remove.isPending}
+                    data-testid={`button-delete-template-${template.key}`}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Usuń szablon
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
         </div>
