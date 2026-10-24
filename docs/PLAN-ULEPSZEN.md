@@ -95,7 +95,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 73. [ ] Testy przeglądarkowe kluczowych ścieżek web
 74. [ ] Testy mobilne na symulatorze
 75. [x] Typy w aplikacji web: 80 → 0 błędów. Przy okazji wyszło, że formularze oparte na współdzielonych schematach (zod 4) nie pokazywały błędów walidacji, bo resolver z `@hookform/resolvers` 3.x rzucał wyjątek; formularz rejestracji miał dodatkowo schemat, który rzucał przy każdej walidacji. Naprawione własnym resolverem (`lib/formResolver.ts`, zod 3 i 4, testy) i poprawionym schematem rejestracji
-76. [~] Podział `routes.ts`: wydzielone `routes/gym.ts` (studia, ~950 linii), `services/push.ts` (wysyłka powiadomień) i `middlewares/requireAdmin.ts`; `routes.ts` zmalał z 7776 do 6782 linii. Kolejne bloki (płatności, diety, czat, raporty) do wydzielenia tą samą metodą, testy chronią przed błędami
+76. [~] Podział `routes.ts`: wydzielone `routes/gym.ts` (studia, ~950 linii), `services/push.ts` (wysyłka powiadomień) i `middlewares/requireAdmin.ts`; `routes.ts` zmalał z 7776 do 6782 linii. raporty tygodniowe (zapis, odczyt, zdjęcia, komentarz trenera, oznaczanie jako przeczytane) przeniesione do `routes/reports.ts` (`routes.ts` ma teraz ok. 6900 linii mimo nowych funkcji). Kolejne bloki (płatności, diety, czat) do wydzielenia tą samą metodą, testy chronią przed błędami
 77. [x] Usunięty nieużywany `dla-trenera.tsx`; telefon i cel na karcie podopiecznego działają z prawdziwych danych
 78. [x] `docs/ARCHITEKTURA.md`
 79. [x] Migracje bazy jako plik: `docs/migracje/2026-10-nowe-funkcje.sql` (7 nowych tabel, 9 kolumn, indeksy, klucze obce; idempotentny, sprawdzony na pustej bazie, dwukrotnie); projekt nadal używa `drizzle-kit push`, plik to ręczna alternatywa
