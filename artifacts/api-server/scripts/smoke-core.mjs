@@ -683,6 +683,47 @@ test("the trainer comments on a finished workout and the client sees and hears a
   assert.equal(cleared.find((item) => item.id === sessionId)?.trainerComment, null);
 });
 
+test("the trainer comments on a weekly report and the client sees and hears about it", async () => {
+  const created = await call(client, "POST", "/api/reports", { reportDate: new Date().toISOString(), weight: "70kg", thoughts: "Test komentarza" });
+  assert.equal(created.status, 200, "the client has a trainer here");
+  const reportId = (await created.json()).id;
+  const text = `Świetna sylwetka, trzymaj tak ${Date.now()}`;
+  const url = `/api/trainer/reports/${reportId}/comment`;
+  try {
+    assert.equal((await call(client, "PUT", url, { comment: "sam sobie" })).status, 403, "clients cannot comment");
+    assert.equal((await call(outsider, "PUT", url, { comment: "x" })).status, 403, "neither can other roles");
+    assert.equal((await call(trainer, "PUT", url, { comment: 5 })).status, 400);
+    assert.equal((await call(trainer, "PUT", url, { comment: "x".repeat(1001) })).status, 400, "capped at 1000 characters");
+    assert.equal((await call(trainer, "PUT", "/api/trainer/reports/00000000-0000-0000-0000-000000000000/comment", { comment: "x" })).status, 404);
+
+    const saved = await call(trainer, "PUT", url, { comment: `  ${text}  ` });
+    assert.equal(saved.status, 200);
+    assert.equal((await saved.json()).trainerComment, text, "trimmed");
+
+    const mine = await (await call(client, "GET", "/api/reports")).json();
+    assert.equal(mine.find((item) => item.id === reportId)?.trainerComment, text, "the client sees it under the report");
+
+    // a client cannot write the comment through their own report
+    assert.equal((await call(client, "PATCH", `/api/reports/${reportId}`, { trainerComment: "podrobione" })).status, 200, "ignored, not a crash");
+    const afterPatch = await (await call(client, "GET", "/api/reports")).json();
+    assert.equal(afterPatch.find((item) => item.id === reportId)?.trainerComment, text, "still the trainer's text");
+
+    let heard = false;
+    for (let i = 0; i < 20 && !heard; i += 1) {
+      const feed = await (await call(client, "GET", "/api/notifications/mine?limit=20")).json();
+      heard = feed.notifications.some((item) => item.type === "report_comment" && item.body === text);
+      if (!heard) await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    assert.ok(heard, "the client got a notification");
+
+    assert.equal((await call(trainer, "PUT", url, { comment: "" })).status, 200, "an empty comment removes it");
+    const cleared = await (await call(client, "GET", "/api/reports")).json();
+    assert.equal(cleared.find((item) => item.id === reportId)?.trainerComment, null);
+  } finally {
+    // there is no API to delete a report; the leftover is harmless (other suites leave reports too)
+  }
+});
+
 test("notes written next to a set reach the trainer, and only the right trainer", async () => {
   const text = `Kolano pobolewa ${Date.now()}`;
   const logged = await call(client, "POST", `/api/exercises/${state.exerciseId}/log`, { reps: 5, load: "60", setNumber: 21, notes: text });

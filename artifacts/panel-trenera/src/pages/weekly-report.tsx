@@ -910,6 +910,13 @@ export default function WeeklyReport() {
                       <p className="text-sm text-muted-foreground" data-testid={`text-report-thoughts-${report.id}`}>{report.thoughts}</p>
                     </div>
                   )}
+
+                  {report.trainerComment && (
+                    <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2" data-testid={`section-trainer-comment-${report.id}`}>
+                      <h4 className="font-heading font-medium text-sm mb-1">Komentarz trenera:</h4>
+                      <p className="text-sm whitespace-pre-wrap" data-testid={`text-trainer-comment-${report.id}`}>{report.trainerComment}</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}

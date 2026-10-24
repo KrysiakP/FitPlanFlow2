@@ -6,6 +6,7 @@ import { notificationLink } from "../src/lib/notificationLink.ts";
 test("client notifications lead to the matching page", () => {
   assert.equal(notificationLink("plan_assigned", "client"), "/my-plan");
   assert.equal(notificationLink("report_reminder", "client"), "/weekly-report");
+  assert.equal(notificationLink("report_comment", "client"), "/weekly-report");
   assert.equal(notificationLink("new_message", "client"), "/chat");
 });
 

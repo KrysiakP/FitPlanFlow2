@@ -4,7 +4,7 @@ Legenda: `[ ]` do zrobienia, `[x]` zrobione, `[Ty]` wymaga właściciela (konta,
 Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 → 2 → 4 → 5 → 9 → 10.
 
 ## 0. Wdrożenie
-1. [Ty] Publikacja API w Replit z zatwierdzeniem zmian w bazie (12 nowych tabel, 12 kolumn, indeksy) albo uruchomienie `docs/migracje/2026-10-nowe-funkcje.sql` w konsoli bazy
+1. [Ty] Publikacja API w Replit z zatwierdzeniem zmian w bazie (12 nowych tabel, 14 kolumn, indeksy) albo uruchomienie `docs/migracje/2026-10-nowe-funkcje.sql` w konsoli bazy
 2. [Ty] Sekret `CRON_JOB_TOKEN` + codzienny harmonogram
 3. [Ty] Nowe buildy EAS iOS/Android
 4. [Ty] Sekrety i ceny Stripe
@@ -44,7 +44,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 32. [x] Gotowe plany: 4 szablony (FBW 3 dni, Push/Pull/Legs, Góra/Dół 4 dni, trening w domu), przycisk „Z szablonu" na liście planów tworzy własną kopię i otwiera ją do edycji (web); własne szablony trenera: przycisk „Szablon" na karcie planu zapisuje migawkę (dni i ćwiczenia, bez powiązań z historią), własne szablony są na górze listy z plakietką, można ich użyć i usunąć (limit 50; tabela `plan_templates`, endpointy `save-as-template`, `from-template/own:<id>`, `DELETE /api/plan-templates/:id`; test dymny + test jednostkowy migawki)
 33. [x] Propozycje progresji dla trenera (web): ćwiczenia wykonane w ostatnim treningu w całości na najcięższym ciężarze (wszystkie serie i powtórzenia) dostają propozycję +2,5 kg (+5 kg od 100 kg); trener zatwierdza przyciskiem „Zastosuj" (zmienia ciężar w planie, także dla innych podopiecznych z tym planem). Nic nie dzieje się samo; w aplikacji trenera jeszcze nie ma
 34. [x] Edycja planu bez gubienia historii: zapis edycji aktualizuje treningi i ćwiczenia w miejscu (dopasowanie po id, awaryjnie po nazwie), usuwa tylko to, co trener faktycznie wyjął z planu. Wcześniej każda edycja kasowała i tworzyła plan od nowa, a razem z nim serie, rekordy, historię siły i ukończone treningi podopiecznych (kaskada). To samo naprawione w jadłospisach: zapis tygodnia posiłków (`PUT /api/diets/plans/:id/meals/sync`) aktualizuje posiłki w miejscu, więc zaznaczone posiłki i zjedzone makra podopiecznego przetrwają edycję diety
-35. [~] Komentarz trenera do ukończonego treningu (do 1000 znaków; push do klienta; web i mobile po obu stronach; kolumny `trainer_comment`, `trainer_commented_at` wymagają migracji); komentarza do zdjęcia jeszcze nie ma
+35. [x] Komentarz trenera do ukończonego treningu (do 1000 znaków; push do klienta; web i mobile po obu stronach; kolumny `trainer_comment`, `trainer_commented_at` wymagają migracji); komentarz do raportu tygodniowego i jego zdjęcia (do 1000 znaków, push `report_comment` do klienta, przycisk „Skomentuj raport i zdjęcie" u trenera na web i w aplikacji, komentarz widoczny pod raportem klienta; kolumny `weekly_reports.trainer_comment`, `trainer_commented_at` wymagają migracji; przy okazji PATCH raportu z samymi polami niedozwolonymi zwraca 200 zamiast 500)
 36. [x] Szablony odpowiedzi w czacie trenera: 5 gotowych (web i mobile, wstawiane do pola wiadomości), w web własne szablony zapisywane w przeglądarce („Zapisz jako szablon”, do 8); zaplanowane wiadomości jeszcze nie
 37. [x] Przypomnienia trenera o podopiecznym z datą (API, push w dniu terminu przez cron, testy, web na karcie podopiecznego; mobile jeszcze nie)
 38. [x] Import podopiecznych z CSV (web, strona zaproszeń: podgląd, raport błędów, limit 100; testy parsera)

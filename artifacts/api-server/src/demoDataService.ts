@@ -228,6 +228,8 @@ export function getDemoWeeklyReports(): (WeeklyReport & { isDemo: true })[] {
       thoughts: null,
       photoUrl: null,
       viewedByTrainer: false,
+      trainerComment: null,
+      trainerCommentedAt: null,
       createdAt: reportDate,
       isDemo: true as const,
     };

@@ -198,6 +198,7 @@ interface WeeklyReport {
   thoughts?: string | null;
   photoUrl?: string | null;
   viewedByTrainer?: boolean | null;
+  trainerComment?: string | null;
   createdAt: string;
 }
 
@@ -306,6 +307,8 @@ export default function ClientDetailScreen() {
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [commentSession, setCommentSession] = useState<WorkoutSession | null>(null);
   const [commentText, setCommentText] = useState("");
+  const [commentReport, setCommentReport] = useState<WeeklyReport | null>(null);
+  const [reportCommentText, setReportCommentText] = useState("");
   const [customMessage, setCustomMessage] = useState("");
   const [notesText, setNotesText] = useState("");
   const [activeTab, setActiveTab] = useState<"plans" | "diet" | "progress" | "reports">("plans");
@@ -495,6 +498,19 @@ export default function ClientDetailScreen() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ["client-workout-sessions", id] });
       setCommentSession(null);
+    },
+    onError: () => {
+      Alert.alert("Błąd", "Nie udało się zapisać komentarza.");
+    },
+  });
+
+  const reportCommentMutation = useMutation({
+    mutationFn: ({ reportId, comment }: { reportId: string; comment: string }) =>
+      apiPut(`/api/trainer/reports/${reportId}/comment`, { comment }),
+    onSuccess: () => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ["client-weekly-reports", id] });
+      setCommentReport(null);
     },
     onError: () => {
       Alert.alert("Błąd", "Nie udało się zapisać komentarza.");
@@ -1140,6 +1156,7 @@ export default function ClientDetailScreen() {
                   report={report}
                   colors={colors}
                   onMarkViewed={() => markViewedMutation.mutate(report.id)}
+                  onComment={() => { setCommentReport(report); setReportCommentText(report.trainerComment ?? ""); }}
                 />
               ))
             )}
@@ -1391,6 +1408,47 @@ export default function ClientDetailScreen() {
             >
               {commentMutation.isPending ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="send-outline" size={16} color="#fff" />}
               <Text style={styles.remindSendBtnText}>{commentMutation.isPending ? "Zapisywanie…" : "Zapisz komentarz"}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={commentReport !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { if (!reportCommentMutation.isPending) setCommentReport(null); }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.modalTitleRow}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Komentarz do raportu</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Zamknij" onPress={() => { if (!reportCommentMutation.isPending) setCommentReport(null); }}>
+                <Ionicons name="close" size={22} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+            <Text style={[styles.remindModalHint, { color: colors.mutedForeground }]}>
+              Podopieczny dostanie powiadomienie i zobaczy komentarz pod raportem i zdjęciem. Pusty tekst usuwa komentarz.
+            </Text>
+            <TextInput
+              style={[styles.remindInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, minHeight: 100 }]}
+              placeholder="Np. sylwetka wygląda świetnie, zadbaj o to samo światło na zdjęciu"
+              placeholderTextColor={colors.mutedForeground}
+              value={reportCommentText}
+              onChangeText={setReportCommentText}
+              multiline
+              numberOfLines={4}
+              maxLength={1000}
+              testID="input-report-comment"
+            />
+            <Pressable
+              onPress={() => { if (commentReport && !reportCommentMutation.isPending) reportCommentMutation.mutate({ reportId: commentReport.id, comment: reportCommentText.trim() }); }}
+              disabled={reportCommentMutation.isPending}
+              style={({ pressed }) => [styles.remindSendBtn, { backgroundColor: colors.primary, opacity: (reportCommentMutation.isPending || pressed) ? 0.75 : 1 }]}
+              testID="button-save-report-comment"
+            >
+              {reportCommentMutation.isPending ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="send-outline" size={16} color="#fff" />}
+              <Text style={styles.remindSendBtnText}>{reportCommentMutation.isPending ? "Zapisywanie…" : "Zapisz komentarz"}</Text>
             </Pressable>
           </View>
         </View>
@@ -1876,10 +1934,12 @@ function TrainerReportCard({
   report,
   colors,
   onMarkViewed,
+  onComment,
 }: {
   report: WeeklyReport;
   colors: ReturnType<typeof useColors>;
   onMarkViewed: () => void;
+  onComment: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [photoLightboxOpen, setPhotoLightboxOpen] = useState(false);
@@ -1989,6 +2049,21 @@ function TrainerReportCard({
               </Pressable>
             </View>
           ) : null}
+          {report.trainerComment ? (
+            <Text style={{ fontSize: 13, color: colors.foreground, marginTop: 8 }} testID={`text-report-comment-${report.id}`}>
+              {report.trainerComment}
+            </Text>
+          ) : null}
+          <Pressable
+            onPress={onComment}
+            style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10, opacity: pressed ? 0.6 : 1 })}
+            testID={`button-report-comment-${report.id}`}
+          >
+            <Ionicons name="chatbubble-outline" size={16} color={colors.primary} />
+            <Text style={{ fontSize: 13, color: colors.primary, fontFamily: "Inter_600SemiBold" }}>
+              {report.trainerComment ? "Edytuj komentarz" : "Skomentuj raport i zdjęcie"}
+            </Text>
+          </Pressable>
         </View>
       )}
 

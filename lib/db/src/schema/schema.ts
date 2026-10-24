@@ -195,6 +195,8 @@ export const weeklyReports = pgTable("weekly_reports", {
   thoughts: text("thoughts"), // ogólne przemyślenia
   photoUrl: text("photo_url"), // zdjęcie raportowe sylwetki
   viewedByTrainer: boolean("viewed_by_trainer").default(false).notNull(), // czy trener widział raport
+  trainerComment: text("trainer_comment"), // komentarz trenera do raportu i zdjęcia
+  trainerCommentedAt: timestamp("trainer_commented_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
   clientCreatedIdx: index("weekly_reports_client_created_idx").on(table.clientId, table.createdAt),
@@ -1042,6 +1044,8 @@ export const insertWeeklyReportSchema = createInsertSchema(weeklyReports).omit({
   id: true,
   clientId: true,
   createdAt: true,
+  trainerComment: true,
+  trainerCommentedAt: true,
 }).extend({
   reportDate: z.coerce.date(),
 });

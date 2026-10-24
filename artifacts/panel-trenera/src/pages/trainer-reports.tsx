@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { ReportComment } from "@/components/report-comment";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -610,6 +611,13 @@ export default function TrainerReports() {
                       </DialogContent>
                     </Dialog>
                   </div>
+                </>
+              )}
+
+              {!(report as { isDemo?: boolean }).isDemo && (
+                <>
+                  <Separator />
+                  <ReportComment reportId={report.id} clientId={selectedClientId ?? ""} comment={report.trainerComment} />
                 </>
               )}
             </CardContent>

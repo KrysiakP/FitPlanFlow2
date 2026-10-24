@@ -75,6 +75,7 @@ interface WeeklyReport {
   photoUrl?: string | null;
   photoOriginalPath?: string | null;
   viewedByTrainer?: boolean | null;
+  trainerComment?: string | null;
   createdAt: string;
 }
 
@@ -881,6 +882,9 @@ function ReportCard({
           )}
           {report.thoughts && (
             <Row icon="chatbubble-outline" label="Przemyślenia" value={report.thoughts} colors={colors} multiline />
+          )}
+          {report.trainerComment && (
+            <Row icon="chatbubbles-outline" label="Komentarz trenera" value={report.trainerComment} colors={colors} multiline />
           )}
           <Text style={[styles.cardCreated, { color: colors.mutedForeground }]}>
             Dodano: {formatShortDate(report.createdAt)}

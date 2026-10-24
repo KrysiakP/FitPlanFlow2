@@ -215,6 +215,7 @@ export interface IStorage {
   updateWeeklyReport(reportId: string, clientIdOrData: string | Partial<InsertWeeklyReport>, data?: Partial<InsertWeeklyReport>): Promise<WeeklyReport>;
   getUnreadReportsCount(trainerId: string): Promise<number>;
   markReportAsViewed(reportId: string): Promise<void>;
+  setReportTrainerComment(reportId: string, comment: string | null): Promise<WeeklyReport | null>;
   
   // Client search - find any client by email
   searchClientByEmail(email: string): Promise<User | undefined>;
@@ -1505,6 +1506,13 @@ export class DatabaseStorage implements IStorage {
       actualData = clientIdOrData;
     }
     
+    // nothing to change (e.g. only fields the client may not set were sent): answer with the report as it is
+    if (Object.keys(actualData).length === 0) {
+      const current = await this.getWeeklyReport(reportId, actualClientId);
+      if (!current) throw new Error("Report not found");
+      return current;
+    }
+
     if (actualClientId) {
       // With ownership check
       const [report] = await db
@@ -1569,6 +1577,15 @@ export class DatabaseStorage implements IStorage {
       );
     
     return result?.count || 0;
+  }
+
+  async setReportTrainerComment(reportId: string, comment: string | null): Promise<WeeklyReport | null> {
+    const [row] = await db
+      .update(weeklyReports)
+      .set({ trainerComment: comment, trainerCommentedAt: comment ? new Date() : null })
+      .where(eq(weeklyReports.id, reportId))
+      .returning();
+    return row ?? null;
   }
 
   async markReportAsViewed(reportId: string): Promise<void> {

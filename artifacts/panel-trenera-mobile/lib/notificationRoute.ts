@@ -13,6 +13,7 @@ const ROUTES: Record<NotificationRole, Record<string, string>> = {
     review_request: "/(client)/profile",
     new_message: "/(client)/chat",
     trainer_comment: "/(client)/progress",
+    report_comment: "/(client)/weekly-report",
     swap_answer: "/(client)/training",
   },
   trainer: {
