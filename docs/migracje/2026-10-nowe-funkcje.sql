@@ -130,6 +130,7 @@ CREATE TABLE IF NOT EXISTS "plan_templates" (
 );
 
 -- 2. Nowe kolumny w istniejących tabelach
+ALTER TABLE "exercise_library" ADD COLUMN IF NOT EXISTS "is_favorite" boolean DEFAULT false NOT NULL;
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "totp_secret" text;
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "totp_enabled" boolean DEFAULT false NOT NULL;
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "totp_backup_codes" text[] DEFAULT '{}'::text[] NOT NULL;

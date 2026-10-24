@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Video, AlertCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Video, AlertCircle, Star } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -444,9 +444,16 @@ export default function ExerciseLibrary() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const [onlyWithVideo, setOnlyWithVideo] = useState(false);
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
   const categories = useMemo(() => libraryCategories(exercises ?? []), [exercises]);
-  const visible = useMemo(() => filterLibrary(exercises ?? [], { query, category, onlyWithVideo }), [exercises, query, category, onlyWithVideo]);
-  const filtering = query.trim() !== "" || category !== null || onlyWithVideo;
+  const visible = useMemo(() => filterLibrary(exercises ?? [], { query, category, onlyWithVideo, onlyFavorites }), [exercises, query, category, onlyWithVideo, onlyFavorites]);
+  const filtering = query.trim() !== "" || category !== null || onlyWithVideo || onlyFavorites;
+
+  const favoriteMutation = useMutation({
+    mutationFn: async ({ id, favorite }: { id: string; favorite: boolean }) => apiRequest("PUT", `/api/exercises/library/${id}/favorite`, { favorite }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/exercises/library"] }),
+    onError: () => toast({ title: "Nie udało się zapisać ulubionego ćwiczenia", variant: "destructive" }),
+  });
 
   const deleteMutation = useMutation({
     mutationFn: async (exerciseId: string) => {
@@ -582,8 +589,12 @@ export default function ExerciseLibrary() {
               <Video className="w-4 h-4 mr-2" />
               Tylko z filmem
             </Button>
+            <Button size="sm" variant={onlyFavorites ? "default" : "outline"} onClick={() => setOnlyFavorites(!onlyFavorites)} data-testid="button-only-favorites">
+              <Star className="w-4 h-4 mr-2" />
+              Ulubione
+            </Button>
             {filtering && (
-              <Button size="sm" variant="ghost" onClick={() => { setQuery(""); setCategory(null); setOnlyWithVideo(false); }} data-testid="button-clear-filters">
+              <Button size="sm" variant="ghost" onClick={() => { setQuery(""); setCategory(null); setOnlyWithVideo(false); setOnlyFavorites(false); }} data-testid="button-clear-filters">
                 Wyczyść filtry
               </Button>
             )}
@@ -601,9 +612,22 @@ export default function ExerciseLibrary() {
           {visible.map((exercise) => (
             <Card key={exercise.id} className="flex flex-col" data-testid={`card-exercise-${exercise.id}`}>
               <CardHeader>
-                <CardTitle className="font-heading" data-testid={`text-exercise-name-${exercise.id}`}>
-                  {exercise.name}
-                </CardTitle>
+                <div className="flex items-start justify-between gap-2">
+                  <CardTitle className="font-heading" data-testid={`text-exercise-name-${exercise.id}`}>
+                    {exercise.name}
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 -mt-1 -mr-2"
+                    aria-pressed={exercise.isFavorite}
+                    aria-label={exercise.isFavorite ? "Usuń z ulubionych" : "Dodaj do ulubionych"}
+                    onClick={() => favoriteMutation.mutate({ id: exercise.id, favorite: !exercise.isFavorite })}
+                    data-testid={`button-favorite-${exercise.id}`}
+                  >
+                    <Star className={exercise.isFavorite ? "w-5 h-5 fill-amber-400 text-amber-500" : "w-5 h-5 text-muted-foreground"} />
+                  </Button>
+                </div>
                 {exercise.description && (
                   <CardDescription className="line-clamp-2">
                     {exercise.description}

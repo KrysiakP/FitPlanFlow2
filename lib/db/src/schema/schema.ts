@@ -116,6 +116,7 @@ export const exerciseLibrary = pgTable("exercise_library", {
   defaultReps: integer("default_reps"),
   defaultLoad: varchar("default_load"), // domyślne obciążenie
   defaultRestTime: integer("default_rest_time"), // w sekundach
+  isFavorite: boolean("is_favorite").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

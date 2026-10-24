@@ -5,12 +5,14 @@ export interface LibraryItem {
   category?: string | null;
   description?: string | null;
   videoUrl?: string | null;
+  isFavorite?: boolean | null;
 }
 
 export interface LibraryFilter {
   query: string;
   category: string | null;
   onlyWithVideo: boolean;
+  onlyFavorites?: boolean;
 }
 
 /** Lower case without diacritics; "ł" does not decompose, so it is mapped by hand. */
@@ -26,13 +28,16 @@ export function fold(text: string): string {
 
 export function filterLibrary<T extends LibraryItem>(items: T[], filter: LibraryFilter): T[] {
   const words = fold(filter.query).split(/\s+/).filter(Boolean);
-  return items.filter((item) => {
+  const matching = items.filter((item) => {
     if (filter.onlyWithVideo && !item.videoUrl) return false;
+    if (filter.onlyFavorites && !item.isFavorite) return false;
     if (filter.category !== null && (item.category ?? "").trim() !== filter.category) return false;
     if (words.length === 0) return true;
     const haystack = fold(`${item.name} ${item.category ?? ""} ${item.description ?? ""}`);
     return words.every((word) => haystack.includes(word));
   });
+  // starred exercises come first; the order inside each group stays as it was
+  return [...matching.filter((item) => item.isFavorite), ...matching.filter((item) => !item.isFavorite)];
 }
 
 /** Distinct, non-empty categories sorted the Polish way. */

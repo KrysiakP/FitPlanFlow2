@@ -2796,6 +2796,24 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
     }
   });
 
+  // Star or unstar an exercise of the trainer's own library
+  app.put("/api/exercises/library/:id/favorite", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      if (user?.role !== "trainer") return res.status(403).json({ message: "Tylko trenerzy" });
+      if (typeof req.body?.favorite !== "boolean") return res.status(400).json({ message: "Podaj favorite: true albo false" });
+      const existing = await storage.getExerciseFromLibrary(String(req.params.id));
+      if (!existing) return res.status(404).json({ message: "Nie znaleziono ćwiczenia" });
+      if (existing.trainerId !== userId) return res.status(403).json({ message: "Brak dostępu" });
+      const updated = await storage.updateExerciseLibrary(existing.id, { isFavorite: req.body.favorite });
+      res.json({ id: updated.id, isFavorite: updated.isFavorite });
+    } catch (error) {
+      console.error("Error setting favorite exercise:", error);
+      res.status(500).json({ message: "Nie udało się zapisać ulubionego ćwiczenia" });
+    }
+  });
+
   app.put("/api/exercises/library/:id", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params as Record<string, string>;

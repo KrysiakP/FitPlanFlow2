@@ -570,6 +570,28 @@ test("a trainer saves a plan as their own template and starts new plans from it"
   }
 });
 
+test("a trainer stars exercises of their own library only", async () => {
+  const created = await (await call(trainer, "POST", "/api/exercises/library", { name: "Ulubione testowe", category: "Test" })).json();
+  try {
+    assert.equal(created.isFavorite, false, "not starred by default");
+    const library = async () => (await (await call(trainer, "GET", "/api/exercises/library")).json()).find((item) => item.id === created.id);
+    assert.equal((await call(trainer, "PUT", `/api/exercises/library/${created.id}/favorite`, { favorite: true })).status, 200);
+    assert.equal((await library()).isFavorite, true);
+    assert.equal((await call(trainer, "PUT", `/api/exercises/library/${created.id}/favorite`, { favorite: "tak" })).status, 400);
+    assert.equal((await call(trainer, "PUT", "/api/exercises/library/nie-ma/favorite", { favorite: true })).status, 404);
+    assert.equal((await call(client, "PUT", `/api/exercises/library/${created.id}/favorite`, { favorite: false })).status, 403);
+    assert.ok((await call(outsider, "PUT", `/api/exercises/library/${created.id}/favorite`, { favorite: false })).status >= 400);
+    assert.equal((await library()).isFavorite, true, "other accounts changed nothing");
+    // editing the exercise from the form keeps the star
+    assert.equal((await call(trainer, "PUT", `/api/exercises/library/${created.id}`, { name: "Ulubione testowe 2" })).status, 200);
+    assert.equal((await library()).isFavorite, true);
+    assert.equal((await call(trainer, "PUT", `/api/exercises/library/${created.id}/favorite`, { favorite: false })).status, 200);
+    assert.equal((await library()).isFavorite, false);
+  } finally {
+    await call(trainer, "DELETE", `/api/exercises/library/${created.id}`);
+  }
+});
+
 test("editing a plan keeps the history of what was not removed", async () => {
   const exercise = (name, orderIndex, extra = {}) => ({ name, sets: 3, reps: 5, load: "50", restTime: 60, orderIndex, ...extra });
   const created = await call(trainer, "POST", "/api/plans/bulk", {

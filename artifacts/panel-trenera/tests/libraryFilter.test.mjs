@@ -43,3 +43,11 @@ test("categories are distinct, non-empty and sorted", () => {
   assert.deepEqual(libraryCategories(items), ["Klatka", "Nogi"]);
   assert.deepEqual(libraryCategories([]), []);
 });
+
+test("starred exercises come first and can be filtered alone", () => {
+  const starred = items.map((item, index) => ({ ...item, isFavorite: index === 2 || index === 3 }));
+  assert.deepEqual(filterLibrary(starred, all).map((item) => item.name), ["Wyciskanie leżąc", "Łydki stojąc", "Martwy ciąg", "Przysiad ze sztangą"]);
+  assert.deepEqual(filterLibrary(starred, { ...all, onlyFavorites: true }).map((item) => item.name), ["Wyciskanie leżąc", "Łydki stojąc"]);
+  assert.deepEqual(filterLibrary(starred, { ...all, onlyFavorites: true, query: "lydki" }).map((item) => item.name), ["Łydki stojąc"]);
+  assert.deepEqual(filterLibrary(items, { ...all, onlyFavorites: true }), [], "nothing starred");
+});
