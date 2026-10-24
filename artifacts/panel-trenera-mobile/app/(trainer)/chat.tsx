@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  Image,
   FlatList,
   Modal,
   Platform,
@@ -16,6 +17,8 @@ import { useLocalSearchParams } from "expo-router";
 import { lastReadOwnMessageId } from "@/lib/readReceipt";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { ChatAttachmentImage } from "@/components/ChatAttachmentImage";
+import { useChatImage } from "@/hooks/useChatImage";
 import { useAuth } from "@/context/AuthContext";
 import { DEFAULT_TEMPLATES, insertTemplate } from "@/lib/chatTemplates";
 import { useColors } from "@/hooks/useColors";
@@ -136,9 +139,12 @@ function MessageBubble({
             : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
         ]}
       >
-        <Text style={[styles.bubbleText, { color: isOwn ? "#fff" : colors.foreground }]}>
-          {message.body}
-        </Text>
+        {message.attachmentUrl ? <ChatAttachmentImage attachmentUrl={message.attachmentUrl} /> : null}
+        {message.body ? (
+          <Text style={[styles.bubbleText, { color: isOwn ? "#fff" : colors.foreground }]}>
+            {message.body}
+          </Text>
+        ) : null}
         <Text
           style={[
             styles.bubbleTime,
@@ -176,6 +182,7 @@ export default function TrainerChatScreen() {
   const mayHaveOlder = selected ? messages.length >= messageLimit(user?.id ?? null, selected.clientId) : false;
 
   const sendMutation = useSendMessage();
+  const chatImage = useChatImage();
   const markReadMutation = useMarkAsRead();
 
   // Opened from a push: jump straight into that conversation
@@ -210,17 +217,26 @@ export default function TrainerChatScreen() {
 
   function handleSend() {
     const body = inputText.trim();
-    if (!body || !selected || !user || sendMutation.isPending) return;
+    const attached = chatImage.image;
+    if ((!body && !attached) || !selected || !user || sendMutation.isPending || chatImage.uploading) return;
     setInputText("");
+    chatImage.clear();
     sendMutation.mutate(
       {
         recipientId: selected.partnerId,
         body,
+        attachmentUrl: attached?.objectPath,
+        attachmentPreview: attached?.localUri,
         trainerId: user.id,
         clientId: selected.clientId,
         senderId: user.id,
       },
-      { onError: () => setInputText(body) }
+      {
+        onError: () => {
+          setInputText(body);
+          if (attached) chatImage.restore(attached);
+        },
+      }
     );
   }
 
@@ -323,6 +339,15 @@ export default function TrainerChatScreen() {
           ))}
         </ScrollView>
 
+        {chatImage.image ? (
+          <View style={[styles.attachPreview, { backgroundColor: colors.background }]} testID="chat-image-preview">
+            <Image source={{ uri: chatImage.image.localUri }} style={styles.attachPreviewImage} />
+            <Text style={{ flex: 1, fontSize: 13, color: colors.mutedForeground }}>Zdjęcie dołączone do wiadomości</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Usuń zdjęcie" onPress={chatImage.clear} testID="button-remove-chat-image">
+              <Ionicons name="close-circle" size={22} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
+        ) : null}
         <View
           style={[
             styles.inputRow,
@@ -335,6 +360,20 @@ export default function TrainerChatScreen() {
             },
           ]}
         >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Dodaj zdjęcie"
+            onPress={chatImage.pick}
+            disabled={chatImage.uploading || sendMutation.isPending}
+            style={({ pressed }) => [styles.attachBtn, { borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}
+            testID="button-add-chat-image"
+          >
+            {chatImage.uploading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Ionicons name="image-outline" size={20} color={colors.primary} />
+            )}
+          </Pressable>
           <TextInput
             style={[
               styles.input,
@@ -352,11 +391,11 @@ export default function TrainerChatScreen() {
           />
           <Pressable accessibilityRole="button" accessibilityLabel="Wyślij wiadomość"
             onPress={handleSend}
-            disabled={!inputText.trim() || sendMutation.isPending}
+            disabled={(!inputText.trim() && !chatImage.image) || sendMutation.isPending || chatImage.uploading}
             style={({ pressed }) => [
               styles.sendBtn,
               {
-                backgroundColor: inputText.trim() ? colors.primary : colors.border,
+                backgroundColor: inputText.trim() || chatImage.image ? colors.primary : colors.border,
                 opacity: pressed ? 0.75 : 1,
               },
             ]}
@@ -619,6 +658,9 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     maxHeight: 120,
   },
+  attachBtn: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, justifyContent: "center", alignItems: "center" },
+  attachPreview: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 8 },
+  attachPreviewImage: { width: 56, height: 56, borderRadius: 10 },
   sendBtn: {
     width: 42,
     height: 42,

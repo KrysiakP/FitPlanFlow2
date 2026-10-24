@@ -436,7 +436,8 @@ export const messages = pgTable("messages", {
   clientId: varchar("client_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   senderId: varchar("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   recipientId: varchar("recipient_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  body: text("body").notNull(),
+  body: text("body").notNull(), // may be empty when the message is only an image
+  attachmentUrl: text("attachment_url"), // an image of the conversation: /objects/uploads/<uuid>
   readAt: timestamp("read_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
@@ -1186,7 +1187,7 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
   createdAt: true,
   readAt: true,
 }).extend({
-  body: z.string().min(1, "Wiadomość nie może być pusta").max(5000, "Wiadomość może mieć maksymalnie 5000 znaków"),
+  body: z.string().max(5000, "Wiadomość może mieć maksymalnie 5000 znaków"), // empty only together with an image (checked by checkChatPayload)
 });
 
 // SECURITY: Client should only send recipientId and body - server derives all other IDs from session

@@ -4,7 +4,7 @@ Legenda: `[ ]` do zrobienia, `[x]` zrobione, `[Ty]` wymaga właściciela (konta,
 Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 → 2 → 4 → 5 → 9 → 10.
 
 ## 0. Wdrożenie
-1. [Ty] Publikacja API w Replit z zatwierdzeniem zmian w bazie (12 nowych tabel, 14 kolumn, indeksy) albo uruchomienie `docs/migracje/2026-10-nowe-funkcje.sql` w konsoli bazy
+1. [Ty] Publikacja API w Replit z zatwierdzeniem zmian w bazie (12 nowych tabel, 15 kolumn, indeksy) albo uruchomienie `docs/migracje/2026-10-nowe-funkcje.sql` w konsoli bazy
 2. [Ty] Sekret `CRON_JOB_TOKEN` + codzienny harmonogram
 3. [Ty] Nowe buildy EAS iOS/Android
 4. [Ty] Sekrety i ceny Stripe
@@ -76,7 +76,7 @@ Kolejność prac: sekcja 8 (jakość) → 7 (bezpieczeństwo) → 6 → 3 → 1 
 58. [x] Cichy tryb (presety godzin, czas polski; historia zachowana, telefon nie dzwoni)
 59. [x] E-mail jako kanał zapasowy: ważne powiadomienia (termin, odwołanie, przypomnienie, nowy plan, zaakceptowane zaproszenie) przychodzą e-mailem, gdy użytkownik nie ma tokenu push i ma zweryfikowany adres; wyłączane w ustawieniach powiadomień („E-mail, gdy nie masz aplikacji"); wymaga działającego Resend (klucz już jest używany do reszty maili)
 60. [x] Dzienne podsumowanie trenera: push „Twój dzień" (sesje dziś + nieotwarte raporty, tylko gdy coś jest, raz na 18 h, można wyciszyć); z crona
-61. [~] Czat: „Przeczytano" pod ostatnią przeczytaną wiadomością (web + aplikacja klienta i trenera, testy); załączniki jeszcze nie
+61. [x] Czat: „Przeczytano" pod ostatnią przeczytaną wiadomością (web + aplikacja klienta i trenera, testy); załączniki: jedno zdjęcie w wiadomości (JPG/PNG/WebP/GIF/HEIC do 10 MB, wiadomość może być samym zdjęciem; web i aplikacja klienta i trenera; kolumna `messages.attachment_url` wymaga migracji; plik prywatny, otwierają go tylko nadawca i odbiorca). Przesyłanie do magazynu obiektów działa tylko na Replit, więc lokalnie sprawdzone są: walidacja API, reguły dostępu, wyświetlanie i typy — pierwszy prawdziwy upload trzeba sprawdzić po publikacji (checklista); przy okazji poprawione zawijanie bardzo długich słów w dymkach
 62. [x] Głębsze linki z powiadomień: nowa wiadomość na czacie wysyła push (gdy odbiorca nie ma otwartego połączenia na żywo; nadawca + podgląd do 100 znaków), a stuknięcie otwiera czat — u trenera od razu rozmowę z danym podopiecznym; web ma mapę rodzaj → strona
 63. [x] Centrum powiadomień na web: dzwonek klienta z historią, licznikiem, „oznacz wszystkie" i przejściem do właściwej strony (trener miał już własny dzwonek)
 

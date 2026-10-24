@@ -41,7 +41,7 @@ export const HAS_SESSION_KEY = "pt_has_session";
 // cross-site cookie blocking in Replit's iframe / web preview environment.
 const MOBILE_TOKEN_KEY = "pt_mobile_token";
 
-async function getMobileToken(): Promise<string | null> {
+export async function getMobileToken(): Promise<string | null> {
   try {
     if (Platform.OS === "web") return localStorage.getItem(MOBILE_TOKEN_KEY);
     return await SecureStore.getItemAsync(MOBILE_TOKEN_KEY);
@@ -130,6 +130,7 @@ function buildBaseUrl(): string {
 }
 
 const BASE_URL = buildBaseUrl();
+export const API_BASE_URL = BASE_URL;
 
 export async function hasStoredSession(): Promise<boolean> {
   if (Platform.OS === "web") return !!localStorage.getItem(HAS_SESSION_KEY);

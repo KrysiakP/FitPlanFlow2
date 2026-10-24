@@ -370,6 +370,7 @@ export interface IStorage {
   getClientExerciseNotes(clientId: string, limit?: number): Promise<{ id: string; exercise: string; note: string; load: string | null; reps: number; loggedAt: Date }[]>;
   getLatestAssignmentsWithPlans(trainerId: string, clientIds: string[]): Promise<Map<string, { assignment: PlanAssignment; plan: TrainingPlan }>>;
   getReportPhotoOwner(objectPath: string): Promise<string | null>;
+  isChatAttachmentParticipant(objectPath: string, userId: string): Promise<boolean>;
   setTotpSecret(userId: string, sealedSecret: string): Promise<void>;
   enableTotp(userId: string, backupCodeHashes: string[]): Promise<void>;
   disableTotp(userId: string): Promise<void>;
@@ -2590,7 +2591,7 @@ export class DatabaseStorage implements IStorage {
             partnerAvatar: (client as any).profileImageDisplayUrl || client.profileImageUrl,
             trainerId: userId,
             clientId: client.id,
-            lastMessage: lastMsg?.body || null,
+            lastMessage: lastMsg?.body || (lastMsg?.attachmentUrl ? "Zdjęcie" : null),
             lastMessageAt: lastMsg?.createdAt || null,
             unreadCount: unreadResult[0]?.count || 0,
           };
@@ -3636,6 +3637,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   // The client a weekly-report photo belongs to (null when the file is not a report photo)
+  // Whether the user sent or received a chat message carrying this image
+  async isChatAttachmentParticipant(objectPath: string, userId: string): Promise<boolean> {
+    const [row] = await db
+      .select({ id: messages.id })
+      .from(messages)
+      .where(and(eq(messages.attachmentUrl, objectPath), or(eq(messages.senderId, userId), eq(messages.recipientId, userId))))
+      .limit(1);
+    return !!row;
+  }
+
   async getReportPhotoOwner(objectPath: string): Promise<string | null> {
     const [row] = await db.select({ clientId: weeklyReports.clientId }).from(weeklyReports).where(eq(weeklyReports.photoUrl, objectPath)).limit(1);
     return row?.clientId ?? null;

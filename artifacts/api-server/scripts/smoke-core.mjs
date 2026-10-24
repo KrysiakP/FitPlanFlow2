@@ -738,6 +738,24 @@ test("notes written next to a set reach the trainer, and only the right trainer"
   assert.equal(tooLong.status, 400, "a set note is capped at 500 characters");
 });
 
+test("a chat message needs text or an image, and an image must be a real upload path", async () => {
+  const send = (who, to, payload) => call(who, "POST", "/api/chat/messages", { recipientId: to, ...payload });
+  assert.equal((await send(client, trainer.id, { body: "" })).status, 400, "empty");
+  assert.equal((await send(client, trainer.id, {})).status, 400, "nothing at all");
+  assert.equal((await send(client, trainer.id, { body: "   " })).status, 400, "only spaces");
+  for (const bad of ["https://evil.example/x.png", "/objects/uploads/../secret", "/objects/uploads/abc", "javascript:alert(1)"]) {
+    assert.equal((await send(client, trainer.id, { body: "zdjęcie", attachmentUrl: bad })).status, 400, `image ${bad}`);
+    assert.equal((await send(client, trainer.id, { body: "", attachmentUrl: bad })).status, 400, `image only ${bad}`);
+  }
+  assert.equal((await send(client, trainer.id, { body: 5 })).status, 400, "text must be text");
+  // the object storage is not available in this environment: a valid-looking path must still never be stored unchecked
+  const unchecked = await send(client, trainer.id, { body: "", attachmentUrl: "/objects/uploads/3f2b8c1e-5a47-4d9b-8e21-0c6f7a9d1b34" });
+  assert.ok(unchecked.status >= 400, "an image that was never uploaded is refused");
+  const feed = await (await call(trainer, "GET", `/api/chat/messages/${trainer.id}/${client.id}?limit=50`)).json();
+  assert.ok(!feed.some((message) => message.attachmentUrl), "nothing with an image was saved");
+  assert.equal((await send(outsider, client.id, { body: "obcy" })).status, 403, "other roles still cannot write");
+});
+
 test("the health endpoint answers without a login", async () => {
   const res = await fetch(`${API_URL}/api/health`);
   assert.equal(res.status, 200);

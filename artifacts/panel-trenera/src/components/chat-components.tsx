@@ -7,7 +7,9 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Send, Loader2, Bookmark, X } from "lucide-react";
+import { Send, Loader2, Bookmark, X, ImagePlus } from "lucide-react";
+import { chatImageProblem, uploadChatImage } from "@/lib/chatImage";
+import { useToast } from "@/hooks/use-toast";
 import { addTemplate, DEFAULT_TEMPLATES, insertTemplate, loadCustomTemplates, saveCustomTemplates } from "@/lib/chatTemplates";
 import type { Message } from "@shared/schema";
 import type { Conversation } from "@/hooks/use-chat";
@@ -194,19 +196,32 @@ export function MessageHistory({
             data-testid={`message-${message.id}`}
           >
             <Card
-              className={`max-w-[70%] p-3 ${
+              className={`max-w-[70%] min-w-0 p-3 ${
                 isOwnMessage
                   ? "bg-primary text-primary-foreground"
                   : ""
               }`}
               data-testid={`message-card-${message.id}`}
             >
-              <p
-                className="text-sm whitespace-pre-wrap break-words"
-                data-testid={`message-body-${message.id}`}
-              >
-                {message.body}
-              </p>
+              {message.attachmentUrl && (
+                <a href={message.attachmentUrl} target="_blank" rel="noopener noreferrer" className="block mb-2" data-testid={`message-image-link-${message.id}`}>
+                  <img
+                    src={message.attachmentUrl}
+                    alt="Zdjęcie w wiadomości"
+                    loading="lazy"
+                    className="max-h-64 w-auto max-w-full rounded-md object-cover"
+                    data-testid={`message-image-${message.id}`}
+                  />
+                </a>
+              )}
+              {message.body && (
+                <p
+                  className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]"
+                  data-testid={`message-body-${message.id}`}
+                >
+                  {message.body}
+                </p>
+              )}
               <p
                 className={`text-xs mt-2 ${
                   isOwnMessage
@@ -232,7 +247,7 @@ export function MessageHistory({
 }
 
 interface MessageComposerProps {
-  onSend: (body: string) => Promise<void> | void;
+  onSend: (body: string, attachmentUrl?: string) => Promise<void> | void;
   isSending: boolean;
   disabled?: boolean;
   /** Trainers get ready-made replies above the box (defaults plus their own, kept in this browser). */
@@ -245,22 +260,47 @@ export function MessageComposer({
   disabled = false,
   quickReplies = false,
 }: MessageComposerProps) {
+  const { toast } = useToast();
   const [message, setMessage] = useState("");
+  // an image already uploaded and waiting to be sent with the message
+  const [image, setImage] = useState<{ objectPath: string; previewUrl: string | null } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [custom, setCustom] = useState<string[]>(() => (quickReplies ? loadCustomTemplates() : []));
   const updateCustom = (next: string[]) => {
     setCustom(next);
     saveCustomTemplates(next);
   };
 
+  const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const problem = chatImageProblem(file);
+    if (problem) {
+      toast({ title: "Nie można wysłać tego pliku", description: problem, variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    try {
+      setImage(await uploadChatImage(file));
+    } catch (error) {
+      toast({ title: "Nie udało się przesłać zdjęcia", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = message.trim();
-    if (!trimmed || isSending) return;
+    if ((!trimmed && !image) || isSending || uploading) return;
     try {
-      await onSend(trimmed);
+      await onSend(trimmed, image?.objectPath);
       // Only clear once the send actually succeeded — on failure, keep the
       // text so the trainer/client doesn't lose what they typed.
       setMessage("");
+      setImage(null);
     } catch {
       // onSend already surfaces an error toast; leave the text in place.
     }
@@ -311,11 +351,32 @@ export function MessageComposer({
           )}
         </div>
       )}
+    {image && (
+      <div className="flex items-center gap-3 px-4 pt-3" data-testid="chat-image-preview">
+        {image.previewUrl && <img src={image.previewUrl} alt="Wybrane zdjęcie" className="h-16 w-16 rounded-md object-cover" />}
+        <span className="text-sm text-muted-foreground">Zdjęcie dołączone do wiadomości</span>
+        <Button type="button" variant="ghost" size="icon" aria-label="Usuń zdjęcie" onClick={() => setImage(null)} data-testid="button-remove-chat-image">
+          <X className="w-4 h-4" />
+        </Button>
+      </div>
+    )}
     <form
       onSubmit={handleSubmit}
       className="flex items-end gap-2 p-4"
       data-testid="message-composer"
     >
+      <input ref={fileInput} type="file" accept="image/*" className="hidden" onChange={handleFile} data-testid="input-chat-image" />
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        aria-label="Dodaj zdjęcie"
+        onClick={() => fileInput.current?.click()}
+        disabled={disabled || isSending || uploading}
+        data-testid="button-add-chat-image"
+      >
+        {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+      </Button>
       <Textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
@@ -328,7 +389,7 @@ export function MessageComposer({
       <Button
         type="submit"
         size="icon"
-        disabled={!message.trim() || isSending || disabled}
+        disabled={(!message.trim() && !image) || isSending || uploading || disabled}
         data-testid="button-send-message"
       >
         {isSending ? (

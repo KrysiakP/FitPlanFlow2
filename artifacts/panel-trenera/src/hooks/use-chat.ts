@@ -52,6 +52,7 @@ export function useSendMessage() {
     mutationFn: async (data: {
       recipientId: string;
       body: string;
+      attachmentUrl?: string; // an image uploaded through /api/objects/upload
       trainerId: string; // Only for cache invalidation, not sent to server
       clientId: string;  // Only for cache invalidation, not sent to server
     }) => {
@@ -59,6 +60,7 @@ export function useSendMessage() {
       return await apiRequest("POST", "/api/chat/messages", {
         recipientId: data.recipientId,
         body: data.body,
+        ...(data.attachmentUrl ? { attachmentUrl: data.attachmentUrl } : {}),
       });
     },
     onSuccess: (_, variables) => {

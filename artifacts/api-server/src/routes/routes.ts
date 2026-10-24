@@ -83,6 +83,7 @@ import { freeSlots, validateWindows } from "../lib/availability";
 import { proposeProgression } from "../lib/progression";
 import { findPlanTemplate, PLAN_TEMPLATES, planFromTemplate } from "../lib/planTemplates";
 import { snapshotPlan, snapshotSummary, type PlanSnapshot } from "../lib/planSnapshot";
+import { checkChatPayload } from "../lib/chatAttachment";
 import { CANCELLATION_NOTICE_HOURS, cancellableUntil, canClientCancel } from "../lib/sessionCancellation";
 import { buildIcs, type IcsEvent } from "../lib/ics";
 import { sanitizeLabels } from "../lib/clientLabels";
@@ -586,7 +587,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ownerId = reportPhotoOwnerId ?? aclPolicy?.owner;
       const requester = userId ? await storage.getUser(userId) : undefined;
       const userIsTrainerOfOwner = !!(requester?.role === "trainer" && ownerId && (await storage.hasActiveClientRelationship(requester.id, ownerId)));
-      if (!canOpenObject({ userId, visibility: aclPolicy?.visibility, ownerId: aclPolicy?.owner, reportPhotoOwnerId, userIsTrainerOfOwner })) {
+      // an image of a chat message may be opened by whoever sent or received it
+      const chatParticipant = !!userId && (await storage.isChatAttachmentParticipant(req.path, userId).catch(() => false));
+      if (!canOpenObject({ userId, visibility: aclPolicy?.visibility, ownerId: aclPolicy?.owner, reportPhotoOwnerId, userIsTrainerOfOwner, chatParticipant })) {
         return res.sendStatus(401);
       }
       objectStorageService.downloadObject(objectFile, res);
@@ -6397,10 +6400,11 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
       }
 
       // SECURITY: Only accept recipientId and body from client - derive everything else
-      const { recipientId, body } = z.object({
-        recipientId: z.string().uuid("Nieprawidłowy ID odbiorcy"),
-        body: z.string().min(1, "Wiadomość nie może być pusta").max(5000, "Wiadomość może mieć maksymalnie 5000 znaków"),
-      }).parse(req.body);
+      const { recipientId } = z.object({ recipientId: z.string().uuid("Nieprawidłowy ID odbiorcy") }).parse(req.body);
+      // the text may be empty only when an image comes with it
+      const payload = checkChatPayload(req.body?.body, req.body?.attachmentUrl);
+      if (!payload.ok) return res.status(400).json({ message: payload.message });
+      const { body, attachmentUrl } = payload;
       
       // SECURITY: senderId is ALWAYS the authenticated user - never accept from client
       const senderId = userId;
@@ -6438,6 +6442,22 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         return res.status(403).json({ message: "Możesz wysyłać wiadomości tylko między trenerem a podopiecznym" });
       }
 
+      // An image must be a file the sender really uploaded; it then belongs to the sender and opens for the two of them only
+      if (attachmentUrl) {
+        const objectStorageService = new ObjectStorageService();
+        try {
+          const objectFile = await objectStorageService.getObjectEntityFile(attachmentUrl);
+          const existingAcl = await objectStorageService.getObjectAclPolicy(objectFile);
+          if (existingAcl && existingAcl.owner !== senderId) {
+            return res.status(403).json({ message: "Nie możesz użyć zdjęcia innego użytkownika" });
+          }
+          await objectStorageService.trySetObjectEntityAclPolicy(attachmentUrl, { owner: senderId, visibility: "private" });
+        } catch (error) {
+          if (error instanceof ObjectNotFoundError) return res.status(400).json({ message: "Zdjęcie nie zostało przesłane. Spróbuj ponownie." });
+          throw error;
+        }
+      }
+
       // Build message with all validated/derived IDs
       const messageData = {
         trainerId,
@@ -6445,6 +6465,7 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         senderId,
         recipientId,
         body,
+        attachmentUrl,
       };
 
       const message = await storage.createMessage(messageData);
@@ -6461,7 +6482,7 @@ ${stripeNote ? `<p>${stripeNote}</p>` : ""}`,
         void sendPushToUserAndRecord(
           recipientId,
           who,
-          chatPushPreview(body),
+          chatPushPreview(body, !!attachmentUrl),
           { type: "new_message", partnerId: senderId },
           "new_message"
         ).catch((err) => console.error("Failed to push chat message:", err));

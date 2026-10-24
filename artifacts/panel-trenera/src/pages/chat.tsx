@@ -106,13 +106,14 @@ export default function ChatPage() {
     }
   };
 
-  const handleSendMessage = async (body: string) => {
+  const handleSendMessage = async (body: string, attachmentUrl?: string) => {
     if (!selectedConversation || !user) return;
 
     // SECURITY: Only send recipientId and body - server derives senderId, trainerId, clientId from session
     const messageData = {
       recipientId: selectedConversation.partnerId,
       body,
+      attachmentUrl,
       // These are only for cache invalidation, not sent to server
       trainerId: selectedConversation.trainerId,
       clientId: selectedConversation.clientId,

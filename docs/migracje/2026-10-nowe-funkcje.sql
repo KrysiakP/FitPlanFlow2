@@ -133,6 +133,7 @@ CREATE TABLE IF NOT EXISTS "plan_templates" (
 ALTER TABLE "exercise_library" ADD COLUMN IF NOT EXISTS "is_favorite" boolean DEFAULT false NOT NULL;
 ALTER TABLE "weekly_reports" ADD COLUMN IF NOT EXISTS "trainer_comment" text;
 ALTER TABLE "weekly_reports" ADD COLUMN IF NOT EXISTS "trainer_commented_at" timestamp;
+ALTER TABLE "messages" ADD COLUMN IF NOT EXISTS "attachment_url" text;
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "totp_secret" text;
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "totp_enabled" boolean DEFAULT false NOT NULL;
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "totp_backup_codes" text[] DEFAULT '{}'::text[] NOT NULL;

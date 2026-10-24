@@ -19,6 +19,7 @@ export interface ChatMessage {
   trainerId: string;
   clientId: string;
   body: string;
+  attachmentUrl?: string | null; // an image: /objects/uploads/<uuid> (or a local file while it is being sent)
   createdAt: string;
   readAt: string | null;
 }
@@ -65,6 +66,8 @@ export function useUnreadCount() {
 interface SendMessageVars {
   recipientId: string;
   body: string;
+  attachmentUrl?: string; // an uploaded image (object path)
+  attachmentPreview?: string; // the local file, shown until the real message arrives
   trainerId: string;
   clientId: string;
   senderId: string;
@@ -77,6 +80,7 @@ export function useSendMessage() {
       apiPost<ChatMessage>("/api/chat/messages", {
         recipientId: data.recipientId,
         body: data.body,
+        ...(data.attachmentUrl ? { attachmentUrl: data.attachmentUrl } : {}),
       }),
 
     onMutate: async (variables) => {
@@ -91,6 +95,7 @@ export function useSendMessage() {
         trainerId: variables.trainerId,
         clientId: variables.clientId,
         body: variables.body,
+        attachmentUrl: variables.attachmentPreview ?? null,
         createdAt: new Date().toISOString(),
         readAt: null,
       };
