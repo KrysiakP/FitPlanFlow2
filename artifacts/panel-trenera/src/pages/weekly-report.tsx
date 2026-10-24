@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
+import { clampStep, firstStepWithError, REPORT_STEPS, stepClass } from "@/lib/reportWizard";
 import { CARRIED_FIELDS, prefillFromReports } from "@/lib/reportPrefill";
 import { DRAFT_FIELDS, parseDraft, serializeDraft } from "@/lib/reportDraft";
 import { useAuth } from "@/hooks/useAuth";
@@ -76,6 +77,9 @@ export default function WeeklyReport() {
   const [currentReportId, setCurrentReportId] = useState<string | null>(null);
   const [editingReportId, setEditingReportId] = useState<string | null>(null);
   const [hasNewUpload, setHasNewUpload] = useState<boolean>(false);
+  // On a phone the form is filled in step by step; from `md` up every step is visible at once
+  const [step, setStep] = useState(0);
+  const lastStep = REPORT_STEPS.length - 1;
 
   const form = useForm<InsertWeeklyReportInput>({
     resolver: zodResolver(insertWeeklyReportSchema),
@@ -227,6 +231,7 @@ export default function WeeklyReport() {
 
   const startEdit = (report: WeeklyReport & { photoOriginalPath?: string }) => {
     setEditingReportId(report.id);
+    setStep(0);
     
     // CRITICAL FIX: Don't put presigned photoUrl in form data!
     // The form field is only for validation, actual photo saving uses tempObjectPath
@@ -287,6 +292,7 @@ export default function WeeklyReport() {
 
   const cancelEdit = () => {
     setEditingReportId(null);
+    setStep(0);
     form.reset();
     applyPrefill();
     setUploadedPhotoUrl("");
@@ -298,6 +304,15 @@ export default function WeeklyReport() {
 
   const onSubmit = (data: InsertWeeklyReportInput) => {
     saveReportMutation.mutate(data);
+  };
+
+  // Going on checks the fields of this step only; a failed save jumps to the first step with an error
+  const goNext = async () => {
+    if (await form.trigger(REPORT_STEPS[step].fields as never)) setStep(clampStep(step + 1));
+  };
+  const onInvalid = (errors: Record<string, unknown>) => {
+    const target = firstStepWithError(Object.keys(errors));
+    if (target !== null) setStep(target);
   };
 
   // A new report starts with the measurements and supplements from the previous ones; once, and never over typed text
@@ -379,7 +394,18 @@ export default function WeeklyReport() {
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="flex flex-col gap-6">
+              <div className="md:hidden space-y-2" data-testid="report-steps">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium" data-testid="text-report-step">{REPORT_STEPS[step].title}</span>
+                  <span className="text-muted-foreground">Krok {step + 1} z {REPORT_STEPS.length}</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden" role="progressbar" aria-valuemin={1} aria-valuemax={REPORT_STEPS.length} aria-valuenow={step + 1}>
+                  <div className="h-full bg-primary transition-all" style={{ width: `${((step + 1) / REPORT_STEPS.length) * 100}%` }} />
+                </div>
+              </div>
+
+              <div className={`space-y-6 ${stepClass(step, 0)}`}>
               <FormField
                 control={form.control}
                 name="reportDate"
@@ -460,8 +486,9 @@ export default function WeeklyReport() {
                   )}
                 />
               </div>
+              </div>
 
-              <div>
+              <div className={stepClass(step, 1)}>
                 <h3 className="font-heading font-semibold text-lg mb-4 flex items-center gap-2">
                   <Activity className="w-5 h-5" />
                   Pomiary (w cm)
@@ -564,7 +591,7 @@ export default function WeeklyReport() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${stepClass(step, 2)}`}>
                 <FormField
                   control={form.control}
                   name="cardio"
@@ -675,6 +702,7 @@ export default function WeeklyReport() {
                 />
               </div>
 
+              <div className={stepClass(step, 3)}>
               <FormField
                 control={form.control}
                 name="photoUrl"
@@ -715,12 +743,24 @@ export default function WeeklyReport() {
                   </FormItem>
                 )}
               />
+              </div>
+
+              <div className="flex gap-3 md:hidden" data-testid="report-step-nav">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setStep(clampStep(step - 1))} disabled={step === 0} data-testid="button-step-back">
+                  Wstecz
+                </Button>
+                {step < lastStep && (
+                  <Button type="button" className="flex-1" onClick={goNext} data-testid="button-step-next">
+                    Dalej
+                  </Button>
+                )}
+              </div>
 
               <div className="flex gap-4">
                 <Button
                   type="submit"
                   disabled={saveReportMutation.isPending}
-                  className="w-full md:w-auto"
+                  className={`w-full md:w-auto ${step < lastStep ? "hidden md:inline-flex" : ""}`}
                   data-testid="button-save-report"
                 >
                   {saveReportMutation.isPending ? "Zapisywanie..." : (editingReportId ? "Zaktualizuj raport" : "Zapisz raport")}

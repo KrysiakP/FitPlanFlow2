@@ -26,6 +26,7 @@ import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { apiGet, apiPost, apiPatch, uploadImageToObjectStorage, setReportPhoto } from "@/lib/api";
+import { canLeaveStep, clampStep, REPORT_STEP_TITLES } from "@/lib/reportWizard";
 
 function getWeekStartKey(date: Date): string {
   const d = new Date(date);
@@ -141,6 +142,7 @@ export default function WeeklyReportScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const [modalVisible, setModalVisible] = useState(false);
+  const [step, setStep] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ReportFormData>(EMPTY_FORM);
   const { user } = useAuth();
@@ -320,6 +322,7 @@ export default function WeeklyReportScreen() {
     setHasNewUpload(false);
     setExistingPhotoUrl(null);
     setPhotoRemoved(false);
+    setStep(0);
     setModalVisible(true);
   }
 
@@ -345,6 +348,7 @@ export default function WeeklyReportScreen() {
     setHasNewUpload(false);
     setExistingPhotoUrl(report.photoUrl ?? null);
     setPhotoRemoved(false);
+    setStep(0);
     setModalVisible(true);
   }
 
@@ -356,6 +360,14 @@ export default function WeeklyReportScreen() {
     setHasNewUpload(false);
     setExistingPhotoUrl(null);
     setPhotoRemoved(false);
+  }
+
+  function goNext() {
+    if (!canLeaveStep(step, reportDate)) {
+      Alert.alert("Data raportu", "Wpisz datę w formacie RRRR-MM-DD, np. 2026-10-19.");
+      return;
+    }
+    setStep((current) => clampStep(current + 1));
   }
 
   function handleSave() {
@@ -462,12 +474,28 @@ export default function WeeklyReportScreen() {
               </Pressable>
             </View>
 
+            <View style={styles.stepBar} testID="report-steps">
+              <View style={styles.stepBarRow}>
+                <Text style={[styles.stepTitle, { color: colors.foreground }]} testID="text-report-step">
+                  {REPORT_STEP_TITLES[step]}
+                </Text>
+                <Text style={[styles.stepCount, { color: colors.mutedForeground }]}>
+                  Krok {step + 1} z {REPORT_STEP_TITLES.length}
+                </Text>
+              </View>
+              <View style={[styles.stepTrack, { backgroundColor: colors.border }]}>
+                <View style={[styles.stepFill, { backgroundColor: colors.primary, width: `${((step + 1) / REPORT_STEP_TITLES.length) * 100}%` }]} />
+              </View>
+            </View>
+
             <ScrollView
               style={{ flex: 1 }}
               contentContainerStyle={styles.formContent}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
+              {step === 0 && (
+                <>
               <SectionLabel icon="calendar-outline" label="Data raportu" colors={colors} />
               <TextInput
                 style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
@@ -500,6 +528,11 @@ export default function WeeklyReportScreen() {
                 testID="input-saturation"
               />
 
+                </>
+              )}
+
+              {step === 1 && (
+                <>
               <Text style={[styles.groupTitle, { color: colors.foreground }]}>Pomiary (cm)</Text>
 
               <View style={styles.row}>
@@ -567,6 +600,11 @@ export default function WeeklyReportScreen() {
                 testID="input-leg"
               />
 
+                </>
+              )}
+
+              {step === 2 && (
+                <>
               <SectionLabel icon="bicycle-outline" label="Cardio" colors={colors} />
               <TextInput
                 style={[styles.textarea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
@@ -635,6 +673,11 @@ export default function WeeklyReportScreen() {
                 testID="input-thoughts"
               />
 
+                </>
+              )}
+
+              {step === 3 && (
+                <>
               <SectionLabel icon="camera-outline" label="Zdjęcie postępu" colors={colors} />
 
               {displayPhotoUri ? (
@@ -691,11 +734,43 @@ export default function WeeklyReportScreen() {
                 </Pressable>
               )}
 
+                </>
+              )}
+
               {saveMutation.isError && (
                 <Text style={styles.errorText}>
                   {(saveMutation.error as Error)?.message || "Błąd zapisu"}
                 </Text>
               )}
+
+              <View style={styles.stepNav}>
+                <Pressable
+                  onPress={() => setStep((current) => clampStep(current - 1))}
+                  disabled={step === 0}
+                  style={({ pressed }) => [styles.stepBtn, { borderColor: colors.border, opacity: step === 0 ? 0.4 : pressed ? 0.7 : 1 }]}
+                  testID="button-step-back"
+                >
+                  <Text style={[styles.stepBtnText, { color: colors.foreground }]}>Wstecz</Text>
+                </Pressable>
+                {step < REPORT_STEP_TITLES.length - 1 ? (
+                  <Pressable
+                    onPress={goNext}
+                    style={({ pressed }) => [styles.stepBtn, { backgroundColor: colors.primary, borderColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
+                    testID="button-step-next"
+                  >
+                    <Text style={[styles.stepBtnText, { color: colors.primaryForeground }]}>Dalej</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    onPress={handleSave}
+                    disabled={saveMutation.isPending}
+                    style={({ pressed }) => [styles.stepBtn, { backgroundColor: colors.primary, borderColor: colors.primary, opacity: pressed || saveMutation.isPending ? 0.7 : 1 }]}
+                    testID="button-save-report-step"
+                  >
+                    <Text style={[styles.stepBtnText, { color: colors.primaryForeground }]}>Zapisz raport</Text>
+                  </Pressable>
+                )}
+              </View>
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -947,6 +1022,15 @@ const styles = StyleSheet.create({
     minHeight: 90,
     textAlignVertical: "top",
   },
+  stepBar: { paddingHorizontal: 20, paddingTop: 12, gap: 6 },
+  stepBarRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
+  stepTitle: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  stepCount: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  stepTrack: { height: 6, borderRadius: 3, overflow: "hidden" },
+  stepFill: { height: 6, borderRadius: 3 },
+  stepNav: { flexDirection: "row", gap: 12, marginTop: 20 },
+  stepBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 14, borderRadius: 12, borderWidth: 1 },
+  stepBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   groupTitle: { fontSize: 15, fontFamily: "Inter_700Bold", marginTop: 16, marginBottom: 4 },
   row: { flexDirection: "row", gap: 12 },
   errorText: { fontSize: 13, color: "#e53935", fontFamily: "Inter_400Regular", marginTop: 8 },
